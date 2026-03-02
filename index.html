@@ -95,50 +95,76 @@
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdkdHJrcm54a2hpcWltdm1mcm1zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0NjYyODcsImV4cCI6MjA4ODA0MjI4N30.IYJR0fsehO0nXZ5YdEQ53S7Q1Z0e8qYSWdDeQkcTDS0'; // ⚠️ NO OLVIDES PEGARLA AQUÍ
         const clienteSupabase = supabase.createClient(supabaseUrl, supabaseKey);
 
+        // Variable global para guardar la empresa del usuario que inició sesión
+        let miEmpresaId = null;
+
         // --- 2. LÓGICA DE LOGIN ---
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
+            
+            // 1. Iniciamos sesión
             const { data, error } = await clienteSupabase.auth.signInWithPassword({ email, password });
 
             if (error) {
                 document.getElementById('login-error').classList.remove('hidden');
-            } else {
-                document.getElementById('login-container').classList.add('hidden');
-                document.getElementById('dashboard-container').classList.remove('hidden');
-                document.getElementById('user-email').innerText = data.user.email;
-                cargarCategorias(); // Cargamos los datos al entrar
+                return;
             }
+
+            // 2. Buscamos a qué empresa pertenece este usuario
+            const { data: perfilData, error: perfilError } = await clienteSupabase
+                .from('perfiles')
+                .select('id_empresa')
+                .eq('id_usuario', data.user.id)
+                .single();
+
+            if (perfilError || !perfilData) {
+                alert("Este usuario no tiene una empresa asignada en la base de datos.");
+                await clienteSupabase.auth.signOut();
+                return;
+            }
+
+            // 3. Guardamos el ID de la empresa y entramos al panel
+            miEmpresaId = perfilData.id_empresa;
+            
+            document.getElementById('login-container').classList.add('hidden');
+            document.getElementById('dashboard-container').classList.remove('hidden');
+            document.getElementById('user-email').innerText = data.user.email;
+            cargarCategorias();
         });
 
         async function cerrarSesion() {
             await clienteSupabase.auth.signOut();
+            miEmpresaId = null; // Borramos la memoria de la empresa
             document.getElementById('dashboard-container').classList.add('hidden');
             document.getElementById('login-container').classList.remove('hidden');
         }
 
-        // --- 3. LÓGICA DE CATEGORÍAS ---
+        // --- 3. LÓGICA DE CATEGORÍAS (AHORA FILTRADA POR EMPRESA) ---
         const listaCategorias = document.getElementById('lista-categorias');
         const formCategoria = document.getElementById('form-categoria');
 
-        // Función para leer categorías de la base de datos
         async function cargarCategorias() {
-            const { data, error } = await clienteSupabase.from('categorias').select('*').order('nombre', { ascending: true });
+            // EL TRUCO: .eq('id_empresa', miEmpresaId) filtra para traer SOLO lo tuyo
+            const { data, error } = await clienteSupabase
+                .from('categorias')
+                .select('*')
+                .eq('id_empresa', miEmpresaId) 
+                .order('nombre', { ascending: true });
             
             if (error) {
                 console.error("Error al cargar:", error);
                 return;
             }
 
-            listaCategorias.innerHTML = ''; // Limpiamos la lista
+            listaCategorias.innerHTML = ''; 
 
             if (data.length === 0) {
-                listaCategorias.innerHTML = '<li class="px-6 py-4 text-center text-slate-500 text-sm">No hay categorías registradas aún.</li>';
+                listaCategorias.innerHTML = '<li class="px-6 py-4 text-center text-slate-500 text-sm">No hay categorías en tu empresa aún.</li>';
                 return;
             }
 
-            // Dibujamos cada categoría en la pantalla
             data.forEach(categoria => {
                 const li = document.createElement('li');
                 li.className = 'px-6 py-4 flex justify-between items-center hover:bg-slate-50';
@@ -150,30 +176,31 @@
             });
         }
 
-        // Función para guardar una nueva categoría
         formCategoria.addEventListener('submit', async (e) => {
             e.preventDefault();
             const inputNombre = document.getElementById('nombre-categoria');
             const nombre = inputNombre.value.trim();
 
-            const { error } = await clienteSupabase.from('categorias').insert([{ nombre: nombre }]);
+            // EL TRUCO: Al guardar, le pegamos la etiqueta de tu empresa
+            const { error } = await clienteSupabase
+                .from('categorias')
+                .insert([{ nombre: nombre, id_empresa: miEmpresaId }]); 
 
             if (error) {
                 alert("Error al guardar: " + error.message);
             } else {
-                inputNombre.value = ''; // Limpiar el input
-                cargarCategorias(); // Recargar la lista
+                inputNombre.value = ''; 
+                cargarCategorias(); 
             }
         });
 
-        // Función para borrar una categoría
         async function borrarCategoria(id) {
             if(confirm("¿Estás seguro de eliminar esta categoría?")) {
                 const { error } = await clienteSupabase.from('categorias').delete().eq('id', id);
                 if(error) {
                     alert("No se puede eliminar: " + error.message);
                 } else {
-                    cargarCategorias(); // Recargar la lista
+                    cargarCategorias(); 
                 }
             }
         }
