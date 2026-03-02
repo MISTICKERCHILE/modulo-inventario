@@ -59,7 +59,7 @@ async function cargarLocaciones() {
 
 async function cargarLocacionesSelect() {
     const { data } = await clienteSupabase.from('locaciones').select('*').eq('id_empresa', miEmpresaId);
-    document.getElementById('sel-locacion').innerHTML = '<option value="">Elegir Lugar Físico...</option>' + data.map(l => `<option value="${l.id}">${l.nombre}</option>`).join('');
+    document.getElementById('sel-locacion').innerHTML = '<option value="">Elegir Sede...</option>' + data.map(l => `<option value="${l.id}">${l.nombre}</option>`).join('');
 }
 
 async function cargarUbicaciones() {
