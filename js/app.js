@@ -11,7 +11,7 @@ function cambiarVista(v) {
     document.getElementById(`vista-${v}`).classList.remove('hidden');
     document.getElementById(`btn-menu-${v}`).className = 'w-full flex items-center gap-3 px-4 py-3 bg-emerald-600 rounded-lg font-medium transition-colors';
     
-    if(v === 'catalogos') cambiarTab('categorias'); // << ESTO SOLUCIONA EL DETALLE: Abre categorías por defecto
+    if(v === 'catalogos') cambiarTab('categorias');
     if(v === 'productos') cargarProductos();
 }
 
@@ -42,7 +42,6 @@ async function cargarDatos() {
     ]);
 }
 
-// --- CATEGORIAS ---
 async function cargarCategorias() {
     const { data } = await clienteSupabase.from('categorias').select('*').eq('id_empresa', miEmpresaId).order('nombre');
     const lista = document.getElementById('lista-categorias');
@@ -55,7 +54,30 @@ async function cargarCategorias() {
     `).join('') : '<li class="p-6 text-center text-slate-400 text-sm italic">No hay categorías registradas</li>';
 }
 
-// --- LUGARES FÍSICOS (LOCACIONES) ---
+async function cargarUnidades() {
+    const { data } = await clienteSupabase.from('unidades').select('*').eq('id_empresa', miEmpresaId).order('nombre');
+    const lista = document.getElementById('lista-unidades');
+    if(!lista) return;
+    lista.innerHTML = data.length ? data.map(u => `
+        <li class="px-6 py-4 flex justify-between items-center hover:bg-slate-50">
+            <span>${u.nombre} (${u.abreviatura})</span>
+            <button onclick="eliminarReg('unidades', '${u.id}')" class="text-red-400 hover:text-red-600 text-sm">Borrar</button>
+        </li>
+    `).join('') : '<li class="p-6 text-center text-slate-400 text-sm italic">No hay unidades registradas</li>';
+}
+
+async function cargarProveedores() {
+    const { data } = await clienteSupabase.from('proveedores').select('*').eq('id_empresa', miEmpresaId).order('nombre');
+    const lista = document.getElementById('lista-proveedores');
+    if(!lista) return;
+    lista.innerHTML = data.length ? data.map(p => `
+        <li class="px-6 py-4 flex justify-between items-center hover:bg-slate-50">
+            <div><p class="font-medium">${p.nombre}</p><p class="text-xs text-slate-400">${p.nombre_contacto || ''}</p></div>
+            <button onclick="eliminarReg('proveedores', '${p.id}')" class="text-red-400 hover:text-red-600 text-sm">Borrar</button>
+        </li>
+    `).join('') : '<li class="p-6 text-center text-slate-400 text-sm italic">No hay proveedores registrados</li>';
+}
+
 async function cargarLocaciones() {
     const { data } = await clienteSupabase.from('locaciones').select('*').eq('id_empresa', miEmpresaId).order('nombre');
     const lista = document.getElementById('lista-locaciones');
@@ -74,20 +96,68 @@ async function cargarSelectLocaciones() {
     if(sel) sel.innerHTML = '<option value="">Elegir Lugar Físico...</option>' + data.map(l => `<option value="${l.id}">${l.nombre}</option>`).join('');
 }
 
-// --- UBICACIONES INTERNAS ---
 async function cargarUbicaciones() {
     const { data } = await clienteSupabase.from('ubicaciones_internas').select('*, locaciones(nombre)').eq('id_empresa', miEmpresaId);
     const lista = document.getElementById('lista-ubicaciones');
     if(!lista) return;
     lista.innerHTML = data.length ? data.map(u => `
         <li class="px-6 py-4 flex justify-between items-center hover:bg-slate-50">
-            <span>${u.nombre} <b class="text-emerald-600 ml-2">@${u.locaciones.nombre}</b></span>
+            <span>${u.nombre} <b class="text-emerald-600 ml-2">@${u.locaciones?.nombre || 'Sin lugar'}</b></span>
             <button onclick="eliminarReg('ubicaciones_internas', '${u.id}')" class="text-red-400 hover:text-red-600 text-sm">Borrar</button>
         </li>
     `).join('') : '<li class="p-6 text-center text-slate-400 text-sm italic">No hay ubicaciones internas registradas</li>';
 }
 
-// --- LOGIN (Asegurar carga al entrar) ---
+// --- FORMULARIOS (CON PREVENT DEFAULT) ---
+document.getElementById('form-categoria').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    await clienteSupabase.from('categorias').insert([{ nombre: document.getElementById('nombre-categoria').value, id_empresa: miEmpresaId }]);
+    document.getElementById('nombre-categoria').value = '';
+    cargarCategorias();
+});
+
+document.getElementById('form-unidad').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    await clienteSupabase.from('unidades').insert([{ nombre: document.getElementById('nombre-unidad').value, abreviatura: document.getElementById('abrev-unidad').value, id_empresa: miEmpresaId }]);
+    document.getElementById('form-unidad').reset();
+    cargarUnidades();
+});
+
+document.getElementById('form-proveedor').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    await clienteSupabase.from('proveedores').insert([{
+        nombre: document.getElementById('nombre-proveedor').value,
+        nombre_contacto: document.getElementById('contacto-proveedor').value,
+        lapso_entrega_dias: document.getElementById('tiempo-entrega').value || null,
+        id_empresa: miEmpresaId
+    }]);
+    document.getElementById('form-proveedor').reset();
+    cargarProveedores();
+});
+
+document.getElementById('form-locacion').addEventListener('submit', async (e) => {
+    e.preventDefault(); // << ESTO EVITA QUE SE SALGA DE LA CUENTA
+    await clienteSupabase.from('locaciones').insert([{ 
+        nombre: document.getElementById('nombre-locacion').value, 
+        direccion: document.getElementById('dir-locacion').value, 
+        id_empresa: miEmpresaId 
+    }]);
+    document.getElementById('form-locacion').reset();
+    cargarLocaciones();
+});
+
+document.getElementById('form-ubicacion').addEventListener('submit', async (e) => {
+    e.preventDefault(); // << ESTO EVITA QUE SE SALGA DE LA CUENTA
+    await clienteSupabase.from('ubicaciones_internas').insert([{ 
+        nombre: document.getElementById('nombre-ubicacion').value, 
+        id_locacion: document.getElementById('sel-locacion-ubi').value, 
+        id_empresa: miEmpresaId 
+    }]);
+    document.getElementById('form-ubicacion').reset();
+    cargarUbicaciones();
+});
+
+// --- LOGIN ---
 document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const { data, error } = await clienteSupabase.auth.signInWithPassword({
@@ -103,7 +173,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     document.getElementById('dashboard-container').classList.remove('hidden');
     document.getElementById('user-email-display').innerText = data.user.email;
     
-    cambiarVista('catalogos'); // << Al entrar, abre catálogos y activa la primera pestaña
+    cambiarVista('catalogos');
 });
 
 async function eliminarReg(t, id) {
@@ -111,4 +181,9 @@ async function eliminarReg(t, id) {
         await clienteSupabase.from(t).delete().eq('id', id);
         cargarDatos();
     }
+}
+
+async function cerrarSesion() {
+    await clienteSupabase.auth.signOut();
+    location.reload();
 }
