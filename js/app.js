@@ -1,4 +1,6 @@
-// --- LOGIN Y SESIÓN ---
+let productoActualParaReceta = null;
+
+// --- LOGIN Y NAVEGACIÓN ---
 document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const { data, error } = await clienteSupabase.auth.signInWithPassword({
@@ -11,72 +13,103 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     miEmpresaId = perfil.id_empresa;
     document.getElementById('login-container').classList.add('hidden');
     document.getElementById('dashboard-container').classList.remove('hidden');
-    cargarDatos();
+    cargarDatosSelects(); // Pre-cargar listas
 });
 
-async function cerrarSesion() { await clienteSupabase.auth.signOut(); location.reload(); }
+function cerrarSesion() { location.reload(); }
 
-// --- NAVEGACIÓN ---
 function cambiarVista(v) {
-    document.getElementById('vista-catalogos').style.display = v === 'catalogos' ? 'block' : 'none';
-    document.getElementById('vista-productos').style.display = v === 'productos' ? 'block' : 'none';
-    if(v === 'productos') { cargarDatosSelects(); cargarProductos(); }
+    const vistas = ['catalogos', 'productos', 'recetas'];
+    vistas.forEach(vis => document.getElementById(`vista-${vis}`).classList.add('hidden'));
+    document.getElementById(`vista-${v}`).classList.remove('hidden');
+    
+    if(v === 'productos') cargarProductos();
 }
-
-function cambiarTab(tab) {
-    const tabs = ['categorias', 'unidades', 'proveedores', 'locaciones', 'ubicaciones'];
-    tabs.forEach(t => {
-        document.getElementById(`seccion-${t}`).style.display = tab === t ? 'block' : 'none';
-        document.getElementById(`tab-${t}`).className = tab === t ? 'px-6 py-3 font-medium text-emerald-600 border-b-2 border-emerald-600 bg-emerald-50/50' : 'px-6 py-3 font-medium text-gray-500';
-    });
-    if(tab === 'ubicaciones') cargarLocacionesSelect();
-}
-
-// --- CARGA DE DATOS ---
-async function cargarDatos() { 
-    cargarCategorias(); cargarUnidades(); cargarProveedores(); cargarLocaciones(); cargarUbicaciones(); 
-}
-
-async function cargarCategorias() {
-    const { data } = await clienteSupabase.from('categorias').select('*').eq('id_empresa', miEmpresaId).order('nombre');
-    document.getElementById('lista-categorias').innerHTML = data.map(c => `<li class="p-4 flex justify-between"><span>${c.nombre}</span><button onclick="borrarReg('categorias','${c.id}')" class="text-red-500">Borrar</button></li>`).join('');
-}
-
-async function cargarUnidades() {
-    const { data } = await clienteSupabase.from('unidades').select('*').eq('id_empresa', miEmpresaId).order('nombre');
-    document.getElementById('lista-unidades').innerHTML = data.map(u => `<li class="p-4 flex justify-between"><span>${u.nombre} (${u.abreviatura})</span><button onclick="borrarReg('unidades','${u.id}')" class="text-red-500">Borrar</button></li>`).join('');
-}
-
-async function cargarProveedores() {
-    const { data } = await clienteSupabase.from('proveedores').select('*').eq('id_empresa', miEmpresaId).order('nombre');
-    document.getElementById('lista-proveedores').innerHTML = data.map(p => `<li class="p-4 flex justify-between"><div><b>${p.nombre}</b><p class="text-xs text-gray-500">${p.nombre_contacto || ''}</p></div><button onclick="borrarReg('proveedores','${p.id}')" class="text-red-500">Borrar</button></li>`).join('');
-}
-
-async function cargarLocaciones() {
-    const { data } = await clienteSupabase.from('locaciones').select('*').eq('id_empresa', miEmpresaId).order('nombre');
-    document.getElementById('lista-locaciones').innerHTML = data.map(l => `<li class="p-4 flex justify-between"><div><b>${l.nombre}</b><p class="text-xs text-gray-500">${l.direccion || ''}</p></div><button onclick="borrarReg('locaciones','${l.id}')" class="text-red-500">Borrar</button></li>`).join('');
-}
-
-async function cargarLocacionesSelect() {
-    const { data } = await clienteSupabase.from('locaciones').select('*').eq('id_empresa', miEmpresaId);
-    document.getElementById('sel-locacion').innerHTML = '<option value="">Elegir Sede...</option>' + data.map(l => `<option value="${l.id}">${l.nombre}</option>`).join('');
-}
-
-async function cargarUbicaciones() {
-    const { data } = await clienteSupabase.from('ubicaciones_internas').select('*, locaciones(nombre)').eq('id_empresa', miEmpresaId);
-    document.getElementById('lista-ubicaciones').innerHTML = data.map(u => `<li class="p-4 flex justify-between"><span>${u.nombre} <b class="text-emerald-600">(@${u.locaciones.nombre})</b></span><button onclick="borrarReg('ubicaciones_internas','${u.id}')" class="text-red-500">Borrar</button></li>`).join('');
-}
-
-// --- FORMULARIOS ---
-document.getElementById('form-categoria').addEventListener('submit', async (e) => { e.preventDefault(); await clienteSupabase.from('categorias').insert([{ nombre: document.getElementById('nombre-categoria').value, id_empresa: miEmpresaId }]); cargarCategorias(); });
-document.getElementById('form-locacion').addEventListener('submit', async (e) => { e.preventDefault(); await clienteSupabase.from('locaciones').insert([{ nombre: document.getElementById('nombre-locacion').value, direccion: document.getElementById('dir-locacion').value, id_empresa: miEmpresaId }]); cargarLocaciones(); });
-document.getElementById('form-ubicacion').addEventListener('submit', async (e) => { e.preventDefault(); await clienteSupabase.from('ubicaciones_internas').insert([{ nombre: document.getElementById('nombre-ubicacion').value, id_locacion: document.getElementById('sel-locacion').value, id_empresa: miEmpresaId }]); cargarUbicaciones(); });
-
-async function borrarReg(t, id) { if(confirm("¿Seguro?")) { await clienteSupabase.from(t).delete().eq('id', id); cargarDatos(); } }
 
 // --- PRODUCTOS ---
-async function cargarDatosSelects() {
-    const { data: cats } = await clienteSupabase.from('categorias').select('*').eq('id_empresa', miEmpresaId);
-    document.getElementById('prod-categoria').innerHTML = cats.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+function mostrarFormProducto() { document.getElementById('panel-form-producto').classList.remove('hidden'); }
+
+async function cargarProductos() {
+    const { data } = await clienteSupabase.from('productos').select('*').eq('id_empresa', miEmpresaId).order('nombre');
+    const tbody = document.getElementById('lista-productos');
+    tbody.innerHTML = data.map(p => `
+        <tr class="hover:bg-slate-50">
+            <td class="px-6 py-4 font-medium">${p.nombre}</td>
+            <td class="px-6 py-4">
+                ${p.tiene_receta ? '<span class="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold">Con Receta</span>' : '<span class="text-gray-400 text-xs italic">Simple</span>'}
+            </td>
+            <td class="px-6 py-4 text-right">
+                ${p.tiene_receta ? `<button onclick="abrirReceta('${p.id}', '${p.nombre}')" class="text-emerald-600 font-bold text-sm hover:underline">Gestionar Receta →</button>` : ''}
+                <button onclick="eliminarProducto('${p.id}')" class="ml-4 text-red-400 text-xs hover:text-red-600">Borrar</button>
+            </td>
+        </tr>
+    `).join('');
 }
-// Aquí puedes pegar el resto de funciones de productos del archivo anterior...
+
+document.getElementById('form-producto').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const nuevo = {
+        id_empresa: miEmpresaId,
+        nombre: document.getElementById('prod-nombre').value,
+        sku: document.getElementById('prod-sku').value,
+        id_categoria: document.getElementById('prod-categoria').value,
+        tiene_receta: document.getElementById('prod-tiene-receta').checked
+    };
+    await clienteSupabase.from('productos').insert([nuevo]);
+    document.getElementById('form-producto').reset();
+    document.getElementById('panel-form-producto').classList.add('hidden');
+    cargarProductos();
+});
+
+// --- RECETAS ---
+async function abrirReceta(idProducto, nombre) {
+    productoActualParaReceta = idProducto;
+    document.getElementById('receta-titulo').innerText = "Receta de: " + nombre;
+    cambiarVista('recetas');
+    cargarIngredientesReceta();
+}
+
+async function cargarIngredientesReceta() {
+    const { data, error } = await clienteSupabase
+        .from('recetas')
+        .select('id, cantidad_neta, id_ingrediente(nombre, id_unidad_receta(abreviatura))')
+        .eq('id_producto_padre', productoActualParaReceta);
+
+    const tbody = document.getElementById('lista-ingredientes-receta');
+    tbody.innerHTML = data.map(r => `
+        <tr class="border-b">
+            <td class="py-3 text-sm font-medium text-slate-700">${r.id_ingrediente.nombre}</td>
+            <td class="py-3 text-center font-bold text-slate-600">${r.cantidad_neta} ${r.id_ingrediente.id_unidad_receta.abreviatura}</td>
+            <td class="py-3 text-right">
+                <button onclick="quitarIngrediente('${r.id}')" class="text-red-500 hover:text-red-700 font-bold">✕</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+document.getElementById('form-ingrediente').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const nuevo = {
+        id_empresa: miEmpresaId,
+        id_producto_padre: productoActualParaReceta,
+        id_ingrediente: document.getElementById('sel-ingrediente').value,
+        cantidad_neta: document.getElementById('ing-cantidad').value
+    };
+    await clienteSupabase.from('recetas').insert([nuevo]);
+    document.getElementById('ing-cantidad').value = '';
+    cargarIngredientesReceta();
+});
+
+async function quitarIngrediente(id) {
+    await clienteSupabase.from('recetas').delete().eq('id', id);
+    cargarIngredientesReceta();
+}
+
+// --- AUXILIARES ---
+async function cargarDatosSelects() {
+    const { data: cat } = await clienteSupabase.from('categorias').select('*').eq('id_empresa', miEmpresaId);
+    document.getElementById('prod-categoria').innerHTML = cat.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+
+    const { data: prods } = await clienteSupabase.from('productos').select('*').eq('id_empresa', miEmpresaId);
+    document.getElementById('sel-ingrediente').innerHTML = prods.map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
+}
