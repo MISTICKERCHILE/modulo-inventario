@@ -31,14 +31,14 @@
 
         <div class="flex flex-1 overflow-hidden">
             <aside class="w-64 bg-slate-800 text-white flex flex-col p-4 space-y-2">
-                <button class="w-full flex items-center gap-3 px-4 py-3 bg-emerald-600 rounded-lg font-medium"><span>🏷️</span> Catálogos</button>
-                <button class="w-full flex items-center gap-3 px-4 py-3 opacity-50 cursor-not-allowed"><span>🍔</span> Productos (Pronto)</button>
+                <button onclick="cambiarVista('catalogos')" id="btn-menu-catalogos" class="w-full flex items-center gap-3 px-4 py-3 bg-emerald-600 rounded-lg font-medium"><span>🏷️</span> Catálogos</button>
+                <button onclick="cambiarVista('productos')" id="btn-menu-productos" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>🍔</span> Productos</button>
             </aside>
 
             <main class="flex-1 p-8 overflow-y-auto">
-                <div class="max-w-4xl mx-auto">
+                
+                <div id="vista-catalogos" class="max-w-4xl mx-auto block">
                     <h2 class="text-2xl font-bold mb-6">Gestión de Catálogos Básicos</h2>
-                    
                     <div class="flex border-b border-gray-200 mb-6">
                         <button onclick="cambiarTab('categorias')" id="tab-categorias" class="px-6 py-3 font-medium text-emerald-600 border-b-2 border-emerald-600 bg-emerald-50/50">Categorías</button>
                         <button onclick="cambiarTab('unidades')" id="tab-unidades" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700">Unidades de Medida</button>
@@ -59,8 +59,8 @@
                     <div id="seccion-unidades" class="hidden">
                         <div class="bg-white p-6 rounded-xl shadow-sm border mb-6">
                             <form id="form-unidad" class="flex gap-4">
-                                <input type="text" id="nombre-unidad" placeholder="Nombre (Ej: Caja, Kilo, Gramo)" required class="flex-1 px-4 py-2 border rounded-md">
-                                <input type="text" id="abrev-unidad" placeholder="Abrev (Ej: CJ, KG, GR)" required class="w-32 px-4 py-2 border rounded-md">
+                                <input type="text" id="nombre-unidad" placeholder="Nombre (Ej: Caja, Kilo)" required class="flex-1 px-4 py-2 border rounded-md">
+                                <input type="text" id="abrev-unidad" placeholder="Abrev (Ej: CJ)" required class="w-32 px-4 py-2 border rounded-md">
                                 <button type="submit" class="px-6 py-2 bg-slate-800 text-white rounded-md">Guardar</button>
                             </form>
                         </div>
@@ -68,13 +68,78 @@
                             <ul id="lista-unidades" class="divide-y divide-gray-200"></ul>
                         </div>
                     </div>
-
                 </div>
+
+                <div id="vista-productos" class="max-w-6xl mx-auto hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold">Catálogo de Productos</h2>
+                        <button onclick="mostrarFormProducto()" class="px-4 py-2 bg-emerald-600 text-white rounded-md font-medium hover:bg-emerald-700">+ Nuevo Producto</button>
+                    </div>
+
+                    <div id="panel-form-producto" class="bg-white p-8 rounded-xl shadow-lg border border-gray-200 mb-8 hidden">
+                        <h3 class="text-xl font-bold mb-4 text-emerald-700 border-b pb-2">Crear Nuevo Producto</h3>
+                        <form id="form-producto" class="space-y-6">
+                            
+                            <div class="grid grid-cols-3 gap-6">
+                                <div><label class="block text-sm font-medium text-gray-700 mb-1">Nombre del Producto</label><input type="text" id="prod-nombre" required class="w-full px-3 py-2 border rounded-md"></div>
+                                <div><label class="block text-sm font-medium text-gray-700 mb-1">SKU / Código</label><input type="text" id="prod-sku" class="w-full px-3 py-2 border rounded-md"></div>
+                                <div><label class="block text-sm font-medium text-gray-700 mb-1">Categoría</label><select id="prod-categoria" required class="w-full px-3 py-2 border rounded-md"></select></div>
+                            </div>
+
+                            <div class="bg-slate-50 p-6 rounded-lg border border-slate-200">
+                                <h4 class="font-bold text-slate-700 mb-4">Cadena de Unidades y Conversión</h4>
+                                
+                                <div class="grid grid-cols-4 gap-4 items-end mb-4">
+                                    <div><label class="block text-xs font-bold text-slate-500 mb-1">1. Unidad COMPRA</label><select id="prod-u-compra" required class="w-full px-3 py-2 border border-blue-300 rounded-md bg-white"></select></div>
+                                    <div class="text-center pb-2 text-slate-400 font-bold">▶ Contiene ▶</div>
+                                    <div><label class="block text-xs font-bold text-slate-500 mb-1">Cantidad de UA por Compra</label><input type="number" step="0.01" id="prod-cant-ua" placeholder="Ej: 5" required class="w-full px-3 py-2 border rounded-md"></div>
+                                    <div><label class="block text-xs font-bold text-slate-500 mb-1">2. Unidad ALMACENAMIENTO</label><select id="prod-u-almacen" required class="w-full px-3 py-2 border border-green-300 rounded-md bg-white"></select></div>
+                                </div>
+
+                                <div class="grid grid-cols-4 gap-4 items-end mb-4">
+                                    <div></div>
+                                    <div class="text-center pb-2 text-slate-400 font-bold">▶ Contiene ▶</div>
+                                    <div><label class="block text-xs font-bold text-slate-500 mb-1">Cantidad de UM por UA</label><input type="number" step="0.01" id="prod-cant-um" placeholder="Ej: 1.5" required class="w-full px-3 py-2 border rounded-md"></div>
+                                    <div><label class="block text-xs font-bold text-slate-500 mb-1">3. Unidad MENOR</label><select id="prod-u-menor" required class="w-full px-3 py-2 border border-yellow-300 rounded-md bg-white"></select></div>
+                                </div>
+
+                                <div class="grid grid-cols-4 gap-4 items-end">
+                                    <div></div>
+                                    <div class="text-center pb-2 text-slate-400 font-bold">▶ Contiene ▶</div>
+                                    <div><label class="block text-xs font-bold text-slate-500 mb-1">Cantidad de UR por UM</label><input type="number" step="0.01" id="prod-cant-ur" placeholder="Ej: 1000" required class="w-full px-3 py-2 border rounded-md"></div>
+                                    <div><label class="block text-xs font-bold text-slate-500 mb-1">4. Unidad RECETA</label><select id="prod-u-receta" required class="w-full px-3 py-2 border border-red-300 rounded-md bg-white"></select></div>
+                                </div>
+                            </div>
+
+                            <div class="flex justify-end gap-4">
+                                <button type="button" onclick="ocultarFormProducto()" class="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50">Cancelar</button>
+                                <button type="submit" class="px-6 py-2 bg-slate-800 text-white rounded-md hover:bg-slate-700 font-bold">Guardar Producto</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-slate-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SKU</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">U. Compra</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">U. Receta</th>
+                                </tr>
+                            </thead>
+                            <tbody id="lista-productos" class="bg-white divide-y divide-gray-200">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+
             </main>
         </div>
     </div>
 
     <script>
+        // --- CONFIGURACIÓN DE SUPABASE ---
         const supabaseUrl = 'https://gdtrkrnxkhiqimvmfrms.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdkdHJrcm54a2hpcWltdm1mcm1zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0NjYyODcsImV4cCI6MjA4ODA0MjI4N30.IYJR0fsehO0nXZ5YdEQ53S7Q1Z0e8qYSWdDeQkcTDS0'; // ⚠️ TU LLAVE AQUÍ
         const clienteSupabase = supabase.createClient(supabaseUrl, supabaseKey);
@@ -101,64 +166,123 @@
             location.reload();
         }
 
-        // CONTROL DE PESTAÑAS (TABS)
+        // --- NAVEGACIÓN Y PESTAÑAS ---
+        function cambiarVista(vista) {
+            document.getElementById('vista-catalogos').style.display = vista === 'catalogos' ? 'block' : 'none';
+            document.getElementById('vista-productos').style.display = vista === 'productos' ? 'block' : 'none';
+            
+            document.getElementById('btn-menu-catalogos').className = vista === 'catalogos' ? 'w-full flex items-center gap-3 px-4 py-3 bg-emerald-600 rounded-lg font-medium' : 'w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors';
+            document.getElementById('btn-menu-productos').className = vista === 'productos' ? 'w-full flex items-center gap-3 px-4 py-3 bg-emerald-600 rounded-lg font-medium' : 'w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors';
+            
+            if(vista === 'productos') cargarDatosSelects(); // Cargamos selects al abrir productos
+            if(vista === 'productos') cargarProductos();
+        }
+
         function cambiarTab(tab) {
             document.getElementById('seccion-categorias').style.display = tab === 'categorias' ? 'block' : 'none';
             document.getElementById('seccion-unidades').style.display = tab === 'unidades' ? 'block' : 'none';
-            
             document.getElementById('tab-categorias').className = tab === 'categorias' ? 'px-6 py-3 font-medium text-emerald-600 border-b-2 border-emerald-600 bg-emerald-50/50' : 'px-6 py-3 font-medium text-gray-500 hover:text-gray-700';
             document.getElementById('tab-unidades').className = tab === 'unidades' ? 'px-6 py-3 font-medium text-emerald-600 border-b-2 border-emerald-600 bg-emerald-50/50' : 'px-6 py-3 font-medium text-gray-500 hover:text-gray-700';
         }
 
-        // CARGAR DATOS
+        function mostrarFormProducto() { document.getElementById('panel-form-producto').classList.remove('hidden'); }
+        function ocultarFormProducto() { document.getElementById('panel-form-producto').classList.add('hidden'); document.getElementById('form-producto').reset(); }
+
+        // --- CARGA DE DATOS (CATÁLOGOS) ---
         function cargarDatos() {
             cargarCategorias();
             cargarUnidades();
         }
 
-        // --- LÓGICA CATEGORÍAS ---
         async function cargarCategorias() {
             const { data } = await clienteSupabase.from('categorias').select('*').eq('id_empresa', miEmpresaId).order('nombre');
             const lista = document.getElementById('lista-categorias');
-            lista.innerHTML = data.length ? '' : '<li class="p-4 text-center text-gray-500">Sin categorías</li>';
-            data.forEach(c => {
-                lista.innerHTML += `<li class="p-4 flex justify-between border-b"><span>${c.nombre}</span><button onclick="borrarRegistro('categorias', '${c.id}')" class="text-red-500">Borrar</button></li>`;
-            });
+            lista.innerHTML = '';
+            data.forEach(c => lista.innerHTML += `<li class="p-4 flex justify-between border-b"><span>${c.nombre}</span><button onclick="borrarRegistro('categorias', '${c.id}')" class="text-red-500">Borrar</button></li>`);
         }
-        document.getElementById('form-categoria').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const nombre = document.getElementById('nombre-categoria').value;
-            await clienteSupabase.from('categorias').insert([{ nombre, id_empresa: miEmpresaId }]);
-            document.getElementById('nombre-categoria').value = '';
-            cargarCategorias();
-        });
 
-        // --- LÓGICA UNIDADES ---
         async function cargarUnidades() {
             const { data } = await clienteSupabase.from('unidades').select('*').eq('id_empresa', miEmpresaId).order('nombre');
             const lista = document.getElementById('lista-unidades');
-            lista.innerHTML = data.length ? '' : '<li class="p-4 text-center text-gray-500">Sin unidades</li>';
-            data.forEach(u => {
-                lista.innerHTML += `<li class="p-4 flex justify-between border-b"><span>${u.nombre} <b>(${u.abreviatura})</b></span><button onclick="borrarRegistro('unidades', '${u.id}')" class="text-red-500">Borrar</button></li>`;
+            lista.innerHTML = '';
+            data.forEach(u => lista.innerHTML += `<li class="p-4 flex justify-between border-b"><span>${u.nombre} <b>(${u.abreviatura})</b></span><button onclick="borrarRegistro('unidades', '${u.id}')" class="text-red-500">Borrar</button></li>`);
+        }
+
+        // --- LÓGICA DE GUARDADO CATÁLOGOS ---
+        document.getElementById('form-categoria').addEventListener('submit', async (e) => { e.preventDefault(); const n = document.getElementById('nombre-categoria').value; await clienteSupabase.from('categorias').insert([{ nombre: n, id_empresa: miEmpresaId }]); document.getElementById('nombre-categoria').value = ''; cargarCategorias(); });
+        document.getElementById('form-unidad').addEventListener('submit', async (e) => { e.preventDefault(); const n = document.getElementById('nombre-unidad').value; const a = document.getElementById('abrev-unidad').value; await clienteSupabase.from('unidades').insert([{ nombre: n, abreviatura: a, id_empresa: miEmpresaId }]); document.getElementById('form-unidad').reset(); cargarUnidades(); });
+        async function borrarRegistro(tabla, id) { if(confirm("¿Seguro de eliminar?")) { await clienteSupabase.from(tabla).delete().eq('id', id); cargarDatos(); cargarProductos(); } }
+
+        // --- LÓGICA DE PRODUCTOS ---
+        async function cargarDatosSelects() {
+            // Llenar selects de Categorías
+            const { data: cat } = await clienteSupabase.from('categorias').select('*').eq('id_empresa', miEmpresaId);
+            const selCat = document.getElementById('prod-categoria');
+            selCat.innerHTML = '<option value="">Seleccione...</option>';
+            cat.forEach(c => selCat.innerHTML += `<option value="${c.id}">${c.nombre}</option>`);
+
+            // Llenar los 4 selects de Unidades
+            const { data: uni } = await clienteSupabase.from('unidades').select('*').eq('id_empresa', miEmpresaId);
+            const selectsUni = ['prod-u-compra', 'prod-u-almacen', 'prod-u-menor', 'prod-u-receta'];
+            selectsUni.forEach(id => {
+                const sel = document.getElementById(id);
+                sel.innerHTML = '<option value="">Seleccione...</option>';
+                uni.forEach(u => sel.innerHTML += `<option value="${u.id}">${u.nombre} (${u.abreviatura})</option>`);
             });
         }
-        document.getElementById('form-unidad').addEventListener('submit', async (e) => {
+
+        // Cargar Lista de Productos
+        async function cargarProductos() {
+            const { data } = await clienteSupabase.from('productos').select(`id, sku, nombre, id_unidad_compra(abreviatura), id_unidad_receta(abreviatura)`).eq('id_empresa', miEmpresaId);
+            const lista = document.getElementById('lista-productos');
+            lista.innerHTML = '';
+            if(!data || data.length === 0) return lista.innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center text-gray-500">No hay productos registrados.</td></tr>';
+            
+            data.forEach(p => {
+                lista.innerHTML += `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${p.sku || '-'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap font-medium text-slate-800">${p.nombre}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${p.id_unidad_compra ? p.id_unidad_compra.abreviatura : '-'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${p.id_unidad_receta ? p.id_unidad_receta.abreviatura : '-'}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        // Guardar Producto
+        document.getElementById('form-producto').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const nombre = document.getElementById('nombre-unidad').value;
-            const abreviatura = document.getElementById('abrev-unidad').value;
-            await clienteSupabase.from('unidades').insert([{ nombre, abreviatura, id_empresa: miEmpresaId }]);
-            document.getElementById('nombre-unidad').value = '';
-            document.getElementById('abrev-unidad').value = '';
-            cargarUnidades();
+            
+            const nuevoProducto = {
+                id_empresa: miEmpresaId,
+                nombre: document.getElementById('prod-nombre').value,
+                sku: document.getElementById('prod-sku').value,
+                id_categoria: document.getElementById('prod-categoria').value,
+                
+                id_unidad_compra: document.getElementById('prod-u-compra').value,
+                cant_en_ua_de_uc: parseFloat(document.getElementById('prod-cant-ua').value),
+                
+                id_unidad_almacenamiento: document.getElementById('prod-u-almacen').value,
+                cant_en_um_de_ua: parseFloat(document.getElementById('prod-cant-um').value),
+                
+                id_unidad_menor: document.getElementById('prod-u-menor').value,
+                cant_en_ur_de_um: parseFloat(document.getElementById('prod-cant-ur').value),
+                
+                id_unidad_receta: document.getElementById('prod-u-receta').value
+            };
+
+            const { error } = await clienteSupabase.from('productos').insert([nuevoProducto]);
+            
+            if (error) {
+                alert("Error al guardar producto: " + error.message);
+            } else {
+                alert("¡Producto guardado con éxito!");
+                ocultarFormProducto();
+                cargarProductos();
+            }
         });
 
-        // BORRAR GENERAL
-        async function borrarRegistro(tabla, id) {
-            if(confirm("¿Seguro de eliminar?")) {
-                await clienteSupabase.from(tabla).delete().eq('id', id);
-                cargarDatos();
-            }
-        }
     </script>
 </body>
 </html>
