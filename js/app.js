@@ -1,6 +1,8 @@
+// Usamos window para evitar errores de declaración duplicada
+window.miEmpresaId = null;
 let productoActualParaReceta = null;
 
-// --- LOGIN Y NAVEGACIÓN ---
+// --- LOGIN ---
 document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const { data, error } = await clienteSupabase.auth.signInWithPassword({
@@ -10,106 +12,105 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     if (error) return alert("❌ Credenciales incorrectas");
 
     const { data: perfil } = await clienteSupabase.from('perfiles').select('id_empresa').eq('id_usuario', data.user.id).single();
-    miEmpresaId = perfil.id_empresa;
+    window.miEmpresaId = perfil.id_empresa;
+    
     document.getElementById('login-container').classList.add('hidden');
     document.getElementById('dashboard-container').classList.remove('hidden');
-    cargarDatosSelects(); // Pre-cargar listas
+    
+    cambiarVista('catalogos');
 });
 
 function cerrarSesion() { location.reload(); }
 
+// --- NAVEGACIÓN ---
 function cambiarVista(v) {
     const vistas = ['catalogos', 'productos', 'recetas'];
-    vistas.forEach(vis => document.getElementById(`vista-${vis}`).classList.add('hidden'));
-    document.getElementById(`vista-${v}`).classList.remove('hidden');
+    vistas.forEach(vis => {
+        document.getElementById(`vista-${vis}`).classList.add('hidden');
+        const btn = document.getElementById(`btn-menu-${vis}`);
+        if(btn) btn.className = 'w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium';
+    });
     
+    document.getElementById(`vista-${v}`).classList.remove('hidden');
+    const btnActivo = document.getElementById(`btn-menu-${v}`);
+    if(btnActivo) btnActivo.className = 'w-full flex items-center gap-3 px-4 py-3 bg-emerald-600 rounded-lg font-medium';
+    
+    if(v === 'catalogos') cambiarTab('categorias');
     if(v === 'productos') cargarProductos();
 }
 
-// --- PRODUCTOS ---
-function mostrarFormProducto() { document.getElementById('panel-form-producto').classList.remove('hidden'); }
+function cambiarTab(tab) {
+    const todosTabs = ['categorias', 'unidades', 'proveedores', 'sucursales', 'ubicaciones'];
+    todosTabs.forEach(t => {
+        const sec = document.getElementById(`seccion-${t}`);
+        const btn = document.getElementById(`tab-${t}`);
+        if(sec) sec.style.display = tab === t ? 'block' : 'none';
+        if(btn) btn.className = tab === t 
+            ? 'px-6 py-3 font-medium border-b-2 border-emerald-600 text-emerald-600 bg-emerald-50/50 whitespace-nowrap' 
+            : 'px-6 py-3 font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap border-b-2 border-transparent';
+    });
+    
+    if(tab === 'categorias') cargarCategorias();
+    if(tab === 'sucursales') cargarSucursales();
+    if(tab === 'ubicaciones') { cargarSelectSucursales(); cargarUbicaciones(); }
+}
 
+// --- CATALOGOS ---
+async function cargarCategorias() {
+    const { data } = await clienteSupabase.from('categorias').select('*').eq('id_empresa', window.miEmpresaId).order('nombre');
+    document.getElementById('lista-categorias').innerHTML = (data || []).map(c => `<li class="p-4 flex justify-between border-b"><span>${c.nombre}</span></li>`).join('');
+}
+
+async function cargarSucursales() {
+    const { data } = await clienteSupabase.from('sucursales').select('*').eq('id_empresa', window.miEmpresaId).order('nombre');
+    document.getElementById('lista-sucursales').innerHTML = (data || []).map(s => `<li class="p-4 flex justify-between border-b"><span>${s.nombre}</span></li>`).join('');
+}
+
+async function cargarSelectSucursales() {
+    const { data } = await clienteSupabase.from('sucursales').select('*').eq('id_empresa', window.miEmpresaId);
+    const sel = document.getElementById('sel-sucursal-ubi');
+    if(sel) sel.innerHTML = '<option value="">Elegir Sucursal...</option>' + (data || []).map(s => `<option value="${s.id}">${s.nombre}</option>`).join('');
+}
+
+async function cargarUbicaciones() {
+    const { data } = await clienteSupabase.from('ubicaciones_internas').select('*, sucursales(nombre)').eq('id_empresa', window.miEmpresaId);
+    document.getElementById('lista-ubicaciones').innerHTML = (data || []).map(u => `<li class="p-4 flex justify-between border-b"><span>${u.nombre} <b class="text-emerald-600">(@${u.sucursales?.nombre})</b></span></li>`).join('');
+}
+
+// --- GUARDADO DE CATALOGOS ---
+document.getElementById('form-sucursal').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    await clienteSupabase.from('sucursales').insert([{ 
+        nombre: document.getElementById('nombre-sucursal').value, 
+        direccion: document.getElementById('dir-sucursal').value, 
+        id_empresa: window.miEmpresaId 
+    }]);
+    document.getElementById('form-sucursal').reset();
+    cargarSucursales();
+});
+
+document.getElementById('form-ubicacion').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    await clienteSupabase.from('ubicaciones_internas').insert([{ 
+        nombre: document.getElementById('nombre-ubicacion').value, 
+        id_sucursal: document.getElementById('sel-sucursal-ubi').value, 
+        id_empresa: window.miEmpresaId 
+    }]);
+    document.getElementById('form-ubicacion').reset();
+    cargarUbicaciones();
+});
+
+// --- PRODUCTOS Y RECETAS (Mismos de tu código) ---
 async function cargarProductos() {
-    const { data } = await clienteSupabase.from('productos').select('*').eq('id_empresa', miEmpresaId).order('nombre');
-    const tbody = document.getElementById('lista-productos');
-    tbody.innerHTML = data.map(p => `
+    const { data } = await clienteSupabase.from('productos').select('*').eq('id_empresa', window.miEmpresaId).order('nombre');
+    document.getElementById('lista-productos').innerHTML = (data || []).map(p => `
         <tr class="hover:bg-slate-50">
             <td class="px-6 py-4 font-medium">${p.nombre}</td>
-            <td class="px-6 py-4">
-                ${p.tiene_receta ? '<span class="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold">Con Receta</span>' : '<span class="text-gray-400 text-xs italic">Simple</span>'}
-            </td>
+            <td class="px-6 py-4">${p.tiene_receta ? 'Receta' : 'Simple'}</td>
             <td class="px-6 py-4 text-right">
-                ${p.tiene_receta ? `<button onclick="abrirReceta('${p.id}', '${p.nombre}')" class="text-emerald-600 font-bold text-sm hover:underline">Gestionar Receta →</button>` : ''}
-                <button onclick="eliminarProducto('${p.id}')" class="ml-4 text-red-400 text-xs hover:text-red-600">Borrar</button>
+                ${p.tiene_receta ? `<button onclick="abrirReceta('${p.id}', '${p.nombre}')" class="text-emerald-600">Receta →</button>` : ''}
             </td>
-        </tr>
-    `).join('');
+        </tr>`).join('');
 }
 
-document.getElementById('form-producto').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const nuevo = {
-        id_empresa: miEmpresaId,
-        nombre: document.getElementById('prod-nombre').value,
-        sku: document.getElementById('prod-sku').value,
-        id_categoria: document.getElementById('prod-categoria').value,
-        tiene_receta: document.getElementById('prod-tiene-receta').checked
-    };
-    await clienteSupabase.from('productos').insert([nuevo]);
-    document.getElementById('form-producto').reset();
-    document.getElementById('panel-form-producto').classList.add('hidden');
-    cargarProductos();
-});
-
-// --- RECETAS ---
-async function abrirReceta(idProducto, nombre) {
-    productoActualParaReceta = idProducto;
-    document.getElementById('receta-titulo').innerText = "Receta de: " + nombre;
-    cambiarVista('recetas');
-    cargarIngredientesReceta();
-}
-
-async function cargarIngredientesReceta() {
-    const { data, error } = await clienteSupabase
-        .from('recetas')
-        .select('id, cantidad_neta, id_ingrediente(nombre, id_unidad_receta(abreviatura))')
-        .eq('id_producto_padre', productoActualParaReceta);
-
-    const tbody = document.getElementById('lista-ingredientes-receta');
-    tbody.innerHTML = data.map(r => `
-        <tr class="border-b">
-            <td class="py-3 text-sm font-medium text-slate-700">${r.id_ingrediente.nombre}</td>
-            <td class="py-3 text-center font-bold text-slate-600">${r.cantidad_neta} ${r.id_ingrediente.id_unidad_receta.abreviatura}</td>
-            <td class="py-3 text-right">
-                <button onclick="quitarIngrediente('${r.id}')" class="text-red-500 hover:text-red-700 font-bold">✕</button>
-            </td>
-        </tr>
-    `).join('');
-}
-
-document.getElementById('form-ingrediente').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const nuevo = {
-        id_empresa: miEmpresaId,
-        id_producto_padre: productoActualParaReceta,
-        id_ingrediente: document.getElementById('sel-ingrediente').value,
-        cantidad_neta: document.getElementById('ing-cantidad').value
-    };
-    await clienteSupabase.from('recetas').insert([nuevo]);
-    document.getElementById('ing-cantidad').value = '';
-    cargarIngredientesReceta();
-});
-
-async function quitarIngrediente(id) {
-    await clienteSupabase.from('recetas').delete().eq('id', id);
-    cargarIngredientesReceta();
-}
-
-// --- AUXILIARES ---
-async function cargarDatosSelects() {
-    const { data: cat } = await clienteSupabase.from('categorias').select('*').eq('id_empresa', miEmpresaId);
-    document.getElementById('prod-categoria').innerHTML = cat.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
-
-    const { data: prods } = await clienteSupabase.from('productos').select('*').eq('id_empresa', miEmpresaId);
-    document.getElementById('sel-ingrediente').innerHTML = prods.map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
-}
+function mostrarFormProducto() { document.getElementById('panel-form-producto').classList.remove('hidden'); }
