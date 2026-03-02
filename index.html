@@ -42,24 +42,24 @@
                     <h2 class="text-2xl font-bold mb-6 text-slate-700">Gestión de Catálogos</h2>
                     
                     <div class="flex border-b border-gray-200 mb-6 overflow-x-auto bg-white rounded-t-lg shadow-sm">
-                        <button onclick="cambiarTab('categorias')" id="tab-categorias" class="px-6 py-3 font-medium border-b-2 border-emerald-600 text-emerald-600 bg-emerald-50/50 whitespace-nowrap transition-all">Categorías</button>
-                        <button onclick="cambiarTab('unidades')" id="tab-unidades" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap transition-all border-b-2 border-transparent">Unidades</button>
-                        <button onclick="cambiarTab('proveedores')" id="tab-proveedores" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap transition-all border-b-2 border-transparent">Proveedores</button>
-                        <button onclick="cambiarTab('locaciones')" id="tab-locaciones" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap transition-all border-b-2 border-transparent">Lugares Físicos</button>
-                        <button onclick="cambiarTab('ubicaciones')" id="tab-ubicaciones" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap transition-all border-b-2 border-transparent">Ubicaciones Internas</button>
+                        <button onclick="cambiarTab('categorias')" id="tab-categorias" class="px-6 py-3 font-medium border-b-2 border-emerald-600 text-emerald-600 bg-emerald-50/50 whitespace-nowrap">Categorías</button>
+                        <button onclick="cambiarTab('unidades')" id="tab-unidades" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap border-b-2 border-transparent">Unidades</button>
+                        <button onclick="cambiarTab('proveedores')" id="tab-proveedores" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap border-b-2 border-transparent">Proveedores</button>
+                        <button onclick="cambiarTab('sucursales')" id="tab-sucursales" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap border-b-2 border-transparent">Sucursales</button>
+                        <button onclick="cambiarTab('ubicaciones')" id="tab-ubicaciones" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap border-b-2 border-transparent">Ubicaciones Internas</button>
                     </div>
 
                     <div id="seccion-categorias" class="block space-y-4">
                         <form id="form-categoria" class="bg-white p-6 rounded-xl shadow-sm border flex gap-4">
-                            <input type="text" id="nombre-categoria" placeholder="Ej: Carnes, Abarrotes..." required class="flex-1 px-4 py-2 border rounded-md outline-none focus:ring-2 focus:ring-emerald-500">
-                            <button type="submit" class="px-6 py-2 bg-slate-800 text-white rounded-md hover:bg-slate-700 font-medium">Guardar</button>
+                            <input type="text" id="nombre-categoria" placeholder="Ej: Carnes" required class="flex-1 px-4 py-2 border rounded-md outline-none">
+                            <button type="submit" class="px-6 py-2 bg-slate-800 text-white rounded-md hover:bg-slate-700">Guardar</button>
                         </form>
                         <div class="bg-white rounded-xl shadow-sm border overflow-hidden"><ul id="lista-categorias" class="divide-y divide-gray-100"></ul></div>
                     </div>
 
                     <div id="seccion-unidades" class="hidden space-y-4">
                         <form id="form-unidad" class="bg-white p-6 rounded-xl shadow-sm border flex gap-4">
-                            <input type="text" id="nombre-unidad" placeholder="Ej: Caja, Kilo..." required class="flex-1 px-4 py-2 border rounded-md">
+                            <input type="text" id="nombre-unidad" placeholder="Ej: Kilo" required class="flex-1 px-4 py-2 border rounded-md">
                             <input type="text" id="abrev-unidad" placeholder="Abrev" required class="w-24 px-4 py-2 border rounded-md text-center">
                             <button type="submit" class="px-6 py-2 bg-slate-800 text-white rounded-md">Guardar</button>
                         </form>
@@ -68,35 +68,72 @@
 
                     <div id="seccion-proveedores" class="hidden space-y-4">
                         <form id="form-proveedor" class="bg-white p-6 rounded-xl shadow-sm border grid grid-cols-2 gap-4">
-                            <input type="text" id="nombre-proveedor" placeholder="Nombre Empresa" required class="col-span-2 px-4 py-2 border rounded-md">
-                            <input type="text" id="contacto-proveedor" placeholder="Nombre de Contacto" class="px-4 py-2 border rounded-md">
-                            <input type="number" id="tiempo-entrega" placeholder="Días de entrega" class="px-4 py-2 border rounded-md">
-                            <button type="submit" class="col-span-2 px-6 py-2 bg-slate-800 text-white rounded-md font-medium">Guardar Proveedor</button>
+                            <input type="text" id="nombre-proveedor" placeholder="Empresa" required class="col-span-2 px-4 py-2 border rounded-md">
+                            <input type="text" id="contacto-proveedor" placeholder="Contacto" class="px-4 py-2 border rounded-md">
+                            <input type="number" id="tiempo-entrega" placeholder="Días entrega" class="px-4 py-2 border rounded-md">
+                            <button type="submit" class="col-span-2 px-6 py-2 bg-slate-800 text-white rounded-md">Guardar</button>
                         </form>
                         <div class="bg-white rounded-xl shadow-sm border overflow-hidden"><ul id="lista-proveedores" class="divide-y divide-gray-100"></ul></div>
                     </div>
 
-                    <div id="seccion-locaciones" class="hidden space-y-4">
-                        <form id="form-locacion" class="bg-white p-6 rounded-xl shadow-sm border flex gap-4">
-                            <input type="text" id="nombre-locacion" placeholder="Nombre (Ej: Tienda, Bodega 1)" required class="flex-1 px-4 py-2 border rounded-md">
-                            <input type="text" id="dir-locacion" placeholder="Dirección" class="flex-1 px-4 py-2 border rounded-md">
+                    <div id="seccion-sucursales" class="hidden space-y-4">
+                        <form id="form-sucursal" class="bg-white p-6 rounded-xl shadow-sm border flex gap-4">
+                            <input type="text" id="nombre-sucursal" placeholder="Nombre Sucursal" required class="flex-1 px-4 py-2 border rounded-md">
+                            <input type="text" id="dir-sucursal" placeholder="Dirección" class="flex-1 px-4 py-2 border rounded-md">
                             <button type="submit" class="px-6 py-2 bg-slate-800 text-white rounded-md">Guardar</button>
                         </form>
-                        <div class="bg-white rounded-xl shadow-sm border overflow-hidden"><ul id="lista-locaciones" class="divide-y divide-gray-100"></ul></div>
+                        <div class="bg-white rounded-xl shadow-sm border overflow-hidden"><ul id="lista-sucursales" class="divide-y divide-gray-100"></ul></div>
                     </div>
 
                     <div id="seccion-ubicaciones" class="hidden space-y-4">
                         <form id="form-ubicacion" class="bg-white p-6 rounded-xl shadow-sm border grid grid-cols-2 gap-4">
-                            <select id="sel-locacion-ubi" required class="px-4 py-2 border rounded-md bg-white outline-none"></select>
-                            <input type="text" id="nombre-ubicacion" placeholder="Ubicación Interna (Ej: Estante A)" required class="px-4 py-2 border rounded-md">
-                            <button type="submit" class="col-span-2 px-6 py-2 bg-slate-800 text-white rounded-md font-medium">Guardar Ubicación</button>
+                            <select id="sel-sucursal-ubi" required class="px-4 py-2 border rounded-md bg-white"></select>
+                            <input type="text" id="nombre-ubicacion" placeholder="Ubicación Interna" required class="px-4 py-2 border rounded-md">
+                            <button type="submit" class="col-span-2 px-6 py-2 bg-slate-800 text-white rounded-md">Guardar</button>
                         </form>
                         <div class="bg-white rounded-xl shadow-sm border overflow-hidden"><ul id="lista-ubicaciones" class="divide-y divide-gray-100"></ul></div>
                     </div>
                 </div>
 
-                <div id="vista-productos" class="hidden"> </div>
-                <div id="vista-recetas" class="hidden"> </div>
+                <div id="vista-productos" class="hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold">Catálogo de Productos</h2>
+                        <button onclick="mostrarFormProducto()" class="px-4 py-2 bg-emerald-600 text-white rounded-md font-medium">+ Nuevo Producto</button>
+                    </div>
+                    <div id="panel-form-producto" class="bg-white p-8 rounded-xl shadow-lg border mb-8 hidden">
+                        <form id="form-producto" class="space-y-6">
+                            <div class="grid grid-cols-3 gap-6">
+                                <input type="text" id="prod-nombre" placeholder="Nombre" required class="px-3 py-2 border rounded-md">
+                                <input type="text" id="prod-sku" placeholder="SKU" class="px-3 py-2 border rounded-md">
+                                <select id="prod-categoria" required class="px-3 py-2 border rounded-md bg-white"></select>
+                            </div>
+                            <div class="bg-slate-50 p-4 rounded-lg border">
+                                <label class="flex items-center gap-2 font-bold text-emerald-700 cursor-pointer">
+                                    <input type="checkbox" id="prod-tiene-receta" class="w-5 h-5"> Este producto tiene Receta
+                                </label>
+                            </div>
+                            <button type="submit" class="w-full py-2 bg-slate-800 text-white rounded-md font-bold">Guardar Producto</button>
+                        </form>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-slate-50"><tr><th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Nombre</th><th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">Acciones</th></tr></thead>
+                            <tbody id="lista-productos" class="divide-y divide-gray-200"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="vista-recetas" class="hidden">
+                    <h2 class="text-2xl font-bold mb-4" id="receta-titulo text-emerald-700">Gestión de Receta</h2>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border">
+                        <form id="form-ingrediente" class="flex gap-4 items-end mb-6">
+                            <div class="flex-1"><label class="text-xs font-bold text-gray-500">Ingrediente</label><select id="sel-ingrediente" class="w-full px-3 py-2 border rounded-md bg-white"></select></div>
+                            <div class="w-32"><label class="text-xs font-bold text-gray-500">Cantidad</label><input type="number" step="0.0001" id="ing-cantidad" class="w-full px-3 py-2 border rounded-md"></div>
+                            <button type="submit" class="px-6 py-2 bg-emerald-600 text-white rounded-md font-bold">Añadir</button>
+                        </form>
+                        <ul id="lista-ingredientes-receta" class="divide-y divide-gray-200"></ul>
+                    </div>
+                </div>
 
             </main>
         </div>
