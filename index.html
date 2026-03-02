@@ -14,194 +14,149 @@
             <div class="text-center mb-6">
                 <div class="text-4xl mb-4">📦</div>
                 <h1 class="text-2xl font-bold">Módulo - Inventario</h1>
-                <p class="text-slate-500 text-sm">Inicia sesión para continuar</p>
             </div>
             <form id="login-form" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium">Correo</label>
-                    <input type="email" id="email" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium">Contraseña</label>
-                    <input type="password" id="password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500">
-                </div>
-                <div id="login-error" class="text-red-500 text-sm hidden">❌ Error en credenciales.</div>
-                <button type="submit" class="w-full py-2 px-4 text-white bg-emerald-600 hover:bg-emerald-700 rounded-md font-medium">Entrar</button>
+                <input type="email" id="email" placeholder="Correo" required class="w-full px-3 py-2 border rounded-md">
+                <input type="password" id="password" placeholder="Contraseña" required class="w-full px-3 py-2 border rounded-md">
+                <button type="submit" class="w-full py-2 bg-emerald-600 text-white rounded-md font-medium">Entrar</button>
             </form>
         </div>
     </div>
 
     <div id="dashboard-container" class="hidden min-h-screen flex flex-col">
-        
-        <header class="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm">
-            <div class="flex items-center gap-2">
-                <span class="text-2xl">📦</span>
-                <h1 class="text-xl font-bold">Inventario Pro</h1>
-            </div>
-            <div class="flex items-center gap-4">
-                <span id="user-email" class="text-sm font-medium text-slate-500"></span>
-                <button onclick="cerrarSesion()" class="text-sm text-red-600 hover:text-red-800 font-medium">Cerrar Sesión</button>
-            </div>
+        <header class="bg-white border-b px-6 py-4 flex justify-between items-center shadow-sm">
+            <div class="flex items-center gap-2"><span class="text-2xl">📦</span><h1 class="text-xl font-bold">Inventario Pro</h1></div>
+            <button onclick="cerrarSesion()" class="text-sm text-red-600 hover:text-red-800 font-medium">Cerrar Sesión</button>
         </header>
 
         <div class="flex flex-1 overflow-hidden">
-            
-            <aside class="w-64 bg-slate-800 text-white flex flex-col">
-                <nav class="flex-1 px-4 py-6 space-y-2">
-                    <button class="w-full flex items-center gap-3 px-4 py-3 bg-emerald-600 rounded-lg font-medium transition-colors">
-                        <span>🏷️</span> Catálogos
-                    </button>
-                    <button class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors opacity-50 cursor-not-allowed">
-                        <span>🍔</span> Productos (Pronto)
-                    </button>
-                    <button class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors opacity-50 cursor-not-allowed">
-                        <span>📊</span> Movimientos (Pronto)
-                    </button>
-                </nav>
+            <aside class="w-64 bg-slate-800 text-white flex flex-col p-4 space-y-2">
+                <button class="w-full flex items-center gap-3 px-4 py-3 bg-emerald-600 rounded-lg font-medium"><span>🏷️</span> Catálogos</button>
+                <button class="w-full flex items-center gap-3 px-4 py-3 opacity-50 cursor-not-allowed"><span>🍔</span> Productos (Pronto)</button>
             </aside>
 
-            <main class="flex-1 p-8 bg-slate-50 overflow-y-auto">
-                
-                <div class="max-w-3xl mx-auto">
-                    <h2 class="text-2xl font-bold mb-6">Gestión de Categorías</h2>
+            <main class="flex-1 p-8 overflow-y-auto">
+                <div class="max-w-4xl mx-auto">
+                    <h2 class="text-2xl font-bold mb-6">Gestión de Catálogos Básicos</h2>
                     
-                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-6">
-                        <form id="form-categoria" class="flex gap-4 items-end">
-                            <div class="flex-1">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Nueva Categoría</label>
-                                <input type="text" id="nombre-categoria" placeholder="Ej: Carnes, Bebidas, Empaques..." required class="block w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500">
-                            </div>
-                            <button type="submit" class="px-6 py-2 bg-slate-800 text-white rounded-md hover:bg-slate-700 font-medium">Guardar</button>
-                        </form>
+                    <div class="flex border-b border-gray-200 mb-6">
+                        <button onclick="cambiarTab('categorias')" id="tab-categorias" class="px-6 py-3 font-medium text-emerald-600 border-b-2 border-emerald-600 bg-emerald-50/50">Categorías</button>
+                        <button onclick="cambiarTab('unidades')" id="tab-unidades" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700">Unidades de Medida</button>
                     </div>
 
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                        <div class="px-6 py-4 border-b border-gray-200 bg-slate-50">
-                            <h3 class="font-bold text-slate-700">Categorías Registradas</h3>
+                    <div id="seccion-categorias" class="block">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border mb-6">
+                            <form id="form-categoria" class="flex gap-4">
+                                <input type="text" id="nombre-categoria" placeholder="Nueva Categoría (Ej: Carnes)" required class="flex-1 px-4 py-2 border rounded-md">
+                                <button type="submit" class="px-6 py-2 bg-slate-800 text-white rounded-md">Guardar</button>
+                            </form>
                         </div>
-                        <ul id="lista-categorias" class="divide-y divide-gray-200">
-                            <li class="px-6 py-4 text-center text-slate-500 text-sm">Cargando categorías...</li>
-                        </ul>
+                        <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+                            <ul id="lista-categorias" class="divide-y divide-gray-200"></ul>
+                        </div>
                     </div>
-                </div>
 
+                    <div id="seccion-unidades" class="hidden">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border mb-6">
+                            <form id="form-unidad" class="flex gap-4">
+                                <input type="text" id="nombre-unidad" placeholder="Nombre (Ej: Caja, Kilo, Gramo)" required class="flex-1 px-4 py-2 border rounded-md">
+                                <input type="text" id="abrev-unidad" placeholder="Abrev (Ej: CJ, KG, GR)" required class="w-32 px-4 py-2 border rounded-md">
+                                <button type="submit" class="px-6 py-2 bg-slate-800 text-white rounded-md">Guardar</button>
+                            </form>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+                            <ul id="lista-unidades" class="divide-y divide-gray-200"></ul>
+                        </div>
+                    </div>
+
+                </div>
             </main>
         </div>
     </div>
 
     <script>
-        // --- 1. CONFIGURACIÓN DE SUPABASE ---
         const supabaseUrl = 'https://gdtrkrnxkhiqimvmfrms.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdkdHJrcm54a2hpcWltdm1mcm1zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0NjYyODcsImV4cCI6MjA4ODA0MjI4N30.IYJR0fsehO0nXZ5YdEQ53S7Q1Z0e8qYSWdDeQkcTDS0'; // ⚠️ NO OLVIDES PEGARLA AQUÍ
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdkdHJrcm54a2hpcWltdm1mcm1zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0NjYyODcsImV4cCI6MjA4ODA0MjI4N30.IYJR0fsehO0nXZ5YdEQ53S7Q1Z0e8qYSWdDeQkcTDS0'; // ⚠️ TU LLAVE AQUÍ
         const clienteSupabase = supabase.createClient(supabaseUrl, supabaseKey);
-
-        // Variable global para guardar la empresa del usuario que inició sesión
         let miEmpresaId = null;
 
-        // --- 2. LÓGICA DE LOGIN ---
+        // LOGIN Y SESIÓN
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
-            
-            // 1. Iniciamos sesión
             const { data, error } = await clienteSupabase.auth.signInWithPassword({ email, password });
+            if (error) return alert("Error al entrar");
 
-            if (error) {
-                document.getElementById('login-error').classList.remove('hidden');
-                return;
-            }
-
-            // 2. Buscamos a qué empresa pertenece este usuario
-            const { data: perfilData, error: perfilError } = await clienteSupabase
-                .from('perfiles')
-                .select('id_empresa')
-                .eq('id_usuario', data.user.id)
-                .single();
-
-            if (perfilError || !perfilData) {
-                alert("Este usuario no tiene una empresa asignada en la base de datos.");
-                await clienteSupabase.auth.signOut();
-                return;
-            }
-
-            // 3. Guardamos el ID de la empresa y entramos al panel
-            miEmpresaId = perfilData.id_empresa;
+            const { data: perfil } = await clienteSupabase.from('perfiles').select('id_empresa').eq('id_usuario', data.user.id).single();
+            miEmpresaId = perfil.id_empresa;
             
             document.getElementById('login-container').classList.add('hidden');
             document.getElementById('dashboard-container').classList.remove('hidden');
-            document.getElementById('user-email').innerText = data.user.email;
-            cargarCategorias();
+            cargarDatos();
         });
 
         async function cerrarSesion() {
             await clienteSupabase.auth.signOut();
-            miEmpresaId = null; // Borramos la memoria de la empresa
-            document.getElementById('dashboard-container').classList.add('hidden');
-            document.getElementById('login-container').classList.remove('hidden');
+            location.reload();
         }
 
-        // --- 3. LÓGICA DE CATEGORÍAS (AHORA FILTRADA POR EMPRESA) ---
-        const listaCategorias = document.getElementById('lista-categorias');
-        const formCategoria = document.getElementById('form-categoria');
-
-        async function cargarCategorias() {
-            // EL TRUCO: .eq('id_empresa', miEmpresaId) filtra para traer SOLO lo tuyo
-            const { data, error } = await clienteSupabase
-                .from('categorias')
-                .select('*')
-                .eq('id_empresa', miEmpresaId) 
-                .order('nombre', { ascending: true });
+        // CONTROL DE PESTAÑAS (TABS)
+        function cambiarTab(tab) {
+            document.getElementById('seccion-categorias').style.display = tab === 'categorias' ? 'block' : 'none';
+            document.getElementById('seccion-unidades').style.display = tab === 'unidades' ? 'block' : 'none';
             
-            if (error) {
-                console.error("Error al cargar:", error);
-                return;
-            }
+            document.getElementById('tab-categorias').className = tab === 'categorias' ? 'px-6 py-3 font-medium text-emerald-600 border-b-2 border-emerald-600 bg-emerald-50/50' : 'px-6 py-3 font-medium text-gray-500 hover:text-gray-700';
+            document.getElementById('tab-unidades').className = tab === 'unidades' ? 'px-6 py-3 font-medium text-emerald-600 border-b-2 border-emerald-600 bg-emerald-50/50' : 'px-6 py-3 font-medium text-gray-500 hover:text-gray-700';
+        }
 
-            listaCategorias.innerHTML = ''; 
+        // CARGAR DATOS
+        function cargarDatos() {
+            cargarCategorias();
+            cargarUnidades();
+        }
 
-            if (data.length === 0) {
-                listaCategorias.innerHTML = '<li class="px-6 py-4 text-center text-slate-500 text-sm">No hay categorías en tu empresa aún.</li>';
-                return;
-            }
-
-            data.forEach(categoria => {
-                const li = document.createElement('li');
-                li.className = 'px-6 py-4 flex justify-between items-center hover:bg-slate-50';
-                li.innerHTML = `
-                    <span class="font-medium text-slate-700">${categoria.nombre}</span>
-                    <button onclick="borrarCategoria('${categoria.id}')" class="text-red-500 hover:text-red-700 text-sm font-medium">Eliminar</button>
-                `;
-                listaCategorias.appendChild(li);
+        // --- LÓGICA CATEGORÍAS ---
+        async function cargarCategorias() {
+            const { data } = await clienteSupabase.from('categorias').select('*').eq('id_empresa', miEmpresaId).order('nombre');
+            const lista = document.getElementById('lista-categorias');
+            lista.innerHTML = data.length ? '' : '<li class="p-4 text-center text-gray-500">Sin categorías</li>';
+            data.forEach(c => {
+                lista.innerHTML += `<li class="p-4 flex justify-between border-b"><span>${c.nombre}</span><button onclick="borrarRegistro('categorias', '${c.id}')" class="text-red-500">Borrar</button></li>`;
             });
         }
-
-        formCategoria.addEventListener('submit', async (e) => {
+        document.getElementById('form-categoria').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const inputNombre = document.getElementById('nombre-categoria');
-            const nombre = inputNombre.value.trim();
-
-            // EL TRUCO: Al guardar, le pegamos la etiqueta de tu empresa
-            const { error } = await clienteSupabase
-                .from('categorias')
-                .insert([{ nombre: nombre, id_empresa: miEmpresaId }]); 
-
-            if (error) {
-                alert("Error al guardar: " + error.message);
-            } else {
-                inputNombre.value = ''; 
-                cargarCategorias(); 
-            }
+            const nombre = document.getElementById('nombre-categoria').value;
+            await clienteSupabase.from('categorias').insert([{ nombre, id_empresa: miEmpresaId }]);
+            document.getElementById('nombre-categoria').value = '';
+            cargarCategorias();
         });
 
-        async function borrarCategoria(id) {
-            if(confirm("¿Estás seguro de eliminar esta categoría?")) {
-                const { error } = await clienteSupabase.from('categorias').delete().eq('id', id);
-                if(error) {
-                    alert("No se puede eliminar: " + error.message);
-                } else {
-                    cargarCategorias(); 
-                }
+        // --- LÓGICA UNIDADES ---
+        async function cargarUnidades() {
+            const { data } = await clienteSupabase.from('unidades').select('*').eq('id_empresa', miEmpresaId).order('nombre');
+            const lista = document.getElementById('lista-unidades');
+            lista.innerHTML = data.length ? '' : '<li class="p-4 text-center text-gray-500">Sin unidades</li>';
+            data.forEach(u => {
+                lista.innerHTML += `<li class="p-4 flex justify-between border-b"><span>${u.nombre} <b>(${u.abreviatura})</b></span><button onclick="borrarRegistro('unidades', '${u.id}')" class="text-red-500">Borrar</button></li>`;
+            });
+        }
+        document.getElementById('form-unidad').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const nombre = document.getElementById('nombre-unidad').value;
+            const abreviatura = document.getElementById('abrev-unidad').value;
+            await clienteSupabase.from('unidades').insert([{ nombre, abreviatura, id_empresa: miEmpresaId }]);
+            document.getElementById('nombre-unidad').value = '';
+            document.getElementById('abrev-unidad').value = '';
+            cargarUnidades();
+        });
+
+        // BORRAR GENERAL
+        async function borrarRegistro(tabla, id) {
+            if(confirm("¿Seguro de eliminar?")) {
+                await clienteSupabase.from(tabla).delete().eq('id', id);
+                cargarDatos();
             }
         }
     </script>
