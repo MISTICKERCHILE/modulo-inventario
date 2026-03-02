@@ -1,95 +1,115 @@
-// Usamos una ventana global para que no haya errores de duplicados
-window.miEmpresaId = window.miEmpresaId || null;
+let productoActualParaReceta = null;
 
-// --- LOGIN ---
+// --- LOGIN Y NAVEGACIÓN ---
 document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    
-    const { data, error } = await clienteSupabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await clienteSupabase.auth.signInWithPassword({
+        email: document.getElementById('email').value,
+        password: document.getElementById('password').value
+    });
     if (error) return alert("❌ Credenciales incorrectas");
 
     const { data: perfil } = await clienteSupabase.from('perfiles').select('id_empresa').eq('id_usuario', data.user.id).single();
-    if (!perfil) return alert("Usuario sin empresa asignada");
-
-    window.miEmpresaId = perfil.id_empresa;
-    
+    miEmpresaId = perfil.id_empresa;
     document.getElementById('login-container').classList.add('hidden');
     document.getElementById('dashboard-container').classList.remove('hidden');
-    cambiarVista('catalogos');
+    cargarDatosSelects(); // Pre-cargar listas
 });
 
-// --- NAVEGACIÓN ---
+function cerrarSesion() { location.reload(); }
+
 function cambiarVista(v) {
-    ['catalogos', 'productos', 'recetas'].forEach(vis => {
-        document.getElementById(`vista-${vis}`).classList.add('hidden');
-        document.getElementById(`btn-menu-${vis}`).className = 'w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors';
-    });
+    const vistas = ['catalogos', 'productos', 'recetas'];
+    vistas.forEach(vis => document.getElementById(`vista-${vis}`).classList.add('hidden'));
     document.getElementById(`vista-${v}`).classList.remove('hidden');
-    document.getElementById(`btn-menu-${v}`).className = 'w-full flex items-center gap-3 px-4 py-3 bg-emerald-600 rounded-lg font-medium';
-    if(v === 'catalogos') cambiarTab('categorias');
+    
+    if(v === 'productos') cargarProductos();
 }
 
-function cambiarTab(tab) {
-    const todosTabs = ['categorias', 'unidades', 'proveedores', 'sucursales', 'ubicaciones'];
-    todosTabs.forEach(t => {
-        const sec = document.getElementById(`seccion-${t}`);
-        const btn = document.getElementById(`tab-${t}`);
-        if(sec) sec.style.display = tab === t ? 'block' : 'none';
-        if(btn) {
-            btn.className = tab === t 
-                ? 'px-6 py-3 font-medium border-b-2 border-emerald-600 text-emerald-600 bg-emerald-50/50 whitespace-nowrap' 
-                : 'px-6 py-3 font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap border-b-2 border-transparent';
-        }
-    });
-    if(tab === 'sucursales') cargarSucursales();
-    if(tab === 'ubicaciones') cargarSelectSucursales();
-}
+// --- PRODUCTOS ---
+function mostrarFormProducto() { document.getElementById('panel-form-producto').classList.remove('hidden'); }
 
-// --- GUARDAR SUCURSAL (BLINDADO) ---
-document.getElementById('form-sucursal').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const inputNombre = document.getElementById('nombre-sucursal');
-    const inputDir = document.getElementById('dir-sucursal');
-
-    const { error } = await clienteSupabase.from('sucursales').insert([
-        { nombre: inputNombre.value, direccion: inputDir.value, id_empresa: window.miEmpresaId }
-    ]);
-
-    if(error) {
-        alert("Error al guardar: " + error.message);
-    } else {
-        inputNombre.value = '';
-        inputDir.value = '';
-        cargarSucursales();
-    }
-});
-
-// --- CARGAR DATOS ---
-async function cargarSucursales() {
-    const { data } = await clienteSupabase.from('sucursales').select('*').eq('id_empresa', window.miEmpresaId).order('nombre');
-    const lista = document.getElementById('lista-sucursales');
-    if(!lista) return;
-    lista.innerHTML = (data || []).map(s => `
-        <li class="px-6 py-4 flex justify-between border-b hover:bg-slate-50">
-            <span>${s.nombre}</span>
-            <button onclick="eliminarReg('sucursales','${s.id}')" class="text-red-400 hover:text-red-600 text-sm">Borrar</button>
-        </li>
+async function cargarProductos() {
+    const { data } = await clienteSupabase.from('productos').select('*').eq('id_empresa', miEmpresaId).order('nombre');
+    const tbody = document.getElementById('lista-productos');
+    tbody.innerHTML = data.map(p => `
+        <tr class="hover:bg-slate-50">
+            <td class="px-6 py-4 font-medium">${p.nombre}</td>
+            <td class="px-6 py-4">
+                ${p.tiene_receta ? '<span class="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold">Con Receta</span>' : '<span class="text-gray-400 text-xs italic">Simple</span>'}
+            </td>
+            <td class="px-6 py-4 text-right">
+                ${p.tiene_receta ? `<button onclick="abrirReceta('${p.id}', '${p.nombre}')" class="text-emerald-600 font-bold text-sm hover:underline">Gestionar Receta →</button>` : ''}
+                <button onclick="eliminarProducto('${p.id}')" class="ml-4 text-red-400 text-xs hover:text-red-600">Borrar</button>
+            </td>
+        </tr>
     `).join('');
 }
 
-async function cargarSelectSucursales() {
-    const { data } = await clienteSupabase.from('sucursales').select('*').eq('id_empresa', window.miEmpresaId);
-    const sel = document.getElementById('sel-sucursal-ubi');
-    if(sel) sel.innerHTML = '<option value="">Elegir Sucursal...</option>' + (data || []).map(s => `<option value="${s.id}">${s.nombre}</option>`).join('');
+document.getElementById('form-producto').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const nuevo = {
+        id_empresa: miEmpresaId,
+        nombre: document.getElementById('prod-nombre').value,
+        sku: document.getElementById('prod-sku').value,
+        id_categoria: document.getElementById('prod-categoria').value,
+        tiene_receta: document.getElementById('prod-tiene-receta').checked
+    };
+    await clienteSupabase.from('productos').insert([nuevo]);
+    document.getElementById('form-producto').reset();
+    document.getElementById('panel-form-producto').classList.add('hidden');
+    cargarProductos();
+});
+
+// --- RECETAS ---
+async function abrirReceta(idProducto, nombre) {
+    productoActualParaReceta = idProducto;
+    document.getElementById('receta-titulo').innerText = "Receta de: " + nombre;
+    cambiarVista('recetas');
+    cargarIngredientesReceta();
 }
 
-async function eliminarReg(tabla, id) {
-    if(confirm("¿Seguro?")) {
-        await clienteSupabase.from(tabla).delete().eq('id', id);
-        cargarSucursales();
-    }
+async function cargarIngredientesReceta() {
+    const { data, error } = await clienteSupabase
+        .from('recetas')
+        .select('id, cantidad_neta, id_ingrediente(nombre, id_unidad_receta(abreviatura))')
+        .eq('id_producto_padre', productoActualParaReceta);
+
+    const tbody = document.getElementById('lista-ingredientes-receta');
+    tbody.innerHTML = data.map(r => `
+        <tr class="border-b">
+            <td class="py-3 text-sm font-medium text-slate-700">${r.id_ingrediente.nombre}</td>
+            <td class="py-3 text-center font-bold text-slate-600">${r.cantidad_neta} ${r.id_ingrediente.id_unidad_receta.abreviatura}</td>
+            <td class="py-3 text-right">
+                <button onclick="quitarIngrediente('${r.id}')" class="text-red-500 hover:text-red-700 font-bold">✕</button>
+            </td>
+        </tr>
+    `).join('');
 }
 
-function cerrarSesion() { location.reload(); }
+document.getElementById('form-ingrediente').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const nuevo = {
+        id_empresa: miEmpresaId,
+        id_producto_padre: productoActualParaReceta,
+        id_ingrediente: document.getElementById('sel-ingrediente').value,
+        cantidad_neta: document.getElementById('ing-cantidad').value
+    };
+    await clienteSupabase.from('recetas').insert([nuevo]);
+    document.getElementById('ing-cantidad').value = '';
+    cargarIngredientesReceta();
+});
+
+async function quitarIngrediente(id) {
+    await clienteSupabase.from('recetas').delete().eq('id', id);
+    cargarIngredientesReceta();
+}
+
+// --- AUXILIARES ---
+async function cargarDatosSelects() {
+    const { data: cat } = await clienteSupabase.from('categorias').select('*').eq('id_empresa', miEmpresaId);
+    document.getElementById('prod-categoria').innerHTML = cat.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+
+    const { data: prods } = await clienteSupabase.from('productos').select('*').eq('id_empresa', miEmpresaId);
+    document.getElementById('sel-ingrediente').innerHTML = prods.map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
+}
