@@ -28,17 +28,57 @@
 
         <div class="flex flex-1 overflow-hidden">
             <aside class="w-64 bg-slate-800 text-white flex flex-col p-4 space-y-2">
-                <button onclick="cambiarVista('catalogos')" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium"><span>🏷️</span> Catálogos</button>
-                <button onclick="cambiarVista('productos')" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium"><span>🍔</span> Productos</button>
-                <button onclick="cambiarVista('recetas')" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium"><span>📝</span> Recetas</button>
+                <button onclick="cambiarVista('catalogos')" id="btn-menu-catalogos" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium"><span>🏷️</span> Catálogos</button>
+                <button onclick="cambiarVista('productos')" id="btn-menu-productos" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium"><span>🍔</span> Productos</button>
+                <button onclick="cambiarVista('recetas')" id="btn-menu-recetas" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium"><span>📝</span> Recetas</button>
             </aside>
 
             <main class="flex-1 p-8 overflow-y-auto">
                 
                 <div id="vista-catalogos" class="max-w-4xl mx-auto hidden">
                     <h2 class="text-2xl font-bold mb-6">Gestión de Catálogos</h2>
-                    <div id="catalogos-content">
-                        <p class="text-gray-500 italic">Selecciona una pestaña para gestionar tus datos base.</p>
+                    
+                    <div class="flex border-b border-gray-200 mb-6 overflow-x-auto bg-white rounded-t-lg shadow-sm">
+                        <button onclick="cambiarTab('categorias')" id="tab-categorias" class="px-6 py-3 font-medium border-b-2 border-emerald-600 text-emerald-600 bg-emerald-50/50 whitespace-nowrap">Categorías</button>
+                        <button onclick="cambiarTab('unidades')" id="tab-unidades" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap border-b-2 border-transparent">Unidades</button>
+                        <button onclick="cambiarTab('proveedores')" id="tab-proveedores" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap border-b-2 border-transparent">Proveedores</button>
+                        <button onclick="cambiarTab('sucursales')" id="tab-sucursales" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap border-b-2 border-transparent">Sucursales</button>
+                        <button onclick="cambiarTab('ubicaciones')" id="tab-ubicaciones" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap border-b-2 border-transparent">Ubicaciones</button>
+                    </div>
+
+                    <div id="seccion-categorias" class="block space-y-4">
+                        <form id="form-categoria" class="bg-white p-6 rounded-xl shadow-sm border flex gap-4">
+                            <input type="text" id="nombre-categoria" placeholder="Nueva Categoría" required class="flex-1 px-4 py-2 border rounded-md">
+                            <button type="submit" class="px-6 py-2 bg-slate-800 text-white rounded-md">Guardar</button>
+                        </form>
+                        <div class="bg-white rounded-xl shadow-sm border overflow-hidden"><ul id="lista-categorias" class="divide-y divide-gray-100"></ul></div>
+                    </div>
+
+                    <div id="seccion-unidades" class="hidden space-y-4">
+                        <form id="form-unidad" class="bg-white p-6 rounded-xl shadow-sm border flex gap-4">
+                            <input type="text" id="nombre-unidad" placeholder="Nombre" required class="flex-1 px-4 py-2 border rounded-md">
+                            <input type="text" id="abrev-unidad" placeholder="Abrev" required class="w-24 px-4 py-2 border rounded-md">
+                            <button type="submit" class="px-6 py-2 bg-slate-800 text-white rounded-md">Guardar</button>
+                        </form>
+                        <div class="bg-white rounded-xl shadow-sm border overflow-hidden"><ul id="lista-unidades" class="divide-y divide-gray-100"></ul></div>
+                    </div>
+
+                    <div id="seccion-sucursales" class="hidden space-y-4">
+                        <form id="form-sucursal" class="bg-white p-6 rounded-xl shadow-sm border flex gap-4">
+                            <input type="text" id="nombre-sucursal" placeholder="Nombre Sucursal" required class="flex-1 px-4 py-2 border rounded-md">
+                            <input type="text" id="dir-sucursal" placeholder="Dirección" class="flex-1 px-4 py-2 border rounded-md">
+                            <button type="submit" class="px-6 py-2 bg-slate-800 text-white rounded-md">Guardar</button>
+                        </form>
+                        <div class="bg-white rounded-xl shadow-sm border overflow-hidden"><ul id="lista-sucursales" class="divide-y divide-gray-100"></ul></div>
+                    </div>
+
+                    <div id="seccion-ubicaciones" class="hidden space-y-4">
+                        <form id="form-ubicacion" class="bg-white p-6 rounded-xl shadow-sm border grid grid-cols-2 gap-4">
+                            <select id="sel-sucursal-ubi" required class="px-4 py-2 border rounded-md bg-white"></select>
+                            <input type="text" id="nombre-ubicacion" placeholder="Ubicación Interna" required class="px-4 py-2 border rounded-md">
+                            <button type="submit" class="col-span-2 px-6 py-2 bg-slate-800 text-white rounded-md">Guardar</button>
+                        </form>
+                        <div class="bg-white rounded-xl shadow-sm border overflow-hidden"><ul id="lista-ubicaciones" class="divide-y divide-gray-100"></ul></div>
                     </div>
                 </div>
 
@@ -47,33 +87,23 @@
                         <h2 class="text-2xl font-bold">Catálogo de Productos</h2>
                         <button onclick="mostrarFormProducto()" class="px-4 py-2 bg-emerald-600 text-white rounded-md font-medium">+ Nuevo Producto</button>
                     </div>
-
                     <div id="panel-form-producto" class="bg-white p-6 rounded-xl shadow-lg border mb-8 hidden">
                         <form id="form-producto" class="grid grid-cols-3 gap-4">
                             <input type="text" id="prod-nombre" placeholder="Nombre" required class="px-3 py-2 border rounded-md">
                             <input type="text" id="prod-sku" placeholder="SKU" class="px-3 py-2 border rounded-md">
                             <select id="prod-categoria" required class="px-3 py-2 border rounded-md bg-white"></select>
-                            
                             <div class="col-span-3 bg-slate-50 p-4 rounded-lg border flex items-center gap-4">
                                 <label class="flex items-center gap-2 font-bold text-emerald-700 cursor-pointer">
                                     <input type="checkbox" id="prod-tiene-receta" class="w-5 h-5 accent-emerald-600">
-                                    Este producto tiene Receta / Ficha Técnica
+                                    Este producto tiene Receta
                                 </label>
                             </div>
-
                             <button type="submit" class="col-span-3 py-2 bg-slate-800 text-white rounded-md font-bold">Guardar Producto</button>
                         </form>
                     </div>
-
                     <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
                         <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-slate-50">
-                                <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Nombre</th>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Estado</th>
-                                    <th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">Acciones</th>
-                                </tr>
-                            </thead>
+                            <thead class="bg-slate-50"><tr><th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Nombre</th><th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Estado</th><th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase text-right">Acciones</th></tr></thead>
                             <tbody id="lista-productos" class="divide-y divide-gray-200"></tbody>
                         </table>
                     </div>
@@ -82,36 +112,14 @@
                 <div id="vista-recetas" class="max-w-5xl mx-auto hidden">
                     <div class="bg-emerald-700 text-white p-6 rounded-t-xl">
                         <h2 class="text-2xl font-bold" id="receta-titulo">Configuración de Receta</h2>
-                        <p class="text-emerald-100 text-sm" id="receta-subtitulo">Selecciona un producto para armar su composición.</p>
                     </div>
-                    
                     <div class="bg-white p-6 border-x border-b rounded-b-xl shadow-sm">
-                        <div class="mb-8 p-4 bg-slate-50 rounded-lg border border-dashed border-slate-300">
-                            <h4 class="font-bold mb-3 text-slate-600">Añadir Ingrediente / Insumo</h4>
-                            <form id="form-ingrediente" class="flex gap-4 items-end">
-                                <div class="flex-1">
-                                    <label class="block text-xs font-bold text-gray-500 mb-1">Buscar Producto/Insumo</label>
-                                    <select id="sel-ingrediente" required class="w-full px-3 py-2 border rounded-md bg-white"></select>
-                                </div>
-                                <div class="w-32">
-                                    <label class="block text-xs font-bold text-gray-500 mb-1">Cantidad</label>
-                                    <input type="number" step="0.0001" id="ing-cantidad" required class="w-full px-3 py-2 border rounded-md">
-                                </div>
-                                <button type="submit" class="px-6 py-2 bg-emerald-600 text-white rounded-md font-bold hover:bg-emerald-700">Añadir</button>
-                            </form>
-                        </div>
-
-                        <table class="min-w-full">
-                            <thead>
-                                <tr class="border-b text-slate-400 text-xs uppercase font-bold">
-                                    <th class="py-2 text-left">Ingrediente</th>
-                                    <th class="py-2 text-center">Cantidad</th>
-                                    <th class="py-2 text-right">Eliminar</th>
-                                </tr>
-                            </thead>
-                            <tbody id="lista-ingredientes-receta">
-                                </tbody>
-                        </table>
+                        <form id="form-ingrediente" class="flex gap-4 items-end mb-6">
+                            <div class="flex-1"><label class="text-xs font-bold text-gray-500">Insumo</label><select id="sel-ingrediente" required class="w-full px-3 py-2 border rounded-md bg-white"></select></div>
+                            <div class="w-32"><label class="text-xs font-bold text-gray-500">Cantidad</label><input type="number" step="0.0001" id="ing-cantidad" required class="w-full px-3 py-2 border rounded-md"></div>
+                            <button type="submit" class="px-6 py-2 bg-emerald-600 text-white rounded-md font-bold">Añadir</button>
+                        </form>
+                        <table class="min-w-full"><tbody id="lista-ingredientes-receta"></tbody></table>
                     </div>
                 </div>
 
