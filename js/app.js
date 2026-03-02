@@ -7,7 +7,6 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     const { data, error } = await clienteSupabase.auth.signInWithPassword({ email, password });
     if (error) return alert("❌ Error: Correo o contraseña incorrectos");
 
-    // Buscar la empresa del usuario
     const { data: perfil, error: errPerfil } = await clienteSupabase.from('perfiles').select('id_empresa').eq('id_usuario', data.user.id).single();
     
     if (errPerfil || !perfil) {
@@ -18,17 +17,15 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
 
     miEmpresaId = perfil.id_empresa;
     
-    // Cambiar pantallas
     document.getElementById('login-container').classList.add('hidden');
     document.getElementById('dashboard-container').classList.remove('hidden');
     
-    // Cargar los datos iniciales
     cargarDatos();
 });
 
 async function cerrarSesion() {
     await clienteSupabase.auth.signOut();
-    location.reload(); // Recarga la página para limpiar todo
+    location.reload(); 
 }
 
 // --- NAVEGACIÓN Y PESTAÑAS ---
@@ -46,10 +43,13 @@ function cambiarVista(vista) {
 }
 
 function cambiarTab(tab) {
-    document.getElementById('seccion-categorias').style.display = tab === 'categorias' ? 'block' : 'none';
-    document.getElementById('seccion-unidades').style.display = tab === 'unidades' ? 'block' : 'none';
-    document.getElementById('tab-categorias').className = tab === 'categorias' ? 'px-6 py-3 font-medium text-emerald-600 border-b-2 border-emerald-600 bg-emerald-50/50' : 'px-6 py-3 font-medium text-gray-500 hover:text-gray-700';
-    document.getElementById('tab-unidades').className = tab === 'unidades' ? 'px-6 py-3 font-medium text-emerald-600 border-b-2 border-emerald-600 bg-emerald-50/50' : 'px-6 py-3 font-medium text-gray-500 hover:text-gray-700';
+    const tabs = ['categorias', 'unidades', 'proveedores', 'ubicaciones'];
+    tabs.forEach(t => {
+        document.getElementById(`seccion-${t}`).style.display = tab === t ? 'block' : 'none';
+        document.getElementById(`tab-${t}`).className = tab === t 
+            ? 'px-6 py-3 font-medium text-emerald-600 border-b-2 border-emerald-600 bg-emerald-50/50 whitespace-nowrap' 
+            : 'px-6 py-3 font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap';
+    });
 }
 
 function mostrarFormProducto() { document.getElementById('panel-form-producto').classList.remove('hidden'); }
@@ -59,6 +59,8 @@ function ocultarFormProducto() { document.getElementById('panel-form-producto').
 function cargarDatos() {
     cargarCategorias();
     cargarUnidades();
+    cargarProveedores();
+    cargarUbicaciones();
 }
 
 async function cargarCategorias() {
@@ -75,29 +77,60 @@ async function cargarUnidades() {
     data.forEach(u => lista.innerHTML += `<li class="p-4 flex justify-between border-b"><span>${u.nombre} <b>(${u.abreviatura})</b></span><button onclick="borrarRegistro('unidades', '${u.id}')" class="text-red-500 hover:underline text-sm font-medium">Borrar</button></li>`);
 }
 
+async function cargarProveedores() {
+    const { data } = await clienteSupabase.from('proveedores').select('*').eq('id_empresa', miEmpresaId).order('nombre');
+    const lista = document.getElementById('lista-proveedores');
+    lista.innerHTML = '';
+    data.forEach(p => lista.innerHTML += `<li class="p-4 flex justify-between border-b items-center"><div><p class="font-medium">${p.nombre}</p><p class="text-xs text-gray-500">Contacto: ${p.nombre_contacto || '-'} | Entrega: ${p.lapso_entrega_dias || '-'} días</p></div><button onclick="borrarRegistro('proveedores', '${p.id}')" class="text-red-500 hover:underline text-sm font-medium">Borrar</button></li>`);
+}
+
+async function cargarUbicaciones() {
+    const { data } = await clienteSupabase.from('ubicaciones_internas').select('*').eq('id_empresa', miEmpresaId).order('nombre');
+    const lista = document.getElementById('lista-ubicaciones');
+    lista.innerHTML = '';
+    data.forEach(u => lista.innerHTML += `<li class="p-4 flex justify-between border-b"><span>${u.nombre}</span><button onclick="borrarRegistro('ubicaciones_internas', '${u.id}')" class="text-red-500 hover:underline text-sm font-medium">Borrar</button></li>`);
+}
+
 // --- GUARDADO Y BORRADO DE CATÁLOGOS ---
 document.getElementById('form-categoria').addEventListener('submit', async (e) => { 
     e.preventDefault(); 
-    const n = document.getElementById('nombre-categoria').value; 
-    await clienteSupabase.from('categorias').insert([{ nombre: n, id_empresa: miEmpresaId }]); 
+    await clienteSupabase.from('categorias').insert([{ nombre: document.getElementById('nombre-categoria').value, id_empresa: miEmpresaId }]); 
     document.getElementById('nombre-categoria').value = ''; 
     cargarCategorias(); 
 });
 
 document.getElementById('form-unidad').addEventListener('submit', async (e) => { 
     e.preventDefault(); 
-    const n = document.getElementById('nombre-unidad').value; 
-    const a = document.getElementById('abrev-unidad').value; 
-    await clienteSupabase.from('unidades').insert([{ nombre: n, abreviatura: a, id_empresa: miEmpresaId }]); 
+    await clienteSupabase.from('unidades').insert([{ nombre: document.getElementById('nombre-unidad').value, abreviatura: document.getElementById('abrev-unidad').value, id_empresa: miEmpresaId }]); 
     document.getElementById('form-unidad').reset(); 
     cargarUnidades(); 
+});
+
+document.getElementById('form-proveedor').addEventListener('submit', async (e) => { 
+    e.preventDefault(); 
+    const nuevoProv = {
+        nombre: document.getElementById('nombre-proveedor').value,
+        nombre_contacto: document.getElementById('contacto-proveedor').value,
+        lapso_entrega_dias: document.getElementById('tiempo-entrega').value || null,
+        id_empresa: miEmpresaId
+    };
+    await clienteSupabase.from('proveedores').insert([nuevoProv]); 
+    document.getElementById('form-proveedor').reset(); 
+    cargarProveedores(); 
+});
+
+document.getElementById('form-ubicacion').addEventListener('submit', async (e) => { 
+    e.preventDefault(); 
+    await clienteSupabase.from('ubicaciones_internas').insert([{ nombre: document.getElementById('nombre-ubicacion').value, id_empresa: miEmpresaId }]); 
+    document.getElementById('nombre-ubicacion').value = ''; 
+    cargarUbicaciones(); 
 });
 
 async function borrarRegistro(tabla, id) { 
     if(confirm("¿Seguro de eliminar este registro?")) { 
         await clienteSupabase.from(tabla).delete().eq('id', id); 
         cargarDatos(); 
-        cargarProductos(); 
+        if(tabla === 'categorias' || tabla === 'unidades') cargarProductos(); 
     } 
 }
 
