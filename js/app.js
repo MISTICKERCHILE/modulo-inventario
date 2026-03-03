@@ -1,6 +1,6 @@
 window.miEmpresaId = null;
 window.productoActualParaReceta = null;
-window.unidadesMemoria = []; // Guardaremos las unidades aquí para la "Magia"
+window.unidadesMemoria = []; 
 
 // --- LOGIN Y SESIÓN ---
 document.getElementById('login-form').addEventListener('submit', async (e) => {
@@ -78,7 +78,22 @@ async function eliminarReg(tabla, id) {
 }
 
 // --- PRODUCTOS ---
-function mostrarFormProducto() { document.getElementById('panel-form-producto').classList.toggle('hidden'); }
+
+// Magia: Generar SKU y mostrar el panel
+function mostrarFormProducto() { 
+    const panel = document.getElementById('panel-form-producto');
+    panel.classList.toggle('hidden'); 
+    
+    // Si abrimos el panel y el SKU está vacío, generamos uno nuevo y único.
+    if(!panel.classList.contains('hidden')) {
+        const inputSku = document.getElementById('prod-sku');
+        if(!inputSku.value) {
+            // Genera algo tipo "PRD-A4F8K"
+            const aleatorio = Math.random().toString(36).substring(2, 8).toUpperCase();
+            inputSku.value = 'PRD-' + aleatorio;
+        }
+    }
+}
 
 window.toggleFilaProducto = function(idFila) {
     const fila = document.getElementById(idFila);
@@ -90,12 +105,12 @@ async function cargarDatosSelects() {
     document.getElementById('prod-categoria').innerHTML = (cat||[]).map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
 
     const { data: uni } = await clienteSupabase.from('unidades').select('*').eq('id_empresa', window.miEmpresaId);
-    window.unidadesMemoria = uni || []; // Guardamos para la magia de las conversiones
+    window.unidadesMemoria = uni || []; 
     const opcionesUni = '<option value="">Seleccione...</option>' + window.unidadesMemoria.map(u => `<option value="${u.id}">${u.nombre} (${u.abreviatura})</option>`).join('');
     ['prod-u-compra', 'prod-u-almacen', 'prod-u-menor', 'prod-u-receta'].forEach(id => document.getElementById(id).innerHTML = opcionesUni);
 }
 
-// 🧙‍♂️ MAGIA: AUTOCOMPLETADO DE UNIDADES INTELIGENTES
+// AUTOCOMPLETADO DE UNIDADES INTELIGENTES
 function procesarUnidadInteligente(origenId, arrDestinos) {
     const idUnidad = document.getElementById(origenId).value;
     if(!idUnidad) return;
@@ -103,7 +118,6 @@ function procesarUnidadInteligente(origenId, arrDestinos) {
     if(!unidad) return;
 
     const abrev = unidad.abreviatura.toLowerCase();
-    // Si la unidad seleccionada es gramos, mililitros o unidades
     if(['gr', 'g', 'ml', 'cc', 'un', 'u', 'und'].includes(abrev)) {
         arrDestinos.forEach(dest => {
             document.getElementById(`prod-u-${dest.select}`).value = idUnidad;
@@ -112,15 +126,9 @@ function procesarUnidadInteligente(origenId, arrDestinos) {
     }
 }
 
-document.getElementById('prod-u-compra').addEventListener('change', () => {
-    procesarUnidadInteligente('prod-u-compra', [{select:'almacen', cant:'ua'}, {select:'menor', cant:'um'}, {select:'receta', cant:'ur'}]);
-});
-document.getElementById('prod-u-almacen').addEventListener('change', () => {
-    procesarUnidadInteligente('prod-u-almacen', [{select:'menor', cant:'um'}, {select:'receta', cant:'ur'}]);
-});
-document.getElementById('prod-u-menor').addEventListener('change', () => {
-    procesarUnidadInteligente('prod-u-menor', [{select:'receta', cant:'ur'}]);
-});
+document.getElementById('prod-u-compra').addEventListener('change', () => { procesarUnidadInteligente('prod-u-compra', [{select:'almacen', cant:'ua'}, {select:'menor', cant:'um'}, {select:'receta', cant:'ur'}]); });
+document.getElementById('prod-u-almacen').addEventListener('change', () => { procesarUnidadInteligente('prod-u-almacen', [{select:'menor', cant:'um'}, {select:'receta', cant:'ur'}]); });
+document.getElementById('prod-u-menor').addEventListener('change', () => { procesarUnidadInteligente('prod-u-menor', [{select:'receta', cant:'ur'}]); });
 
 
 async function cargarProductos() {
@@ -131,7 +139,7 @@ async function cargarProductos() {
             <td class="px-6 py-4 text-center">${p.tiene_receta ? '<span class="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold border border-blue-200">Con Receta</span>' : '<span class="text-gray-400 text-xs">Simple</span>'}</td>
             <td class="px-6 py-4 text-right text-slate-400 text-xs">Ver opciones ▼</td>
         </tr>
-        <tr id="acciones-${p.id}" class="hidden bg-slate-100/60 border-b border-slate-200">
+        <tr id="acciones-${p.id}" class="hidden bg-slate-100/60 border-b border-slate-200 shadow-inner">
             <td colspan="3" class="px-6 py-3">
                 <div class="flex justify-end gap-6 items-center">
                     ${p.tiene_receta ? `<button onclick="abrirReceta('${p.id}', '${p.nombre}')" class="text-emerald-700 font-bold hover:underline flex items-center gap-1"><span>📝</span> Gestionar Receta</button>` : ''}
@@ -161,6 +169,7 @@ document.getElementById('form-producto').addEventListener('submit', async (e) =>
     };
     await clienteSupabase.from('productos').insert([nuevo]);
     document.getElementById('form-producto').reset();
+    document.getElementById('prod-sku').value = ''; // Limpiamos el SKU viejo para forzar uno nuevo la próxima vez
     document.getElementById('panel-form-producto').classList.add('hidden');
     cargarProductos();
 });
