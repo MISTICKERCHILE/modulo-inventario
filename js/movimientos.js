@@ -24,9 +24,7 @@ window.cambiarTabMovimientos = function(tab) {
         if(btn) btn.className = tab === t ? 'px-6 py-3 font-medium border-b-2 border-emerald-600 text-emerald-600 bg-emerald-50/50' : 'px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors';
     });
 
-    if(tab === 'pedidos') {
-        window.cambiarSubTabPedidos('sugerencias');
-    }
+    if(tab === 'pedidos') window.cambiarSubTabPedidos('sugerencias');
     if(tab === 'compras' || tab === 'otros') window.cargarSelectsMovimientosFormularios(); 
     if(tab === 'ventas') window.prepararPanelVentas();
 }
@@ -51,19 +49,19 @@ window.cambiarSubTabPedidos = function(subtab) {
 }
 
 // ==========================================
-// --- SECCIÓN: PEDIDOS (SUGERENCIAS Y CARRITO) ---
+// --- SECCIÓN 1: PEDIDOS SUGERIDOS ---
 // ==========================================
-
-window.carritoPedidos = []; // Arreglo para guardar lo que se va a pedir
-window.proveedoresGlobal = []; // Memoria de proveedores para los selects
+window.carritoPedidos = []; 
+window.proveedoresGlobal = []; 
 
 window.cargarPedidosPlanificados = async function() {
-    const [{ data: sucursales }, { data: prods }, { data: reglas }, { data: provs }, { data: saldos }] = await Promise.all([
+    const [{ data: sucursales }, { data: prods }, { data: reglas }, { data: provs }, { data: saldos }, { data: transitoGlobal }] = await Promise.all([
         clienteSupabase.from('sucursales').select('id, nombre').eq('id_empresa', window.miEmpresaId),
         clienteSupabase.from('productos').select('id, nombre, ultimo_costo_uc, cant_en_ua_de_uc, id_unidad_almacenamiento(abreviatura), id_unidad_compra(abreviatura)').eq('id_empresa', window.miEmpresaId),
         clienteSupabase.from('reglas_stock_sucursal').select('id_sucursal, id_producto, stock_minimo_ua, stock_ideal_ua').eq('id_empresa', window.miEmpresaId),
         clienteSupabase.from('proveedores').select('id, nombre').eq('id_empresa', window.miEmpresaId),
-        clienteSupabase.from('inventario_saldos').select('id_sucursal, id_producto, cantidad_actual_ua').eq('id_empresa', window.miEmpresaId)
+        clienteSupabase.from('inventario_saldos').select('id_sucursal, id_producto, cantidad_actual_ua').eq('id_empresa', window.miEmpresaId),
+        clienteSupabase.from('compras_detalles').select('id_sucursal_destino, id_producto, cantidad_uc, productos(cant_en_ua_de_uc)').in('estado', ['En Tránsito', 'Postpuesto'])
     ]);
 
     window.proveedoresGlobal = provs || [];
@@ -78,25 +76,38 @@ window.cargarPedidosPlanificados = async function() {
             const regla = (reglas||[]).find(r => r.id_sucursal === suc.id && r.id_producto === p.id);
             if(!regla || regla.stock_minimo_ua <= 0) return;
 
-            const stockSucursal = saldos.filter(s => s.id_sucursal === suc.id && s.id_producto === p.id).reduce((sum, s) => sum + Number(s.cantidad_actual_ua), 0);
+            // FÍSICO: Lo que hay en la bodega sumando todas las ubicaciones
+            const stockFisico = saldos.filter(s => s.id_sucursal === suc.id && s.id_producto === p.id).reduce((sum, s) => sum + Number(s.cantidad_actual_ua), 0);
+            
+            // EN CAMINO: Lo que viene en los camiones para esta sucursal (Convertido a UA)
+            const incomingUA = (transitoGlobal||[]).filter(t => t.id_sucursal_destino === suc.id && t.id_producto === p.id)
+                                .reduce((sum, t) => sum + (t.cantidad_uc * (t.productos?.cant_en_ua_de_uc || 1)), 0);
 
-            if (stockSucursal <= regla.stock_minimo_ua) {
-                const sugeridoUA = regla.stock_ideal_ua > 0 ? (regla.stock_ideal_ua - stockSucursal) : (regla.stock_minimo_ua - stockSucursal + 1); 
+            // VIRTUAL: Físico + En Camino
+            const stockVirtual = stockFisico + incomingUA;
+
+            // SOLO sugerimos comprar si, aun con lo que viene en camino, no llegamos al mínimo
+            if (stockVirtual <= regla.stock_minimo_ua) {
+                // Sugerimos pedir para llegar al Ideal.
+                const sugeridoUA = regla.stock_ideal_ua > 0 ? (regla.stock_ideal_ua - stockVirtual) : (regla.stock_minimo_ua - stockVirtual + 1); 
                 const sugeridoUC = p.cant_en_ua_de_uc > 0 ? (sugeridoUA / p.cant_en_ua_de_uc).toFixed(2) : sugeridoUA;
                 const abrevUA = p.id_unidad_almacenamiento?.abreviatura || 'UA';
                 const abrevUC = p.id_unidad_compra?.abreviatura || 'UC';
                 const precioRef = p.ultimo_costo_uc || 0;
 
-                // Verificamos si ya está en el carrito para mantener la fila oculta al recargar
                 const estaEnCarrito = window.carritoPedidos.some(item => item.idProd === p.id && item.idSuc === suc.id);
                 const displayStyle = estaEnCarrito ? 'style="display: none;"' : '';
+                const txtEnCamino = incomingUA > 0 ? `<br><span class="text-[9px] text-blue-500 font-bold uppercase">+ ${incomingUA.toFixed(2)} en camino</span>` : '';
 
                 const paramsParaBoton = `'${suc.id}', '${suc.nombre}', '${p.id}', '${p.nombre.replace(/'/g, "\\'")}', ${sugeridoUC}, '${abrevUC}', ${precioRef}`;
 
                 htmlFilasSucursal += `
                 <tr id="fila-sug-${suc.id}-${p.id}" ${displayStyle} class="hover:bg-orange-50 transition-colors border-b border-orange-100">
                     <td class="px-4 py-3 font-bold text-slate-700 text-sm">${p.nombre}</td>
-                    <td class="px-4 py-3 text-center"><span class="bg-red-100 text-red-700 px-2 py-1 rounded font-bold text-xs">${stockSucursal.toFixed(2)} ${abrevUA}</span></td>
+                    <td class="px-4 py-3 text-center leading-tight">
+                        <span class="bg-red-100 text-red-700 px-2 py-1 rounded font-bold text-xs">${stockFisico.toFixed(2)} ${abrevUA}</span>
+                        ${txtEnCamino}
+                    </td>
                     <td class="px-4 py-3 text-center text-orange-800 font-bold text-sm">${sugeridoUA.toFixed(2)} ${abrevUA} <br><span class="text-[10px] text-orange-500 font-normal uppercase">Pedir: ${sugeridoUC} ${abrevUC}</span></td>
                     <td class="px-4 py-3">
                         <select id="prov-select-${suc.id}-${p.id}" class="w-full px-2 py-1 border border-orange-200 rounded text-xs outline-none focus:ring-1 focus:ring-orange-400 bg-white">
@@ -125,7 +136,7 @@ window.cargarPedidosPlanificados = async function() {
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-orange-100">
                         <thead class="bg-orange-50 text-xs font-bold text-orange-800 uppercase">
-                            <tr><th class="px-4 py-2 text-left">Producto</th><th class="px-4 py-2 text-center">Stock Local</th><th class="px-4 py-2 text-center">Sugerido Pedir</th><th class="px-4 py-2 text-left w-48">Elegir Proveedor</th><th class="px-4 py-2 text-center">Últ. Precio Ref.</th><th class="px-4 py-2 text-right">Acción</th></tr>
+                            <tr><th class="px-4 py-2 text-left">Producto</th><th class="px-4 py-2 text-center">Stock Físico Real</th><th class="px-4 py-2 text-center">Sugerido Pedir</th><th class="px-4 py-2 text-left w-48">Elegir Proveedor</th><th class="px-4 py-2 text-center">Últ. Precio Ref.</th><th class="px-4 py-2 text-right">Acción</th></tr>
                         </thead>
                         <tbody class="divide-y divide-orange-50 bg-white">${htmlFilasSucursal}</tbody>
                     </table>
@@ -135,64 +146,35 @@ window.cargarPedidosPlanificados = async function() {
     });
     
     const containerAlertas = document.getElementById('lista-alertas-compras');
-    if(containerAlertas) containerAlertas.innerHTML = htmlGlobal || '<div class="p-8 text-center bg-emerald-50 rounded-xl border border-emerald-200 text-emerald-700 font-bold text-lg">🟢 Excelente. Todas las sucursales tienen stock por encima de su nivel mínimo.</div>';
+    if(containerAlertas) containerAlertas.innerHTML = htmlGlobal || '<div class="p-8 text-center bg-emerald-50 rounded-xl border border-emerald-200 text-emerald-700 font-bold text-lg">🟢 Excelente. Todas las sucursales tienen stock (o pedidos en camino) suficientes.</div>';
 
-    window.renderizarBandejaPedidos(); // Por si hay carritos pendientes
+    window.renderizarBandejaPedidos(); 
 }
 
 window.abrirModalHistorialPrecios = async function(idProd, nombreProd) {
     document.getElementById('hp-producto-nombre').innerText = nombreProd;
     document.getElementById('modal-historial-precios').classList.remove('hidden');
-    
     const tbody = document.getElementById('lista-historial-precios');
     tbody.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-slate-500">Buscando facturas... 🕵️‍♀️</td></tr>';
-
-    const { data: historial } = await clienteSupabase
-        .from('compras_detalles')
-        .select(`precio_unitario_uc, compras!inner(fecha_compra, proveedores(nombre))`)
-        .eq('id_producto', idProd)
-        .order('compras(fecha_compra)', { ascending: false })
-        .limit(10);
-
-    if(!historial || historial.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-slate-400 italic">No hay compras registradas para este producto.</td></tr>';
-        return;
-    }
-
-    tbody.innerHTML = historial.map(h => `
-        <tr class="hover:bg-slate-50">
-            <td class="px-4 py-2 text-slate-500">${h.compras.fecha_compra}</td>
-            <td class="px-4 py-2 font-bold text-slate-700">${h.compras.proveedores?.nombre || 'Desconocido'}</td>
-            <td class="px-4 py-2 text-right font-mono font-bold text-emerald-700">$${h.precio_unitario_uc}</td>
-        </tr>
-    `).join('');
+    const { data: historial } = await clienteSupabase.from('compras_detalles').select(`precio_unitario_uc, compras!inner(fecha_compra, proveedores(nombre))`).eq('id_producto', idProd).order('compras(fecha_compra)', { ascending: false }).limit(10);
+    if(!historial || historial.length === 0) { tbody.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-slate-400 italic">No hay compras registradas.</td></tr>'; return; }
+    tbody.innerHTML = historial.map(h => `<tr class="hover:bg-slate-50"><td class="px-4 py-2 text-slate-500">${h.compras.fecha_compra}</td><td class="px-4 py-2 font-bold text-slate-700">${h.compras.proveedores?.nombre || 'Desconocido'}</td><td class="px-4 py-2 text-right font-mono font-bold text-emerald-700">$${h.precio_unitario_uc}</td></tr>`).join('');
 }
 
 window.agregarPedidoAlCarrito = function(idSuc, nombreSuc, idProd, nombreProd, cantUC, abrevUC, precioRef, idProv) {
     if(!idProv) return alert("❌ Por favor, selecciona un proveedor en la lista antes de añadir al pedido.");
-    
     const nombreProv = window.proveedoresGlobal.find(p => p.id === idProv)?.nombre || 'Desconocido';
-
     const existente = window.carritoPedidos.find(item => item.idProd === idProd && item.idSuc === idSuc && item.idProv === idProv);
-    if (existente) {
-        existente.cantUC += Number(cantUC);
-    } else {
-        window.carritoPedidos.push({ idSuc, nombreSuc, idProd, nombreProd, cantUC: Number(cantUC), abrevUC, precioRef, idProv, nombreProv });
-    }
-
+    if (existente) existente.cantUC += Number(cantUC);
+    else window.carritoPedidos.push({ idSuc, nombreSuc, idProd, nombreProd, cantUC: Number(cantUC), abrevUC, precioRef, idProv, nombreProv });
     window.renderizarBandejaPedidos();
-    
-    // Ocultar la fila de la lista de sugerencias limpiamente
     const fila = document.getElementById(`fila-sug-${idSuc}-${idProd}`);
     if(fila) fila.style.display = 'none';
 }
 
 window.quitarDelCarrito = function(idSuc, idProd, idProv) {
-    // Lo eliminamos del arreglo
     window.carritoPedidos = window.carritoPedidos.filter(i => !(i.idSuc === idSuc && i.idProd === idProd && i.idProv === idProv));
     window.renderizarBandejaPedidos();
-    
-    // Lo volvemos a mostrar en la lista de sugerencias de arriba
     const fila = document.getElementById(`fila-sug-${idSuc}-${idProd}`);
     if(fila) fila.style.display = '';
 }
@@ -200,13 +182,7 @@ window.quitarDelCarrito = function(idSuc, idProd, idProv) {
 window.renderizarBandejaPedidos = function() {
     const contenedor = document.getElementById('contenedor-bandeja');
     const lista = document.getElementById('lista-carritos-proveedor');
-    
-    if (window.carritoPedidos.length === 0) {
-        contenedor.classList.add('hidden');
-        lista.innerHTML = '';
-        return;
-    }
-
+    if (window.carritoPedidos.length === 0) { contenedor.classList.add('hidden'); lista.innerHTML = ''; return; }
     contenedor.classList.remove('hidden');
 
     const agrupadoPorProveedor = {};
@@ -219,17 +195,14 @@ window.renderizarBandejaPedidos = function() {
     for (const [idProv, data] of Object.entries(agrupadoPorProveedor)) {
         let totalEstimado = 0;
         const filasHTML = data.items.map(item => {
-            const subtotal = item.cantUC * item.precioRef;
-            totalEstimado += subtotal;
+            totalEstimado += (item.cantUC * item.precioRef);
             return `
             <tr class="border-b border-slate-200 bg-white hover:bg-slate-50 transition-colors">
                 <td class="px-4 py-2 font-bold text-slate-800 text-sm">🏢 ${item.nombreSuc}</td>
                 <td class="px-4 py-2 font-medium text-sm">${item.nombreProd}</td>
                 <td class="px-4 py-2 text-center font-bold">${item.cantUC} <span class="text-xs text-slate-500">${item.abrevUC}</span></td>
                 <td class="px-4 py-2 text-right text-slate-500 font-mono text-sm">$${item.precioRef}</td>
-                <td class="px-2 py-2 text-center">
-                    <button onclick="quitarDelCarrito('${item.idSuc}', '${item.idProd}', '${idProv}')" class="text-red-400 hover:text-red-600 text-lg transition-transform hover:scale-110" title="Quitar de la bandeja">❌</button>
-                </td>
+                <td class="px-2 py-2 text-center"><button onclick="quitarDelCarrito('${item.idSuc}', '${item.idProd}', '${idProv}')" class="text-red-400 hover:text-red-600 text-lg transition-transform hover:scale-110" title="Quitar de la bandeja">❌</button></td>
             </tr>`;
         }).join('');
 
@@ -262,113 +235,238 @@ window.generarPedidoTransitoMasivo = async function(idProv) {
     const totalEstimado = itemsDelProveedor.reduce((sum, item) => sum + (item.cantUC * item.precioRef), 0);
 
     const { data: cabecera } = await clienteSupabase.from('compras').insert([{ 
-        id_empresa: window.miEmpresaId, 
-        id_proveedor: idProv, 
-        total_compra: totalEstimado, 
-        estado: 'En Tránsito' 
+        id_empresa: window.miEmpresaId, id_proveedor: idProv, total_compra: totalEstimado, estado: 'En Tránsito' 
     }]).select('id').single();
 
     if(cabecera) {
         const detallesAInsertar = itemsDelProveedor.map(item => ({
             id_compra: cabecera.id,
             id_producto: item.idProd,
+            id_sucursal_destino: item.idSuc, // AHORA CADA LÍNEA SABE A QUÉ SUCURSAL VA
             cantidad_uc: item.cantUC,
             precio_unitario_uc: item.precioRef,
-            subtotal: item.cantUC * item.precioRef
+            subtotal: item.cantUC * item.precioRef,
+            estado: 'En Tránsito'
         }));
         await clienteSupabase.from('compras_detalles').insert(detallesAInsertar);
     }
 
-    // Limpiamos los items del carrito y recargamos
     window.carritoPedidos = window.carritoPedidos.filter(i => i.idProv !== idProv);
     window.renderizarBandejaPedidos();
-    
-    // Ya que pasaron a tránsito, volvemos a cargar las sugerencias para ver si falta algo más
-    window.cargarPedidosPlanificados(); 
+    window.cargarPedidosPlanificados(); // Al recargar, como ya están en tránsito, desaparecerán de las alertas.
     alert("✅ Pedido generado y enviado a Tránsito exitosamente.");
 }
 
 // ==========================================
-// --- SECCIÓN: PEDIDOS EN TRÁNSITO ---
+// --- SECCIÓN 2: EN TRÁNSITO Y RECEPCIÓN MASIVA ---
 // ==========================================
+window.recepcionActivaSuc = null;
+window.recepcionActivaProv = null;
 
+// 1. Mostrar Cuadrícula de Sucursales
 window.cargarPedidosEnTransito = async function() {
-    const { data: transito } = await clienteSupabase.from('compras_detalles')
-        .select(`id, cantidad_uc, precio_unitario_uc, id_producto, productos(nombre, cant_en_ua_de_uc, id_unidad_compra(abreviatura)), compras!inner(id, fecha_compra, estado, proveedores(nombre))`)
-        .eq('compras.estado', 'En Tránsito');
+    document.getElementById('transito-vista-sucursales').classList.remove('hidden');
+    document.getElementById('transito-vista-detalle').classList.add('hidden');
 
-    const containerTransito = document.getElementById('lista-pedidos-transito');
-    if(containerTransito) {
-        containerTransito.innerHTML = (transito || []).map(t => {
-            const abrevUC = t.productos?.id_unidad_compra?.abreviatura || 'Unidades';
-            return `
-            <tr class="hover:bg-blue-50 transition-colors border-b border-blue-100">
-                <td class="px-6 py-4"><p class="font-bold text-slate-700">${t.compras.fecha_compra}</p><p class="text-xs text-slate-500 font-medium uppercase tracking-wide">🚚 ${t.compras.proveedores?.nombre || 'General'}</p></td>
-                <td class="px-6 py-4 font-bold text-slate-700">${t.productos?.nombre}</td>
-                <td class="px-6 py-4 text-center font-bold text-blue-700 bg-blue-50 rounded border border-blue-100">${t.cantidad_uc} ${abrevUC}</td>
-                <td class="px-6 py-4 text-right"><button onclick="abrirModalRecepcion('${t.compras.id}', '${t.id_producto}', '${t.productos.nombre.replace(/'/g, "\\'")}', ${t.cantidad_uc}, ${t.precio_unitario_uc}, ${t.productos.cant_en_ua_de_uc})" class="text-sm bg-blue-600 text-white px-4 py-2 rounded shadow-md hover:bg-blue-700 font-bold transition-transform hover:scale-105">✅ Recepcionar Llegada</button></td>
-            </tr>`;
-        }).join('') || '<tr><td colspan="4" class="px-6 py-12 text-center text-slate-400 italic">No hay pedidos en tránsito. Todo está al día.</td></tr>';
-    }
-}
-
-
-// ==========================================
-// --- RECEPCIÓN Y COMPRAS DIRECTAS ---
-// ==========================================
-
-window.abrirModalRecepcion = async function(idCompra, idProd, nombreProd, cantUC, precioUC, factorConversion) {
     const { data: sucursales } = await clienteSupabase.from('sucursales').select('id, nombre').eq('id_empresa', window.miEmpresaId);
-    document.getElementById('rec-sucursal').innerHTML = '<option value="">Selecciona bodega destino...</option>' + (sucursales||[]).map(s => `<option value="${s.id}">${s.nombre}</option>`).join('');
+    const grid = document.getElementById('grid-sucursales-transito');
     
-    document.getElementById('rec-id-compra').value = idCompra;
-    document.getElementById('rec-id-producto').value = idProd;
-    document.getElementById('rec-cantidad-uc').value = cantUC;
-    document.getElementById('rec-precio-uc').value = precioUC;
-    
-    const entrarUA = cantUC * factorConversion;
-    document.getElementById('rec-resumen-texto').innerText = `${nombreProd}: Ingresarán ${entrarUA.toFixed(2)} Unidades de Almacén.`;
-    document.getElementById('modal-recepcion').classList.remove('hidden');
+    grid.innerHTML = (sucursales||[]).map(s => `
+        <button onclick="abrirTransitoSucursal('${s.id}', '${s.nombre}')" class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-400 transition-all text-left flex flex-col items-start gap-4 cursor-pointer outline-none">
+            <span class="text-5xl">🏢</span>
+            <div>
+                <span class="block font-bold text-xl text-slate-800">${s.nombre}</span>
+                <span class="text-sm text-blue-600 font-medium mt-1">Ver camiones en camino →</span>
+            </div>
+        </button>
+    `).join('');
 }
 
-window.cargarUbicacionesRecepcion = async function(idSucursal) {
-    const divUbi = document.getElementById('div-rec-ubicacion');
-    const selUbi = document.getElementById('rec-ubicacion');
-    if(!idSucursal) { divUbi.classList.add('hidden'); selUbi.innerHTML = ''; return; }
-    
-    const { data: ubicaciones } = await clienteSupabase.from('ubicaciones_internas').select('id, nombre').eq('id_sucursal', idSucursal);
-    if(ubicaciones && ubicaciones.length > 0) {
-        selUbi.innerHTML = '<option value="">(Bodega General)</option>' + ubicaciones.map(u => `<option value="${u.id}">${u.nombre}</option>`).join('');
-    } else { selUbi.innerHTML = '<option value="">(Sin ubicaciones creadas)</option>'; }
-    divUbi.classList.remove('hidden');
+window.volverGridTransito = function() {
+    window.cargarPedidosEnTransito();
 }
 
-document.getElementById('form-recepcion')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const idCompra = document.getElementById('rec-id-compra').value, idProd = document.getElementById('rec-id-producto').value, idSucursal = document.getElementById('rec-sucursal').value;
-    const idUbi = document.getElementById('rec-ubicacion').value || null;
-    const precioUC = parseFloat(document.getElementById('rec-precio-uc').value);
-    
-    const { data: prod } = await clienteSupabase.from('productos').select('cant_en_ua_de_uc').eq('id', idProd).single();
-    const cantUA_a_sumar = parseFloat(document.getElementById('rec-cantidad-uc').value) * prod.cant_en_ua_de_uc;
+// 2. Mostrar Tarjetas por Proveedor en la Sucursal
+window.abrirTransitoSucursal = async function(idSuc, nombreSuc) {
+    document.getElementById('transito-titulo-sucursal').innerText = `🚚 En Camino a: ${nombreSuc}`;
+    document.getElementById('transito-vista-sucursales').classList.add('hidden');
+    document.getElementById('transito-vista-detalle').classList.remove('hidden');
 
-    let query = clienteSupabase.from('inventario_saldos').select('id, cantidad_actual_ua').eq('id_producto', idProd).eq('id_sucursal', idSucursal);
-    if(idUbi) query = query.eq('id_ubicacion', idUbi); else query = query.is('id_ubicacion', null);
-    
-    const { data: previo } = await query.maybeSingle();
-    if (previo) {
-        await clienteSupabase.from('inventario_saldos').update({ cantidad_actual_ua: previo.cantidad_actual_ua + cantUA_a_sumar, ultima_actualizacion: new Date() }).eq('id', previo.id);
-    } else {
-        await clienteSupabase.from('inventario_saldos').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_sucursal: idSucursal, id_ubicacion: idUbi, cantidad_actual_ua: cantUA_a_sumar }]);
+    const lista = document.getElementById('lista-transito-proveedores');
+    lista.innerHTML = '<p class="text-slate-500 font-bold py-8">⏳ Buscando camiones...</p>';
+
+    // Buscamos todo lo que viene a esta sucursal
+    const { data: transito } = await clienteSupabase.from('compras_detalles')
+        .select(`id, id_producto, cantidad_uc, compras!inner(id_proveedor, proveedores(nombre))`)
+        .eq('id_sucursal_destino', idSuc)
+        .in('estado', ['En Tránsito', 'Postpuesto']);
+
+    if(!transito || transito.length === 0) {
+        lista.innerHTML = '<div class="p-8 text-center bg-blue-50 border border-blue-200 rounded-xl text-blue-700 font-bold">Todo está al día. No hay pedidos en tránsito para esta sucursal.</div>';
+        return;
     }
 
-    await clienteSupabase.from('movimientos_inventario').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_ubicacion: idUbi, tipo_movimiento: 'INGRESO_COMPRA', cantidad_movida: cantUA_a_sumar, costo_unitario_movimiento: precioUC, referencia: 'Recepción de Pedido' }]);
-    await clienteSupabase.from('productos').update({ ultimo_costo_uc: precioUC }).eq('id', idProd);
-    await clienteSupabase.from('compras').update({ estado: 'Completada' }).eq('id', idCompra);
+    // Agrupar por proveedor
+    const agrupado = {};
+    transito.forEach(t => {
+        const idProv = t.compras.id_proveedor;
+        const nombreProv = t.compras.proveedores?.nombre || 'General';
+        if(!agrupado[idProv]) agrupado[idProv] = { nombre: nombreProv, items: 0 };
+        agrupado[idProv].items++;
+    });
 
-    document.getElementById('modal-recepcion').classList.add('hidden');
-    window.cargarPedidosEnTransito(); 
-});
+    lista.innerHTML = Object.keys(agrupado).map(idProv => `
+        <div class="bg-white rounded-lg border border-blue-200 p-6 flex justify-between items-center shadow-sm">
+            <div>
+                <h4 class="font-bold text-xl text-slate-800">📦 Pedido de: ${agrupado[idProv].nombre}</h4>
+                <p class="text-slate-500 text-sm mt-1">${agrupado[idProv].items} productos esperando recepción.</p>
+            </div>
+            <button onclick="abrirModalRecepcionMasiva('${idSuc}', '${nombreSuc}', '${idProv}', '${agrupado[idProv].nombre}')" class="px-6 py-3 bg-blue-600 text-white rounded-md font-bold shadow hover:bg-blue-700 transition-transform hover:scale-105">✅ Recepción de Pedido</button>
+        </div>
+    `).join('');
+}
+
+// 3. Abrir el Súper Modal de Recepción
+window.abrirModalRecepcionMasiva = async function(idSuc, nombreSuc, idProv, nombreProv) {
+    window.recepcionActivaSuc = idSuc;
+    window.recepcionActivaProv = idProv;
+
+    document.getElementById('rm-sucursal').innerText = nombreSuc;
+    document.getElementById('rm-proveedor').innerText = nombreProv;
+    document.getElementById('rm-fecha-hoy').innerText = new Date().toLocaleDateString();
+
+    const { data: ubicaciones } = await clienteSupabase.from('ubicaciones_internas').select('id, nombre').eq('id_sucursal', idSuc);
+    const optsUbi = '<option value="">-- General (Sin ubicación) --</option>' + (ubicaciones||[]).map(u => `<option value="${u.id}">${u.nombre}</option>`).join('');
+
+    const { data: detalles } = await clienteSupabase.from('compras_detalles')
+        .select('id, cantidad_uc, precio_unitario_uc, id_producto, estado, motivo_no_recepcion, productos(nombre, cant_en_ua_de_uc, id_unidad_compra(abreviatura)), compras!inner(id, id_proveedor)')
+        .eq('id_sucursal_destino', idSuc)
+        .eq('compras.id_proveedor', idProv)
+        .in('estado', ['En Tránsito', 'Postpuesto']);
+
+    const tbody = document.getElementById('rm-filas');
+    tbody.innerHTML = detalles.map(d => {
+        const abrev = d.productos?.id_unidad_compra?.abreviatura || 'UC';
+        const isPostpuesto = d.estado === 'Postpuesto';
+        const labelPost = isPostpuesto ? `<span class="block mt-1 text-[10px] bg-yellow-100 text-yellow-800 px-2 py-1 rounded w-max">Estaba Postpuesto</span>` : '';
+
+        return `
+        <tr class="fila-recepcion border-b border-slate-100 hover:bg-slate-50 transition-colors" data-id-detalle="${d.id}" data-id-prod="${d.id_producto}" data-factor="${d.productos?.cant_en_ua_de_uc || 1}" data-precio-uc="${d.precio_unitario_uc}">
+            <td class="px-4 py-3 font-bold text-slate-700 text-sm">
+                ${d.productos?.nombre}
+                ${labelPost}
+            </td>
+            <td class="px-4 py-3 text-center font-mono font-bold text-blue-700 bg-blue-50/50">${d.cantidad_uc} <span class="text-xs text-slate-400">${abrev}</span></td>
+            <td class="px-4 py-3">
+                <select class="w-full px-2 py-2 border border-slate-300 rounded bg-white text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 select-estado-rec" onchange="cambiarEstadoFilaRecepcion(this, '${d.id}')">
+                    <option value="" disabled selected>👉 Selecciona Estado...</option>
+                    <option value="Recibido">🟢 Sí, Recibido</option>
+                    <option value="Postpuesto">🟡 Postpuesto (No llegó hoy)</option>
+                    <option value="No Recibido">🔴 No Recibido (Rechazado/Falta)</option>
+                </select>
+            </td>
+            <td class="px-4 py-3">
+                <div id="zona-recibido-${d.id}" class="zona-dinamica hidden space-y-2 bg-emerald-50 p-2 rounded border border-emerald-100">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-emerald-700 font-bold w-24">Cant. Real Llegó:</span>
+                        <input type="number" step="0.01" value="${d.cantidad_uc}" class="w-24 px-2 py-1 border rounded text-sm font-bold text-center input-cant-real outline-none focus:ring-1 focus:ring-emerald-500">
+                        <span class="text-xs font-bold text-emerald-600">${abrev}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-emerald-700 font-bold w-24">Guardar en:</span>
+                        <select class="flex-1 px-2 py-1 border rounded text-xs select-ubi-rec bg-white outline-none focus:ring-1 focus:ring-emerald-500">
+                            ${optsUbi}
+                        </select>
+                    </div>
+                </div>
+                <div id="zona-no-recibido-${d.id}" class="zona-dinamica hidden bg-red-50 p-2 rounded border border-red-100">
+                    <input type="text" placeholder="Escribe el motivo (Ej: Venía roto, No traía)..." value="${d.motivo_no_recepcion || ''}" class="w-full px-2 py-2 border border-red-300 rounded bg-white text-sm outline-none focus:ring-1 focus:ring-red-500 input-motivo-rec">
+                </div>
+            </td>
+        </tr>
+        `;
+    }).join('');
+
+    document.getElementById('modal-recepcion-masiva').classList.remove('hidden');
+}
+
+window.cambiarEstadoFilaRecepcion = function(selectTag, idFila) {
+    const zonaRec = document.getElementById(`zona-recibido-${idFila}`);
+    const zonaNoRec = document.getElementById(`zona-no-recibido-${idFila}`);
+    
+    // Resetear colores del select para feedback visual
+    selectTag.className = "w-full px-2 py-2 border rounded text-sm font-bold outline-none focus:ring-2 select-estado-rec text-white";
+    
+    if (selectTag.value === 'Recibido') {
+        zonaRec.classList.remove('hidden'); zonaNoRec.classList.add('hidden');
+        selectTag.classList.add('bg-emerald-600', 'border-emerald-600');
+    } else if (selectTag.value === 'No Recibido') {
+        zonaRec.classList.add('hidden'); zonaNoRec.classList.remove('hidden');
+        selectTag.classList.add('bg-red-600', 'border-red-600');
+    } else {
+        zonaRec.classList.add('hidden'); zonaNoRec.classList.add('hidden');
+        selectTag.classList.add('bg-yellow-500', 'border-yellow-500');
+    }
+}
+
+// 4. Guardar la Recepción en la BD
+window.guardarRecepcionMasiva = async function() {
+    const filas = document.querySelectorAll('.fila-recepcion');
+    
+    // Validar que todas las filas tengan un estado seleccionado
+    for (const fila of filas) {
+        if(!fila.querySelector('.select-estado-rec').value) {
+            return alert("❌ Debes seleccionar un estado (Recibido, Postpuesto o No Recibido) para todos los productos de la lista.");
+        }
+        if(fila.querySelector('.select-estado-rec').value === 'No Recibido' && fila.querySelector('.input-motivo-rec').value.trim() === '') {
+            return alert("❌ Debes escribir un motivo para los productos marcados como 'No Recibido'.");
+        }
+    }
+
+    const btn = document.getElementById('btn-guardar-recepcion');
+    btn.innerText = "⏳ Guardando Inventario..."; btn.disabled = true;
+    
+    for (const fila of filas) {
+        const idDetalle = fila.getAttribute('data-id-detalle');
+        const idProd = fila.getAttribute('data-id-prod');
+        const factorConversion = parseFloat(fila.getAttribute('data-factor'));
+        const precioUC = parseFloat(fila.getAttribute('data-precio-uc'));
+        const estado = fila.querySelector('.select-estado-rec').value;
+
+        if (estado === 'Recibido') {
+            const cantUC = parseFloat(fila.querySelector('.input-cant-real').value);
+            const idUbi = fila.querySelector('.select-ubi-rec').value || null;
+            const cantUA = cantUC * factorConversion;
+
+            await clienteSupabase.from('compras_detalles').update({estado: 'Recibido'}).eq('id', idDetalle);
+
+            let query = clienteSupabase.from('inventario_saldos').select('id, cantidad_actual_ua').eq('id_producto', idProd).eq('id_sucursal', window.recepcionActivaSuc);
+            if(idUbi) query = query.eq('id_ubicacion', idUbi); else query = query.is('id_ubicacion', null);
+            
+            const { data: previo } = await query.maybeSingle();
+            if (previo) {
+                await clienteSupabase.from('inventario_saldos').update({ cantidad_actual_ua: previo.cantidad_actual_ua + cantUA, ultima_actualizacion: new Date() }).eq('id', previo.id);
+            } else {
+                await clienteSupabase.from('inventario_saldos').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_sucursal: window.recepcionActivaSuc, id_ubicacion: idUbi, cantidad_actual_ua: cantUA }]);
+            }
+
+            await clienteSupabase.from('movimientos_inventario').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_ubicacion: idUbi, tipo_movimiento: 'INGRESO_COMPRA', cantidad_movida: cantUA, costo_unitario_movimiento: precioUC, referencia: 'Recepción Masiva de Proveedor' }]);
+            await clienteSupabase.from('productos').update({ ultimo_costo_uc: precioUC }).eq('id', idProd);
+
+        } else if (estado === 'No Recibido') {
+            const motivo = fila.querySelector('.input-motivo-rec').value;
+            // Al marcarlo como No Recibido, la consulta de "Stock Virtual" dejará de sumarlo, y volverá a salir la alerta en Sugerencias.
+            await clienteSupabase.from('compras_detalles').update({estado: 'No Recibido', motivo_no_recepcion: motivo}).eq('id', idDetalle);
+        } else {
+            // Postpuesto: Se queda en tránsito y sigue sumando al Stock Virtual.
+            await clienteSupabase.from('compras_detalles').update({estado: 'Postpuesto'}).eq('id', idDetalle);
+        }
+    }
+
+    btn.innerText = "✅ Guardar Recepción"; btn.disabled = false;
+    document.getElementById('modal-recepcion-masiva').classList.add('hidden');
+    window.abrirTransitoSucursal(window.recepcionActivaSuc, document.getElementById('rm-sucursal').innerText); // Recarga la vista
+}
 
 // ==========================================
 // --- COMPRAS DIRECTAS Y OTROS MOVIMIENTOS ---
@@ -396,7 +494,7 @@ document.getElementById('form-compra-directa')?.addEventListener('submit', async
     const cantUC = parseFloat(document.getElementById('cd-cantidad').value), costoTotal = parseFloat(document.getElementById('cd-costo').value), precioUC = costoTotal / cantUC;
 
     const { data: cabecera } = await clienteSupabase.from('compras').insert([{ id_empresa: window.miEmpresaId, id_proveedor: document.getElementById('cd-proveedor').value, total_compra: costoTotal, estado: 'Completada' }]).select('id').single();
-    await clienteSupabase.from('compras_detalles').insert([{ id_compra: cabecera.id, id_producto: idProd, cantidad_uc: cantUC, precio_unitario_uc: precioUC, subtotal: costoTotal }]);
+    await clienteSupabase.from('compras_detalles').insert([{ id_compra: cabecera.id, id_producto: idProd, cantidad_uc: cantUC, precio_unitario_uc: precioUC, subtotal: costoTotal, estado: 'Recibido' }]);
 
     const { data: prod } = await clienteSupabase.from('productos').select('cant_en_ua_de_uc').eq('id', idProd).single();
     const cantUA_a_sumar = cantUC * prod.cant_en_ua_de_uc;
