@@ -372,7 +372,65 @@
         </div>
     </div>
 
-    <script src="js/supabase.js"></script>
+<aside id="sidebar-menu" class="w-64 bg-slate-800 text-white flex flex-col p-4 space-y-2 z-10 transition-all duration-300 ease-in-out overflow-hidden whitespace-nowrap">
+                <button onclick="cambiarVista('catalogos')" id="btn-menu-catalogos" class="w-full flex items-center gap-3 px-4 py-3 bg-emerald-600 rounded-lg font-medium transition-colors"><span>🏷️</span> <span class="menu-texto">Catálogos</span></button>
+                <button onclick="cambiarVista('productos')" id="btn-menu-productos" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>🍔</span> <span class="menu-texto">Productos</span></button>
+                <button onclick="cambiarVista('recetas')" id="btn-menu-recetas" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>📝</span> <span class="menu-texto">Recetas</span></button>
+                
+                <div class="my-2 border-t border-slate-700"></div>
+                
+                <button onclick="cambiarVista('movimientos')" id="btn-menu-movimientos" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>🔄</span> <span class="menu-texto">Movimientos</span></button>
+                
+                <button onclick="cambiarVista('inventario')" id="btn-menu-inventario" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>📦</span> <span class="menu-texto">Inventario Físico</span></button>
+            </aside>
+
+            <main class="flex-1 p-8 overflow-y-auto relative">
+                
+                <div id="vista-catalogos" class="max-w-4xl mx-auto block">
+                    <h2 class="text-2xl font-bold mb-6">Gestión de Catálogos</h2>
+                    <div class="flex border-b border-gray-200 mb-6 overflow-x-auto bg-white rounded-t-lg shadow-sm">
+                        <button onclick="cambiarTab('ubicaciones')" id="tab-ubicaciones" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors">Ubicaciones</button>
+                        <button onclick="cambiarTab('tipos_movimiento')" id="tab-tipos_movimiento" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors">Tipos de Movimiento</button>
+                    </div>
+
+                    <div id="seccion-tipos_movimiento" class="hidden space-y-4">
+                        <form id="form-tipo-movimiento" class="bg-white p-6 rounded-xl shadow-sm border flex gap-4">
+                            <input type="text" id="nombre-tipo-mov" placeholder="Ej: Merma, Ajuste, Regalo..." required class="flex-1 px-4 py-2 border rounded-md">
+                            <select id="operacion-tipo-mov" required class="px-4 py-2 border rounded-md font-bold">
+                                <option value="">Selecciona Acción...</option>
+                                <option value="+">Suma al Inventario (+)</option>
+                                <option value="-">Resta al Inventario (-)</option>
+                            </select>
+                            <button type="button" id="btn-cancelar-tipo-movimiento" onclick="cancelarEdicion('tipo-movimiento')" class="hidden px-4 py-2 border text-gray-600 rounded-md">Cancelar</button>
+                            <button type="submit" class="px-6 py-2 bg-slate-800 text-white rounded-md transition-colors">Guardar</button>
+                        </form>
+                        <div class="bg-white rounded-xl shadow-sm border overflow-hidden"><ul id="lista-tipos-movimiento" class="divide-y divide-gray-100"></ul></div>
+                    </div>
+                </div>
+
+                <div id="vista-movimientos" class="max-w-6xl mx-auto hidden">
+                    <h2 class="text-2xl font-bold mb-6">Gestión de Entradas y Salidas</h2>
+                    <div class="flex border-b border-gray-200 mb-6 overflow-x-auto bg-white rounded-t-lg shadow-sm">
+                        <button onclick="cambiarTabMovimientos('pedidos')" id="tab-mov-pedidos" class="px-6 py-3 font-medium border-b-2 border-emerald-600 text-emerald-600 bg-emerald-50/50">Pedidos (Planificados)</button>
+                        <button onclick="cambiarTabMovimientos('compras')" id="tab-mov-compras" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors">Compras Directas</button>
+                        <button onclick="cambiarTabMovimientos('ventas')" id="tab-mov-ventas" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors">Subir Ventas (POS)</button>
+                        <button onclick="cambiarTabMovimientos('otros')" id="tab-mov-otros" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors">Otros Movimientos</button>
+                    </div>
+                    
+                    <div id="seccion-mov-pedidos" class="block">Cargando Sugerencias y Pedidos...</div>
+                    <div id="seccion-mov-compras" class="hidden">Panel de compras imprevistas...</div>
+                    <div id="seccion-mov-ventas" class="hidden">Panel de importación CSV...</div>
+                    <div id="seccion-mov-otros" class="hidden">Panel de ajustes manuales...</div>
+                </div>
+
+                </main>
+        </div>
+    </div>
+
     <script src="js/app.js"></script>
+    <script src="js/catalogos.js"></script>
+    <script src="js/productos.js"></script>
+    <script src="js/inventario.js"></script>
+    <script src="js/movimientos.js"></script>
 </body>
 </html>
