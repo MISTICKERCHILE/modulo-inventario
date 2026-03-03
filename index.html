@@ -212,24 +212,31 @@
                         <button onclick="cambiarTabMovimientos('otros')" id="tab-mov-otros" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors">Otros Movimientos</button>
                     </div>
                     
-                    <div id="seccion-mov-pedidos" class="block space-y-8">
-                        <div>
-                            <div class="flex justify-between items-center mb-4">
-                                <h3 class="text-xl font-bold text-orange-700">⚠️ Sugerencias de Pedido (Bajo Stock)</h3>
-                            </div>
-                            <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
-                                <table class="min-w-full divide-y divide-gray-200">
-                                    <thead class="bg-slate-50"><tr><th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Producto</th><th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase">Stock Actual</th><th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase">Faltante (Sugerencia)</th><th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">Acción</th></tr></thead>
-                                    <tbody id="lista-alertas-compras" class="divide-y divide-gray-200"></tbody>
-                                </table>
+                    <div id="seccion-mov-pedidos" class="block space-y-6">
+                        
+                        <div class="flex gap-2 mb-4 bg-slate-100 p-1 rounded-lg w-max">
+                            <button onclick="cambiarSubTabPedidos('sugerencias')" id="subtab-sugerencias" class="px-4 py-2 rounded-md font-bold text-sm bg-white shadow-sm text-emerald-700">Ver Sugerencias por Stock</button>
+                            <button onclick="cambiarSubTabPedidos('transito')" id="subtab-transito" class="px-4 py-2 rounded-md font-bold text-sm text-slate-500 hover:text-slate-800">Ver Pedidos en Tránsito</button>
+                        </div>
+
+                        <div id="subvista-sugerencias" class="block space-y-8">
+                            
+                            <div id="lista-alertas-compras" class="space-y-6"></div>
+
+                            <div id="contenedor-bandeja" class="hidden mt-8 border-t-2 border-dashed border-slate-300 pt-8">
+                                <h3 class="text-xl font-bold mb-4 text-slate-800 flex items-center gap-2"><span>🛒</span> Bandeja de Pedidos (Pre-armados)</h3>
+                                <p class="text-sm text-slate-500 mb-6">Toma un pantallazo de esta sección para enviárselo a tu proveedor. Luego haz clic en "Pedido Generado".</p>
+                                
+                                <div id="lista-carritos-proveedor" class="space-y-6">
+                                    </div>
                             </div>
                         </div>
                         
-                        <div>
-                            <h3 class="text-xl font-bold mb-4 text-blue-700">🚚 Pedidos en Tránsito</h3>
+                        <div id="subvista-transito" class="hidden">
+                            <h3 class="text-xl font-bold mb-4 text-blue-700">🚚 Pedidos en Tránsito (Esperando Recepción)</h3>
                             <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
                                 <table class="min-w-full divide-y divide-gray-200">
-                                    <thead class="bg-slate-50"><tr><th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Fecha y Proveedor</th><th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Producto</th><th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase">Cantidad Esperada</th><th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">Acción</th></tr></thead>
+                                    <thead class="bg-slate-50"><tr><th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Fecha y Proveedor</th><th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Producto</th><th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase">Destino / Cantidad</th><th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">Acción</th></tr></thead>
                                     <tbody id="lista-pedidos-transito" class="divide-y divide-gray-200"></tbody>
                                 </table>
                             </div>
@@ -325,11 +332,9 @@
                 </div>
                 
                 <div id="vista-inventario" class="max-w-6xl mx-auto block">
-                    
                     <div id="inv-vista-sucursales" class="block">
                         <h2 class="text-2xl font-bold mb-6 text-slate-800">📦 Selecciona una Sucursal para ver su Inventario</h2>
-                        <div id="grid-sucursales-inventario" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                            </div>
+                        <div id="grid-sucursales-inventario" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
                     </div>
 
                     <div id="inv-vista-detalle" class="hidden">
@@ -415,35 +420,41 @@
         </div>
     </div>
 
-    <div id="modal-compra" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-4">
-        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md border border-slate-200">
-            <h2 class="text-xl font-bold text-slate-800 mb-2 border-b pb-3">📝 Generar Orden de Compra</h2>
-            <form id="form-compra" class="space-y-4 mt-4">
-                <div><label class="block text-sm font-bold mb-1">Producto</label><select id="compra-producto" required class="w-full px-3 py-2 border rounded-md bg-white"></select></div>
-                <div><label class="block text-sm font-bold mb-1">Proveedor</label><select id="compra-proveedor" required class="w-full px-3 py-2 border rounded-md bg-white"></select></div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div><label class="block text-sm font-bold mb-1">Cant. a Pedir (UC)</label><input type="number" step="0.01" id="compra-cantidad" required class="w-full px-3 py-2 border rounded-md focus:ring-emerald-500"></div>
-                    <div><label class="block text-sm font-bold mb-1">Precio Unitario ($)</label><input type="number" step="0.01" id="compra-precio" required class="w-full px-3 py-2 border rounded-md focus:ring-emerald-500"></div>
-                </div>
-                <div class="flex justify-end gap-3 mt-6">
-                    <button type="button" onclick="document.getElementById('modal-compra').classList.add('hidden')" class="px-4 py-2 border text-gray-700 rounded-md">Cancelar</button>
-                    <button type="submit" class="px-6 py-2 bg-emerald-600 text-white rounded-md font-bold hover:bg-emerald-700">Guardar Pedido</button>
-                </div>
-            </form>
+    <div id="modal-historial-precios" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-lg border border-slate-200">
+            <div class="flex justify-between items-center mb-4 border-b pb-3">
+                <h2 class="text-xl font-bold text-slate-800">💰 Historial de Precios de Compra</h2>
+                <button type="button" onclick="document.getElementById('modal-historial-precios').classList.add('hidden')" class="text-slate-400 hover:text-slate-800 text-2xl font-bold">&times;</button>
+            </div>
+            <p class="text-sm font-bold text-emerald-700 mb-4" id="hp-producto-nombre">-</p>
+            
+            <div class="bg-slate-50 border rounded-lg overflow-hidden max-h-64 overflow-y-auto">
+                <table class="min-w-full divide-y divide-slate-200">
+                    <thead class="bg-slate-100 text-xs font-bold text-slate-500 uppercase sticky top-0">
+                        <tr><th class="px-4 py-2 text-left">Fecha</th><th class="px-4 py-2 text-left">Proveedor</th><th class="px-4 py-2 text-right">Precio (UC)</th></tr>
+                    </thead>
+                    <tbody id="lista-historial-precios" class="divide-y divide-slate-100 text-sm">
+                        <tr><td colspan="3" class="text-center py-4 text-slate-500">Buscando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-4 flex justify-end">
+                <button type="button" onclick="document.getElementById('modal-historial-precios').classList.add('hidden')" class="px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded hover:bg-slate-300">Cerrar</button>
+            </div>
         </div>
     </div>
 
     <div id="modal-recepcion" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-4">
-        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md border-t-4 border-t-blue-500">
-            <h2 class="text-xl font-bold text-slate-800 mb-2 border-b pb-3">✅ Recepcionar Mercadería</h2>
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md border-t-4 border-blue-500">
+            <h2 class="text-xl font-bold text-slate-800 mb-2 border-b pb-3">✅ Recepcionar Llegada (Confirmar Destino)</h2>
             <form id="form-recepcion" class="space-y-4 mt-4">
                 <input type="hidden" id="rec-id-compra"><input type="hidden" id="rec-id-producto"><input type="hidden" id="rec-cantidad-uc"><input type="hidden" id="rec-precio-uc">
                 <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 mb-4">
                     <p class="text-xs text-blue-600 font-bold uppercase">Entrando al Inventario:</p>
                     <p class="text-lg font-bold text-blue-900" id="rec-resumen-texto">-</p>
                 </div>
-                <div><label class="block text-sm font-bold mb-1">Destino: Selecciona la Sucursal</label><select id="rec-sucursal" onchange="window.cargarUbicacionesRecepcion(this.value)" required class="w-full px-3 py-2 border rounded-md bg-white focus:ring-2 focus:ring-blue-500"></select></div>
-                <div id="div-rec-ubicacion" class="hidden"><label class="block text-sm font-bold mb-1 text-blue-700">Ubicación Interna</label><select id="rec-ubicacion" class="w-full px-3 py-2 border border-blue-200 rounded-md bg-blue-50 focus:ring-2 focus:ring-blue-500"></select></div>
+                <div><label class="block text-sm font-bold mb-1">Destino Real: Bodega de Recepción</label><select id="rec-sucursal" onchange="window.cargarUbicacionesRecepcion(this.value)" required class="w-full px-3 py-2 border rounded-md bg-white focus:ring-2 focus:ring-blue-500"></select></div>
+                <div id="div-rec-ubicacion" class="hidden"><label class="block text-sm font-bold mb-1 text-blue-700">Ubicación Interna (Opcional)</label><select id="rec-ubicacion" class="w-full px-3 py-2 border border-blue-200 rounded-md bg-blue-50 focus:ring-2 focus:ring-blue-500"></select></div>
                 <div class="flex justify-end gap-3 mt-6">
                     <button type="button" onclick="document.getElementById('modal-recepcion').classList.add('hidden')" class="px-4 py-2 border text-gray-700 rounded-md">Cancelar</button>
                     <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-md font-bold hover:bg-blue-700 shadow-md">Confirmar Ingreso 📦</button>
@@ -456,30 +467,22 @@
         <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col border border-slate-200">
             <h2 class="text-2xl font-bold text-slate-800 mb-2">🎯 Conteo Físico Masivo</h2>
             <p class="text-sm text-slate-500 mb-6">Sucursal activa: <span id="cm-sucursal-nombre" class="font-bold text-emerald-700"></span></p>
-            
             <div class="mb-4">
                 <label class="block text-sm font-bold mb-1">Paso 1: ¿Qué gaveta o refri estás contando?</label>
                 <select id="cm-ubicacion" onchange="cargarFilasConteoMasivo(this.value)" class="w-full md:w-1/2 px-3 py-2 border border-emerald-300 rounded-md bg-emerald-50 focus:ring-2 focus:ring-emerald-500 font-medium outline-none"></select>
             </div>
-
             <div class="flex-1 overflow-y-auto border rounded-lg bg-slate-50 mb-6 shadow-inner">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-slate-200 sticky top-0 z-10 shadow-sm">
-                        <tr>
-                            <th class="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Producto</th>
-                            <th class="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase w-20">Unidad</th>
-                            <th class="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase w-32">Cantidad Contada</th>
-                            <th class="px-4 py-3 text-right text-xs font-bold text-slate-600 uppercase w-16">Quitar</th>
-                        </tr>
+                        <tr><th class="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Producto</th><th class="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase w-20">Unidad</th><th class="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase w-32">Cantidad Contada</th><th class="px-4 py-3 text-right text-xs font-bold text-slate-600 uppercase w-16">Quitar</th></tr>
                     </thead>
                     <tbody id="cm-filas" class="divide-y divide-gray-200 bg-white">
-                        <tr><td colspan="4" class="text-center text-slate-400 py-8">Selecciona una ubicación arriba para cargar los productos.</td></tr>
+                        <tr><td colspan="4" class="text-center text-slate-400 py-8">Selecciona una ubicación arriba.</td></tr>
                     </tbody>
                 </table>
             </div>
-
             <div class="flex justify-between items-center mt-auto border-t pt-4">
-                <button type="button" onclick="agregarFilaConteo()" class="px-4 py-2 text-sm font-bold text-emerald-700 bg-emerald-100 rounded-md hover:bg-emerald-200 transition-colors">+ Añadir fila vacía (Nuevo producto en esta ubicación)</button>
+                <button type="button" onclick="agregarFilaConteo()" class="px-4 py-2 text-sm font-bold text-emerald-700 bg-emerald-100 rounded-md hover:bg-emerald-200 transition-colors">+ Añadir fila vacía</button>
                 <div class="flex gap-3">
                     <button type="button" onclick="document.getElementById('modal-conteo-masivo').classList.add('hidden')" class="px-6 py-2 border text-gray-700 rounded-md hover:bg-gray-50 transition-colors">Cancelar</button>
                     <button type="button" id="btn-guardar-conteo" onclick="guardarConteoMasivo()" class="px-8 py-2 bg-emerald-600 text-white rounded-md font-bold hover:bg-emerald-700 transition-colors shadow-md">Guardar Conteo ✅</button>
