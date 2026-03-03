@@ -187,12 +187,28 @@
                     </div>
                 </div>
 
-                <div id="vista-compras" class="max-w-6xl mx-auto hidden">
-                    <h2 class="text-2xl font-bold mb-6">🛒 Pedidos y Compras</h2>
-                    <div class="bg-white p-16 rounded-xl shadow-sm border text-center text-slate-400">
-                        <span class="text-6xl block mb-4">🚚</span>
-                        <h3 class="text-xl font-bold text-slate-600">Módulo en Construcción (Paso C)</h3>
-                        <p class="mt-2">Aquí gestionaremos proveedores, facturas y alertas de stock mínimo.</p>
+                <div id="vista-inventario" class="max-w-6xl mx-auto hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <div>
+                            <h2 class="text-2xl font-bold">📦 Inventario y Stock Físico</h2>
+                            <p class="text-slate-500 text-sm mt-1">Control de saldos por sucursal en Unidades de Almacén (UA).</p>
+                        </div>
+                        <button onclick="abrirModalInventario()" class="px-4 py-2 bg-emerald-600 text-white rounded-md font-medium shadow-sm hover:bg-emerald-700 transition-colors">🎯 Registrar Conteo Físico</button>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-slate-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Estado</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Producto</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Sucursal</th>
+                                    <th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">Stock Actual (UA)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="lista-inventario" class="divide-y divide-gray-200">
+                                </tbody>
+                        </table>
                     </div>
                 </div>
 
