@@ -236,10 +236,45 @@
                         </div>
                     </div>
 
-                    <div id="seccion-mov-compras" class="hidden">Panel de compras imprevistas...</div>
-                    <div id="seccion-mov-ventas" class="hidden">Panel de importación CSV...</div>
-                    <div id="seccion-mov-otros" class="hidden">Panel de ajustes manuales...</div>
-                </div>
+                    <div id="seccion-mov-compras" class="hidden space-y-6">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                            <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><span>🛒</span> Ingreso de Compra Directa (Sin pedido previo)</h3>
+                            <form id="form-compra-directa" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 items-end">
+                                <div class="col-span-1 lg:col-span-2"><label class="block text-xs font-bold text-gray-500 mb-1">Proveedor</label><select id="cd-proveedor" required class="w-full px-3 py-2 border rounded-md bg-white"></select></div>
+                                <div class="col-span-1 lg:col-span-2"><label class="block text-xs font-bold text-gray-500 mb-1">Producto</label><select id="cd-producto" required class="w-full px-3 py-2 border rounded-md bg-white"></select></div>
+                                <div><label class="block text-xs font-bold text-gray-500 mb-1">Bodega Destino</label><select id="cd-sucursal" required class="w-full px-3 py-2 border rounded-md bg-white"></select></div>
+                                <div><label class="block text-xs font-bold text-gray-500 mb-1">Cant. (UC)</label><input type="number" step="0.01" id="cd-cantidad" required class="w-full px-3 py-2 border rounded-md"></div>
+                                <div><label class="block text-xs font-bold text-gray-500 mb-1">Costo Total ($)</label><input type="number" step="0.01" id="cd-costo" required class="w-full px-3 py-2 border rounded-md"></div>
+                                <div class="col-span-1 lg:col-span-6 flex justify-end mt-2">
+                                    <button type="submit" class="px-6 py-2 bg-emerald-600 text-white rounded-md font-bold hover:bg-emerald-700 transition-colors shadow-sm">Registrar Compra Inmediata</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div id="seccion-mov-ventas" class="hidden">
+                        <div class="bg-white p-8 rounded-xl shadow-sm border text-center space-y-4">
+                            <span class="text-4xl">📊</span>
+                            <h3 class="text-xl font-bold">Importación de Ventas (POS)</h3>
+                            <p class="text-slate-500">Aquí subiremos el CSV del sistema de ventas para descontar stock e ingredientes automáticamente.</p>
+                            <button disabled class="px-4 py-2 bg-slate-200 text-slate-400 font-bold rounded-md cursor-not-allowed">Próximamente...</button>
+                        </div>
+                    </div>
+
+                    <div id="seccion-mov-otros" class="hidden space-y-6">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                            <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><span>🔄</span> Registrar Ajuste Manual (Mermas, Consumo, etc.)</h3>
+                            <form id="form-otro-movimiento" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+                                <div><label class="block text-xs font-bold text-gray-500 mb-1">Tipo de Movimiento</label><select id="om-tipo" required class="w-full px-3 py-2 border rounded-md bg-white"></select></div>
+                                <div class="lg:col-span-2"><label class="block text-xs font-bold text-gray-500 mb-1">Producto</label><select id="om-producto" required class="w-full px-3 py-2 border rounded-md bg-white"></select></div>
+                                <div><label class="block text-xs font-bold text-gray-500 mb-1">Bodega</label><select id="om-sucursal" required class="w-full px-3 py-2 border rounded-md bg-white"></select></div>
+                                <div><label class="block text-xs font-bold text-gray-500 mb-1">Cant. (UA)</label><input type="number" step="0.01" id="om-cantidad" required class="w-full px-3 py-2 border rounded-md"></div>
+                                <div class="col-span-1 lg:col-span-5 flex justify-end mt-2">
+                                    <button type="submit" class="px-6 py-2 bg-slate-800 text-white rounded-md font-bold hover:bg-slate-700 transition-colors shadow-sm">Aplicar Movimiento</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
 
                 <div id="vista-inventario" class="max-w-6xl mx-auto hidden">
                     <div class="flex justify-between items-center mb-6">
