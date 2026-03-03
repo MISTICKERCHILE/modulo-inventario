@@ -1,3 +1,20 @@
+// --- CLICK FUERA PARA CERRAR BUSCADORES ---
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.dropdown-container')) {
+        document.querySelectorAll('.lista-dropdown-custom').forEach(el => {
+            el.classList.add('hidden');
+            // Si el usuario escribió pero no seleccionó nada, restauramos el texto original
+            const index = el.id.replace('dropdown-', '');
+            const hiddenInput = document.getElementById(`hidden-prod-${index}`);
+            const searchInput = document.getElementById(`search-prod-${index}`);
+            if(hiddenInput && searchInput && window.productosERPGlobal) {
+                const prod = window.productosERPGlobal.find(p => p.id === hiddenInput.value);
+                searchInput.value = prod ? prod.nombre : '';
+            }
+        });
+    }
+});
+
 // --- NAVEGACIÓN DE TABS EN MOVIMIENTOS ---
 window.cambiarTabMovimientos = function(tab) {
     ['pedidos', 'compras', 'ventas', 'otros'].forEach(t => {
@@ -217,7 +234,8 @@ document.getElementById('form-otro-movimiento')?.addEventListener('submit', asyn
 // --- FASE 4: VENTAS POS (CSV) Y HOMOLOGACIÓN ---
 // ==========================================
 window.datosCSVAgrupados = [];
-window.selectCSVActivo = null;
+window.productosERPGlobal = []; // Memoria global para el buscador custom
+window.selectCSVActivoIndex = null; // Recordamos qué fila activó la creación
 
 window.prepararPanelVentas = async function() {
     const { data: sucursales } = await clienteSupabase.from('sucursales').select('id, nombre').eq('id_empresa', window.miEmpresaId);
@@ -267,9 +285,7 @@ async function agruparYAsociarVentas(filasCSV) {
         clienteSupabase.from('homologacion_pos').select('*').eq('id_empresa', window.miEmpresaId)
     ]);
 
-    const opcionesProductos = '<option value="">-- No Asociado (Seleccionar o Crear) --</option>' + 
-        (prodsERP||[]).map(p => `<option value="${p.id}">${p.nombre}</option>`).join('') +
-        '<option value="NUEVO" class="font-bold text-emerald-600 bg-emerald-50">➕ Crear Nuevo Producto...</option>';
+    window.productosERPGlobal = prodsERP || [];
 
     const tbody = document.getElementById('lista-mapeo-csv');
     tbody.innerHTML = '';
@@ -277,74 +293,117 @@ async function agruparYAsociarVentas(filasCSV) {
     window.datosCSVAgrupados.forEach((item, index) => {
         const match = homologaciones.find(h => h.nombre_pos === item.nombre_pos && (h.variante_pos || '') === item.variante_pos);
         const idPreseleccionado = match ? match.id_producto_erp : '';
+        const prodPreseleccionado = window.productosERPGlobal.find(p => p.id === idPreseleccionado);
+        const nombrePreseleccionado = prodPreseleccionado ? prodPreseleccionado.nombre : '';
+        
         const colorFila = idPreseleccionado ? '' : 'bg-red-50 border-l-4 border-red-500';
+        const bordeInput = idPreseleccionado ? 'border-slate-300' : 'border-red-300';
 
+        // CONSTRUIMOS EL BUSCADOR CUSTOM EN VEZ DEL SELECT CLÁSICO
         tbody.innerHTML += `
         <tr class="${colorFila}" id="fila-csv-${index}">
             <td class="px-4 py-3 font-bold">${item.nombre_pos}</td>
             <td class="px-4 py-3 text-slate-500">${item.variante_pos || '-'}</td>
             <td class="px-4 py-3 text-center font-mono text-lg font-bold">${item.cantidad}</td>
-            <td class="px-4 py-3">
-                <select class="w-full px-2 py-1 border border-slate-300 rounded bg-white selector-homologacion" data-index="${index}" onchange="gestionarSelectCSV(this, ${index})">
-                    ${opcionesProductos}
-                </select>
+            <td class="px-4 py-3 relative dropdown-container" data-index="${index}">
+                <input type="hidden" class="selector-homologacion" id="hidden-prod-${index}" data-index="${index}" value="${idPreseleccionado}">
+                
+                <div class="relative">
+                    <input type="text" id="search-prod-${index}" 
+                        class="w-full px-3 py-2 border ${bordeInput} rounded bg-white text-sm focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
+                        placeholder="-- Buscar producto --"
+                        value="${nombrePreseleccionado}"
+                        onfocus="abrirDropdownCSV(${index})"
+                        oninput="filtrarDropdownCSV(${index}, this.value)"
+                        autocomplete="off">
+                    
+                    <div id="dropdown-${index}" class="lista-dropdown-custom hidden absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded shadow-xl max-h-48 overflow-y-auto">
+                        <ul id="ul-prod-${index}" class="py-1 text-sm text-slate-700 divide-y divide-slate-100"></ul>
+                    </div>
+                </div>
             </td>
         </tr>`;
-
-        if(idPreseleccionado) {
-            const select = tbody.lastElementChild.querySelector('select');
-            select.value = idPreseleccionado;
-        }
     });
 
     document.getElementById('panel-mapeo-csv').classList.remove('hidden');
 }
 
-window.gestionarSelectCSV = function(selectTag, index) {
-    if(selectTag.value === 'NUEVO') {
-        selectTag.value = ''; 
-        const item = window.datosCSVAgrupados[index];
-        const nombreSugerido = item.variante_pos ? `${item.nombre_pos} ${item.variante_pos}` : item.nombre_pos;
-        
-        window.selectCSVActivo = selectTag; 
-        window.abrirModalProducto(false, nombreSugerido); 
-        return;
-    }
-    
-    if(selectTag.value) {
-        window.quitarRojoFila(index);
-    }
+// LOGICA DEL BUSCADOR INTELIGENTE CUSTOM
+window.abrirDropdownCSV = function(index) {
+    document.querySelectorAll('.lista-dropdown-custom').forEach(el => el.classList.add('hidden'));
+    window.filtrarDropdownCSV(index, ''); 
+    document.getElementById(`search-prod-${index}`).select(); // Selecciona el texto para que sea facil borrar
 }
 
+window.filtrarDropdownCSV = function(index, texto) {
+    const ul = document.getElementById(`ul-prod-${index}`);
+    const term = texto.toLowerCase().trim();
+
+    let filtrados = window.productosERPGlobal;
+    if (term) {
+        filtrados = filtrados.filter(p => p.nombre.toLowerCase().includes(term));
+    }
+
+    let html = filtrados.map(p => `
+        <li class="px-3 py-2 hover:bg-blue-50 cursor-pointer transition-colors" 
+            onclick="seleccionarProductoCSV(${index}, '${p.id}', '${p.nombre.replace(/'/g, "\\'")}')">
+            ${p.nombre}
+        </li>
+    `).join('');
+
+    html += `<li class="px-3 py-3 hover:bg-emerald-50 cursor-pointer font-bold text-emerald-600 bg-slate-50 transition-colors" 
+                onclick="crearNuevoProductoCSV(${index})">
+                ➕ Crear Nuevo Producto...
+            </li>`;
+
+    ul.innerHTML = html;
+    document.getElementById(`dropdown-${index}`).classList.remove('hidden');
+}
+
+window.seleccionarProductoCSV = function(index, idProd, nombreProd) {
+    document.getElementById(`hidden-prod-${index}`).value = idProd;
+    const searchInput = document.getElementById(`search-prod-${index}`);
+    searchInput.value = nombreProd;
+    searchInput.classList.remove('border-red-300');
+    searchInput.classList.add('border-slate-300');
+    document.getElementById(`dropdown-${index}`).classList.add('hidden');
+    window.quitarRojoFila(index);
+}
+
+window.crearNuevoProductoCSV = function(index) {
+    document.getElementById(`dropdown-${index}`).classList.add('hidden');
+    const item = window.datosCSVAgrupados[index];
+    const nombreSugerido = item.variante_pos ? `${item.nombre_pos} ${item.variante_pos}` : item.nombre_pos;
+
+    window.selectCSVActivoIndex = index; // Recordamos el índice de la fila
+    window.abrirModalProducto(false, nombreSugerido);
+}
+
+// ESTA FUNCIÓN SE LLAMA DESDE EL MODAL DE PRODUCTOS AL GUARDAR
 window.actualizarSelectsMapeoCSV = async function(nuevoIdProducto) {
     const { data: prodsERP } = await clienteSupabase.from('productos').select('id, nombre').eq('id_empresa', window.miEmpresaId).order('nombre');
-    
-    const opcionesNuevas = '<option value="">-- No Asociado (Seleccionar o Crear) --</option>' + 
-        (prodsERP||[]).map(p => `<option value="${p.id}">${p.nombre}</option>`).join('') +
-        '<option value="NUEVO" class="font-bold text-emerald-600 bg-emerald-50">➕ Crear Nuevo Producto...</option>';
+    window.productosERPGlobal = prodsERP || [];
 
-    const selects = document.querySelectorAll('.selector-homologacion');
-    selects.forEach(sel => {
-        const valorAnterior = sel.value;
-        sel.innerHTML = opcionesNuevas;
-        sel.value = valorAnterior; 
-    });
-
-    if (window.selectCSVActivo && nuevoIdProducto) {
-        window.selectCSVActivo.value = nuevoIdProducto;
-        const index = window.selectCSVActivo.getAttribute('data-index');
-        window.quitarRojoFila(index);
-        window.selectCSVActivo = null; 
+    // Auto-seleccionar el producto que se acaba de crear en la fila correspondiente
+    if (window.selectCSVActivoIndex !== null && nuevoIdProducto) {
+        const nuevoProd = window.productosERPGlobal.find(p => p.id === nuevoIdProducto);
+        if(nuevoProd) {
+            window.seleccionarProductoCSV(window.selectCSVActivoIndex, nuevoProd.id, nuevoProd.nombre);
+        }
+        window.selectCSVActivoIndex = null; 
     }
 }
 
 window.quitarRojoFila = function(index) {
-    document.getElementById(`fila-csv-${index}`).classList.remove('bg-red-50', 'border-l-4', 'border-red-500');
+    const fila = document.getElementById(`fila-csv-${index}`);
+    if(fila) fila.classList.remove('bg-red-50', 'border-l-4', 'border-red-500');
 }
 
 window.cancelarCSV = function() {
     document.getElementById('panel-mapeo-csv').classList.add('hidden');
     document.getElementById('csv-file').value = '';
+    document.getElementById('csv-fecha-inicio').value = '';
+    document.getElementById('csv-fecha-fin').value = '';
     window.datosCSVAgrupados = [];
 }
 
@@ -354,11 +413,12 @@ window.confirmarDescuentoVentas = async function() {
     const fFin = document.getElementById('csv-fecha-fin').value;
     const periodoReferencia = `[Período: ${fInicio} al ${fFin}]`;
 
+    // Ahora buscamos los inputs ocultos
     const selects = document.querySelectorAll('.selector-homologacion');
     
     let todoAsociado = true;
     selects.forEach(sel => { if(!sel.value) todoAsociado = false; });
-    if(!todoAsociado) return alert("❌ Debes asociar todos los productos del POS con tus productos del sistema antes de continuar.");
+    if(!todoAsociado) return alert("❌ Debes asociar todos los productos del POS con tus productos del sistema (que no quede ninguno en rojo) antes de continuar.");
 
     const btn = document.getElementById('btn-procesar-ventas');
     btn.innerText = "⏳ Procesando y descontando..."; btn.disabled = true;
