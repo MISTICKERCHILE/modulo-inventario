@@ -207,6 +207,50 @@
         </div>
     </div>
 
+    <div id="vista-compras" class="max-w-6xl mx-auto hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <div>
+                            <h2 class="text-2xl font-bold">🛒 Pedidos y Compras</h2>
+                            <p class="text-slate-500 text-sm mt-1">Gestiona alertas de stock, crea órdenes y recepciona mercadería.</p>
+                        </div>
+                        <button onclick="abrirModalCompra(null, 0)" class="px-4 py-2 bg-emerald-600 text-white rounded-md font-medium shadow-sm hover:bg-emerald-700 transition-colors">+ Nueva Orden de Compra</button>
+                    </div>
+
+                    <div class="mb-8">
+                        <h3 class="text-lg font-bold text-orange-700 mb-3 flex items-center gap-2"><span>⚠️</span> Sugerencias de Reposición (Stock Crítico)</h3>
+                        <div class="bg-white rounded-xl shadow-sm border border-orange-200 overflow-hidden">
+                            <table class="min-w-full divide-y divide-orange-100">
+                                <thead class="bg-orange-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-bold text-orange-800 uppercase">Producto</th>
+                                        <th class="px-6 py-3 text-center text-xs font-bold text-orange-800 uppercase">Stock Global (UA)</th>
+                                        <th class="px-6 py-3 text-center text-xs font-bold text-orange-800 uppercase">Sugerido Pedir</th>
+                                        <th class="px-6 py-3 text-right text-xs font-bold text-orange-800 uppercase">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="lista-alertas-compras" class="divide-y divide-gray-100"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 class="text-lg font-bold text-blue-700 mb-3 flex items-center gap-2"><span>🚚</span> Pedidos Pendientes (En Tránsito)</h3>
+                        <div class="bg-white rounded-xl shadow-sm border border-blue-200 overflow-hidden">
+                            <table class="min-w-full divide-y divide-blue-100">
+                                <thead class="bg-blue-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-bold text-blue-800 uppercase">Fecha / Proveedor</th>
+                                        <th class="px-6 py-3 text-left text-xs font-bold text-blue-800 uppercase">Producto</th>
+                                        <th class="px-6 py-3 text-center text-xs font-bold text-blue-800 uppercase">Cantidad Esperada</th>
+                                        <th class="px-6 py-3 text-right text-xs font-bold text-blue-800 uppercase">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="lista-pedidos-transito" class="divide-y divide-gray-100"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
     <div id="modal-producto" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-4">
         <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto border border-slate-200">
             <h2 class="text-2xl font-bold text-slate-800 mb-6 border-b pb-3" id="titulo-modal-producto">Nuevo Producto / Insumo</h2>
@@ -292,6 +336,65 @@
                 <div class="flex justify-end gap-3 mt-6">
                     <button type="button" onclick="cerrarModalInventario()" class="px-4 py-2 border text-gray-700 rounded-md hover:bg-gray-50 transition-colors">Cancelar</button>
                     <button type="submit" class="px-6 py-2 bg-emerald-600 text-white rounded-md font-bold hover:bg-emerald-700 transition-colors">Guardar Conteo</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-compra" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md border border-slate-200">
+            <h2 class="text-xl font-bold text-slate-800 mb-2 border-b pb-3">📝 Generar Orden de Compra</h2>
+            <form id="form-compra" class="space-y-4 mt-4">
+                <div>
+                    <label class="block text-sm font-bold mb-1">Producto</label>
+                    <select id="compra-producto" required class="w-full px-3 py-2 border rounded-md bg-white"></select>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold mb-1">Proveedor</label>
+                    <select id="compra-proveedor" required class="w-full px-3 py-2 border rounded-md bg-white"></select>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold mb-1">Cant. a Pedir (Unidad Compra)</label>
+                        <input type="number" step="0.01" id="compra-cantidad" required class="w-full px-3 py-2 border rounded-md focus:ring-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-1">Precio Unitario ($)</label>
+                        <input type="number" step="0.01" id="compra-precio" required class="w-full px-3 py-2 border rounded-md focus:ring-emerald-500">
+                    </div>
+                </div>
+                
+                <div class="flex justify-end gap-3 mt-6">
+                    <button type="button" onclick="document.getElementById('modal-compra').classList.add('hidden')" class="px-4 py-2 border text-gray-700 rounded-md">Cancelar</button>
+                    <button type="submit" class="px-6 py-2 bg-emerald-600 text-white rounded-md font-bold hover:bg-emerald-700">Guardar Pedido</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-recepcion" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md border-t-4 border-t-blue-500">
+            <h2 class="text-xl font-bold text-slate-800 mb-2 border-b pb-3">✅ Recepcionar Mercadería</h2>
+            <p class="text-sm text-slate-500 mb-4">El pedido ha llegado. ¿En qué bodega física lo vas a guardar para sumar el stock?</p>
+            <form id="form-recepcion" class="space-y-4">
+                <input type="hidden" id="rec-id-compra">
+                <input type="hidden" id="rec-id-producto">
+                <input type="hidden" id="rec-cantidad-uc">
+                <input type="hidden" id="rec-precio-uc">
+                
+                <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 mb-4">
+                    <p class="text-xs text-blue-600 font-bold uppercase">Entrando al Inventario:</p>
+                    <p class="text-lg font-bold text-blue-900" id="rec-resumen-texto">-</p>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold mb-1">Destino: Selecciona la Sucursal</label>
+                    <select id="rec-sucursal" required class="w-full px-3 py-2 border rounded-md bg-white focus:ring-2 focus:ring-blue-500"></select>
+                </div>
+
+                <div class="flex justify-end gap-3 mt-6">
+                    <button type="button" onclick="document.getElementById('modal-recepcion').classList.add('hidden')" class="px-4 py-2 border text-gray-700 rounded-md">Cancelar</button>
+                    <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-md font-bold hover:bg-blue-700 shadow-md">Confirmar Ingreso 📦</button>
                 </div>
             </form>
         </div>
