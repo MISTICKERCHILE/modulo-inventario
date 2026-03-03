@@ -179,25 +179,86 @@ document.getElementById('form-producto').addEventListener('submit', async (e) =>
 });
 
 // --- RECETAS ---
+// Guardamos los productos en memoria para mostrar las unidades rápido
+window.productosParaRecetaMemoria = []; 
+
 async function abrirReceta(idProducto, nombre) {
     window.productoActualParaReceta = idProducto;
     document.getElementById('receta-titulo').innerText = "Receta de: " + nombre;
     
-    const { data: prods } = await clienteSupabase.from('productos').select('*').eq('id_empresa', window.miEmpresaId);
-    document.getElementById('sel-ingrediente').innerHTML = (prods||[]).map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
+    // 1. Obtener los detalles del producto final (para saber su rendimiento y unidad)
+    const { data: prodFinal } = await clienteSupabase
+        .from('productos')
+        .select('rendimiento_receta, id_unidad_receta(abreviatura)')
+        .eq('id', idProducto)
+        .single();
     
+    const abrevFinal = prodFinal?.id_unidad_receta?.abreviatura || 'un';
+    document.getElementById('receta-unidad-base').innerText = `Se mide en: ${abrevFinal}`;
+    document.getElementById('receta-label-rendimiento').innerText = abrevFinal;
+    document.getElementById('receta-rendimiento').value = prodFinal?.rendimiento_receta || 1;
+
+    // 2. Cargar los insumos en el selector para poder elegirlos
+    const { data: prods } = await clienteSupabase
+        .from('productos')
+        .select('id, nombre, id_unidad_receta(abreviatura)')
+        .eq('id_empresa', window.miEmpresaId)
+        .order('nombre');
+    
+    window.productosParaRecetaMemoria = prods || [];
+    document.getElementById('sel-ingrediente').innerHTML = '<option value="">Selecciona insumo...</option>' + 
+        window.productosParaRecetaMemoria.map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
+    
+    // Limpiar el label de unidad por defecto
+    document.getElementById('label-unidad-ingrediente').innerText = '';
+
     cambiarVista('recetas');
     cargarIngredientesReceta();
 }
 
+// Al seleccionar un ingrediente, mostramos su unidad (gr, ml, etc.) en el input
+document.getElementById('sel-ingrediente').addEventListener('change', (e) => {
+    const idSeleccionado = e.target.value;
+    const producto = window.productosParaRecetaMemoria.find(p => p.id === idSeleccionado);
+    document.getElementById('label-unidad-ingrediente').innerText = producto?.id_unidad_receta?.abreviatura || '';
+});
+
+// Guardar el rendimiento esperado de la receta
+async function guardarRendimiento() {
+    const rend = parseFloat(document.getElementById('receta-rendimiento').value);
+    await clienteSupabase.from('productos').update({ rendimiento_receta: rend }).eq('id', window.productoActualParaReceta);
+    alert("Rendimiento actualizado");
+    cargarIngredientesReceta(); // Recalcular costos
+}
+
 async function cargarIngredientesReceta() {
-    const { data } = await clienteSupabase.from('recetas').select('id, cantidad_neta, id_ingrediente(nombre, id_unidad_receta(abreviatura))').eq('id_producto_padre', window.productoActualParaReceta);
-    document.getElementById('lista-ingredientes-receta').innerHTML = (data||[]).map(r => `
-        <tr class="border-b">
-            <td class="py-3 text-sm font-medium text-slate-700">${r.id_ingrediente.nombre}</td>
-            <td class="py-3 text-center font-bold text-slate-600">${r.cantidad_neta} ${r.id_ingrediente.id_unidad_receta?.abreviatura || ''}</td>
-            <td class="py-3 text-right"><button onclick="quitarIngrediente('${r.id}')" class="text-red-500 font-bold">✕</button></td>
-        </tr>`).join('');
+    // Obtenemos los ingredientes guardados en esta receta
+    const { data } = await clienteSupabase
+        .from('recetas')
+        .select('id, cantidad_neta, id_ingrediente(nombre, id_unidad_receta(abreviatura))')
+        .eq('id_producto_padre', window.productoActualParaReceta);
+
+    // NOTA: Aquí iría la suma matemática de los costos en base a la última compra.
+    // Como aún no hay compras, forzamos un costo de 0 para la estructura.
+    let costoTotalReceta = 0;
+
+    document.getElementById('lista-ingredientes-receta').innerHTML = (data||[]).map(r => {
+        let costoInsumo = 0; // Próximamente esto vendrá de la base de datos
+        return `
+        <tr class="hover:bg-slate-50 transition-colors">
+            <td class="py-3 px-2 text-sm font-medium text-slate-700">${r.id_ingrediente.nombre}</td>
+            <td class="py-3 text-center font-bold text-slate-600 bg-slate-100 rounded">${r.cantidad_neta} <span class="text-xs text-slate-400 font-normal">${r.id_ingrediente.id_unidad_receta?.abreviatura || ''}</span></td>
+            <td class="py-3 text-right text-slate-500 italic">$${costoInsumo.toFixed(2)}</td>
+            <td class="py-3 text-right"><button onclick="quitarIngrediente('${r.id}')" class="text-red-400 hover:text-red-600 hover:bg-red-50 p-2 rounded transition-colors">Borrar</button></td>
+        </tr>`
+    }).join('');
+
+    // Actualizar totales visuales
+    const rendimiento = parseFloat(document.getElementById('receta-rendimiento').value) || 1;
+    const costoUnitario = costoTotalReceta / rendimiento;
+
+    document.getElementById('receta-costo-total').innerText = `$${costoTotalReceta.toFixed(2)}`;
+    document.getElementById('receta-costo-unitario').innerText = `$${costoUnitario.toFixed(2)}`;
 }
 
 document.getElementById('form-ingrediente').addEventListener('submit', async (e) => {
@@ -209,6 +270,9 @@ document.getElementById('form-ingrediente').addEventListener('submit', async (e)
         cantidad_neta: document.getElementById('ing-cantidad').value
     }]);
     document.getElementById('ing-cantidad').value = '';
+    
+    // Devolver el focus al selector para añadir rápido otro ingrediente
+    document.getElementById('sel-ingrediente').focus();
     cargarIngredientesReceta();
 });
 
