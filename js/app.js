@@ -16,7 +16,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
 
     window.miEmpresaId = perfil.id_empresa;
     
-    // Mostramos el correo del usuario en el header
+    // Inyectar el correo en el Header (Fase 1)
     document.getElementById('user-email-display').innerText = data.user.email;
     
     document.getElementById('login-container').classList.add('hidden');
@@ -27,15 +27,13 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
 
 function cerrarSesion() { location.reload(); }
 
-// --- MENÚ COLAPSABLE (NUEVO) ---
-function toggleMenu() {
+// --- MENÚ COLAPSABLE (Fase 1) ---
+window.toggleMenu = function() {
     const sidebar = document.getElementById('sidebar-menu');
-    // Si tiene la clase w-64, significa que está abierto, entonces lo cerramos
     if (sidebar.classList.contains('w-64')) {
         sidebar.classList.remove('w-64', 'p-4');
-        sidebar.classList.add('w-0', 'p-0'); // Se colapsa a 0
+        sidebar.classList.add('w-0', 'p-0');
     } else {
-        // Si está cerrado, lo abrimos
         sidebar.classList.remove('w-0', 'p-0');
         sidebar.classList.add('w-64', 'p-4');
     }
