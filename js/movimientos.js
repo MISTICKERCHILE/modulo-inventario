@@ -9,7 +9,7 @@ window.cambiarTabMovimientos = function(tab) {
     });
 
     if(tab === 'pedidos') window.cargarPedidosPlanificados();
-    // if(tab === 'compras') window.cargarComprasDirectas(); // Próxima Fase
+    if(tab === 'compras' || tab === 'otros') window.cargarSelectsMovimientosFormularios(); 
     // if(tab === 'ventas') window.prepararPanelVentas(); // Próxima Fase
     // if(tab === 'otros') window.cargarOtrosMovimientos(); // Próxima Fase
 }
@@ -187,4 +187,106 @@ document.getElementById('form-recepcion')?.addEventListener('submit', async (e) 
 
     document.getElementById('modal-recepcion').classList.add('hidden');
     window.cargarPedidosPlanificados(); 
+});
+
+// ==========================================
+// --- SECCIÓN: COMPRAS DIRECTAS Y OTROS MOVIMIENTOS ---
+// ==========================================
+
+window.cargarSelectsMovimientosFormularios = async function() {
+    const [{ data: provs }, { data: prods }, { data: sucs }, { data: tipos }] = await Promise.all([
+        clienteSupabase.from('proveedores').select('id, nombre').eq('id_empresa', window.miEmpresaId),
+        clienteSupabase.from('productos').select('id, nombre').eq('id_empresa', window.miEmpresaId).order('nombre'),
+        clienteSupabase.from('sucursales').select('id, nombre').eq('id_empresa', window.miEmpresaId),
+        clienteSupabase.from('tipos_movimiento').select('id, nombre, operacion').eq('id_empresa', window.miEmpresaId)
+    ]);
+
+    const optsProvs = '<option value="">Selecciona...</option>' + (provs||[]).map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
+    const optsProds = '<option value="">Selecciona Producto...</option>' + (prods||[]).map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
+    const optsSucs = '<option value="">Bodega...</option>' + (sucs||[]).map(s => `<option value="${s.id}">${s.nombre}</option>`).join('');
+    const optsTipos = '<option value="">Selecciona Tipo...</option>' + (tipos||[]).map(t => `<option value="${t.id}" data-operacion="${t.operacion}">${t.nombre} (${t.operacion})</option>`).join('');
+
+    // Llenar selects Compra Directa
+    document.getElementById('cd-proveedor').innerHTML = optsProvs;
+    document.getElementById('cd-producto').innerHTML = optsProds;
+    document.getElementById('cd-sucursal').innerHTML = optsSucs;
+
+    // Llenar selects Otros Movimientos
+    document.getElementById('om-tipo').innerHTML = optsTipos;
+    document.getElementById('om-producto').innerHTML = optsProds;
+    document.getElementById('om-sucursal').innerHTML = optsSucs;
+}
+
+// LOGICA: COMPRA DIRECTA (Ingresa al inventario inmediatamente)
+document.getElementById('form-compra-directa')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const idProv = document.getElementById('cd-proveedor').value;
+    const idProd = document.getElementById('cd-producto').value;
+    const idSuc = document.getElementById('cd-sucursal').value;
+    const cantUC = parseFloat(document.getElementById('cd-cantidad').value);
+    const costoTotal = parseFloat(document.getElementById('cd-costo').value);
+    const precioUC = costoTotal / cantUC;
+
+    // 1. Guardar la compra directa como completada de inmediato
+    const { data: cabecera } = await clienteSupabase.from('compras').insert([{ id_empresa: window.miEmpresaId, id_proveedor: idProv, total_compra: costoTotal, estado: 'Completada' }]).select('id').single();
+    await clienteSupabase.from('compras_detalles').insert([{ id_compra: cabecera.id, id_producto: idProd, cantidad_uc: cantUC, precio_unitario_uc: precioUC, subtotal: costoTotal }]);
+
+    // 2. Calcular Unidades de Almacén (UA) a sumar
+    const { data: prod } = await clienteSupabase.from('productos').select('cant_en_ua_de_uc').eq('id', idProd).single();
+    const cantUA_a_sumar = cantUC * prod.cant_en_ua_de_uc;
+
+    // 3. Sumar al inventario
+    const { data: previo } = await clienteSupabase.from('inventario_saldos').select('id, cantidad_actual_ua').eq('id_producto', idProd).eq('id_sucursal', idSuc).single();
+    if (previo) {
+        await clienteSupabase.from('inventario_saldos').update({ cantidad_actual_ua: previo.cantidad_actual_ua + cantUA_a_sumar, ultima_actualizacion: new Date() }).eq('id', previo.id);
+    } else {
+        await clienteSupabase.from('inventario_saldos').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_sucursal: idSuc, cantidad_actual_ua: cantUA_a_sumar }]);
+    }
+
+    // 4. Registrar en el historial de movimientos
+    await clienteSupabase.from('movimientos_inventario').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, tipo_movimiento: 'COMPRA_DIRECTA', cantidad_movida: cantUA_a_sumar, costo_unitario_movimiento: precioUC, referencia: 'Compra Directa' }]);
+    
+    // 5. Actualizar el último costo del producto
+    await clienteSupabase.from('productos').update({ ultimo_costo_uc: precioUC }).eq('id', idProd);
+
+    alert("✅ Compra Directa registrada e ingresada al inventario.");
+    document.getElementById('form-compra-directa').reset();
+});
+
+// LOGICA: OTROS MOVIMIENTOS MANUALES (Mermas, Consumo Interno, etc.)
+document.getElementById('form-otro-movimiento')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const idTipo = document.getElementById('om-tipo').value;
+    const selectTipo = document.getElementById('om-tipo');
+    const operacion = selectTipo.options[selectTipo.selectedIndex].getAttribute('data-operacion'); // "+" o "-"
+    
+    const idProd = document.getElementById('om-producto').value;
+    const idSuc = document.getElementById('om-sucursal').value;
+    const cantMovimiento = parseFloat(document.getElementById('om-cantidad').value);
+
+    // Verificamos si suma o resta
+    const cantidadFinalAplicada = operacion === '+' ? cantMovimiento : -cantMovimiento;
+
+    // 1. Actualizar el inventario
+    const { data: previo } = await clienteSupabase.from('inventario_saldos').select('id, cantidad_actual_ua').eq('id_producto', idProd).eq('id_sucursal', idSuc).single();
+    
+    if (previo) {
+        const nuevoStock = previo.cantidad_actual_ua + cantidadFinalAplicada;
+        await clienteSupabase.from('inventario_saldos').update({ cantidad_actual_ua: nuevoStock, ultima_actualizacion: new Date() }).eq('id', previo.id);
+    } else {
+        // Si no existía y es una resta, quedará en negativo (lo cual es normal en ERPs hasta que se hace inventario)
+        await clienteSupabase.from('inventario_saldos').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_sucursal: idSuc, cantidad_actual_ua: cantidadFinalAplicada }]);
+    }
+
+    // 2. Registrar en el historial
+    await clienteSupabase.from('movimientos_inventario').insert([{ 
+        id_empresa: window.miEmpresaId, 
+        id_producto: idProd, 
+        tipo_movimiento: selectTipo.options[selectTipo.selectedIndex].text, 
+        cantidad_movida: cantidadFinalAplicada, 
+        referencia: 'Ajuste Manual' 
+    }]);
+
+    alert(`✅ Movimiento aplicado con éxito. (${operacion}${cantMovimiento} UA)`);
+    document.getElementById('form-otro-movimiento').reset();
 });
