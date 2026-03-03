@@ -217,6 +217,7 @@ document.getElementById('form-otro-movimiento')?.addEventListener('submit', asyn
 // --- FASE 4: VENTAS POS (CSV) Y HOMOLOGACIÓN ---
 // ==========================================
 window.datosCSVAgrupados = [];
+window.selectCSVActivo = null; // Para recordar qué select disparó la creación de un producto
 
 window.prepararPanelVentas = async function() {
     const { data: sucursales } = await clienteSupabase.from('sucursales').select('id, nombre').eq('id_empresa', window.miEmpresaId);
@@ -239,9 +240,7 @@ window.procesarArchivoCSV = function() {
 async function agruparYAsociarVentas(filasCSV) {
     const agrupado = {};
     
-    // Agrupamos sumando cantidades (busca las columnas por nombre aproximado o exacto)
     filasCSV.forEach(fila => {
-        // Encontrar los nombres de las columnas que coincidan con lo que mandaste
         const keyNombre = Object.keys(fila).find(k => k.toLowerCase().includes('producto') || k.toLowerCase().includes('servicio')) || 'Producto';
         const keyVariante = Object.keys(fila).find(k => k.toLowerCase().includes('variante')) || 'Variante';
         const keyCant = Object.keys(fila).find(k => k.toLowerCase().includes('cantidad')) || 'Cantidad';
@@ -259,20 +258,19 @@ async function agruparYAsociarVentas(filasCSV) {
 
     window.datosCSVAgrupados = Object.values(agrupado);
 
-    // Buscamos productos del ERP y homologaciones previas para armar la tabla
     const [{ data: prodsERP }, { data: homologaciones }] = await Promise.all([
         clienteSupabase.from('productos').select('id, nombre').eq('id_empresa', window.miEmpresaId).order('nombre'),
         clienteSupabase.from('homologacion_pos').select('*').eq('id_empresa', window.miEmpresaId)
     ]);
 
     const opcionesProductos = '<option value="">-- No Asociado (Seleccionar o Crear) --</option>' + 
-        (prodsERP||[]).map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
+        (prodsERP||[]).map(p => `<option value="${p.id}">${p.nombre}</option>`).join('') +
+        '<option value="NUEVO" class="font-bold text-emerald-600 bg-emerald-50">➕ Crear Nuevo Producto...</option>';
 
     const tbody = document.getElementById('lista-mapeo-csv');
     tbody.innerHTML = '';
 
     window.datosCSVAgrupados.forEach((item, index) => {
-        // Buscar si ya se había asociado antes en la base de datos
         const match = homologaciones.find(h => h.nombre_pos === item.nombre_pos && (h.variante_pos || '') === item.variante_pos);
         const idPreseleccionado = match ? match.id_producto_erp : '';
         const colorFila = idPreseleccionado ? '' : 'bg-red-50 border-l-4 border-red-500';
@@ -283,13 +281,12 @@ async function agruparYAsociarVentas(filasCSV) {
             <td class="px-4 py-3 text-slate-500">${item.variante_pos || '-'}</td>
             <td class="px-4 py-3 text-center font-mono text-lg font-bold">${item.cantidad}</td>
             <td class="px-4 py-3">
-                <select class="w-full px-2 py-1 border border-slate-300 rounded bg-white selector-homologacion" data-index="${index}" onchange="quitarRojoFila(${index})">
+                <select class="w-full px-2 py-1 border border-slate-300 rounded bg-white selector-homologacion" data-index="${index}" onchange="gestionarSelectCSV(this, ${index})">
                     ${opcionesProductos}
                 </select>
             </td>
         </tr>`;
 
-        // Preseleccionar si ya estaba homologado
         if(idPreseleccionado) {
             const select = tbody.lastElementChild.querySelector('select');
             select.value = idPreseleccionado;
@@ -297,6 +294,46 @@ async function agruparYAsociarVentas(filasCSV) {
     });
 
     document.getElementById('panel-mapeo-csv').classList.remove('hidden');
+}
+
+// LOGICA NUEVA PARA EL AUTO-LLENADO Y ACTUALIZACIÓN SIN RECARGAR
+window.gestionarSelectCSV = function(selectTag, index) {
+    if(selectTag.value === 'NUEVO') {
+        selectTag.value = ''; // Lo devolvemos a blanco por si cancela la creación
+        const item = window.datosCSVAgrupados[index];
+        const nombreSugerido = item.variante_pos ? `${item.nombre_pos} ${item.variante_pos}` : item.nombre_pos;
+        
+        window.selectCSVActivo = selectTag; // Recordamos este selector
+        window.abrirModalProducto(false, nombreSugerido); // Abrimos modal con nombre escrito
+        return;
+    }
+    
+    if(selectTag.value) {
+        window.quitarRojoFila(index);
+    }
+}
+
+window.actualizarSelectsMapeoCSV = async function(nuevoIdProducto) {
+    const { data: prodsERP } = await clienteSupabase.from('productos').select('id, nombre').eq('id_empresa', window.miEmpresaId).order('nombre');
+    
+    const opcionesNuevas = '<option value="">-- No Asociado (Seleccionar o Crear) --</option>' + 
+        (prodsERP||[]).map(p => `<option value="${p.id}">${p.nombre}</option>`).join('') +
+        '<option value="NUEVO" class="font-bold text-emerald-600 bg-emerald-50">➕ Crear Nuevo Producto...</option>';
+
+    const selects = document.querySelectorAll('.selector-homologacion');
+    selects.forEach(sel => {
+        const valorAnterior = sel.value;
+        sel.innerHTML = opcionesNuevas;
+        sel.value = valorAnterior; // Mantenemos lo que ya habías elegido en otras filas
+    });
+
+    // Auto-seleccionar el producto recién creado en la fila que disparó el modal
+    if (window.selectCSVActivo && nuevoIdProducto) {
+        window.selectCSVActivo.value = nuevoIdProducto;
+        const index = window.selectCSVActivo.getAttribute('data-index');
+        window.quitarRojoFila(index);
+        window.selectCSVActivo = null; // Limpiamos la memoria
+    }
 }
 
 window.quitarRojoFila = function(index) {
@@ -313,7 +350,6 @@ window.confirmarDescuentoVentas = async function() {
     const idSucursal = document.getElementById('csv-sucursal').value;
     const selects = document.querySelectorAll('.selector-homologacion');
     
-    // Validar que todo esté asociado
     let todoAsociado = true;
     selects.forEach(sel => { if(!sel.value) todoAsociado = false; });
     if(!todoAsociado) return alert("❌ Debes asociar todos los productos del POS con tus productos del sistema antes de continuar.");
@@ -321,31 +357,25 @@ window.confirmarDescuentoVentas = async function() {
     const btn = document.getElementById('btn-procesar-ventas');
     btn.innerText = "⏳ Procesando y descontando..."; btn.disabled = true;
 
-    // 1. Obtener todos los productos (con su info de unidades y recetas)
     const { data: catalogoCompleto } = await clienteSupabase.from('productos').select('id, tiene_receta, cant_en_um_de_ua, cant_en_ur_de_um').eq('id_empresa', window.miEmpresaId);
 
-    // 2. Procesar cada fila
     for (const sel of selects) {
         const index = sel.getAttribute('data-index');
         const itemPOS = window.datosCSVAgrupados[index];
         const idProductoERP = sel.value;
         const cantidadVendida = itemPOS.cantidad;
 
-        // Guardar la homologación (upsert) para que el sistema aprenda
         const { data: existeH } = await clienteSupabase.from('homologacion_pos').select('id').eq('id_empresa', window.miEmpresaId).eq('nombre_pos', itemPOS.nombre_pos).eq('variante_pos', itemPOS.variante_pos).maybeSingle();
         if(existeH) await clienteSupabase.from('homologacion_pos').update({ id_producto_erp: idProductoERP }).eq('id', existeH.id);
         else await clienteSupabase.from('homologacion_pos').insert([{ id_empresa: window.miEmpresaId, nombre_pos: itemPOS.nombre_pos, variante_pos: itemPOS.variante_pos, id_producto_erp: idProductoERP }]);
 
         const prodERP = catalogoCompleto.find(p => p.id === idProductoERP);
 
-        // EXPLOSIÓN DE MATERIALES (DESCUENTO)
         if (prodERP.tiene_receta) {
-            // Descontar INGREDIENTES
             const { data: ingredientes } = await clienteSupabase.from('recetas').select('cantidad_neta, id_ingrediente(id, cant_en_um_de_ua, cant_en_ur_de_um)').eq('id_producto_padre', idProductoERP);
             
             for (const ing of (ingredientes||[])) {
                 const infoInsumo = ing.id_ingrediente;
-                // Calculamos cuánto descontar en UA. Fórmula: (Ventas * CantReceta) / (FactorUM * FactorUR)
                 const factorUM = infoInsumo.cant_en_um_de_ua || 1;
                 const factorUR = infoInsumo.cant_en_ur_de_um || 1;
                 const ua_a_descontar = (cantidadVendida * ing.cantidad_neta) / (factorUM * factorUR);
@@ -353,8 +383,6 @@ window.confirmarDescuentoVentas = async function() {
                 await aplicarDescuentoInventario(infoInsumo.id, idSucursal, ua_a_descontar, `Venta POS (Receta de ${itemPOS.nombre_pos})`);
             }
         } else {
-            // Producto Simple: Descontar el producto directamente.
-            // Asumimos que el POS vende la "Unidad Menor". Así que lo pasamos a UA.
             const factorUM = prodERP.cant_en_um_de_ua || 1;
             const ua_a_descontar = cantidadVendida / factorUM;
             await aplicarDescuentoInventario(idProductoERP, idSucursal, ua_a_descontar, `Venta POS Directa (${itemPOS.nombre_pos})`);
@@ -366,17 +394,14 @@ window.confirmarDescuentoVentas = async function() {
     cancelarCSV();
 }
 
-// Función auxiliar para restar el inventario del general de la sucursal (ubicación nula o la principal que encuentre)
 async function aplicarDescuentoInventario(idProd, idSuc, cantidad_ua_descontar, referencia) {
     if(cantidad_ua_descontar <= 0) return;
 
-    // Buscamos el saldo general (id_ubicacion es nulo) o el registro con más cantidad
     const { data: saldos } = await clienteSupabase.from('inventario_saldos').select('id, cantidad_actual_ua').eq('id_producto', idProd).eq('id_sucursal', idSuc).order('cantidad_actual_ua', { ascending: false });
 
     if(saldos && saldos.length > 0) {
         await clienteSupabase.from('inventario_saldos').update({ cantidad_actual_ua: saldos[0].cantidad_actual_ua - cantidad_ua_descontar, ultima_actualizacion: new Date() }).eq('id', saldos[0].id);
     } else {
-        // Si no había registro de inventario previo, lo crea en negativo (lo normal antes de un ajuste físico)
         await clienteSupabase.from('inventario_saldos').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_sucursal: idSuc, cantidad_actual_ua: -cantidad_ua_descontar }]);
     }
 
