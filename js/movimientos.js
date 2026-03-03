@@ -290,3 +290,17 @@ document.getElementById('form-otro-movimiento')?.addEventListener('submit', asyn
     alert(`✅ Movimiento aplicado con éxito. (${operacion}${cantMovimiento} UA)`);
     document.getElementById('form-otro-movimiento').reset();
 });
+
+window.cargarUbicacionesRecepcion = async function(idSucursal) {
+    const divUbi = document.getElementById('div-rec-ubicacion');
+    const selUbi = document.getElementById('rec-ubicacion');
+    if(!idSucursal) { divUbi.classList.add('hidden'); selUbi.innerHTML = ''; return; }
+    
+    const { data: ubicaciones } = await clienteSupabase.from('ubicaciones_internas').select('id, nombre').eq('id_sucursal', idSucursal);
+    if(ubicaciones && ubicaciones.length > 0) {
+        selUbi.innerHTML = '<option value="">(Bodega General)</option>' + ubicaciones.map(u => `<option value="${u.id}">${u.nombre}</option>`).join('');
+    } else {
+        selUbi.innerHTML = '<option value="">(Sin ubicaciones creadas)</option>';
+    }
+    divUbi.classList.remove('hidden');
+}
