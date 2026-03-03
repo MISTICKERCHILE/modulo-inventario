@@ -103,55 +103,7 @@
                 <div id="vista-productos" class="max-w-6xl mx-auto hidden">
                     <div class="flex justify-between items-center mb-6">
                         <h2 class="text-2xl font-bold">Catálogo de Productos</h2>
-                        <button onclick="mostrarFormProducto()" class="px-4 py-2 bg-emerald-600 text-white rounded-md font-medium">+ Nuevo Producto</button>
-                    </div>
-
-                    <div id="panel-form-producto" class="bg-white p-8 rounded-xl shadow-lg border mb-8 hidden">
-                        <form id="form-producto" class="space-y-6">
-                            
-                            <div class="grid grid-cols-3 gap-6">
-                                <div><label class="block text-sm font-medium mb-1">Nombre</label><input type="text" id="prod-nombre" required class="w-full px-3 py-2 border rounded-md"></div>
-                                <div><label class="block text-sm font-medium mb-1">Categoría</label><select id="prod-categoria" required class="w-full px-3 py-2 border rounded-md bg-white"></select></div>
-                                <div><label class="block text-sm font-medium text-emerald-700 mb-1">SKU (Auto-generado)</label><input type="text" id="prod-sku" readonly class="w-full px-3 py-2 border border-slate-200 rounded-md bg-slate-100 text-slate-500 font-mono font-bold cursor-not-allowed shadow-inner focus:outline-none"></div>
-                            </div>
-                            
-                            <div class="bg-slate-50 p-6 rounded-lg border">
-                                <h4 class="font-bold text-slate-700 mb-4">Conversión de Unidades Inteligente</h4>
-                                
-                                <div class="flex gap-2 items-end mb-4 text-center">
-                                    <div class="w-16"><label class="block text-xs font-bold text-gray-500 mb-1">Cant.</label><input type="text" value="1" disabled class="w-full px-2 py-2 border rounded-md bg-gray-100 font-bold text-center"></div>
-                                    <div class="w-48"><label class="block text-xs font-bold text-gray-500 mb-1">1. U. COMPRA</label><select id="prod-u-compra" required class="w-full px-2 py-2 border rounded-md bg-white"></select></div>
-                                    <div class="w-24 pb-2 text-slate-400 font-bold text-xs uppercase">▶ Contiene ▶</div>
-                                    <div class="w-20"><label class="block text-xs font-bold text-gray-500 mb-1">Cant.</label><input type="number" step="0.0001" id="prod-cant-ua" required class="w-full px-2 py-2 border rounded-md text-center"></div>
-                                    <div class="w-48"><label class="block text-xs font-bold text-gray-500 mb-1">2. U. ALMACÉN</label><select id="prod-u-almacen" required class="w-full px-2 py-2 border rounded-md bg-white"></select></div>
-                                </div>
-                                
-                                <div class="flex gap-2 items-end mb-4 text-center">
-                                    <div class="w-16"></div><div class="w-48"></div>
-                                    <div class="w-24 pb-2 text-slate-400 font-bold text-xs uppercase">▶ Contiene ▶</div>
-                                    <div class="w-20"><label class="block text-xs font-bold text-gray-500 mb-1">Cant.</label><input type="number" step="0.0001" id="prod-cant-um" required class="w-full px-2 py-2 border rounded-md text-center"></div>
-                                    <div class="w-48"><label class="block text-xs font-bold text-gray-500 mb-1">3. U. MENOR</label><select id="prod-u-menor" required class="w-full px-2 py-2 border rounded-md bg-white"></select></div>
-                                </div>
-
-                                <div class="flex gap-2 items-end text-center">
-                                    <div class="w-16"></div><div class="w-48"></div>
-                                    <div class="w-24 pb-2 text-slate-400 font-bold text-xs uppercase">▶ Contiene ▶</div>
-                                    <div class="w-20"><label class="block text-xs font-bold text-gray-500 mb-1">Cant.</label><input type="number" step="0.0001" id="prod-cant-ur" required class="w-full px-2 py-2 border rounded-md text-center"></div>
-                                    <div class="w-48"><label class="block text-xs font-bold text-gray-500 mb-1">4. U. RECETA</label><select id="prod-u-receta" required class="w-full px-2 py-2 border rounded-md bg-white"></select></div>
-                                </div>
-                            </div>
-
-                            <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 flex items-center gap-4">
-                                <label class="flex items-center gap-2 font-bold text-blue-800 cursor-pointer">
-                                    <input type="checkbox" id="prod-tiene-receta" class="w-5 h-5 accent-blue-600"> Este producto tiene Receta / Ficha Técnica
-                                </label>
-                            </div>
-
-                            <div class="flex justify-end gap-4">
-                                <button type="button" onclick="document.getElementById('form-producto').reset(); document.getElementById('prod-sku').value=''; mostrarFormProducto()" class="px-6 py-2 border text-gray-700 rounded-md hover:bg-gray-50 transition-colors">Cancelar</button>
-                                <button type="submit" class="px-6 py-2 bg-slate-800 text-white rounded-md font-bold hover:bg-slate-700 transition-colors">Guardar Producto</button>
-                            </div>
-                        </form>
+                        <button onclick="abrirModalProducto()" class="px-4 py-2 bg-emerald-600 text-white rounded-md font-medium shadow-sm hover:bg-emerald-700 transition-colors">+ Nuevo Producto</button>
                     </div>
 
                     <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
@@ -167,13 +119,43 @@
                 </div>
 
                 <div id="vista-recetas" class="max-w-5xl mx-auto hidden">
-                    <div class="bg-emerald-700 text-white p-6 rounded-t-xl">
-                        <h2 class="text-2xl font-bold" id="receta-titulo">Selecciona un producto en la pestaña "Productos"</h2>
+                    
+                    <div class="bg-emerald-700 text-white p-6 rounded-t-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div class="w-full md:w-1/2">
+                            <h2 class="text-2xl font-bold mb-3" id="receta-titulo">Gestión de Recetas</h2>
+                            <select id="buscador-recetas" onchange="seleccionarRecetaDesdeBuscador(this.value)" class="w-full px-3 py-2 text-slate-800 rounded-md font-medium outline-none shadow-sm"></select>
+                            <p class="text-emerald-200 text-sm mt-2 hidden" id="receta-unidad-base">Unidad base: -</p>
+                        </div>
+                        
+                        <div id="panel-estadisticas-receta" class="hidden bg-emerald-800 p-4 rounded-lg flex gap-6 items-center border border-emerald-600">
+                            <div>
+                                <label class="block text-xs text-emerald-300 font-bold mb-1">Rendimiento Real</label>
+                                <div class="flex items-center gap-2">
+                                    <input type="number" step="0.01" id="receta-rendimiento" class="w-24 px-2 py-1 text-slate-800 rounded font-bold text-center">
+                                    <span id="receta-label-rendimiento" class="text-sm font-bold"></span>
+                                    <button onclick="guardarRendimiento()" class="text-xs bg-emerald-600 hover:bg-emerald-500 px-2 py-1 rounded">Guardar</button>
+                                </div>
+                            </div>
+                            <div class="border-l border-emerald-600 pl-6"><p class="text-xs text-emerald-300 font-bold mb-1">Costo Unitario</p><p class="text-2xl font-bold" id="receta-costo-unitario">$0.00</p></div>
+                        </div>
                     </div>
-                    <div class="bg-white p-6 border-x border-b rounded-b-xl shadow-sm">
+
+                    <div id="msj-receta-vacia" class="bg-white p-16 border-x border-b rounded-b-xl shadow-sm text-center text-slate-400">
+                        <span class="text-5xl mb-4 block">📝</span>
+                        <p class="text-lg">Selecciona una receta en el buscador superior para armar su composición.</p>
+                    </div>
+
+                    <div id="panel-receta-activa" class="hidden bg-white p-6 border-x border-b rounded-b-xl shadow-sm">
                         <form id="form-ingrediente" class="flex gap-4 items-end mb-6">
-                            <div class="flex-1"><label class="block text-xs font-bold text-gray-500 mb-1">Insumo</label><select id="sel-ingrediente" required class="w-full px-3 py-2 border rounded-md bg-white"></select></div>
-                            <div class="w-32"><label class="block text-xs font-bold text-gray-500 mb-1">Cantidad</label><input type="number" step="0.0001" id="ing-cantidad" required class="w-full px-3 py-2 border rounded-md"></div>
+                            <div class="flex-1">
+                                <label class="block text-xs font-bold text-gray-500 mb-1">Insumo / Ingrediente</label>
+                                <select id="sel-ingrediente" required class="w-full px-3 py-2 border rounded-md bg-white"></select>
+                            </div>
+                            <div class="w-32 relative">
+                                <label class="block text-xs font-bold text-gray-500 mb-1">Cantidad</label>
+                                <input type="number" step="0.0001" id="ing-cantidad" required class="w-full px-3 py-2 border rounded-md pr-10">
+                                <span id="label-unidad-ingrediente" class="absolute right-3 top-8 text-xs font-bold text-emerald-600"></span>
+                            </div>
                             <button type="submit" class="px-6 py-2 bg-emerald-600 text-white rounded-md font-bold">Añadir</button>
                         </form>
                         <table class="min-w-full"><tbody id="lista-ingredientes-receta" class="divide-y divide-gray-100"></tbody></table>
@@ -181,6 +163,54 @@
                 </div>
 
             </main>
+        </div>
+    </div>
+
+    <div id="modal-producto" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto border border-slate-200">
+            <h2 class="text-2xl font-bold text-slate-800 mb-6 border-b pb-3">Configuración de Producto / Insumo</h2>
+            
+            <form id="form-producto" class="space-y-6">
+                <div class="grid grid-cols-3 gap-6">
+                    <div><label class="block text-sm font-medium mb-1">Nombre</label><input type="text" id="prod-nombre" required class="w-full px-3 py-2 border rounded-md"></div>
+                    <div><label class="block text-sm font-medium mb-1">Categoría</label><select id="prod-categoria" required class="w-full px-3 py-2 border rounded-md bg-white"></select></div>
+                    <div><label class="block text-sm font-medium text-emerald-700 mb-1">SKU (Auto-generado)</label><input type="text" id="prod-sku" readonly class="w-full px-3 py-2 border border-slate-200 rounded-md bg-slate-100 text-slate-500 font-mono font-bold cursor-not-allowed shadow-inner focus:outline-none"></div>
+                </div>
+                
+                <div class="bg-slate-50 p-6 rounded-lg border">
+                    <h4 class="font-bold text-slate-700 mb-4">Conversión de Unidades Inteligente</h4>
+                    <div class="flex gap-2 items-end mb-4 text-center">
+                        <div class="w-16"><label class="block text-xs font-bold text-gray-500 mb-1">Cant.</label><input type="text" value="1" disabled class="w-full px-2 py-2 border rounded-md bg-gray-100 font-bold text-center"></div>
+                        <div class="w-48"><label class="block text-xs font-bold text-gray-500 mb-1">1. U. COMPRA</label><select id="prod-u-compra" required class="w-full px-2 py-2 border rounded-md bg-white"></select></div>
+                        <div class="w-24 pb-2 text-slate-400 font-bold text-xs uppercase">▶ Contiene ▶</div>
+                        <div class="w-20"><label class="block text-xs font-bold text-gray-500 mb-1">Cant.</label><input type="number" step="0.0001" id="prod-cant-ua" required class="w-full px-2 py-2 border rounded-md text-center"></div>
+                        <div class="w-48"><label class="block text-xs font-bold text-gray-500 mb-1">2. U. ALMACÉN</label><select id="prod-u-almacen" required class="w-full px-2 py-2 border rounded-md bg-white"></select></div>
+                    </div>
+                    <div class="flex gap-2 items-end mb-4 text-center">
+                        <div class="w-16"></div><div class="w-48"></div>
+                        <div class="w-24 pb-2 text-slate-400 font-bold text-xs uppercase">▶ Contiene ▶</div>
+                        <div class="w-20"><label class="block text-xs font-bold text-gray-500 mb-1">Cant.</label><input type="number" step="0.0001" id="prod-cant-um" required class="w-full px-2 py-2 border rounded-md text-center"></div>
+                        <div class="w-48"><label class="block text-xs font-bold text-gray-500 mb-1">3. U. MENOR</label><select id="prod-u-menor" required class="w-full px-2 py-2 border rounded-md bg-white"></select></div>
+                    </div>
+                    <div class="flex gap-2 items-end text-center">
+                        <div class="w-16"></div><div class="w-48"></div>
+                        <div class="w-24 pb-2 text-slate-400 font-bold text-xs uppercase">▶ Contiene ▶</div>
+                        <div class="w-20"><label class="block text-xs font-bold text-gray-500 mb-1">Cant.</label><input type="number" step="0.0001" id="prod-cant-ur" required class="w-full px-2 py-2 border rounded-md text-center"></div>
+                        <div class="w-48"><label class="block text-xs font-bold text-gray-500 mb-1">4. U. RECETA</label><select id="prod-u-receta" required class="w-full px-2 py-2 border rounded-md bg-white"></select></div>
+                    </div>
+                </div>
+
+                <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 flex items-center gap-4">
+                    <label class="flex items-center gap-2 font-bold text-blue-800 cursor-pointer">
+                        <input type="checkbox" id="prod-tiene-receta" class="w-5 h-5 accent-blue-600"> Este producto tiene Receta / Ficha Técnica
+                    </label>
+                </div>
+
+                <div class="flex justify-end gap-4 mt-6">
+                    <button type="button" onclick="cerrarModalProducto()" class="px-6 py-2 border text-gray-700 rounded-md hover:bg-gray-50 transition-colors">Cancelar</button>
+                    <button type="submit" class="px-8 py-2 bg-emerald-600 text-white rounded-md font-bold hover:bg-emerald-700 transition-colors shadow-sm">Guardar</button>
+                </div>
+            </form>
         </div>
     </div>
 
