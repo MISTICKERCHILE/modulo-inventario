@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Módulo - Inventario</title>
+    
+    <script>
+        if (typeof process === 'undefined') {
+            window.process = { env: { NODE_ENV: 'development' } };
+        }
+    </script>
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -13,9 +20,9 @@
         <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-sm border border-gray-100">
             <div class="text-center mb-6"><div class="text-4xl mb-4">📦</div><h1 class="text-2xl font-bold">Módulo - Inventario</h1></div>
             <form id="login-form" class="space-y-4">
-                <input type="email" id="email" placeholder="Correo" required class="w-full px-3 py-2 border rounded-md">
-                <input type="password" id="password" placeholder="Contraseña" required class="w-full px-3 py-2 border rounded-md">
-                <button type="submit" class="w-full py-2 bg-emerald-600 text-white rounded-md font-medium hover:bg-emerald-700">Entrar</button>
+                <input type="email" id="email" placeholder="Correo" required class="w-full px-3 py-2 border rounded-md outline-none focus:ring-2 focus:ring-emerald-500">
+                <input type="password" id="password" placeholder="Contraseña" required class="w-full px-3 py-2 border rounded-md outline-none focus:ring-2 focus:ring-emerald-500">
+                <button type="submit" class="w-full py-2 bg-emerald-600 text-white rounded-md font-medium hover:bg-emerald-700 transition-colors">Entrar</button>
             </form>
         </div>
     </div>
@@ -23,7 +30,7 @@
     <div id="dashboard-container" class="hidden min-h-screen flex flex-col relative">
         <header class="bg-white border-b px-6 py-4 flex justify-between items-center shadow-sm z-20">
             <div class="flex items-center gap-4">
-                <button onclick="toggleMenu()" class="text-slate-500 hover:bg-slate-100 p-2 rounded-md transition-colors">
+                <button onclick="toggleMenu()" class="text-slate-500 hover:bg-slate-100 p-2 rounded-md transition-colors outline-none">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
                 </button>
                 <span class="text-2xl">📦</span>
@@ -38,12 +45,14 @@
         <div class="flex flex-1 overflow-hidden">
             
             <aside id="sidebar-menu" class="w-64 bg-slate-800 text-white flex flex-col p-4 space-y-2 z-10 transition-all duration-300 ease-in-out overflow-hidden whitespace-nowrap">
-                <button onclick="cambiarVista('catalogos')" id="btn-menu-catalogos" class="w-full flex items-center gap-3 px-4 py-3 bg-emerald-600 rounded-lg font-medium"><span>🏷️</span> <span class="menu-texto">Catálogos</span></button>
-                <button onclick="cambiarVista('productos')" id="btn-menu-productos" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium"><span>🍔</span> <span class="menu-texto">Productos</span></button>
-                <button onclick="cambiarVista('recetas')" id="btn-menu-recetas" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium"><span>📝</span> <span class="menu-texto">Recetas</span></button>
+                <button onclick="cambiarVista('catalogos')" id="btn-menu-catalogos" class="w-full flex items-center gap-3 px-4 py-3 bg-emerald-600 rounded-lg font-medium transition-colors"><span>🏷️</span> <span class="menu-texto">Catálogos</span></button>
+                <button onclick="cambiarVista('productos')" id="btn-menu-productos" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>🍔</span> <span class="menu-texto">Productos</span></button>
+                <button onclick="cambiarVista('recetas')" id="btn-menu-recetas" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>📝</span> <span class="menu-texto">Recetas</span></button>
                 
-                <div class="my-2 border-t border-slate-700"></div> <button onclick="cambiarVista('inventario')" id="btn-menu-inventario" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium"><span>📦</span> <span class="menu-texto">Inventario Físico</span></button>
-                <button onclick="cambiarVista('compras')" id="btn-menu-compras" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium"><span>🛒</span> <span class="menu-texto">Compras / Pedidos</span></button>
+                <div class="my-2 border-t border-slate-700"></div>
+                
+                <button onclick="cambiarVista('inventario')" id="btn-menu-inventario" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>📦</span> <span class="menu-texto">Inventario Físico</span></button>
+                <button onclick="cambiarVista('compras')" id="btn-menu-compras" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>🛒</span> <span class="menu-texto">Compras / Pedidos</span></button>
             </aside>
 
             <main class="flex-1 p-8 overflow-y-auto relative">
@@ -52,10 +61,10 @@
                     <h2 class="text-2xl font-bold mb-6">Gestión de Catálogos</h2>
                     <div class="flex border-b border-gray-200 mb-6 overflow-x-auto bg-white rounded-t-lg shadow-sm">
                         <button onclick="cambiarTab('categorias')" id="tab-categorias" class="px-6 py-3 font-medium border-b-2 border-emerald-600 text-emerald-600 bg-emerald-50/50">Categorías</button>
-                        <button onclick="cambiarTab('unidades')" id="tab-unidades" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700">Unidades</button>
-                        <button onclick="cambiarTab('proveedores')" id="tab-proveedores" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700">Proveedores</button>
-                        <button onclick="cambiarTab('sucursales')" id="tab-sucursales" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700">Sucursales</button>
-                        <button onclick="cambiarTab('ubicaciones')" id="tab-ubicaciones" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700">Ubicaciones</button>
+                        <button onclick="cambiarTab('unidades')" id="tab-unidades" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors">Unidades</button>
+                        <button onclick="cambiarTab('proveedores')" id="tab-proveedores" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors">Proveedores</button>
+                        <button onclick="cambiarTab('sucursales')" id="tab-sucursales" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors">Sucursales</button>
+                        <button onclick="cambiarTab('ubicaciones')" id="tab-ubicaciones" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors">Ubicaciones</button>
                     </div>
 
                     <div id="seccion-categorias" class="block space-y-4">
@@ -141,266 +150,4 @@
                             <div>
                                 <label class="block text-xs text-emerald-300 font-bold mb-1">Rendimiento Real</label>
                                 <div class="flex items-center gap-2">
-                                    <input type="number" step="0.01" id="receta-rendimiento" class="w-24 px-2 py-1 text-slate-800 rounded font-bold text-center">
-                                    <span id="receta-label-rendimiento" class="text-sm font-bold"></span>
-                                    <button onclick="guardarRendimiento()" class="text-xs bg-emerald-600 hover:bg-emerald-500 px-2 py-1 rounded">Guardar</button>
-                                </div>
-                            </div>
-                            <div class="border-l border-emerald-600 pl-6"><p class="text-xs text-emerald-300 font-bold mb-1">Costo Unitario</p><p class="text-2xl font-bold" id="receta-costo-unitario">$0.00</p></div>
-                        </div>
-                    </div>
-
-                    <div id="msj-receta-vacia" class="bg-white p-16 border-x border-b rounded-b-xl shadow-sm text-center text-slate-400">
-                        <span class="text-5xl mb-4 block">📝</span>
-                        <p class="text-lg">Selecciona una receta en el buscador superior para armar su composición.</p>
-                    </div>
-
-                    <div id="panel-receta-activa" class="hidden bg-white p-6 border-x border-b rounded-b-xl shadow-sm">
-                        <form id="form-ingrediente" class="flex gap-4 items-end mb-6">
-                            <div class="flex-1">
-                                <label class="block text-xs font-bold text-gray-500 mb-1">Insumo / Ingrediente</label>
-                                <select id="sel-ingrediente" required class="w-full px-3 py-2 border rounded-md bg-white"></select>
-                            </div>
-                            <div class="w-32 relative">
-                                <label class="block text-xs font-bold text-gray-500 mb-1">Cantidad</label>
-                                <input type="number" step="0.0001" id="ing-cantidad" required class="w-full px-3 py-2 border rounded-md pr-10">
-                                <span id="label-unidad-ingrediente" class="absolute right-3 top-8 text-xs font-bold text-emerald-600"></span>
-                            </div>
-                            <button type="button" id="btn-cancelar-ingrediente" onclick="cancelarEdicion('ingrediente')" class="hidden px-4 py-2 border text-gray-600 rounded-md">Cancelar</button>
-                            <button type="submit" class="px-6 py-2 bg-emerald-600 text-white rounded-md font-bold">Añadir</button>
-                        </form>
-                        <table class="min-w-full">
-                            <thead>
-                                <tr class="border-b text-slate-400 text-xs font-bold uppercase"><th class="py-3 text-left">Ingrediente</th><th class="py-3 text-center">Cantidad</th><th class="py-3 text-right">Acciones</th></tr>
-                            </thead>
-                            <tbody id="lista-ingredientes-receta" class="divide-y divide-gray-100"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div id="vista-inventario" class="max-w-6xl mx-auto hidden">
-                    <div class="flex justify-between items-center mb-6">
-                        <div>
-                            <h2 class="text-2xl font-bold">📦 Inventario y Stock Físico</h2>
-                            <p class="text-slate-500 text-sm mt-1">Control de saldos por sucursal en Unidades de Almacén (UA).</p>
-                        </div>
-                        <button onclick="abrirModalInventario()" class="px-4 py-2 bg-emerald-600 text-white rounded-md font-medium shadow-sm hover:bg-emerald-700 transition-colors">🎯 Registrar Conteo Físico</button>
-                    </div>
-
-                    <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-slate-50">
-                                <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Estado</th>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Producto</th>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Sucursal</th>
-                                    <th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">Stock Actual (UA)</th>
-                                </tr>
-                            </thead>
-                            <tbody id="lista-inventario" class="divide-y divide-gray-200">
-                                </tbody>
-                        </table>
-                    </div>
-                </div>
-
-            </main>
-        </div>
-    </div>
-
-    <div id="vista-compras" class="max-w-6xl mx-auto hidden">
-                    <div class="flex justify-between items-center mb-6">
-                        <div>
-                            <h2 class="text-2xl font-bold">🛒 Pedidos y Compras</h2>
-                            <p class="text-slate-500 text-sm mt-1">Gestiona alertas de stock, crea órdenes y recepciona mercadería.</p>
-                        </div>
-                        <button onclick="abrirModalCompra(null, 0)" class="px-4 py-2 bg-emerald-600 text-white rounded-md font-medium shadow-sm hover:bg-emerald-700 transition-colors">+ Nueva Orden de Compra</button>
-                    </div>
-
-                    <div class="mb-8">
-                        <h3 class="text-lg font-bold text-orange-700 mb-3 flex items-center gap-2"><span>⚠️</span> Sugerencias de Reposición (Stock Crítico)</h3>
-                        <div class="bg-white rounded-xl shadow-sm border border-orange-200 overflow-hidden">
-                            <table class="min-w-full divide-y divide-orange-100">
-                                <thead class="bg-orange-50">
-                                    <tr>
-                                        <th class="px-6 py-3 text-left text-xs font-bold text-orange-800 uppercase">Producto</th>
-                                        <th class="px-6 py-3 text-center text-xs font-bold text-orange-800 uppercase">Stock Global (UA)</th>
-                                        <th class="px-6 py-3 text-center text-xs font-bold text-orange-800 uppercase">Sugerido Pedir</th>
-                                        <th class="px-6 py-3 text-right text-xs font-bold text-orange-800 uppercase">Acción</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="lista-alertas-compras" class="divide-y divide-gray-100"></tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <div>
-                        <h3 class="text-lg font-bold text-blue-700 mb-3 flex items-center gap-2"><span>🚚</span> Pedidos Pendientes (En Tránsito)</h3>
-                        <div class="bg-white rounded-xl shadow-sm border border-blue-200 overflow-hidden">
-                            <table class="min-w-full divide-y divide-blue-100">
-                                <thead class="bg-blue-50">
-                                    <tr>
-                                        <th class="px-6 py-3 text-left text-xs font-bold text-blue-800 uppercase">Fecha / Proveedor</th>
-                                        <th class="px-6 py-3 text-left text-xs font-bold text-blue-800 uppercase">Producto</th>
-                                        <th class="px-6 py-3 text-center text-xs font-bold text-blue-800 uppercase">Cantidad Esperada</th>
-                                        <th class="px-6 py-3 text-right text-xs font-bold text-blue-800 uppercase">Acción</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="lista-pedidos-transito" class="divide-y divide-gray-100"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-    <div id="modal-producto" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-4">
-        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto border border-slate-200">
-            <h2 class="text-2xl font-bold text-slate-800 mb-6 border-b pb-3" id="titulo-modal-producto">Nuevo Producto / Insumo</h2>
-            
-            <form id="form-producto" class="space-y-6">
-                <div class="grid grid-cols-3 gap-6">
-                    <div><label class="block text-sm font-medium mb-1">Nombre</label><input type="text" id="prod-nombre" required class="w-full px-3 py-2 border rounded-md"></div>
-                    <div><label class="block text-sm font-medium mb-1">Categoría</label><select id="prod-categoria" required class="w-full px-3 py-2 border rounded-md bg-white"></select></div>
-                    <div><label class="block text-sm font-medium text-emerald-700 mb-1">SKU</label><input type="text" id="prod-sku" readonly class="w-full px-3 py-2 border border-slate-200 rounded-md bg-slate-100 text-slate-500 font-mono font-bold cursor-not-allowed shadow-inner focus:outline-none"></div>
-                </div>
-                
-                <div class="bg-slate-50 p-6 rounded-lg border">
-                    <h4 class="font-bold text-slate-700 mb-4">Conversión de Unidades Inteligente</h4>
-                    <div class="flex gap-2 items-end mb-4 text-center">
-                        <div class="w-16"><label class="block text-xs font-bold text-gray-500 mb-1">Cant.</label><input type="text" value="1" disabled class="w-full px-2 py-2 border rounded-md bg-gray-100 font-bold text-center"></div>
-                        <div class="w-48"><label class="block text-xs font-bold text-gray-500 mb-1">1. U. COMPRA</label><select id="prod-u-compra" required class="w-full px-2 py-2 border rounded-md bg-white"></select></div>
-                        <div class="w-24 pb-2 text-slate-400 font-bold text-xs uppercase">▶ Contiene ▶</div>
-                        <div class="w-20"><label class="block text-xs font-bold text-gray-500 mb-1">Cant.</label><input type="number" step="0.0001" id="prod-cant-ua" required class="w-full px-2 py-2 border rounded-md text-center"></div>
-                        <div class="w-48"><label class="block text-xs font-bold text-gray-500 mb-1">2. U. ALMACÉN</label><select id="prod-u-almacen" required class="w-full px-2 py-2 border rounded-md bg-white"></select></div>
-                    </div>
-                    <div class="flex gap-2 items-end mb-4 text-center">
-                        <div class="w-16"></div><div class="w-48"></div>
-                        <div class="w-24 pb-2 text-slate-400 font-bold text-xs uppercase">▶ Contiene ▶</div>
-                        <div class="w-20"><label class="block text-xs font-bold text-gray-500 mb-1">Cant.</label><input type="number" step="0.0001" id="prod-cant-um" required class="w-full px-2 py-2 border rounded-md text-center"></div>
-                        <div class="w-48"><label class="block text-xs font-bold text-gray-500 mb-1">3. U. MENOR</label><select id="prod-u-menor" required class="w-full px-2 py-2 border rounded-md bg-white"></select></div>
-                    </div>
-                    <div class="flex gap-2 items-end text-center">
-                        <div class="w-16"></div><div class="w-48"></div>
-                        <div class="w-24 pb-2 text-slate-400 font-bold text-xs uppercase">▶ Contiene ▶</div>
-                        <div class="w-20"><label class="block text-xs font-bold text-gray-500 mb-1">Cant.</label><input type="number" step="0.0001" id="prod-cant-ur" required class="w-full px-2 py-2 border rounded-md text-center"></div>
-                        <div class="w-48"><label class="block text-xs font-bold text-gray-500 mb-1">4. U. RECETA</label><select id="prod-u-receta" required class="w-full px-2 py-2 border rounded-md bg-white"></select></div>
-                    </div>
-                </div>
-
-                <div class="bg-orange-50 p-6 rounded-lg border border-orange-100">
-                    <h4 class="font-bold text-orange-800 mb-4">Reglas de Inventario (Basado en Unidad de Almacén)</h4>
-                    <div class="grid grid-cols-2 gap-6">
-                        <div>
-                            <label class="block text-xs font-bold text-orange-700 mb-1">Stock Mínimo (Alerta Roja)</label>
-                            <input type="number" step="0.01" id="prod-stock-min" required class="w-full px-3 py-2 border border-orange-200 rounded-md focus:ring-2 focus:ring-orange-400 outline-none" value="0">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-orange-700 mb-1">Stock Ideal (Para pedir)</label>
-                            <input type="number" step="0.01" id="prod-stock-ideal" required class="w-full px-3 py-2 border border-orange-200 rounded-md focus:ring-2 focus:ring-orange-400 outline-none" value="0">
-                        </div>
-                    </div>
-                    <p class="text-xs text-orange-600 mt-3 italic">* Las alertas se calculan según tu <strong>Unidad de Almacén</strong> (Ej: Si cuentas en Cajas, pon cuántas cajas es el mínimo).</p>
-                </div>
-
-                <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 flex items-center gap-4">
-                    <label class="flex items-center gap-2 font-bold text-blue-800 cursor-pointer">
-                        <input type="checkbox" id="prod-tiene-receta" class="w-5 h-5 accent-blue-600"> Este producto tiene Receta / Ficha Técnica
-                    </label>
-                </div>
-
-                <div class="flex justify-end gap-4 mt-6">
-                    <button type="button" onclick="cerrarModalProducto()" class="px-6 py-2 border text-gray-700 rounded-md hover:bg-gray-50 transition-colors">Cancelar</button>
-                    <button type="submit" id="btn-guardar-producto" class="px-8 py-2 bg-emerald-600 text-white rounded-md font-bold hover:bg-emerald-700 transition-colors shadow-sm">Guardar</button>
-                </div>
-            </form>
-        </div>
-    </div>
-    
-    <div id="modal-inventario" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-4">
-        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md border border-slate-200">
-            <h2 class="text-xl font-bold text-slate-800 mb-2 border-b pb-3">🎯 Ajuste de Conteo Físico</h2>
-            <p class="text-sm text-slate-500 mb-6">Actualiza el stock real de la bodega. Esto generará un movimiento de ajuste automático.</p>
-            
-            <form id="form-inventario" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-bold mb-1">Sucursal / Bodega</label>
-                    <select id="inv-sucursal" required class="w-full px-3 py-2 border rounded-md bg-white"></select>
-                </div>
-                <div>
-                    <label class="block text-sm font-bold mb-1">Producto</label>
-                    <select id="inv-producto" required class="w-full px-3 py-2 border rounded-md bg-white"></select>
-                </div>
-                <div>
-                    <label class="block text-sm font-bold mb-1">Cantidad Real Contada (UA)</label>
-                    <input type="number" step="0.01" id="inv-cantidad" required class="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500 outline-none text-xl font-bold text-center">
-                </div>
-
-                <div class="flex justify-end gap-3 mt-6">
-                    <button type="button" onclick="cerrarModalInventario()" class="px-4 py-2 border text-gray-700 rounded-md hover:bg-gray-50 transition-colors">Cancelar</button>
-                    <button type="submit" class="px-6 py-2 bg-emerald-600 text-white rounded-md font-bold hover:bg-emerald-700 transition-colors">Guardar Conteo</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <div id="modal-compra" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-4">
-        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md border border-slate-200">
-            <h2 class="text-xl font-bold text-slate-800 mb-2 border-b pb-3">📝 Generar Orden de Compra</h2>
-            <form id="form-compra" class="space-y-4 mt-4">
-                <div>
-                    <label class="block text-sm font-bold mb-1">Producto</label>
-                    <select id="compra-producto" required class="w-full px-3 py-2 border rounded-md bg-white"></select>
-                </div>
-                <div>
-                    <label class="block text-sm font-bold mb-1">Proveedor</label>
-                    <select id="compra-proveedor" required class="w-full px-3 py-2 border rounded-md bg-white"></select>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-bold mb-1">Cant. a Pedir (Unidad Compra)</label>
-                        <input type="number" step="0.01" id="compra-cantidad" required class="w-full px-3 py-2 border rounded-md focus:ring-emerald-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-bold mb-1">Precio Unitario ($)</label>
-                        <input type="number" step="0.01" id="compra-precio" required class="w-full px-3 py-2 border rounded-md focus:ring-emerald-500">
-                    </div>
-                </div>
-                
-                <div class="flex justify-end gap-3 mt-6">
-                    <button type="button" onclick="document.getElementById('modal-compra').classList.add('hidden')" class="px-4 py-2 border text-gray-700 rounded-md">Cancelar</button>
-                    <button type="submit" class="px-6 py-2 bg-emerald-600 text-white rounded-md font-bold hover:bg-emerald-700">Guardar Pedido</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <div id="modal-recepcion" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-4">
-        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md border-t-4 border-t-blue-500">
-            <h2 class="text-xl font-bold text-slate-800 mb-2 border-b pb-3">✅ Recepcionar Mercadería</h2>
-            <p class="text-sm text-slate-500 mb-4">El pedido ha llegado. ¿En qué bodega física lo vas a guardar para sumar el stock?</p>
-            <form id="form-recepcion" class="space-y-4">
-                <input type="hidden" id="rec-id-compra">
-                <input type="hidden" id="rec-id-producto">
-                <input type="hidden" id="rec-cantidad-uc">
-                <input type="hidden" id="rec-precio-uc">
-                
-                <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 mb-4">
-                    <p class="text-xs text-blue-600 font-bold uppercase">Entrando al Inventario:</p>
-                    <p class="text-lg font-bold text-blue-900" id="rec-resumen-texto">-</p>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-bold mb-1">Destino: Selecciona la Sucursal</label>
-                    <select id="rec-sucursal" required class="w-full px-3 py-2 border rounded-md bg-white focus:ring-2 focus:ring-blue-500"></select>
-                </div>
-
-                <div class="flex justify-end gap-3 mt-6">
-                    <button type="button" onclick="document.getElementById('modal-recepcion').classList.add('hidden')" class="px-4 py-2 border text-gray-700 rounded-md">Cancelar</button>
-                    <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-md font-bold hover:bg-blue-700 shadow-md">Confirmar Ingreso 📦</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <script src="js/supabase.js"></script>
-    <script src="js/app.js"></script>
-</body>
-</html>
+                                    <input type="number" step="0.01" id="receta-rendimiento" class="w-24 px-2 py-1 text-slate-800 rounded font-
