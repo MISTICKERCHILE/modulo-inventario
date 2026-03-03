@@ -71,15 +71,13 @@ window.cargarPedidosPlanificados = async function() {
 
     let htmlGlobal = '';
 
-    // Agrupamos la evaluación por Sucursal
     (sucursales||[]).forEach(suc => {
         let htmlFilasSucursal = '';
         
         (prods||[]).forEach(p => {
             const regla = (reglas||[]).find(r => r.id_sucursal === suc.id && r.id_producto === p.id);
-            if(!regla || regla.stock_minimo_ua <= 0) return; // Si no tiene mínimo en esta sucursal, no se evalúa.
+            if(!regla || regla.stock_minimo_ua <= 0) return;
 
-            // Sumamos el stock de ese producto en esa sucursal (sumando todas las ubicaciones)
             const stockSucursal = saldos.filter(s => s.id_sucursal === suc.id && s.id_producto === p.id).reduce((sum, s) => sum + Number(s.cantidad_actual_ua), 0);
 
             if (stockSucursal <= regla.stock_minimo_ua) {
@@ -89,10 +87,14 @@ window.cargarPedidosPlanificados = async function() {
                 const abrevUC = p.id_unidad_compra?.abreviatura || 'UC';
                 const precioRef = p.ultimo_costo_uc || 0;
 
+                // Verificamos si ya está en el carrito para mantener la fila oculta al recargar
+                const estaEnCarrito = window.carritoPedidos.some(item => item.idProd === p.id && item.idSuc === suc.id);
+                const displayStyle = estaEnCarrito ? 'style="display: none;"' : '';
+
                 const paramsParaBoton = `'${suc.id}', '${suc.nombre}', '${p.id}', '${p.nombre.replace(/'/g, "\\'")}', ${sugeridoUC}, '${abrevUC}', ${precioRef}`;
 
                 htmlFilasSucursal += `
-                <tr class="hover:bg-orange-50 transition-colors border-b border-orange-100">
+                <tr id="fila-sug-${suc.id}-${p.id}" ${displayStyle} class="hover:bg-orange-50 transition-colors border-b border-orange-100">
                     <td class="px-4 py-3 font-bold text-slate-700 text-sm">${p.nombre}</td>
                     <td class="px-4 py-3 text-center"><span class="bg-red-100 text-red-700 px-2 py-1 rounded font-bold text-xs">${stockSucursal.toFixed(2)} ${abrevUA}</span></td>
                     <td class="px-4 py-3 text-center text-orange-800 font-bold text-sm">${sugeridoUA.toFixed(2)} ${abrevUA} <br><span class="text-[10px] text-orange-500 font-normal uppercase">Pedir: ${sugeridoUC} ${abrevUC}</span></td>
@@ -134,6 +136,8 @@ window.cargarPedidosPlanificados = async function() {
     
     const containerAlertas = document.getElementById('lista-alertas-compras');
     if(containerAlertas) containerAlertas.innerHTML = htmlGlobal || '<div class="p-8 text-center bg-emerald-50 rounded-xl border border-emerald-200 text-emerald-700 font-bold text-lg">🟢 Excelente. Todas las sucursales tienen stock por encima de su nivel mínimo.</div>';
+
+    window.renderizarBandejaPedidos(); // Por si hay carritos pendientes
 }
 
 window.abrirModalHistorialPrecios = async function(idProd, nombreProd) {
@@ -169,7 +173,6 @@ window.agregarPedidoAlCarrito = function(idSuc, nombreSuc, idProd, nombreProd, c
     
     const nombreProv = window.proveedoresGlobal.find(p => p.id === idProv)?.nombre || 'Desconocido';
 
-    // Verificamos si ya está en el carrito para no duplicar, sino sumar
     const existente = window.carritoPedidos.find(item => item.idProd === idProd && item.idSuc === idSuc && item.idProv === idProv);
     if (existente) {
         existente.cantUC += Number(cantUC);
@@ -178,8 +181,20 @@ window.agregarPedidoAlCarrito = function(idSuc, nombreSuc, idProd, nombreProd, c
     }
 
     window.renderizarBandejaPedidos();
-    // Animación de feedback visual
-    alert(`✅ Añadido a la bandeja para ${nombreProv}`);
+    
+    // Ocultar la fila de la lista de sugerencias limpiamente
+    const fila = document.getElementById(`fila-sug-${idSuc}-${idProd}`);
+    if(fila) fila.style.display = 'none';
+}
+
+window.quitarDelCarrito = function(idSuc, idProd, idProv) {
+    // Lo eliminamos del arreglo
+    window.carritoPedidos = window.carritoPedidos.filter(i => !(i.idSuc === idSuc && i.idProd === idProd && i.idProv === idProv));
+    window.renderizarBandejaPedidos();
+    
+    // Lo volvemos a mostrar en la lista de sugerencias de arriba
+    const fila = document.getElementById(`fila-sug-${idSuc}-${idProd}`);
+    if(fila) fila.style.display = '';
 }
 
 window.renderizarBandejaPedidos = function() {
@@ -194,7 +209,6 @@ window.renderizarBandejaPedidos = function() {
 
     contenedor.classList.remove('hidden');
 
-    // Agrupar carrito por Proveedor
     const agrupadoPorProveedor = {};
     window.carritoPedidos.forEach(item => {
         if(!agrupadoPorProveedor[item.idProv]) agrupadoPorProveedor[item.idProv] = { nombreProv: item.nombreProv, items: [] };
@@ -208,11 +222,14 @@ window.renderizarBandejaPedidos = function() {
             const subtotal = item.cantUC * item.precioRef;
             totalEstimado += subtotal;
             return `
-            <tr class="border-b border-slate-200 bg-white">
+            <tr class="border-b border-slate-200 bg-white hover:bg-slate-50 transition-colors">
                 <td class="px-4 py-2 font-bold text-slate-800 text-sm">🏢 ${item.nombreSuc}</td>
                 <td class="px-4 py-2 font-medium text-sm">${item.nombreProd}</td>
                 <td class="px-4 py-2 text-center font-bold">${item.cantUC} <span class="text-xs text-slate-500">${item.abrevUC}</span></td>
                 <td class="px-4 py-2 text-right text-slate-500 font-mono text-sm">$${item.precioRef}</td>
+                <td class="px-2 py-2 text-center">
+                    <button onclick="quitarDelCarrito('${item.idSuc}', '${item.idProd}', '${idProv}')" class="text-red-400 hover:text-red-600 text-lg transition-transform hover:scale-110" title="Quitar de la bandeja">❌</button>
+                </td>
             </tr>`;
         }).join('');
 
@@ -220,12 +237,12 @@ window.renderizarBandejaPedidos = function() {
         <div class="bg-white rounded-lg border border-slate-300 shadow-sm overflow-hidden p-1">
             <div class="bg-slate-800 text-white px-4 py-3 flex justify-between items-center rounded-t-md">
                 <h4 class="font-bold text-lg">🚚 Para: ${data.nombreProv}</h4>
-                <span class="text-sm font-medium bg-slate-700 px-3 py-1 rounded">Total est: $${totalEstimado.toFixed(2)}</span>
+                <span class="text-sm font-medium bg-slate-700 px-3 py-1 rounded border border-slate-600">Total est: $${totalEstimado.toFixed(2)}</span>
             </div>
             <div class="p-4 bg-slate-50">
                 <table class="min-w-full text-left mb-4 border border-slate-200 rounded-md overflow-hidden">
                     <thead class="bg-slate-200 text-xs uppercase text-slate-600">
-                        <tr><th class="px-4 py-2">Sucursal de Envío</th><th class="px-4 py-2">Producto</th><th class="px-4 py-2 text-center">Cantidad</th><th class="px-4 py-2 text-right">Precio Ref.</th></tr>
+                        <tr><th class="px-4 py-2">Sucursal de Envío</th><th class="px-4 py-2">Producto</th><th class="px-4 py-2 text-center">Cantidad</th><th class="px-4 py-2 text-right">Precio Ref.</th><th class="px-2 py-2"></th></tr>
                     </thead>
                     <tbody>${filasHTML}</tbody>
                 </table>
@@ -242,10 +259,8 @@ window.generarPedidoTransitoMasivo = async function(idProv) {
     const itemsDelProveedor = window.carritoPedidos.filter(i => i.idProv === idProv);
     if(itemsDelProveedor.length === 0) return;
 
-    // 1. Calculamos el total estimado para la cabecera
     const totalEstimado = itemsDelProveedor.reduce((sum, item) => sum + (item.cantUC * item.precioRef), 0);
 
-    // 2. Creamos la cabecera de la compra
     const { data: cabecera } = await clienteSupabase.from('compras').insert([{ 
         id_empresa: window.miEmpresaId, 
         id_proveedor: idProv, 
@@ -254,24 +269,23 @@ window.generarPedidoTransitoMasivo = async function(idProv) {
     }]).select('id').single();
 
     if(cabecera) {
-        // 3. Insertamos todos los detalles asociados a esta compra
         const detallesAInsertar = itemsDelProveedor.map(item => ({
             id_compra: cabecera.id,
             id_producto: item.idProd,
             cantidad_uc: item.cantUC,
             precio_unitario_uc: item.precioRef,
             subtotal: item.cantUC * item.precioRef
-            // OJO: Como las compras son globales por ahora, no guardamos id_sucursal aquí, 
-            // se decide a qué sucursal entra en el momento de la "Recepción".
         }));
         await clienteSupabase.from('compras_detalles').insert(detallesAInsertar);
     }
 
-    // 4. Limpiamos esos items del carrito global
+    // Limpiamos los items del carrito y recargamos
     window.carritoPedidos = window.carritoPedidos.filter(i => i.idProv !== idProv);
     window.renderizarBandejaPedidos();
     
-    alert("✅ Pedido pasado a Tránsito exitosamente.");
+    // Ya que pasaron a tránsito, volvemos a cargar las sugerencias para ver si falta algo más
+    window.cargarPedidosPlanificados(); 
+    alert("✅ Pedido generado y enviado a Tránsito exitosamente.");
 }
 
 // ==========================================
@@ -356,6 +370,9 @@ document.getElementById('form-recepcion')?.addEventListener('submit', async (e) 
     window.cargarPedidosEnTransito(); 
 });
 
+// ==========================================
+// --- COMPRAS DIRECTAS Y OTROS MOVIMIENTOS ---
+// ==========================================
 window.cargarSelectsMovimientosFormularios = async function() {
     const [{ data: provs }, { data: prods }, { data: sucs }, { data: tipos }] = await Promise.all([
         clienteSupabase.from('proveedores').select('id, nombre').eq('id_empresa', window.miEmpresaId),
@@ -534,4 +551,113 @@ window.filtrarDropdownCSV = function(index, texto) {
 
     ul.innerHTML = html;
     document.getElementById(`dropdown-${index}`).classList.remove('hidden');
+}
+
+window.seleccionarProductoCSV = function(index, idProd, nombreProd) {
+    document.getElementById(`hidden-prod-${index}`).value = idProd;
+    const searchInput = document.getElementById(`search-prod-${index}`);
+    searchInput.value = nombreProd;
+    searchInput.classList.remove('border-red-300');
+    searchInput.classList.add('border-slate-300');
+    document.getElementById(`dropdown-${index}`).classList.add('hidden');
+    window.quitarRojoFila(index);
+}
+
+window.crearNuevoProductoCSV = function(index) {
+    document.getElementById(`dropdown-${index}`).classList.add('hidden');
+    const item = window.datosCSVAgrupados[index];
+    const nombreSugerido = item.variante_pos ? `${item.nombre_pos} ${item.variante_pos}` : item.nombre_pos;
+
+    window.selectCSVActivoIndex = index; 
+    window.abrirModalProducto(false, nombreSugerido);
+}
+
+window.actualizarSelectsMapeoCSV = async function(nuevoIdProducto) {
+    const { data: prodsERP } = await clienteSupabase.from('productos').select('id, nombre').eq('id_empresa', window.miEmpresaId).order('nombre');
+    window.productosERPGlobal = prodsERP || [];
+
+    if (window.selectCSVActivoIndex !== null && nuevoIdProducto) {
+        const nuevoProd = window.productosERPGlobal.find(p => p.id === nuevoIdProducto);
+        if(nuevoProd) window.seleccionarProductoCSV(window.selectCSVActivoIndex, nuevoProd.id, nuevoProd.nombre);
+        window.selectCSVActivoIndex = null; 
+    }
+}
+
+window.quitarRojoFila = function(index) {
+    const fila = document.getElementById(`fila-csv-${index}`);
+    if(fila) fila.classList.remove('bg-red-50', 'border-l-4', 'border-red-500');
+}
+
+window.cancelarCSV = function() {
+    document.getElementById('panel-mapeo-csv').classList.add('hidden');
+    document.getElementById('csv-file').value = '';
+    document.getElementById('csv-fecha-inicio').value = '';
+    document.getElementById('csv-fecha-fin').value = '';
+    window.datosCSVAgrupados = [];
+}
+
+window.confirmarDescuentoVentas = async function() {
+    const idSucursal = document.getElementById('csv-sucursal').value;
+    const fInicio = document.getElementById('csv-fecha-inicio').value;
+    const fFin = document.getElementById('csv-fecha-fin').value;
+    const periodoReferencia = `[Período: ${fInicio} al ${fFin}]`;
+
+    const selects = document.querySelectorAll('.selector-homologacion');
+    
+    let todoAsociado = true;
+    selects.forEach(sel => { if(!sel.value) todoAsociado = false; });
+    if(!todoAsociado) return alert("❌ Debes asociar todos los productos del POS con tus productos del sistema (que no quede ninguno en rojo) antes de continuar.");
+
+    const btn = document.getElementById('btn-procesar-ventas');
+    btn.innerText = "⏳ Procesando y descontando..."; btn.disabled = true;
+
+    const { data: catalogoCompleto } = await clienteSupabase.from('productos').select('id, tiene_receta, cant_en_um_de_ua, cant_en_ur_de_um').eq('id_empresa', window.miEmpresaId);
+
+    for (const sel of selects) {
+        const index = sel.getAttribute('data-index');
+        const itemPOS = window.datosCSVAgrupados[index];
+        const idProductoERP = sel.value;
+        const cantidadVendida = itemPOS.cantidad;
+
+        const { data: existeH } = await clienteSupabase.from('homologacion_pos').select('id').eq('id_empresa', window.miEmpresaId).eq('nombre_pos', itemPOS.nombre_pos).eq('variante_pos', itemPOS.variante_pos).maybeSingle();
+        if(existeH) await clienteSupabase.from('homologacion_pos').update({ id_producto_erp: idProductoERP }).eq('id', existeH.id);
+        else await clienteSupabase.from('homologacion_pos').insert([{ id_empresa: window.miEmpresaId, nombre_pos: itemPOS.nombre_pos, variante_pos: itemPOS.variante_pos, id_producto_erp: idProductoERP }]);
+
+        const prodERP = catalogoCompleto.find(p => p.id === idProductoERP);
+
+        if (prodERP.tiene_receta) {
+            const { data: ingredientes } = await clienteSupabase.from('recetas').select('cantidad_neta, id_ingrediente(id, cant_en_um_de_ua, cant_en_ur_de_um)').eq('id_producto_padre', idProductoERP);
+            
+            for (const ing of (ingredientes||[])) {
+                const infoInsumo = ing.id_ingrediente;
+                const factorUM = infoInsumo.cant_en_um_de_ua || 1;
+                const factorUR = infoInsumo.cant_en_ur_de_um || 1;
+                const ua_a_descontar = (cantidadVendida * ing.cantidad_neta) / (factorUM * factorUR);
+                
+                await aplicarDescuentoInventario(infoInsumo.id, idSucursal, ua_a_descontar, `Venta POS (Receta de ${itemPOS.nombre_pos}) ${periodoReferencia}`);
+            }
+        } else {
+            const factorUM = prodERP.cant_en_um_de_ua || 1;
+            const ua_a_descontar = cantidadVendida / factorUM;
+            await aplicarDescuentoInventario(idProductoERP, idSucursal, ua_a_descontar, `Venta POS Directa (${itemPOS.nombre_pos}) ${periodoReferencia}`);
+        }
+    }
+
+    alert("✅ ¡Ventas importadas y stock descontado con éxito!");
+    btn.innerText = "✅ Confirmar y Descontar Inventario"; btn.disabled = false;
+    cancelarCSV();
+}
+
+async function aplicarDescuentoInventario(idProd, idSuc, cantidad_ua_descontar, referencia) {
+    if(cantidad_ua_descontar <= 0) return;
+
+    const { data: saldos } = await clienteSupabase.from('inventario_saldos').select('id, cantidad_actual_ua').eq('id_producto', idProd).eq('id_sucursal', idSuc).order('cantidad_actual_ua', { ascending: false });
+
+    if(saldos && saldos.length > 0) {
+        await clienteSupabase.from('inventario_saldos').update({ cantidad_actual_ua: saldos[0].cantidad_actual_ua - cantidad_ua_descontar, ultima_actualizacion: new Date() }).eq('id', saldos[0].id);
+    } else {
+        await clienteSupabase.from('inventario_saldos').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_sucursal: idSuc, cantidad_actual_ua: -cantidad_ua_descontar }]);
+    }
+
+    await clienteSupabase.from('movimientos_inventario').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, tipo_movimiento: 'VENTA_POS', cantidad_movida: -cantidad_ua_descontar, referencia: referencia }]);
 }
