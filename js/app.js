@@ -47,7 +47,8 @@ function cambiarVista(v) {
     if(v === 'productos') { cargarDatosSelects(); cargarProductos(); }
     if(v === 'recetas') { cargarBuscadorRecetas(); }
     if(v === 'inventario') { cargarInventario(); }
-    if(v === 'compras') { cargarCompras(); } 
+    if(v === 'compras') { cargarCompras(); }
+}
 
 function cambiarTab(tab) {
     if(!window.miEmpresaId) return;
@@ -314,13 +315,11 @@ async function quitarIngrediente(id) {
 // ==========================================
 // --- MÓDULO B: INVENTARIO FÍSICO ---
 // ==========================================
-
 async function cargarInventario() {
     const { data } = await clienteSupabase
         .from('inventario_saldos')
         .select(`
-            id, 
-            cantidad_actual_ua, 
+            id, cantidad_actual_ua, 
             productos (id, nombre, stock_minimo_ua), 
             sucursales (nombre)
         `)
@@ -328,7 +327,6 @@ async function cargarInventario() {
         .order('cantidad_actual_ua', { ascending: true }); 
 
     const tbody = document.getElementById('lista-inventario');
-    
     if (!data || data.length === 0) {
         tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-8 text-center text-slate-500 italic">No hay registros de inventario aún. Registra tu primer conteo físico.</td></tr>';
         return;
@@ -337,7 +335,6 @@ async function cargarInventario() {
     tbody.innerHTML = data.map(inv => {
         const stockMinimo = inv.productos?.stock_minimo_ua || 0;
         const estaBajo = inv.cantidad_actual_ua <= stockMinimo;
-        
         const iconoEstado = estaBajo 
             ? '<span class="flex items-center gap-1 text-red-600 font-bold text-xs bg-red-50 px-2 py-1 rounded-full w-max border border-red-200">🔴 Bajo Mínimo</span>' 
             : '<span class="flex items-center gap-1 text-emerald-600 font-bold text-xs bg-emerald-50 px-2 py-1 rounded-full w-max border border-emerald-200">🟢 OK</span>';
@@ -357,67 +354,42 @@ window.abrirModalInventario = async function() {
         clienteSupabase.from('sucursales').select('id, nombre').eq('id_empresa', window.miEmpresaId),
         clienteSupabase.from('productos').select('id, nombre').eq('id_empresa', window.miEmpresaId).order('nombre')
     ]);
-
     document.getElementById('inv-sucursal').innerHTML = '<option value="">Elegir sucursal...</option>' + (sucursales||[]).map(s => `<option value="${s.id}">${s.nombre}</option>`).join('');
     document.getElementById('inv-producto').innerHTML = '<option value="">Elegir producto...</option>' + (productos||[]).map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
-    
     document.getElementById('form-inventario').reset();
     document.getElementById('modal-inventario').classList.remove('hidden');
 }
 
-window.cerrarModalInventario = function() {
-    document.getElementById('modal-inventario').classList.add('hidden');
-}
+window.cerrarModalInventario = function() { document.getElementById('modal-inventario').classList.add('hidden'); }
 
 document.getElementById('form-inventario').addEventListener('submit', async (e) => {
     e.preventDefault();
-    
     const idProd = document.getElementById('inv-producto').value;
     const idSuc = document.getElementById('inv-sucursal').value;
     const nuevaCant = parseFloat(document.getElementById('inv-cantidad').value);
 
-    const { data: previo } = await clienteSupabase
-        .from('inventario_saldos')
-        .select('id, cantidad_actual_ua')
-        .eq('id_producto', idProd)
-        .eq('id_sucursal', idSuc)
-        .single(); 
+    const { data: previo } = await clienteSupabase.from('inventario_saldos').select('id, cantidad_actual_ua').eq('id_producto', idProd).eq('id_sucursal', idSuc).single(); 
 
     let cantAnterior = 0;
-
     if (previo) {
         cantAnterior = previo.cantidad_actual_ua;
-        await clienteSupabase.from('inventario_saldos')
-            .update({ cantidad_actual_ua: nuevaCant, ultima_actualizacion: new Date() })
-            .eq('id', previo.id);
+        await clienteSupabase.from('inventario_saldos').update({ cantidad_actual_ua: nuevaCant, ultima_actualizacion: new Date() }).eq('id', previo.id);
     } else {
-        await clienteSupabase.from('inventario_saldos')
-            .insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_sucursal: idSuc, cantidad_actual_ua: nuevaCant }]);
+        await clienteSupabase.from('inventario_saldos').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_sucursal: idSuc, cantidad_actual_ua: nuevaCant }]);
     }
 
     const diferencia = nuevaCant - cantAnterior;
-    
     if (diferencia !== 0) {
-        await clienteSupabase.from('movimientos_inventario').insert([{
-            id_empresa: window.miEmpresaId,
-            id_producto: idProd,
-            tipo_movimiento: 'AJUSTE',
-            cantidad_movida: diferencia,
-            referencia: 'Ajuste por Conteo Físico'
-        }]);
+        await clienteSupabase.from('movimientos_inventario').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, tipo_movimiento: 'AJUSTE', cantidad_movida: diferencia, referencia: 'Ajuste por Conteo Físico' }]);
     }
-
     cerrarModalInventario();
     cargarInventario(); 
 });
 
-    // ==========================================
+// ==========================================
 // --- MÓDULO C: COMPRAS, ALERTAS Y RECEPCIÓN ---
 // ==========================================
-
 async function cargarCompras() {
-    // 1. CARGAR SUGERENCIAS (Alertas de Stock)
-    // Traemos todos los productos y sumamos su stock en todas las sucursales
     const { data: prods } = await clienteSupabase
         .from('productos')
         .select('id, nombre, stock_minimo_ua, stock_ideal_ua, cant_en_ua_de_uc, inventario_saldos(cantidad_actual_ua)')
@@ -425,13 +397,9 @@ async function cargarCompras() {
 
     let htmlAlertas = '';
     (prods || []).forEach(p => {
-        // Sumamos el stock global
         const stockGlobal = p.inventario_saldos.reduce((sum, inv) => sum + Number(inv.cantidad_actual_ua), 0);
-        
-        // Si el stock cae por debajo del mínimo (y se configuró un mínimo)
         if (p.stock_minimo_ua > 0 && stockGlobal <= p.stock_minimo_ua) {
-            const sugeridoUA = p.stock_ideal_ua - stockGlobal; // Cuánto falta para el ideal
-            // Lo dividimos para saber cuántas Unidades de Compra pedir (Ej: Cajas)
+            const sugeridoUA = p.stock_ideal_ua - stockGlobal; 
             const sugeridoUC = p.cant_en_ua_de_uc > 0 ? (sugeridoUA / p.cant_en_ua_de_uc).toFixed(2) : sugeridoUA;
             
             htmlAlertas += `
@@ -448,7 +416,6 @@ async function cargarCompras() {
     
     document.getElementById('lista-alertas-compras').innerHTML = htmlAlertas || '<tr><td colspan="4" class="px-6 py-8 text-center text-emerald-600 font-bold bg-emerald-50">🟢 Todo en orden. No hay productos bajo el stock mínimo.</td></tr>';
 
-    // 2. CARGAR PEDIDOS EN TRÁNSITO
     const { data: transito } = await clienteSupabase
         .from('compras_detalles')
         .select(`
@@ -473,7 +440,6 @@ async function cargarCompras() {
     `).join('') || '<tr><td colspan="4" class="px-6 py-8 text-center text-slate-400">No hay camiones en camino.</td></tr>';
 }
 
-// LOGICA DE CREAR PEDIDO
 window.abrirModalCompra = async function(idProductoSugerido = null, cantSugerida = 0) {
     const [{ data: provs }, { data: prods }] = await Promise.all([
         clienteSupabase.from('proveedores').select('id, nombre').eq('id_empresa', window.miEmpresaId),
@@ -486,12 +452,10 @@ window.abrirModalCompra = async function(idProductoSugerido = null, cantSugerida
     
     document.getElementById('form-compra').reset();
     
-    // Si venimos del botón "Sugerencia", auto-completamos los datos
     if(idProductoSugerido) {
         selectProd.value = idProductoSugerido;
         document.getElementById('compra-cantidad').value = cantSugerida;
     }
-    
     document.getElementById('modal-compra').classList.remove('hidden');
 }
 
@@ -500,43 +464,32 @@ document.getElementById('form-compra').addEventListener('submit', async (e) => {
     const cant = parseFloat(document.getElementById('compra-cantidad').value);
     const precio = parseFloat(document.getElementById('compra-precio').value);
     
-    // 1. Creamos la "Factura" (Cabecera)
     const { data: cabecera, error: errCab } = await clienteSupabase.from('compras').insert([{
         id_empresa: window.miEmpresaId,
         id_proveedor: document.getElementById('compra-proveedor').value,
         total_compra: cant * precio,
-        estado: 'En Tránsito' // Siempre nace en tránsito para este flujo
+        estado: 'En Tránsito'
     }]).select('id').single();
 
-    // 2. Creamos el Detalle
     await clienteSupabase.from('compras_detalles').insert([{
-        id_compra: cabecera.id,
-        id_producto: document.getElementById('compra-producto').value,
-        cantidad_uc: cant,
-        precio_unitario_uc: precio,
-        subtotal: cant * precio
+        id_compra: cabecera.id, id_producto: document.getElementById('compra-producto').value, cantidad_uc: cant, precio_unitario_uc: precio, subtotal: cant * precio
     }]);
 
     document.getElementById('modal-compra').classList.add('hidden');
-    cargarCompras(); // Recargamos para que aparezca abajo en la lista azul
+    cargarCompras(); 
 });
 
-
-// LOGICA DE RECEPCIÓN MÁGICA (EL CAMIÓN LLEGÓ)
 window.abrirModalRecepcion = async function(idCompra, idProd, nombreProd, cantUC, precioUC, factorConversion) {
     const { data: sucursales } = await clienteSupabase.from('sucursales').select('id, nombre').eq('id_empresa', window.miEmpresaId);
     document.getElementById('rec-sucursal').innerHTML = '<option value="">Selecciona bodega destino...</option>' + (sucursales||[]).map(s => `<option value="${s.id}">${s.nombre}</option>`).join('');
     
-    // Llenamos datos ocultos para usarlos al guardar
     document.getElementById('rec-id-compra').value = idCompra;
     document.getElementById('rec-id-producto').value = idProd;
     document.getElementById('rec-cantidad-uc').value = cantUC;
     document.getElementById('rec-precio-uc').value = precioUC;
     
-    // Calculamos cuánto va a entrar realmente al stock
     const entrarUA = cantUC * factorConversion;
     document.getElementById('rec-resumen-texto').innerText = `${nombreProd}: Ingresarán ${entrarUA} Unidades de Almacén.`;
-
     document.getElementById('modal-recepcion').classList.remove('hidden');
 }
 
@@ -547,11 +500,9 @@ document.getElementById('form-recepcion').addEventListener('submit', async (e) =
     const idSucursal = document.getElementById('rec-sucursal').value;
     const precioUC = parseFloat(document.getElementById('rec-precio-uc').value);
     
-    // Obtenemos el factor para saber cuánto suma al stock real
     const { data: prod } = await clienteSupabase.from('productos').select('cant_en_ua_de_uc').eq('id', idProd).single();
     const cantUA_a_sumar = parseFloat(document.getElementById('rec-cantidad-uc').value) * prod.cant_en_ua_de_uc;
 
-    // MAGIA 1: Sumar Stock
     const { data: previo } = await clienteSupabase.from('inventario_saldos').select('id, cantidad_actual_ua').eq('id_producto', idProd).eq('id_sucursal', idSucursal).single();
     if (previo) {
         await clienteSupabase.from('inventario_saldos').update({ cantidad_actual_ua: previo.cantidad_actual_ua + cantUA_a_sumar, ultima_actualizacion: new Date() }).eq('id', previo.id);
@@ -559,17 +510,10 @@ document.getElementById('form-recepcion').addEventListener('submit', async (e) =
         await clienteSupabase.from('inventario_saldos').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_sucursal: idSucursal, cantidad_actual_ua: cantUA_a_sumar }]);
     }
 
-    // MAGIA 2: Dejar el historial para auditoría
-    await clienteSupabase.from('movimientos_inventario').insert([{
-        id_empresa: window.miEmpresaId, id_producto: idProd, tipo_movimiento: 'INGRESO_COMPRA', cantidad_movida: cantUA_a_sumar, costo_unitario_movimiento: precioUC, referencia: 'Recepción de Pedido'
-    }]);
-
-    // MAGIA 3: Actualizar el COSTO en el catálogo de productos (Para las Recetas)
+    await clienteSupabase.from('movimientos_inventario').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, tipo_movimiento: 'INGRESO_COMPRA', cantidad_movida: cantUA_a_sumar, costo_unitario_movimiento: precioUC, referencia: 'Recepción de Pedido' }]);
     await clienteSupabase.from('productos').update({ ultimo_costo_uc: precioUC }).eq('id', idProd);
-
-    // MAGIA 4: Marcar la factura como Completada
     await clienteSupabase.from('compras').update({ estado: 'Completada' }).eq('id', idCompra);
 
     document.getElementById('modal-recepcion').classList.add('hidden');
-    cargarCompras(); // La orden desaparecerá de "En tránsito"
+    cargarCompras(); 
 });
