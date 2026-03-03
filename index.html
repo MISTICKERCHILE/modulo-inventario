@@ -46,15 +46,14 @@
         <div class="flex flex-1 overflow-hidden">
             
             <aside id="sidebar-menu" class="w-64 bg-slate-800 text-white flex flex-col p-4 space-y-2 z-10 transition-all duration-300 ease-in-out overflow-hidden whitespace-nowrap">
-                <button onclick="cambiarVista('catalogos')" id="btn-menu-catalogos" class="w-full flex items-center gap-3 px-4 py-3 bg-emerald-600 rounded-lg font-medium transition-colors"><span>🏷️</span> <span class="menu-texto">Catálogos</span></button>
-                <button onclick="cambiarVista('productos')" id="btn-menu-productos" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>🍔</span> <span class="menu-texto">Productos</span></button>
-                <button onclick="cambiarVista('recetas')" id="btn-menu-recetas" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>📝</span> <span class="menu-texto">Recetas</span></button>
+                <button onclick="cambiarVista('inventario')" id="btn-menu-inventario" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>📦</span> <span class="menu-texto">Inventario Físico</span></button>
+                <button onclick="cambiarVista('movimientos')" id="btn-menu-movimientos" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>🔄</span> <span class="menu-texto">Movimientos</span></button>
                 
                 <div class="my-2 border-t border-slate-700"></div>
                 
-                <button onclick="cambiarVista('movimientos')" id="btn-menu-movimientos" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>🔄</span> <span class="menu-texto">Movimientos</span></button>
-                
-                <button onclick="cambiarVista('inventario')" id="btn-menu-inventario" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>📦</span> <span class="menu-texto">Inventario Físico</span></button>
+                <button onclick="cambiarVista('productos')" id="btn-menu-productos" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>🍔</span> <span class="menu-texto">Productos</span></button>
+                <button onclick="cambiarVista('recetas')" id="btn-menu-recetas" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>📝</span> <span class="menu-texto">Recetas</span></button>
+                <button onclick="cambiarVista('catalogos')" id="btn-menu-catalogos" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>⚙️</span> <span class="menu-texto">Catálogos</span></button>
             </aside>
 
             <main class="flex-1 p-8 overflow-y-auto relative">
