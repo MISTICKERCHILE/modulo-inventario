@@ -1,14 +1,35 @@
 // --- PRODUCTOS ---
-window.abrirModalProducto = function(esEdicion = false) {
+window.abrirModalProducto = async function(esEdicion = false) {
     document.getElementById('modal-producto').classList.remove('hidden');
     if(window.unidadesMemoria.length === 0) window.cargarDatosSelects();
+    
+    // CARGAR SUCURSALES DINÁMICAS PARA LAS REGLAS DE STOCK
+    const { data: sucursales } = await clienteSupabase.from('sucursales').select('id, nombre').eq('id_empresa', window.miEmpresaId);
+    
+    let htmlReglas = '';
+    (sucursales || []).forEach(suc => {
+        htmlReglas += `
+        <div class="bg-white p-3 rounded shadow-sm border border-orange-100 mb-2">
+            <p class="text-xs font-bold text-slate-700 mb-2 uppercase">🏢 ${suc.nombre}</p>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-[10px] font-bold text-orange-700 mb-1">Mínimo (Alerta)</label>
+                    <input type="number" step="0.01" id="regla-min-${suc.id}" class="regla-input w-full px-2 py-1 border border-orange-200 rounded text-sm outline-none focus:ring-1 focus:ring-orange-400" value="0">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-orange-700 mb-1">Ideal (Pedir)</label>
+                    <input type="number" step="0.01" id="regla-ideal-${suc.id}" class="regla-input w-full px-2 py-1 border border-orange-200 rounded text-sm outline-none focus:ring-1 focus:ring-orange-400" value="0">
+                </div>
+            </div>
+        </div>`;
+    });
+    document.getElementById('contenedor-reglas-stock').innerHTML = htmlReglas;
+
     if(!esEdicion) {
         window.cancelarEdicion('producto');
         document.getElementById('titulo-modal-producto').innerText = "Nuevo Producto / Insumo";
         const aleatorio = Math.random().toString(36).substring(2, 8).toUpperCase();
         document.getElementById('prod-sku').value = 'PRD-' + aleatorio;
-        document.getElementById('prod-stock-min').value = "0";
-        document.getElementById('prod-stock-ideal').value = "0";
     }
 };
 
@@ -48,7 +69,6 @@ function procesarUnidadInteligente(origenId, arrDestinos) {
     }
 }
 
-// Eventos de unidades inteligentes
 document.getElementById('prod-u-compra')?.addEventListener('change', () => { procesarUnidadInteligente('prod-u-compra', [{select:'almacen', cant:'ua'}, {select:'menor', cant:'um'}, {select:'receta', cant:'ur'}]); });
 document.getElementById('prod-u-almacen')?.addEventListener('change', () => { procesarUnidadInteligente('prod-u-almacen', [{select:'menor', cant:'um'}, {select:'receta', cant:'ur'}]); });
 document.getElementById('prod-u-menor')?.addEventListener('change', () => { procesarUnidadInteligente('prod-u-menor', [{select:'receta', cant:'ur'}]); });
@@ -75,6 +95,10 @@ window.cargarProductos = async function() {
 
 window.editarProductoFull = async function(id) {
     const { data } = await clienteSupabase.from('productos').select('*').eq('id', id).single();
+    
+    // Primero abrimos el modal para que dibuje las sucursales vacías
+    await window.abrirModalProducto(true); 
+
     document.getElementById('prod-nombre').value = data.nombre;
     document.getElementById('prod-sku').value = data.sku;
     document.getElementById('prod-categoria').value = data.id_categoria;
@@ -87,15 +111,19 @@ window.editarProductoFull = async function(id) {
     document.getElementById('prod-u-receta').value = data.id_unidad_receta;
     document.getElementById('prod-tiene-receta').checked = data.tiene_receta;
     
-    document.getElementById('prod-stock-min').value = data.stock_minimo_ua || 0;
-    document.getElementById('prod-stock-ideal').value = data.stock_ideal_ua || 0;
+    // Cargar las reglas por sucursal guardadas en la BD
+    const { data: reglas } = await clienteSupabase.from('reglas_stock_sucursal').select('*').eq('id_producto', id);
+    (reglas || []).forEach(r => {
+        const inputMin = document.getElementById(`regla-min-${r.id_sucursal}`);
+        const inputIdeal = document.getElementById(`regla-ideal-${r.id_sucursal}`);
+        if(inputMin) inputMin.value = r.stock_minimo_ua || 0;
+        if(inputIdeal) inputIdeal.value = r.stock_ideal_ua || 0;
+    });
     
     window.modoEdicion = { activo: true, id: id, form: 'producto' };
     document.getElementById('titulo-modal-producto').innerText = "Editando Producto ✏️";
     document.getElementById('btn-guardar-producto').innerText = 'Actualizar ✏️';
     document.getElementById('btn-guardar-producto').classList.replace('bg-emerald-600', 'bg-blue-600');
-    
-    window.abrirModalProducto(true);
 }
 
 document.getElementById('form-producto')?.addEventListener('submit', async (e) => {
@@ -111,16 +139,43 @@ document.getElementById('form-producto')?.addEventListener('submit', async (e) =
         id_unidad_menor: document.getElementById('prod-u-menor').value, 
         cant_en_ur_de_um: parseFloat(document.getElementById('prod-cant-ur').value),
         id_unidad_receta: document.getElementById('prod-u-receta').value, 
-        tiene_receta: document.getElementById('prod-tiene-receta').checked,
-        stock_minimo_ua: parseFloat(document.getElementById('prod-stock-min').value) || 0,
-        stock_ideal_ua: parseFloat(document.getElementById('prod-stock-ideal').value) || 0
+        tiene_receta: document.getElementById('prod-tiene-receta').checked
+        // Nota: ya no enviamos stock_minimo global aquí
     };
     
+    let idProdActual = null;
+
     if (window.modoEdicion.activo && window.modoEdicion.form === 'producto') {
-        await clienteSupabase.from('productos').update(payload).eq('id', window.modoEdicion.id);
+        idProdActual = window.modoEdicion.id;
+        await clienteSupabase.from('productos').update(payload).eq('id', idProdActual);
     } else {
-        await clienteSupabase.from('productos').insert([{...payload, id_empresa: window.miEmpresaId}]);
+        const { data: nuevoProd } = await clienteSupabase.from('productos').insert([{...payload, id_empresa: window.miEmpresaId}]).select('id').single();
+        if(nuevoProd) idProdActual = nuevoProd.id;
     }
+
+    // --- GUARDAR REGLAS DE STOCK POR SUCURSAL ---
+    if(idProdActual) {
+        const { data: sucursales } = await clienteSupabase.from('sucursales').select('id').eq('id_empresa', window.miEmpresaId);
+        
+        for (const suc of sucursales) {
+            const valMin = parseFloat(document.getElementById(`regla-min-${suc.id}`)?.value) || 0;
+            const valIdeal = parseFloat(document.getElementById(`regla-ideal-${suc.id}`)?.value) || 0;
+
+            // Upsert (Actualiza si existe, Inserta si es nuevo)
+            const { data: existeRegla } = await clienteSupabase.from('reglas_stock_sucursal')
+                .select('id').eq('id_producto', idProdActual).eq('id_sucursal', suc.id).maybeSingle();
+            
+            if(existeRegla) {
+                await clienteSupabase.from('reglas_stock_sucursal').update({ stock_minimo_ua: valMin, stock_ideal_ua: valIdeal }).eq('id', existeRegla.id);
+            } else {
+                await clienteSupabase.from('reglas_stock_sucursal').insert([{ 
+                    id_empresa: window.miEmpresaId, id_producto: idProdActual, id_sucursal: suc.id, 
+                    stock_minimo_ua: valMin, stock_ideal_ua: valIdeal 
+                }]);
+            }
+        }
+    }
+
     window.cerrarModalProducto();
     
     if(window.productoActualParaReceta) await window.actualizarSelectInsumos(); 
