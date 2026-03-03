@@ -39,8 +39,8 @@ window.toggleMenu = function() {
 window.cambiarVista = function(v) {
     if(!window.miEmpresaId) return; 
     
-    // Agregamos 'movimientos' a la lista de vistas
-    ['catalogos', 'productos', 'recetas', 'movimientos', 'inventario', 'compras'].forEach(vis => {
+    // Lista corregida de vistas: catalogos, productos, recetas, movimientos, inventario
+    ['catalogos', 'productos', 'recetas', 'movimientos', 'inventario'].forEach(vis => {
         const el = document.getElementById(`vista-${vis}`);
         if(el) el.classList.add('hidden');
         const btn = document.getElementById(`btn-menu-${vis}`);
@@ -56,9 +56,8 @@ window.cambiarVista = function(v) {
     if(v === 'catalogos') window.cambiarTab('categorias');
     if(v === 'productos') { window.cargarDatosSelects(); window.cargarProductos(); }
     if(v === 'recetas') { window.cargarBuscadorRecetas(); }
-    if(v === 'movimientos') { window.cambiarTabMovimientos('pedidos'); } // Lo crearemos luego
+    if(v === 'movimientos') { window.cambiarTabMovimientos('pedidos'); } 
     if(v === 'inventario') { window.cargarInventario(); }
-    if(v === 'compras') { window.cargarCompras(); } // Eventualmente lo mudaremos a movimientos
 }
 
 // --- SISTEMA DE EDICIÓN GLOBAL ---
