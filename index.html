@@ -179,15 +179,6 @@
                 </div>
 
                 <div id="vista-inventario" class="max-w-6xl mx-auto hidden">
-                    <h2 class="text-2xl font-bold mb-6">📦 Inventario y Stock Físico</h2>
-                    <div class="bg-white p-16 rounded-xl shadow-sm border text-center text-slate-400">
-                        <span class="text-6xl block mb-4">🚧</span>
-                        <h3 class="text-xl font-bold text-slate-600">Módulo en Construcción (Paso B)</h3>
-                        <p class="mt-2">Aquí veremos el conteo físico, mermas y auditorías por sucursal.</p>
-                    </div>
-                </div>
-
-                <div id="vista-inventario" class="max-w-6xl mx-auto hidden">
                     <div class="flex justify-between items-center mb-6">
                         <div>
                             <h2 class="text-2xl font-bold">📦 Inventario y Stock Físico</h2>
@@ -274,6 +265,33 @@
                 <div class="flex justify-end gap-4 mt-6">
                     <button type="button" onclick="cerrarModalProducto()" class="px-6 py-2 border text-gray-700 rounded-md hover:bg-gray-50 transition-colors">Cancelar</button>
                     <button type="submit" id="btn-guardar-producto" class="px-8 py-2 bg-emerald-600 text-white rounded-md font-bold hover:bg-emerald-700 transition-colors shadow-sm">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div id="modal-inventario" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md border border-slate-200">
+            <h2 class="text-xl font-bold text-slate-800 mb-2 border-b pb-3">🎯 Ajuste de Conteo Físico</h2>
+            <p class="text-sm text-slate-500 mb-6">Actualiza el stock real de la bodega. Esto generará un movimiento de ajuste automático.</p>
+            
+            <form id="form-inventario" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-bold mb-1">Sucursal / Bodega</label>
+                    <select id="inv-sucursal" required class="w-full px-3 py-2 border rounded-md bg-white"></select>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold mb-1">Producto</label>
+                    <select id="inv-producto" required class="w-full px-3 py-2 border rounded-md bg-white"></select>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold mb-1">Cantidad Real Contada (UA)</label>
+                    <input type="number" step="0.01" id="inv-cantidad" required class="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500 outline-none text-xl font-bold text-center">
+                </div>
+
+                <div class="flex justify-end gap-3 mt-6">
+                    <button type="button" onclick="cerrarModalInventario()" class="px-4 py-2 border text-gray-700 rounded-md hover:bg-gray-50 transition-colors">Cancelar</button>
+                    <button type="submit" class="px-6 py-2 bg-emerald-600 text-white rounded-md font-bold hover:bg-emerald-700 transition-colors">Guardar Conteo</button>
                 </div>
             </form>
         </div>
