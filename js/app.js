@@ -1,8 +1,6 @@
 window.miEmpresaId = null;
 window.productoActualParaReceta = null;
 window.unidadesMemoria = []; 
-
-// Control maestro de Edición (Fase 4)
 window.modoEdicion = { activo: false, id: null, form: null };
 
 // --- LOGIN Y SESIÓN ---
@@ -33,7 +31,7 @@ window.toggleMenu = function() {
 // --- NAVEGACIÓN ---
 function cambiarVista(v) {
     if(!window.miEmpresaId) return; 
-    ['catalogos', 'productos', 'recetas'].forEach(vis => {
+    ['catalogos', 'productos', 'recetas', 'inventario', 'compras'].forEach(vis => {
         document.getElementById(`vista-${vis}`).classList.add('hidden');
         document.getElementById(`btn-menu-${vis}`).className = 'w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium text-white opacity-70 transition-colors';
     });
@@ -56,7 +54,7 @@ function cambiarTab(tab) {
     if(tab === 'proveedores') cargarProveedores();
     if(tab === 'sucursales') cargarSucursales();
     if(tab === 'ubicaciones') { cargarSelectSucursales(); cargarUbicaciones(); }
-    cancelarEdicion(tab); // Limpia si cambias de pestaña
+    cancelarEdicion(tab); 
 }
 
 // --- SISTEMA DE EDICIÓN GLOBAL ---
@@ -66,50 +64,19 @@ window.cancelarEdicion = function(formName) {
     if(formEl) {
         formEl.reset();
         const btnSubmit = formEl.querySelector('button[type="submit"]');
-        if(btnSubmit) { btnSubmit.innerText = formName === 'producto' ? 'Guardar Producto' : 'Guardar'; btnSubmit.classList.replace('bg-blue-600', formName === 'ingrediente' ? 'bg-emerald-600' : 'bg-slate-800'); }
+        if(btnSubmit) { btnSubmit.innerText = formName === 'producto' ? 'Guardar Producto' : 'Guardar'; btnSubmit.classList.replace('bg-blue-600', formName === 'ingrediente' || formName === 'producto' ? 'bg-emerald-600' : 'bg-slate-800'); }
         const btnCancel = document.getElementById(`btn-cancelar-${formName}`);
         if(btnCancel) btnCancel.classList.add('hidden');
     }
 }
 
 // --- LOGICA DE GUARDADO Y EDICIÓN (CATÁLOGOS) ---
-document.getElementById('form-categoria').addEventListener('submit', async (e) => { 
-    e.preventDefault(); 
-    const nombre = document.getElementById('nombre-categoria').value;
-    if(window.modoEdicion.activo && window.modoEdicion.form === 'categoria') await clienteSupabase.from('categorias').update({nombre}).eq('id', window.modoEdicion.id);
-    else await clienteSupabase.from('categorias').insert([{ nombre, id_empresa: window.miEmpresaId }]);
-    cancelarEdicion('categoria'); cargarCategorias(); 
-});
-document.getElementById('form-unidad').addEventListener('submit', async (e) => { 
-    e.preventDefault(); 
-    const nombre = document.getElementById('nombre-unidad').value, abreviatura = document.getElementById('abrev-unidad').value;
-    if(window.modoEdicion.activo && window.modoEdicion.form === 'unidad') await clienteSupabase.from('unidades').update({nombre, abreviatura}).eq('id', window.modoEdicion.id);
-    else await clienteSupabase.from('unidades').insert([{ nombre, abreviatura, id_empresa: window.miEmpresaId }]);
-    cancelarEdicion('unidad'); cargarUnidades(); 
-});
-document.getElementById('form-proveedor').addEventListener('submit', async (e) => { 
-    e.preventDefault(); 
-    const nombre = document.getElementById('nombre-proveedor').value, nombre_contacto = document.getElementById('contacto-proveedor').value, lapso_entrega_dias = document.getElementById('tiempo-entrega').value || null;
-    if(window.modoEdicion.activo && window.modoEdicion.form === 'proveedor') await clienteSupabase.from('proveedores').update({nombre, nombre_contacto, lapso_entrega_dias}).eq('id', window.modoEdicion.id);
-    else await clienteSupabase.from('proveedores').insert([{ nombre, nombre_contacto, lapso_entrega_dias, id_empresa: window.miEmpresaId }]);
-    cancelarEdicion('proveedor'); cargarProveedores(); 
-});
-document.getElementById('form-sucursal').addEventListener('submit', async (e) => { 
-    e.preventDefault(); 
-    const nombre = document.getElementById('nombre-sucursal').value, direccion = document.getElementById('dir-sucursal').value;
-    if(window.modoEdicion.activo && window.modoEdicion.form === 'sucursal') await clienteSupabase.from('sucursales').update({nombre, direccion}).eq('id', window.modoEdicion.id);
-    else await clienteSupabase.from('sucursales').insert([{ nombre, direccion, id_empresa: window.miEmpresaId }]);
-    cancelarEdicion('sucursal'); cargarSucursales(); 
-});
-document.getElementById('form-ubicacion').addEventListener('submit', async (e) => { 
-    e.preventDefault(); 
-    const nombre = document.getElementById('nombre-ubicacion').value, id_sucursal = document.getElementById('sel-sucursal-ubi').value;
-    if(window.modoEdicion.activo && window.modoEdicion.form === 'ubicacion') await clienteSupabase.from('ubicaciones_internas').update({nombre, id_sucursal}).eq('id', window.modoEdicion.id);
-    else await clienteSupabase.from('ubicaciones_internas').insert([{ nombre, id_sucursal, id_empresa: window.miEmpresaId }]);
-    cancelarEdicion('ubicacion'); cargarUbicaciones(); 
-});
+document.getElementById('form-categoria').addEventListener('submit', async (e) => { e.preventDefault(); const nombre = document.getElementById('nombre-categoria').value; if(window.modoEdicion.activo && window.modoEdicion.form === 'categoria') await clienteSupabase.from('categorias').update({nombre}).eq('id', window.modoEdicion.id); else await clienteSupabase.from('categorias').insert([{ nombre, id_empresa: window.miEmpresaId }]); cancelarEdicion('categoria'); cargarCategorias(); });
+document.getElementById('form-unidad').addEventListener('submit', async (e) => { e.preventDefault(); const nombre = document.getElementById('nombre-unidad').value, abreviatura = document.getElementById('abrev-unidad').value; if(window.modoEdicion.activo && window.modoEdicion.form === 'unidad') await clienteSupabase.from('unidades').update({nombre, abreviatura}).eq('id', window.modoEdicion.id); else await clienteSupabase.from('unidades').insert([{ nombre, abreviatura, id_empresa: window.miEmpresaId }]); cancelarEdicion('unidad'); cargarUnidades(); });
+document.getElementById('form-proveedor').addEventListener('submit', async (e) => { e.preventDefault(); const nombre = document.getElementById('nombre-proveedor').value, nombre_contacto = document.getElementById('contacto-proveedor').value, lapso_entrega_dias = document.getElementById('tiempo-entrega').value || null; if(window.modoEdicion.activo && window.modoEdicion.form === 'proveedor') await clienteSupabase.from('proveedores').update({nombre, nombre_contacto, lapso_entrega_dias}).eq('id', window.modoEdicion.id); else await clienteSupabase.from('proveedores').insert([{ nombre, nombre_contacto, lapso_entrega_dias, id_empresa: window.miEmpresaId }]); cancelarEdicion('proveedor'); cargarProveedores(); });
+document.getElementById('form-sucursal').addEventListener('submit', async (e) => { e.preventDefault(); const nombre = document.getElementById('nombre-sucursal').value, direccion = document.getElementById('dir-sucursal').value; if(window.modoEdicion.activo && window.modoEdicion.form === 'sucursal') await clienteSupabase.from('sucursales').update({nombre, direccion}).eq('id', window.modoEdicion.id); else await clienteSupabase.from('sucursales').insert([{ nombre, direccion, id_empresa: window.miEmpresaId }]); cancelarEdicion('sucursal'); cargarSucursales(); });
+document.getElementById('form-ubicacion').addEventListener('submit', async (e) => { e.preventDefault(); const nombre = document.getElementById('nombre-ubicacion').value, id_sucursal = document.getElementById('sel-sucursal-ubi').value; if(window.modoEdicion.activo && window.modoEdicion.form === 'ubicacion') await clienteSupabase.from('ubicaciones_internas').update({nombre, id_sucursal}).eq('id', window.modoEdicion.id); else await clienteSupabase.from('ubicaciones_internas').insert([{ nombre, id_sucursal, id_empresa: window.miEmpresaId }]); cancelarEdicion('ubicacion'); cargarUbicaciones(); });
 
-// Botones de Lápiz para Catálogos
 window.activarEdicionGlobal = function(formName, id, objJS) {
     window.modoEdicion = { activo: true, id: id, form: formName };
     for (const [inputId, valor] of Object.entries(objJS)) { document.getElementById(inputId).value = valor; }
@@ -138,10 +105,12 @@ window.abrirModalProducto = function(esEdicion = false) {
     document.getElementById('modal-producto').classList.remove('hidden');
     if(window.unidadesMemoria.length === 0) cargarDatosSelects();
     if(!esEdicion) {
-        cancelarEdicion('producto'); // resetea
+        cancelarEdicion('producto');
         document.getElementById('titulo-modal-producto').innerText = "Nuevo Producto / Insumo";
         const aleatorio = Math.random().toString(36).substring(2, 8).toUpperCase();
         document.getElementById('prod-sku').value = 'PRD-' + aleatorio;
+        document.getElementById('prod-stock-min').value = "0";
+        document.getElementById('prod-stock-ideal').value = "0";
     }
 };
 
@@ -190,7 +159,6 @@ async function cargarProductos() {
     `).join('');
 }
 
-// El Lápiz Mágico de Productos
 window.editarProductoFull = async function(id) {
     const { data } = await clienteSupabase.from('productos').select('*').eq('id', id).single();
     document.getElementById('prod-nombre').value = data.nombre;
@@ -204,6 +172,10 @@ window.editarProductoFull = async function(id) {
     document.getElementById('prod-cant-ur').value = data.cant_en_ur_de_um;
     document.getElementById('prod-u-receta').value = data.id_unidad_receta;
     document.getElementById('prod-tiene-receta').checked = data.tiene_receta;
+    
+    // Aquí inyectamos los nuevos campos de stock
+    document.getElementById('prod-stock-min').value = data.stock_minimo_ua || 0;
+    document.getElementById('prod-stock-ideal').value = data.stock_ideal_ua || 0;
     
     window.modoEdicion = { activo: true, id: id, form: 'producto' };
     document.getElementById('titulo-modal-producto').innerText = "Editando Producto ✏️";
@@ -220,7 +192,10 @@ document.getElementById('form-producto').addEventListener('submit', async (e) =>
         id_unidad_compra: document.getElementById('prod-u-compra').value, cant_en_ua_de_uc: parseFloat(document.getElementById('prod-cant-ua').value),
         id_unidad_almacenamiento: document.getElementById('prod-u-almacen').value, cant_en_um_de_ua: parseFloat(document.getElementById('prod-cant-um').value),
         id_unidad_menor: document.getElementById('prod-u-menor').value, cant_en_ur_de_um: parseFloat(document.getElementById('prod-cant-ur').value),
-        id_unidad_receta: document.getElementById('prod-u-receta').value, tiene_receta: document.getElementById('prod-tiene-receta').checked
+        id_unidad_receta: document.getElementById('prod-u-receta').value, tiene_receta: document.getElementById('prod-tiene-receta').checked,
+        // Y aquí los guardamos en la base de datos
+        stock_minimo_ua: parseFloat(document.getElementById('prod-stock-min').value) || 0,
+        stock_ideal_ua: parseFloat(document.getElementById('prod-stock-ideal').value) || 0
     };
     
     if (window.modoEdicion.activo && window.modoEdicion.form === 'producto') {
@@ -232,7 +207,7 @@ document.getElementById('form-producto').addEventListener('submit', async (e) =>
     if(window.productoActualParaReceta) await actualizarSelectInsumos(); else cargarProductos();
 });
 
-// --- RECETAS ---
+// --- RECETAS Y BUSCADOR ---
 async function cargarBuscadorRecetas() {
     const { data } = await clienteSupabase.from('productos').select('id, nombre').eq('id_empresa', window.miEmpresaId).eq('tiene_receta', true).order('nombre');
     const sel = document.getElementById('buscador-recetas');
@@ -301,13 +276,10 @@ async function cargarIngredientesReceta() {
         </tr>`).join('');
 }
 
-// El Lápiz Mágico de Ingredientes
 window.editarIngredienteReceta = function(idReceta, idInsumo, cantidad) {
     document.getElementById('sel-ingrediente').value = idInsumo;
     document.getElementById('ing-cantidad').value = cantidad;
-    // Disparamos el cambio manual para que se actualice la unidad (ej: gr, ml) visualmente
     document.getElementById('sel-ingrediente').dispatchEvent(new Event('change'));
-    
     window.modoEdicion = { activo: true, id: idReceta, form: 'ingrediente' };
     const btnSubmit = document.querySelector(`#form-ingrediente button[type="submit"]`);
     btnSubmit.innerText = 'Actualizar ✏️';
@@ -318,7 +290,6 @@ window.editarIngredienteReceta = function(idReceta, idInsumo, cantidad) {
 document.getElementById('form-ingrediente').addEventListener('submit', async (e) => {
     e.preventDefault();
     const payload = { id_producto_padre: window.productoActualParaReceta, id_ingrediente: document.getElementById('sel-ingrediente').value, cantidad_neta: document.getElementById('ing-cantidad').value };
-    
     if(window.modoEdicion.activo && window.modoEdicion.form === 'ingrediente') {
         await clienteSupabase.from('recetas').update(payload).eq('id', window.modoEdicion.id);
     } else {
