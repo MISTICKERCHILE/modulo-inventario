@@ -1,5 +1,5 @@
 // --- PRODUCTOS ---
-window.abrirModalProducto = async function(esEdicion = false) {
+window.abrirModalProducto = async function(esEdicion = false, nombreSugerido = '') {
     document.getElementById('modal-producto').classList.remove('hidden');
     if(window.unidadesMemoria.length === 0) window.cargarDatosSelects();
     
@@ -30,6 +30,11 @@ window.abrirModalProducto = async function(esEdicion = false) {
         document.getElementById('titulo-modal-producto').innerText = "Nuevo Producto / Insumo";
         const aleatorio = Math.random().toString(36).substring(2, 8).toUpperCase();
         document.getElementById('prod-sku').value = 'PRD-' + aleatorio;
+        
+        // AUTO-LLENADO DEL NOMBRE SI VIENE SUGERIDO DESDE EL CSV
+        if (nombreSugerido) {
+            document.getElementById('prod-nombre').value = nombreSugerido;
+        }
     }
 };
 
@@ -140,7 +145,6 @@ document.getElementById('form-producto')?.addEventListener('submit', async (e) =
         cant_en_ur_de_um: parseFloat(document.getElementById('prod-cant-ur').value),
         id_unidad_receta: document.getElementById('prod-u-receta').value, 
         tiene_receta: document.getElementById('prod-tiene-receta').checked
-        // Nota: ya no enviamos stock_minimo global aquí
     };
     
     let idProdActual = null;
@@ -161,7 +165,6 @@ document.getElementById('form-producto')?.addEventListener('submit', async (e) =
             const valMin = parseFloat(document.getElementById(`regla-min-${suc.id}`)?.value) || 0;
             const valIdeal = parseFloat(document.getElementById(`regla-ideal-${suc.id}`)?.value) || 0;
 
-            // Upsert (Actualiza si existe, Inserta si es nuevo)
             const { data: existeRegla } = await clienteSupabase.from('reglas_stock_sucursal')
                 .select('id').eq('id_producto', idProdActual).eq('id_sucursal', suc.id).maybeSingle();
             
@@ -178,8 +181,17 @@ document.getElementById('form-producto')?.addEventListener('submit', async (e) =
 
     window.cerrarModalProducto();
     
-    if(window.productoActualParaReceta) await window.actualizarSelectInsumos(); 
-    else window.cargarProductos();
+    // VERIFICAR DESDE DÓNDE SE ABRIÓ EL MODAL PARA ACTUALIZAR LO CORRECTO
+    const panelCSV = document.getElementById('panel-mapeo-csv');
+    
+    if(window.productoActualParaReceta) {
+        await window.actualizarSelectInsumos(); 
+    } else if (panelCSV && !panelCSV.classList.contains('hidden') && typeof window.actualizarSelectsMapeoCSV === 'function') {
+        // SI ESTAMOS EN EL CSV, REFRESCAR LOS SELECTS SIN PERDER DATOS
+        await window.actualizarSelectsMapeoCSV(idProdActual);
+    } else {
+        window.cargarProductos();
+    }
 });
 
 // --- RECETAS Y BUSCADOR ---
