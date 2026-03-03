@@ -257,27 +257,34 @@
                         <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                             <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><span>📊</span> Importar Ventas (CSV del POS)</h3>
                             
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 bg-slate-50 p-4 rounded-lg border">
-                                <div>
-                                    <label class="block text-xs font-bold text-gray-500 mb-1">Sucursal de Venta (¿De dónde descontamos?)</label>
-                                    <select id="csv-sucursal" class="w-full px-3 py-2 border rounded-md bg-white"></select>
-                                </div>
-                                <div class="md:col-span-2">
-                                    <label class="block text-xs font-bold text-gray-500 mb-1">Subir Archivo CSV</label>
-                                    <div class="flex gap-2">
-                                        <input type="file" id="csv-file" accept=".csv" class="flex-1 px-3 py-2 border rounded-md text-sm bg-white">
-                                        <button onclick="procesarArchivoCSV()" class="px-6 py-2 bg-blue-600 text-white rounded-md font-bold hover:bg-blue-700 transition-colors shadow-sm">Analizar CSV</button>
+                            <div class="bg-slate-50 p-5 rounded-lg border mb-6 space-y-4">
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-500 mb-1">Sucursal / Origen de Ventas</label>
+                                        <select id="csv-sucursal" class="w-full px-3 py-2 border rounded-md bg-white"></select>
                                     </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-500 mb-1">Período: Fecha Inicio</label>
+                                        <input type="date" id="csv-fecha-inicio" class="w-full px-3 py-2 border rounded-md bg-white text-sm">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-500 mb-1">Período: Fecha Fin</label>
+                                        <input type="date" id="csv-fecha-fin" class="w-full px-3 py-2 border rounded-md bg-white text-sm">
+                                    </div>
+                                </div>
+                                <div class="flex gap-4 items-end">
+                                    <div class="flex-1">
+                                        <label class="block text-xs font-bold text-gray-500 mb-1">Subir Archivo CSV</label>
+                                        <input type="file" id="csv-file" accept=".csv" class="w-full px-3 py-2 border rounded-md text-sm bg-white">
+                                    </div>
+                                    <button onclick="procesarArchivoCSV()" class="px-8 py-2 bg-blue-600 text-white rounded-md font-bold hover:bg-blue-700 transition-colors shadow-sm h-[40px]">Analizar CSV</button>
                                 </div>
                             </div>
 
                             <div id="panel-mapeo-csv" class="hidden border-t pt-6">
-                                <div class="flex justify-between items-center mb-4">
-                                    <div>
-                                        <h4 class="font-bold text-slate-700">Revisión y Asociación de Productos</h4>
-                                        <p class="text-xs text-slate-500">El sistema recuerda tus selecciones. Revisa los que están en <span class="text-red-500 font-bold">ROJO</span>.</p>
-                                    </div>
-                                    <button onclick="abrirModalProducto()" class="px-4 py-2 bg-emerald-100 text-emerald-800 text-sm font-bold rounded-md hover:bg-emerald-200 shadow-sm">+ Crear Producto Faltante</button>
+                                <div class="mb-4">
+                                    <h4 class="font-bold text-slate-700">Revisión y Asociación de Productos</h4>
+                                    <p class="text-xs text-slate-500">El sistema recuerda tus selecciones pasadas. Revisa los que están en <span class="text-red-500 font-bold">ROJO</span>.</p>
                                 </div>
                                 
                                 <div class="overflow-x-auto bg-white rounded-lg border border-slate-200 mb-4 shadow-sm">
