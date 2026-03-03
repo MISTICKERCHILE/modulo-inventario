@@ -122,6 +122,28 @@
                     </div>
                 </div>
 
+                <div id="seccion-mov-pedidos" class="block space-y-8">
+                    <div>
+                        <h3 class="text-xl font-bold mb-4 text-orange-700">⚠️ Sugerencias de Pedido (Bajo Stock)</h3>
+                        <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-slate-50"><tr><th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Producto</th><th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase">Stock Actual</th><th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase">Faltante (Sugerencia)</th><th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">Acción</th></tr></thead>
+                                <tbody id="lista-alertas-compras" class="divide-y divide-gray-200"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-xl font-bold mb-4 text-blue-700">🚚 Pedidos en Tránsito</h3>
+                        <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-slate-50"><tr><th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Fecha y Proveedor</th><th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Producto</th><th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase">Cantidad Esperada</th><th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">Acción</th></tr></thead>
+                                <tbody id="lista-pedidos-transito" class="divide-y divide-gray-200"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
                 <div id="vista-productos" class="max-w-6xl mx-auto hidden">
                     <div class="flex justify-between items-center mb-6">
                         <h2 class="text-2xl font-bold">Catálogo de Productos</h2>
