@@ -32,22 +32,30 @@ window.toggleMenu = function() {
 function cambiarVista(v) {
     if(!window.miEmpresaId) return; 
     ['catalogos', 'productos', 'recetas', 'inventario', 'compras'].forEach(vis => {
-        document.getElementById(`vista-${vis}`).classList.add('hidden');
-        document.getElementById(`btn-menu-${vis}`).className = 'w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium text-white opacity-70 transition-colors';
+        const el = document.getElementById(`vista-${vis}`);
+        if(el) el.classList.add('hidden');
+        const btn = document.getElementById(`btn-menu-${vis}`);
+        if(btn) btn.className = 'w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium text-white opacity-70 transition-colors';
     });
-    document.getElementById(`vista-${v}`).classList.remove('hidden');
-    document.getElementById(`btn-menu-${v}`).className = 'w-full flex items-center gap-3 px-4 py-3 bg-emerald-600 rounded-lg font-medium text-white opacity-100 transition-colors';
+    
+    const activeEl = document.getElementById(`vista-${v}`);
+    if(activeEl) activeEl.classList.remove('hidden');
+    const activeBtn = document.getElementById(`btn-menu-${v}`);
+    if(activeBtn) activeBtn.className = 'w-full flex items-center gap-3 px-4 py-3 bg-emerald-600 rounded-lg font-medium text-white opacity-100 transition-colors';
     
     if(v === 'catalogos') cambiarTab('categorias');
     if(v === 'productos') { cargarDatosSelects(); cargarProductos(); }
     if(v === 'recetas') { cargarBuscadorRecetas(); }
     if(v === 'inventario') { cargarInventario(); }
+}
 
 function cambiarTab(tab) {
     if(!window.miEmpresaId) return;
     ['categorias', 'unidades', 'proveedores', 'sucursales', 'ubicaciones'].forEach(t => {
-        document.getElementById(`seccion-${t}`).style.display = tab === t ? 'block' : 'none';
-        document.getElementById(`tab-${t}`).className = tab === t ? 'px-6 py-3 font-medium border-b-2 border-emerald-600 text-emerald-600 bg-emerald-50/50' : 'px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors';
+        const el = document.getElementById(`seccion-${t}`);
+        if(el) el.style.display = tab === t ? 'block' : 'none';
+        const btn = document.getElementById(`tab-${t}`);
+        if(btn) btn.className = tab === t ? 'px-6 py-3 font-medium border-b-2 border-emerald-600 text-emerald-600 bg-emerald-50/50' : 'px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors';
     });
     if(tab === 'categorias') cargarCategorias();
     if(tab === 'unidades') cargarUnidades();
@@ -98,7 +106,6 @@ async function eliminarReg(tabla, id) {
         if(tabla==='sucursales') cargarSucursales(); else cambiarVista(document.querySelector('.bg-emerald-600').id.replace('btn-menu-',''));
     }
 }
-
 
 // --- PRODUCTOS ---
 window.abrirModalProducto = function(esEdicion = false) {
@@ -173,7 +180,6 @@ window.editarProductoFull = async function(id) {
     document.getElementById('prod-u-receta').value = data.id_unidad_receta;
     document.getElementById('prod-tiene-receta').checked = data.tiene_receta;
     
-    // Aquí inyectamos los nuevos campos de stock
     document.getElementById('prod-stock-min').value = data.stock_minimo_ua || 0;
     document.getElementById('prod-stock-ideal').value = data.stock_ideal_ua || 0;
     
@@ -193,7 +199,6 @@ document.getElementById('form-producto').addEventListener('submit', async (e) =>
         id_unidad_almacenamiento: document.getElementById('prod-u-almacen').value, cant_en_um_de_ua: parseFloat(document.getElementById('prod-cant-um').value),
         id_unidad_menor: document.getElementById('prod-u-menor').value, cant_en_ur_de_um: parseFloat(document.getElementById('prod-cant-ur').value),
         id_unidad_receta: document.getElementById('prod-u-receta').value, tiene_receta: document.getElementById('prod-tiene-receta').checked,
-        // Y aquí los guardamos en la base de datos
         stock_minimo_ua: parseFloat(document.getElementById('prod-stock-min').value) || 0,
         stock_ideal_ua: parseFloat(document.getElementById('prod-stock-ideal').value) || 0
     };
@@ -306,8 +311,11 @@ async function quitarIngrediente(id) {
     }
 }
 
+// ==========================================
+// --- MÓDULO B: INVENTARIO FÍSICO ---
+// ==========================================
+
 async function cargarInventario() {
-    // Traemos los saldos y hacemos "join" con productos y sucursales para traer sus nombres y alertas
     const { data } = await clienteSupabase
         .from('inventario_saldos')
         .select(`
@@ -317,7 +325,7 @@ async function cargarInventario() {
             sucursales (nombre)
         `)
         .eq('id_empresa', window.miEmpresaId)
-        .order('cantidad_actual_ua', { ascending: true }); // Muestra los que tienen menos stock primero
+        .order('cantidad_actual_ua', { ascending: true }); 
 
     const tbody = document.getElementById('lista-inventario');
     
@@ -327,7 +335,6 @@ async function cargarInventario() {
     }
 
     tbody.innerHTML = data.map(inv => {
-        // Lógica de la alerta: Si el stock actual es menor o igual al mínimo, rojo. Si no, verde.
         const stockMinimo = inv.productos?.stock_minimo_ua || 0;
         const estaBajo = inv.cantidad_actual_ua <= stockMinimo;
         
@@ -345,8 +352,7 @@ async function cargarInventario() {
     }).join('');
 }
 
-async function abrirModalInventario() {
-    // Llenamos los selects de sucursales y productos antes de abrir
+window.abrirModalInventario = async function() {
     const [{ data: sucursales }, { data: productos }] = await Promise.all([
         clienteSupabase.from('sucursales').select('id, nombre').eq('id_empresa', window.miEmpresaId),
         clienteSupabase.from('productos').select('id, nombre').eq('id_empresa', window.miEmpresaId).order('nombre')
@@ -359,7 +365,7 @@ async function abrirModalInventario() {
     document.getElementById('modal-inventario').classList.remove('hidden');
 }
 
-function cerrarModalInventario() {
+window.cerrarModalInventario = function() {
     document.getElementById('modal-inventario').classList.add('hidden');
 }
 
@@ -370,29 +376,25 @@ document.getElementById('form-inventario').addEventListener('submit', async (e) 
     const idSuc = document.getElementById('inv-sucursal').value;
     const nuevaCant = parseFloat(document.getElementById('inv-cantidad').value);
 
-    // 1. Verificamos si ya existe un registro de stock para ese producto en esa sucursal
     const { data: previo } = await clienteSupabase
         .from('inventario_saldos')
         .select('id, cantidad_actual_ua')
         .eq('id_producto', idProd)
         .eq('id_sucursal', idSuc)
-        .single(); // Solo esperamos 1 resultado
+        .single(); 
 
     let cantAnterior = 0;
 
     if (previo) {
-        // Si existe, actualizamos el número
         cantAnterior = previo.cantidad_actual_ua;
         await clienteSupabase.from('inventario_saldos')
             .update({ cantidad_actual_ua: nuevaCant, ultima_actualizacion: new Date() })
             .eq('id', previo.id);
     } else {
-        // Si es la primera vez que contamos este producto aquí, lo insertamos
         await clienteSupabase.from('inventario_saldos')
             .insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_sucursal: idSuc, cantidad_actual_ua: nuevaCant }]);
     }
 
-    // 2. Registramos el movimiento en el historial (Kardex) de forma silenciosa
     const diferencia = nuevaCant - cantAnterior;
     
     if (diferencia !== 0) {
@@ -406,5 +408,5 @@ document.getElementById('form-inventario').addEventListener('submit', async (e) 
     }
 
     cerrarModalInventario();
-    cargarInventario(); // Recargamos la tabla para ver el cambio
+    cargarInventario(); 
 });
