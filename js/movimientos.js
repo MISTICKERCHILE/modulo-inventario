@@ -217,7 +217,7 @@ document.getElementById('form-otro-movimiento')?.addEventListener('submit', asyn
 // --- FASE 4: VENTAS POS (CSV) Y HOMOLOGACIÓN ---
 // ==========================================
 window.datosCSVAgrupados = [];
-window.selectCSVActivo = null; // Para recordar qué select disparó la creación de un producto
+window.selectCSVActivo = null;
 
 window.prepararPanelVentas = async function() {
     const { data: sucursales } = await clienteSupabase.from('sucursales').select('id, nombre').eq('id_empresa', window.miEmpresaId);
@@ -225,6 +225,10 @@ window.prepararPanelVentas = async function() {
 }
 
 window.procesarArchivoCSV = function() {
+    const fInicio = document.getElementById('csv-fecha-inicio').value;
+    const fFin = document.getElementById('csv-fecha-fin').value;
+    if (!fInicio || !fFin) return alert("❌ Por favor, selecciona la Fecha de Inicio y Fecha Fin del período de ventas antes de analizar.");
+
     const fileInput = document.getElementById('csv-file');
     if (!fileInput.files.length) return alert("❌ Selecciona un archivo CSV primero.");
     
@@ -296,15 +300,14 @@ async function agruparYAsociarVentas(filasCSV) {
     document.getElementById('panel-mapeo-csv').classList.remove('hidden');
 }
 
-// LOGICA NUEVA PARA EL AUTO-LLENADO Y ACTUALIZACIÓN SIN RECARGAR
 window.gestionarSelectCSV = function(selectTag, index) {
     if(selectTag.value === 'NUEVO') {
-        selectTag.value = ''; // Lo devolvemos a blanco por si cancela la creación
+        selectTag.value = ''; 
         const item = window.datosCSVAgrupados[index];
         const nombreSugerido = item.variante_pos ? `${item.nombre_pos} ${item.variante_pos}` : item.nombre_pos;
         
-        window.selectCSVActivo = selectTag; // Recordamos este selector
-        window.abrirModalProducto(false, nombreSugerido); // Abrimos modal con nombre escrito
+        window.selectCSVActivo = selectTag; 
+        window.abrirModalProducto(false, nombreSugerido); 
         return;
     }
     
@@ -324,15 +327,14 @@ window.actualizarSelectsMapeoCSV = async function(nuevoIdProducto) {
     selects.forEach(sel => {
         const valorAnterior = sel.value;
         sel.innerHTML = opcionesNuevas;
-        sel.value = valorAnterior; // Mantenemos lo que ya habías elegido en otras filas
+        sel.value = valorAnterior; 
     });
 
-    // Auto-seleccionar el producto recién creado en la fila que disparó el modal
     if (window.selectCSVActivo && nuevoIdProducto) {
         window.selectCSVActivo.value = nuevoIdProducto;
         const index = window.selectCSVActivo.getAttribute('data-index');
         window.quitarRojoFila(index);
-        window.selectCSVActivo = null; // Limpiamos la memoria
+        window.selectCSVActivo = null; 
     }
 }
 
@@ -348,6 +350,10 @@ window.cancelarCSV = function() {
 
 window.confirmarDescuentoVentas = async function() {
     const idSucursal = document.getElementById('csv-sucursal').value;
+    const fInicio = document.getElementById('csv-fecha-inicio').value;
+    const fFin = document.getElementById('csv-fecha-fin').value;
+    const periodoReferencia = `[Período: ${fInicio} al ${fFin}]`;
+
     const selects = document.querySelectorAll('.selector-homologacion');
     
     let todoAsociado = true;
@@ -380,12 +386,12 @@ window.confirmarDescuentoVentas = async function() {
                 const factorUR = infoInsumo.cant_en_ur_de_um || 1;
                 const ua_a_descontar = (cantidadVendida * ing.cantidad_neta) / (factorUM * factorUR);
                 
-                await aplicarDescuentoInventario(infoInsumo.id, idSucursal, ua_a_descontar, `Venta POS (Receta de ${itemPOS.nombre_pos})`);
+                await aplicarDescuentoInventario(infoInsumo.id, idSucursal, ua_a_descontar, `Venta POS (Receta de ${itemPOS.nombre_pos}) ${periodoReferencia}`);
             }
         } else {
             const factorUM = prodERP.cant_en_um_de_ua || 1;
             const ua_a_descontar = cantidadVendida / factorUM;
-            await aplicarDescuentoInventario(idProductoERP, idSucursal, ua_a_descontar, `Venta POS Directa (${itemPOS.nombre_pos})`);
+            await aplicarDescuentoInventario(idProductoERP, idSucursal, ua_a_descontar, `Venta POS Directa (${itemPOS.nombre_pos}) ${periodoReferencia}`);
         }
     }
 
