@@ -251,6 +251,7 @@
                         <button onclick="cambiarTabMovimientos('ventas')" id="tab-mov-ventas" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors">Subir Ventas (POS)</button>
                         <button onclick="cambiarTabMovimientos('otros')" id="tab-mov-otros" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors">Otros Movimientos</button>
                     </div>
+                    
                     <div id="seccion-mov-pedidos" class="block space-y-6">
                         <div class="flex gap-2 mb-4 bg-slate-100 p-1 rounded-lg w-max">
                             <button onclick="cambiarSubTabPedidos('sugerencias')" id="subtab-sugerencias" class="px-4 py-2 rounded-md font-bold text-sm bg-white shadow-sm text-emerald-700">Ver Sugerencias por Stock</button>
@@ -260,45 +261,108 @@
                             <div id="lista-alertas-compras" class="space-y-6"></div>
                             <div id="contenedor-bandeja" class="hidden mt-8 border-t-2 border-dashed border-slate-300 pt-8">
                                 <h3 class="text-xl font-bold mb-4 text-slate-800 flex items-center gap-2"><span>🛒</span> Bandeja de Pedidos (Pre-armados)</h3>
+                                <p class="text-sm text-slate-500 mb-6">Toma un pantallazo de esta sección para enviárselo a tu proveedor. Luego haz clic en "Pedido Generado".</p>
                                 <div id="lista-carritos-proveedor" class="space-y-6"></div>
                             </div>
                         </div>
                         <div id="subvista-transito" class="hidden space-y-6">
-                            <div id="transito-vista-sucursales" class="block"><div id="grid-sucursales-transito" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div></div>
+                            <div id="transito-vista-sucursales" class="block">
+                                <h3 class="text-xl font-bold mb-6 text-slate-800">🚚 Selecciona tu Sucursal para ver las Recepciones Pendientes</h3>
+                                <div id="grid-sucursales-transito" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
+                            </div>
                             <div id="transito-vista-detalle" class="hidden">
-                                <button onclick="volverGridTransito()" class="text-blue-600 font-bold mb-4 flex items-center gap-1 hover:underline text-sm">← Cambiar Sucursal</button>
+                                <button onclick="volverGridTransito()" class="text-blue-600 font-bold mb-4 flex items-center gap-1 hover:underline text-sm transition-colors">← Cambiar Sucursal</button>
                                 <h3 class="text-2xl font-bold mb-6 text-slate-800" id="transito-titulo-sucursal">🚚 En Camino a: -</h3>
                                 <div id="lista-transito-proveedores" class="space-y-6"></div>
                             </div>
                         </div>
                     </div>
+
+                    <div id="seccion-mov-compras" class="hidden space-y-6">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                            <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><span>🛒</span> Ingreso de Compra Directa (Sin pedido previo)</h3>
+                            <form id="form-compra-directa" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 items-end">
+                                <div class="col-span-1 lg:col-span-2"><label class="block text-xs font-bold text-gray-500 mb-1">Proveedor</label><select id="cd-proveedor" required class="w-full px-3 py-2 border rounded-md bg-white"></select></div>
+                                <div class="col-span-1 lg:col-span-2"><label class="block text-xs font-bold text-gray-500 mb-1">Producto</label><select id="cd-producto" required class="w-full px-3 py-2 border rounded-md bg-white"></select></div>
+                                <div><label class="block text-xs font-bold text-gray-500 mb-1">Bodega Destino</label><select id="cd-sucursal" required class="w-full px-3 py-2 border rounded-md bg-white"></select></div>
+                                <div><label class="block text-xs font-bold text-gray-500 mb-1">Cant. (UC)</label><input type="number" step="0.01" id="cd-cantidad" required class="w-full px-3 py-2 border rounded-md"></div>
+                                <div><label class="block text-xs font-bold text-gray-500 mb-1">Costo Total ($)</label><input type="number" step="0.01" id="cd-costo" required class="w-full px-3 py-2 border rounded-md"></div>
+                                <div class="col-span-1 lg:col-span-6 flex justify-end mt-2">
+                                    <button type="submit" class="px-6 py-2 bg-emerald-600 text-white rounded-md font-bold hover:bg-emerald-700 transition-colors shadow-sm">Registrar Compra Inmediata</button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
+
+                    <div id="seccion-mov-ventas" class="hidden space-y-6">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                            <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><span>📊</span> Importar Ventas (CSV del POS)</h3>
+                            <div class="bg-slate-50 p-5 rounded-lg border mb-6 space-y-4">
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div><label class="block text-xs font-bold text-gray-500 mb-1">Sucursal / Origen de Ventas</label><select id="csv-sucursal" class="w-full px-3 py-2 border rounded-md bg-white"></select></div>
+                                    <div><label class="block text-xs font-bold text-gray-500 mb-1">Período: Fecha Inicio</label><input type="date" id="csv-fecha-inicio" class="w-full px-3 py-2 border rounded-md bg-white text-sm"></div>
+                                    <div><label class="block text-xs font-bold text-gray-500 mb-1">Período: Fecha Fin</label><input type="date" id="csv-fecha-fin" class="w-full px-3 py-2 border rounded-md bg-white text-sm"></div>
+                                </div>
+                                <div class="flex gap-4 items-end">
+                                    <div class="flex-1"><label class="block text-xs font-bold text-gray-500 mb-1">Subir Archivo CSV</label><input type="file" id="csv-file" accept=".csv" class="w-full px-3 py-2 border rounded-md text-sm bg-white"></div>
+                                    <button onclick="procesarArchivoCSV()" class="px-8 py-2 bg-blue-600 text-white rounded-md font-bold hover:bg-blue-700 transition-colors shadow-sm h-[40px]">Analizar CSV</button>
+                                </div>
+                            </div>
+                            <div id="panel-mapeo-csv" class="hidden border-t pt-6">
+                                <div class="mb-4">
+                                    <h4 class="font-bold text-slate-700">Revisión y Asociación de Productos</h4>
+                                    <p class="text-xs text-slate-500">El sistema recuerda tus selecciones pasadas. Revisa los que están en <span class="text-red-500 font-bold">ROJO</span>.</p>
+                                </div>
+                                <div class="overflow-x-auto bg-white rounded-lg border border-slate-200 mb-4 shadow-sm">
+                                    <table class="min-w-full divide-y divide-slate-200">
+                                        <thead class="bg-slate-100 text-xs font-bold text-slate-500 uppercase">
+                                            <tr><th class="px-4 py-3 text-left">Producto (POS)</th><th class="px-4 py-3 text-left">Variante (POS)</th><th class="px-4 py-3 text-center">Cant. Vendida</th><th class="px-4 py-3 text-left w-1/3">Equivalente en ERP (Tus productos)</th></tr>
+                                        </thead>
+                                        <tbody id="lista-mapeo-csv" class="divide-y divide-slate-100 text-sm"></tbody>
+                                    </table>
+                                </div>
+                                <div class="flex justify-end gap-4 mt-6">
+                                    <button onclick="cancelarCSV()" class="px-6 py-3 border text-slate-600 rounded-md font-bold hover:bg-slate-50">Cancelar</button>
+                                    <button onclick="confirmarDescuentoVentas()" id="btn-procesar-ventas" class="px-6 py-3 bg-slate-800 text-white rounded-md font-bold hover:bg-slate-900 transition-colors shadow-md text-lg">✅ Confirmar y Descontar Inventario</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="seccion-mov-otros" class="hidden space-y-6">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                            <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><span>🔄</span> Registrar Ajuste Manual (Mermas, Consumo, etc.)</h3>
+                            <form id="form-otro-movimiento" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+                                <div><label class="block text-xs font-bold text-gray-500 mb-1">Tipo de Movimiento</label><select id="om-tipo" required class="w-full px-3 py-2 border rounded-md bg-white"></select></div>
+                                <div class="lg:col-span-2"><label class="block text-xs font-bold text-gray-500 mb-1">Producto</label><select id="om-producto" required class="w-full px-3 py-2 border rounded-md bg-white"></select></div>
+                                <div><label class="block text-xs font-bold text-gray-500 mb-1">Bodega</label><select id="om-sucursal" required class="w-full px-3 py-2 border rounded-md bg-white"></select></div>
+                                <div><label class="block text-xs font-bold text-gray-500 mb-1">Cant. (UA)</label><input type="number" step="0.01" id="om-cantidad" required class="w-full px-3 py-2 border rounded-md"></div>
+                                <div class="col-span-1 lg:col-span-5 flex justify-end mt-2">
+                                    <button type="submit" class="px-6 py-2 bg-slate-800 text-white rounded-md font-bold hover:bg-slate-700 transition-colors shadow-sm">Aplicar Movimiento</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
                 
-                <div id="vista-inventario" class="max-w-6xl mx-auto block">
+                <div id="vista-inventario" class="max-w-6xl mx-auto hidden">
                     <div id="inv-vista-sucursales" class="block">
                         <h2 class="text-2xl font-bold mb-6 text-slate-800">📦 Selecciona una Sucursal para ver su Inventario</h2>
                         <div id="grid-sucursales-inventario" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
                     </div>
-
                     <div id="inv-vista-detalle" class="hidden">
                         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                             <div>
                                 <button onclick="volverGridInventario()" class="text-emerald-600 font-bold mb-1 flex items-center gap-1 hover:underline text-sm transition-colors">← Volver al inicio</button>
                                 <h2 class="text-2xl font-bold text-slate-800" id="inv-titulo-sucursal">📦 Inventario: -</h2>
-                                <p class="text-slate-500 text-sm mt-1">Control de saldos. Modifica la ubicación interna directamente en la tabla.</p>
+                                <p class="text-slate-500 text-sm mt-1">Control de saldos agrupados por ubicación interna.</p>
                             </div>
                             <button onclick="abrirModalConteoMasivo()" class="px-6 py-3 bg-emerald-600 text-white rounded-md font-bold shadow-sm hover:bg-emerald-700 transition-transform hover:scale-105">🎯 Toma de Inventario Masivo</button>
                         </div>
-
-                        <div class="bg-white rounded-xl shadow-sm border overflow-hidden pb-32"> <table class="min-w-full divide-y divide-gray-200 overflow-visible">
+                        <div class="bg-white rounded-xl shadow-sm border overflow-hidden pb-32">
+                            <table class="min-w-full divide-y divide-gray-200 overflow-visible">
                                 <thead class="bg-slate-50">
-                                    <tr>
-                                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase w-32">Estado</th>
-                                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase w-48">Ubicación Interna</th>
-                                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Producto</th>
-                                        <th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">Stock Actual</th>
-                                        <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase w-40">Acciones</th>
-                                    </tr>
+                                    <tr><th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase w-32">Estado</th><th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase w-48">Ubicación Interna</th><th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Producto</th><th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">Stock Actual</th><th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase w-40">Acciones</th></tr>
                                 </thead>
                                 <tbody id="lista-inventario" class="divide-y divide-gray-200 bg-white"></tbody>
                             </table>
@@ -310,35 +374,156 @@
         </div>
     </div>
 
-    <div id="modal-producto" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-4">
+    <div id="modal-precios-proveedor" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col border border-slate-200">
+            <div class="flex justify-between items-center mb-4 border-b pb-3">
+                <h2 class="text-xl font-bold text-slate-800" id="titulo-precios-prov">💰 Lista de Precios de: -</h2>
+                <button type="button" onclick="document.getElementById('modal-precios-proveedor').classList.add('hidden')" class="text-slate-400 hover:text-slate-800 text-2xl font-bold">&times;</button>
+            </div>
+            
+            <form id="form-precio-prov" class="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-6 flex gap-4 items-end">
+                <div class="flex-1">
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Producto</label>
+                    <select id="pp-producto" required class="w-full px-3 py-2 border rounded-md bg-white outline-none focus:ring-2 focus:ring-emerald-500"></select>
+                </div>
+                <div class="w-32">
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Precio Ref. ($)</label>
+                    <input type="number" step="0.01" id="pp-precio" required class="w-full px-3 py-2 border rounded-md outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+                <button type="submit" class="px-6 py-2 bg-emerald-600 text-white font-bold rounded-md hover:bg-emerald-700 shadow-sm h-[40px]">Añadir</button>
+            </form>
+
+            <div class="flex-1 overflow-y-auto border rounded-lg">
+                <table class="min-w-full divide-y divide-slate-200">
+                    <thead class="bg-slate-100 text-xs font-bold text-slate-500 uppercase sticky top-0">
+                        <tr><th class="px-4 py-2 text-left">Producto</th><th class="px-4 py-2 text-right">Precio de Referencia</th><th class="px-4 py-2 text-center w-16">Acción</th></tr>
+                    </thead>
+                    <tbody id="lista-precios-prov" class="divide-y divide-slate-100 text-sm">
+                        <tr><td colspan="3" class="text-center py-4 text-slate-500">Sin precios registrados.</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
+    </div>
+
+
+    <div id="modal-producto" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto border border-slate-200">
+            <h2 class="text-2xl font-bold text-slate-800 mb-6 border-b pb-3" id="titulo-modal-producto">Nuevo Producto / Insumo</h2>
+            <form id="form-producto" class="space-y-6">
+                <div class="grid grid-cols-3 gap-6">
+                    <div><label class="block text-sm font-medium mb-1">Nombre</label><input type="text" id="prod-nombre" required class="w-full px-3 py-2 border rounded-md"></div>
+                    <div><label class="block text-sm font-medium mb-1">Categoría</label><select id="prod-categoria" required class="w-full px-3 py-2 border rounded-md bg-white"></select></div>
+                    <div><label class="block text-sm font-medium text-emerald-700 mb-1">SKU</label><input type="text" id="prod-sku" readonly class="w-full px-3 py-2 border border-slate-200 rounded-md bg-slate-100 text-slate-500 font-mono font-bold cursor-not-allowed shadow-inner focus:outline-none"></div>
+                </div>
+                <div class="bg-slate-50 p-6 rounded-lg border">
+                    <h4 class="font-bold text-slate-700 mb-4">Conversión de Unidades Inteligente</h4>
+                    <div class="flex gap-2 items-end mb-4 text-center">
+                        <div class="w-16"><label class="block text-xs font-bold text-gray-500 mb-1">Cant.</label><input type="text" value="1" disabled class="w-full px-2 py-2 border rounded-md bg-gray-100 font-bold text-center"></div>
+                        <div class="w-48"><label class="block text-xs font-bold text-gray-500 mb-1">1. U. COMPRA</label><select id="prod-u-compra" required class="w-full px-2 py-2 border rounded-md bg-white"></select></div>
+                        <div class="w-24 pb-2 text-slate-400 font-bold text-xs uppercase">▶ Contiene ▶</div>
+                        <div class="w-20"><label class="block text-xs font-bold text-gray-500 mb-1">Cant.</label><input type="number" step="0.0001" id="prod-cant-ua" required class="w-full px-2 py-2 border rounded-md text-center"></div>
+                        <div class="w-48"><label class="block text-xs font-bold text-gray-500 mb-1">2. U. ALMACÉN</label><select id="prod-u-almacen" required class="w-full px-2 py-2 border rounded-md bg-white"></select></div>
+                    </div>
+                    <div class="flex gap-2 items-end mb-4 text-center">
+                        <div class="w-16"></div><div class="w-48"></div>
+                        <div class="w-24 pb-2 text-slate-400 font-bold text-xs uppercase">▶ Contiene ▶</div>
+                        <div class="w-20"><label class="block text-xs font-bold text-gray-500 mb-1">Cant.</label><input type="number" step="0.0001" id="prod-cant-um" required class="w-full px-2 py-2 border rounded-md text-center"></div>
+                        <div class="w-48"><label class="block text-xs font-bold text-gray-500 mb-1">3. U. MENOR</label><select id="prod-u-menor" required class="w-full px-2 py-2 border rounded-md bg-white"></select></div>
+                    </div>
+                    <div class="flex gap-2 items-end text-center">
+                        <div class="w-16"></div><div class="w-48"></div>
+                        <div class="w-24 pb-2 text-slate-400 font-bold text-xs uppercase">▶ Contiene ▶</div>
+                        <div class="w-20"><label class="block text-xs font-bold text-gray-500 mb-1">Cant.</label><input type="number" step="0.0001" id="prod-cant-ur" required class="w-full px-2 py-2 border rounded-md text-center"></div>
+                        <div class="w-48"><label class="block text-xs font-bold text-gray-500 mb-1">4. U. RECETA</label><select id="prod-u-receta" required class="w-full px-2 py-2 border rounded-md bg-white"></select></div>
+                    </div>
+                </div>
+                <div class="bg-orange-50 p-6 rounded-lg border border-orange-100">
+                    <h4 class="font-bold text-orange-800 mb-4">Reglas de Inventario por Sucursal (en UA)</h4>
+                    <div id="contenedor-reglas-stock" class="space-y-3"></div>
+                </div>
+                <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 flex items-center gap-4">
+                    <label class="flex items-center gap-2 font-bold text-blue-800 cursor-pointer">
+                        <input type="checkbox" id="prod-tiene-receta" class="w-5 h-5 accent-blue-600"> Este producto tiene Receta / Ficha Técnica
+                    </label>
+                </div>
+                <div class="flex justify-end gap-4 mt-6">
+                    <button type="button" onclick="cerrarModalProducto()" class="px-6 py-2 border text-gray-700 rounded-md hover:bg-gray-50 transition-colors">Cancelar</button>
+                    <button type="submit" id="btn-guardar-producto" class="px-8 py-2 bg-emerald-600 text-white rounded-md font-bold hover:bg-emerald-700 transition-colors shadow-sm">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-historial-precios" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-lg border border-slate-200">
+            <div class="flex justify-between items-center mb-4 border-b pb-3">
+                <h2 class="text-xl font-bold text-slate-800">💰 Historial de Precios de Compra</h2>
+                <button type="button" onclick="document.getElementById('modal-historial-precios').classList.add('hidden')" class="text-slate-400 hover:text-slate-800 text-2xl font-bold">&times;</button>
+            </div>
+            <p class="text-sm font-bold text-emerald-700 mb-4" id="hp-producto-nombre">-</p>
+            <div class="bg-slate-50 border rounded-lg overflow-hidden max-h-64 overflow-y-auto">
+                <table class="min-w-full divide-y divide-slate-200">
+                    <thead class="bg-slate-100 text-xs font-bold text-slate-500 uppercase sticky top-0">
+                        <tr><th class="px-4 py-2 text-left">Fecha</th><th class="px-4 py-2 text-left">Proveedor</th><th class="px-4 py-2 text-right">Precio (UC)</th></tr>
+                    </thead>
+                    <tbody id="lista-historial-precios" class="divide-y divide-slate-100 text-sm">
+                        <tr><td colspan="3" class="text-center py-4 text-slate-500">Buscando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-4 flex justify-end">
+                <button type="button" onclick="document.getElementById('modal-historial-precios').classList.add('hidden')" class="px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded hover:bg-slate-300">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-recepcion-masiva" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col border-t-4 border-blue-500">
+            <div class="flex justify-between items-center mb-4 border-b pb-3">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-800">📦 Recepción de Pedido</h2>
+                    <p class="text-sm font-medium text-slate-500 mt-1">Proveedor: <span id="rm-proveedor" class="font-bold text-blue-700"></span> | Destino: <span id="rm-sucursal" class="font-bold text-blue-700"></span></p>
+                </div>
+                <div class="text-right">
+                    <p class="text-xs font-bold text-slate-400 uppercase">Fecha de Recepción</p>
+                    <p class="text-lg font-bold text-slate-700" id="rm-fecha-hoy"></p>
+                </div>
+            </div>
+            <div class="flex-1 overflow-y-auto bg-slate-50 border rounded-lg shadow-inner">
+                <table class="min-w-full divide-y divide-slate-200">
+                    <thead class="bg-slate-200 sticky top-0 z-10 shadow-sm text-xs font-bold text-slate-600 uppercase">
+                        <tr><th class="px-4 py-3 text-left">Producto Esperado</th><th class="px-4 py-3 text-center w-32">Cant. Esperada</th><th class="px-4 py-3 text-left w-56">Estado de Recepción</th><th class="px-4 py-3 text-left w-1/2">Detalles (Ubicación / Motivo)</th></tr>
+                    </thead>
+                    <tbody id="rm-filas" class="divide-y divide-slate-200 bg-white"></tbody>
+                </table>
+            </div>
+            <div class="flex justify-end gap-4 mt-6 pt-4 border-t">
+                <button type="button" onclick="document.getElementById('modal-recepcion-masiva').classList.add('hidden')" class="px-6 py-2 border text-slate-600 rounded font-bold hover:bg-slate-50">Cancelar</button>
+                <button type="button" id="btn-guardar-recepcion" onclick="guardarRecepcionMasiva()" class="px-8 py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 shadow-md transition-transform hover:scale-105">✅ Guardar Recepción</button>
+            </div>
+        </div>
+    </div>
 
 
     <div id="modal-conteo-masivo" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-4">
         <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col border border-slate-200">
             <h2 class="text-2xl font-bold text-slate-800 mb-2">🎯 Conteo Físico Masivo</h2>
             <p class="text-sm text-slate-500 mb-6">Sucursal activa: <span id="cm-sucursal-nombre" class="font-bold text-emerald-700"></span></p>
-            
             <div class="mb-4">
                 <label class="block text-sm font-bold mb-1">Paso 1: ¿Qué gaveta o refri estás contando?</label>
                 <select id="cm-ubicacion" onchange="cargarFilasConteoMasivo(this.value)" class="w-full md:w-1/2 px-3 py-2 border border-emerald-300 rounded-md bg-emerald-50 focus:ring-2 focus:ring-emerald-500 font-medium outline-none"></select>
             </div>
-
-            <div class="flex-1 overflow-y-auto border rounded-lg bg-slate-50 mb-6 shadow-inner pb-32"> <table class="min-w-full divide-y divide-gray-200">
+            <div class="flex-1 overflow-y-auto border rounded-lg bg-slate-50 mb-6 shadow-inner pb-32">
+                <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-slate-200 sticky top-0 z-10 shadow-sm">
-                        <tr>
-                            <th class="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Producto</th>
-                            <th class="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase w-20">Unidad</th>
-                            <th class="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase w-32">Cantidad Contada</th>
-                            <th class="px-4 py-3 text-right text-xs font-bold text-slate-600 uppercase w-16">Quitar</th>
-                        </tr>
+                        <tr><th class="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Producto</th><th class="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase w-20">Unidad</th><th class="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase w-32">Cantidad Contada</th><th class="px-4 py-3 text-right text-xs font-bold text-slate-600 uppercase w-16">Quitar</th></tr>
                     </thead>
                     <tbody id="cm-filas" class="divide-y divide-gray-200 bg-white">
                         <tr><td colspan="4" class="text-center text-slate-400 py-8">Selecciona una ubicación arriba.</td></tr>
                     </tbody>
                 </table>
             </div>
-
             <div class="flex justify-between items-center mt-auto border-t pt-4">
                 <button type="button" onclick="agregarFilaConteo()" class="px-4 py-2 text-sm font-bold text-emerald-700 bg-emerald-100 rounded-md hover:bg-emerald-200 transition-colors shadow-sm">+ Agregar otro Producto</button>
                 <div class="flex gap-3">
@@ -346,6 +531,27 @@
                     <button type="button" id="btn-guardar-conteo" onclick="guardarConteoMasivo()" class="px-8 py-2 bg-emerald-600 text-white rounded-md font-bold hover:bg-emerald-700 transition-colors shadow-md">Guardar Conteo ✅</button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div id="modal-ajuste-rapido" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-sm border-t-4 border-orange-500">
+            <h2 class="text-xl font-bold text-slate-800 mb-1" id="ar-titulo">Producto</h2>
+            <p class="text-sm text-slate-500 mb-6 font-medium">📍 Ubicación: <span id="ar-ubi"></span></p>
+            <form id="form-ajuste-rapido" class="space-y-4">
+                <input type="hidden" id="ar-id-saldo"><input type="hidden" id="ar-id-prod">
+                <div>
+                    <label class="block text-sm font-bold mb-1 text-orange-700">Ajustar Cantidad Exacta</label>
+                    <div class="flex items-center gap-2">
+                        <input type="number" step="0.01" id="ar-cant" required class="w-full px-3 py-3 border rounded-md focus:ring-2 focus:ring-orange-500 outline-none text-2xl font-bold text-center">
+                        <span id="ar-abrev" class="text-lg font-bold text-slate-400"></span>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-3 mt-6 border-t pt-4">
+                    <button type="button" onclick="document.getElementById('modal-ajuste-rapido').classList.add('hidden')" class="px-4 py-2 border text-gray-700 rounded-md hover:bg-gray-50">Cancelar</button>
+                    <button type="submit" class="px-6 py-2 bg-orange-600 text-white rounded-md font-bold hover:bg-orange-700 shadow-sm">Aplicar Ajuste</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -359,13 +565,11 @@
                 </div>
                 <button onclick="document.getElementById('modal-historial').classList.add('hidden')" class="text-slate-400 hover:text-slate-800 text-3xl font-bold leading-none">&times;</button>
             </div>
-            
             <div class="flex-1 overflow-y-auto pl-4 pr-2">
                 <div class="relative border-l-2 border-slate-200 ml-3 space-y-8 pb-8" id="hm-timeline">
                     <p class="text-center py-8 text-slate-500 ml-4">Cargando traza...</p>
                 </div>
             </div>
-            
             <div class="mt-4 pt-4 border-t flex justify-end">
                 <button type="button" onclick="document.getElementById('modal-historial').classList.add('hidden')" class="px-6 py-2 bg-slate-100 text-slate-700 font-bold rounded-lg hover:bg-slate-200">Cerrar Kardex</button>
             </div>
