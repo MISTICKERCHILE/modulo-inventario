@@ -25,17 +25,42 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     document.getElementById('login-container').classList.add('hidden');
     document.getElementById('dashboard-container').classList.remove('hidden');
     
+    window.actualizarBadgeCarrito(); // Revisa la memoria al entrar
     window.cambiarVista('dashboard');
 });
 
 window.cerrarSesion = function() { location.reload(); }
 
+// --- FRENO DE EMERGENCIA Y MEMORIA ---
+window.actualizarBadgeCarrito = function() {
+    if(!window.miEmpresaId) return;
+    const guardado = localStorage.getItem('carrito_pedidos_' + window.miEmpresaId);
+    const badge = document.getElementById('badge-cart');
+    if(badge) {
+        const arr = guardado ? JSON.parse(guardado) : [];
+        if(arr.length > 0) {
+            badge.innerText = arr.length;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    }
+}
+
+window.addEventListener('beforeunload', (e) => {
+    if(!window.miEmpresaId) return;
+    const guardado = localStorage.getItem('carrito_pedidos_' + window.miEmpresaId);
+    if (guardado && JSON.parse(guardado).length > 0) {
+        e.preventDefault();
+        e.returnValue = ''; // Gatilla la alerta del navegador
+    }
+});
+
+
 // NUEVO LOGICA MENU CELULAR (DRAWER)
 window.toggleMenu = function() {
     const sidebar = document.getElementById('sidebar-menu');
     const backdrop = document.getElementById('sidebar-backdrop');
-    
-    // Quita o pone la clase que lo esconde fuera de la pantalla (-translate-x-full)
     sidebar.classList.toggle('-translate-x-full');
     backdrop.classList.toggle('hidden');
 }
@@ -66,10 +91,9 @@ document.addEventListener('click', (e) => {
 window.cambiarVista = async function(v) {
     if(!window.miEmpresaId) return; 
     
-    // Si estamos en celular, cerramos el menú automáticamente al hacer clic
-    if (window.innerWidth < 768) { // 768px es la medida "md" de Tailwind
-        document.getElementById('sidebar-menu').classList.add('-translate-x-full');
-        document.getElementById('sidebar-backdrop').classList.add('hidden');
+    if (window.innerWidth < 768) {
+        document.getElementById('sidebar-menu')?.classList.add('-translate-x-full');
+        document.getElementById('sidebar-backdrop')?.classList.add('hidden');
     }
     
     ['dashboard', 'catalogos', 'productos', 'recetas', 'movimientos', 'inventario', 'reportes'].forEach(vis => {
@@ -102,7 +126,6 @@ window.cambiarVista = async function(v) {
     }
 }
 
-// (Todo lo demás del app.js se mantiene idéntico para que no se rompa nada)
 window.cargarDashboard = async function() {
     const hora = new Date().getHours();
     let saludo = "Buenas noches";
@@ -185,7 +208,6 @@ window.eliminarReg = async function(tabla, id) {
     }
 }
 
-// Delegación de formularios dinámicos
 document.addEventListener('submit', async (e) => {
     if (!e.target.id || !e.target.id.startsWith('form-')) return;
     if (e.target.id !== 'login-form' && e.target.id !== 'form-producto' && e.target.id !== 'form-precio-prov' && e.target.id !== 'form-recepcion' && e.target.id !== 'form-ajuste-rapido') { e.preventDefault(); }
