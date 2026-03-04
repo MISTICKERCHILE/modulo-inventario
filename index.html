@@ -51,9 +51,7 @@
                             <p class="text-xs text-slate-500 font-bold uppercase tracking-wider">Notificaciones</p>
                             <span class="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold" id="bell-badge-text">0</span>
                         </div>
-                        <div class="max-h-80 overflow-y-auto divide-y divide-slate-50" id="lista-notificaciones">
-                            <div class="px-4 py-6 text-center text-slate-500 text-sm">Cargando...</div>
-                        </div>
+                        <div class="max-h-80 overflow-y-auto divide-y divide-slate-50" id="lista-notificaciones"></div>
                     </div>
                 </div>
                 
@@ -77,9 +75,7 @@
             <aside id="sidebar-menu" class="w-64 bg-slate-800 text-white flex flex-col p-4 space-y-2 z-10 transition-all duration-300 ease-in-out overflow-hidden whitespace-nowrap">
                 <button onclick="cambiarVista('inventario')" id="btn-menu-inventario" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>📦</span> <span class="menu-texto">Inventario Físico</span></button>
                 <button onclick="cambiarVista('movimientos')" id="btn-menu-movimientos" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>🔄</span> <span class="menu-texto">Movimientos</span></button>
-                
                 <div class="my-2 border-t border-slate-700"></div>
-                
                 <button onclick="cambiarVista('productos')" id="btn-menu-productos" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>🍔</span> <span class="menu-texto">Productos</span></button>
                 <button onclick="cambiarVista('recetas')" id="btn-menu-recetas" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>📝</span> <span class="menu-texto">Recetas</span></button>
                 <button onclick="cambiarVista('catalogos')" id="btn-menu-catalogos" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>⚙️</span> <span class="menu-texto">Catálogos</span></button>
@@ -87,43 +83,34 @@
 
             <main class="flex-1 p-8 overflow-y-auto relative">
                 
-                <div id="vista-dashboard" class="max-w-6xl mx-auto block">
+                <div id="vista-dashboard" class="max-w-6xl mx-auto hidden">
                     <div class="mb-8 bg-gradient-to-r from-emerald-600 to-teal-500 rounded-2xl p-8 text-white shadow-md">
                         <h2 id="dash-saludo" class="text-3xl md:text-4xl font-bold mb-2">¡Hola!</h2>
                         <p class="text-emerald-50 text-lg opacity-90">Aquí tienes el resumen en tiempo real de tu operación.</p>
                     </div>
-
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div onclick="irAAlertasStock()" class="bg-white rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md hover:border-red-300 transition-all cursor-pointer group relative overflow-hidden">
                             <div class="absolute top-0 right-0 w-16 h-16 bg-red-50 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-150"></div>
                             <div class="flex justify-between items-start mb-4 relative z-10">
-                                <div class="p-3 bg-red-100 text-red-600 rounded-lg">
-                                    <span class="text-2xl">⚠️</span>
-                                </div>
+                                <div class="p-3 bg-red-100 text-red-600 rounded-lg"><span class="text-2xl">⚠️</span></div>
                                 <span class="text-4xl font-black text-slate-800" id="widget-alertas-num">0</span>
                             </div>
                             <h3 class="font-bold text-slate-700 text-lg mb-1 relative z-10">Alertas de Stock</h3>
                             <p class="text-sm text-slate-500 relative z-10">Productos bajo el mínimo sugerido</p>
                         </div>
-
                         <div onclick="irATransito()" class="bg-white rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all cursor-pointer group relative overflow-hidden">
                             <div class="absolute top-0 right-0 w-16 h-16 bg-blue-50 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-150"></div>
                             <div class="flex justify-between items-start mb-4 relative z-10">
-                                <div class="p-3 bg-blue-100 text-blue-600 rounded-lg">
-                                    <span class="text-2xl">🚚</span>
-                                </div>
+                                <div class="p-3 bg-blue-100 text-blue-600 rounded-lg"><span class="text-2xl">🚚</span></div>
                                 <span class="text-4xl font-black text-slate-800" id="widget-transito-num">0</span>
                             </div>
                             <h3 class="font-bold text-slate-700 text-lg mb-1 relative z-10">En Tránsito</h3>
                             <p class="text-sm text-slate-500 relative z-10">Camiones y entregas pendientes</p>
                         </div>
-
                         <div onclick="irASubirVentas()" class="bg-white rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md hover:border-purple-300 transition-all cursor-pointer group relative overflow-hidden">
                             <div class="absolute top-0 right-0 w-16 h-16 bg-purple-50 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-150"></div>
                             <div class="flex justify-between items-start mb-4 relative z-10">
-                                <div class="p-3 bg-purple-100 text-purple-600 rounded-lg">
-                                    <span class="text-2xl">📊</span>
-                                </div>
+                                <div class="p-3 bg-purple-100 text-purple-600 rounded-lg"><span class="text-2xl">📊</span></div>
                                 <span class="text-4xl font-black text-slate-800" id="widget-pos-num">-</span>
                             </div>
                             <h3 class="font-bold text-slate-700 text-lg mb-1 relative z-10">Último Ingreso POS</h3>
@@ -132,81 +119,146 @@
                     </div>
                 </div>
 
-                <div id="vista-catalogos" class="max-w-4xl mx-auto hidden">
-                    <h2 class="text-2xl font-bold mb-6">Gestión de Catálogos</h2>
+                <div id="vista-catalogos" class="max-w-4xl mx-auto block">
+                    <h2 class="text-2xl font-bold mb-6 text-slate-800">⚙️ Gestión de Catálogos Maestros</h2>
                     <div class="flex border-b border-gray-200 mb-6 overflow-x-auto bg-white rounded-t-lg shadow-sm">
                         <button onclick="cambiarTab('categorias')" id="tab-categorias" class="px-6 py-3 font-medium border-b-2 border-emerald-600 text-emerald-600 bg-emerald-50/50">Categorías</button>
                         <button onclick="cambiarTab('unidades')" id="tab-unidades" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors">Unidades</button>
                         <button onclick="cambiarTab('proveedores')" id="tab-proveedores" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors">Proveedores</button>
                         <button onclick="cambiarTab('sucursales')" id="tab-sucursales" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors">Sucursales</button>
                         <button onclick="cambiarTab('ubicaciones')" id="tab-ubicaciones" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors">Ubicaciones</button>
-                        <button onclick="cambiarTab('tipos_movimiento')" id="tab-tipos_movimiento" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors">Tipos de Movimiento</button>
+                        <button onclick="cambiarTab('tipos_movimiento')" id="tab-tipos_movimiento" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors">Tipos de Mov.</button>
                     </div>
 
                     <div id="seccion-categorias" class="block space-y-4">
-                        <form id="form-categoria" class="bg-white p-6 rounded-xl shadow-sm border flex gap-4">
-                            <input type="text" id="nombre-categoria" placeholder="Nueva Categoría" required class="flex-1 px-4 py-2 border rounded-md">
-                            <button type="button" id="btn-cancelar-categoria" onclick="cancelarEdicion('categoria')" class="hidden px-4 py-2 border text-gray-600 rounded-md">Cancelar</button>
-                            <button type="submit" class="px-6 py-2 bg-slate-800 text-white rounded-md transition-colors">Guardar</button>
+                        <form id="form-categoria" class="bg-white p-6 rounded-xl shadow-sm border flex items-end gap-4">
+                            <div class="flex-1">
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre de Categoría</label>
+                                <input type="text" id="nombre-categoria" placeholder="Ej: Bebidas, Carnes..." required class="w-full px-4 py-2 border rounded-md bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none">
+                            </div>
+                            <button type="button" id="btn-cancelar-categoria" onclick="cancelarEdicion('categoria')" class="hidden px-4 py-2 border text-gray-600 rounded-md hover:bg-slate-50 font-bold">Cancelar</button>
+                            <button type="submit" class="px-6 py-2 bg-slate-800 text-white rounded-md font-bold transition-colors hover:bg-slate-700 shadow-sm h-[40px]">Guardar</button>
                         </form>
                         <div class="bg-white rounded-xl shadow-sm border overflow-hidden"><ul id="lista-categorias" class="divide-y divide-gray-100"></ul></div>
                     </div>
 
                     <div id="seccion-unidades" class="hidden space-y-4">
-                        <form id="form-unidad" class="bg-white p-6 rounded-xl shadow-sm border flex gap-4">
-                            <input type="text" id="nombre-unidad" placeholder="Nombre (Ej: Kilo)" required class="flex-1 px-4 py-2 border rounded-md">
-                            <input type="text" id="abrev-unidad" placeholder="Abrev (Ej: kg)" required class="w-32 px-4 py-2 border rounded-md">
-                            <button type="button" id="btn-cancelar-unidad" onclick="cancelarEdicion('unidad')" class="hidden px-4 py-2 border text-gray-600 rounded-md">Cancelar</button>
-                            <button type="submit" class="px-6 py-2 bg-slate-800 text-white rounded-md transition-colors">Guardar</button>
+                        <form id="form-unidad" class="bg-white p-6 rounded-xl shadow-sm border flex items-end gap-4">
+                            <div class="flex-1">
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre Completo</label>
+                                <input type="text" id="nombre-unidad" placeholder="Ej: Kilogramo" required class="w-full px-4 py-2 border rounded-md bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none">
+                            </div>
+                            <div class="w-32">
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Abreviatura</label>
+                                <input type="text" id="abrev-unidad" placeholder="Ej: kg" required class="w-full px-4 py-2 border rounded-md bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none">
+                            </div>
+                            <button type="button" id="btn-cancelar-unidad" onclick="cancelarEdicion('unidad')" class="hidden px-4 py-2 border text-gray-600 rounded-md hover:bg-slate-50 font-bold">Cancelar</button>
+                            <button type="submit" class="px-6 py-2 bg-slate-800 text-white rounded-md font-bold transition-colors hover:bg-slate-700 shadow-sm h-[40px]">Guardar</button>
                         </form>
                         <div class="bg-white rounded-xl shadow-sm border overflow-hidden"><ul id="lista-unidades" class="divide-y divide-gray-100"></ul></div>
                     </div>
 
                     <div id="seccion-proveedores" class="hidden space-y-4">
-                        <form id="form-proveedor" class="bg-white p-6 rounded-xl shadow-sm border grid grid-cols-2 gap-4">
-                            <input type="text" id="nombre-proveedor" placeholder="Nombre Proveedor" required class="col-span-2 px-4 py-2 border rounded-md">
-                            <input type="text" id="contacto-proveedor" placeholder="Contacto (Opcional)" class="px-4 py-2 border rounded-md">
-                            <input type="number" id="tiempo-entrega" placeholder="Días entrega (Opcional)" class="px-4 py-2 border rounded-md">
-                            <div class="col-span-2 flex justify-end gap-2">
-                                <button type="button" id="btn-cancelar-proveedor" onclick="cancelarEdicion('proveedor')" class="hidden px-4 py-2 border text-gray-600 rounded-md">Cancelar</button>
-                                <button type="submit" class="px-6 py-2 bg-slate-800 text-white rounded-md transition-colors">Guardar</button>
+                        <form id="form-proveedor" class="bg-white p-6 rounded-xl shadow-sm border grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre Proveedor / Contacto</label>
+                                <input type="text" id="nombre-proveedor" placeholder="Ej: Coca-Cola / Juan Pérez" required class="w-full px-4 py-2 border rounded-md bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Tipo de Proveedor</label>
+                                <select id="tipo-proveedor" required class="w-full px-4 py-2 border rounded-md bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none font-bold">
+                                    <option value="Externo">Externo (Compras Comerciales)</option>
+                                    <option value="Interno">Interno (Producción / Traspasos)</option>
+                                </select>
+                            </div>
+                            <div class="col-span-1 md:col-span-2 bg-blue-50 p-3 rounded-lg border border-blue-100 text-xs text-blue-800 flex flex-col gap-1">
+                                <p><span class="font-bold">ℹ️ Externo:</span> Proveedores tradicionales. Sus pedidos generan Órdenes de Compra con precios asociados a productos finales o insumos.</p>
+                                <p><span class="font-bold">ℹ️ Interno:</span> Tu propio equipo. Sus pedidos generan Órdenes de Trabajo/Traspaso y el costo suele basarse en la receta de producción, no en un precio de compra directo.</p>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">WhatsApp Comercial</label>
+                                <input type="text" id="whatsapp-proveedor" placeholder="Ej: +56 9 1234 5678" class="w-full px-4 py-2 border rounded-md bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Correo Electrónico</label>
+                                <input type="email" id="correo-proveedor" placeholder="ventas@proveedor.com" class="w-full px-4 py-2 border rounded-md bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Días Promedio de Entrega (Opcional)</label>
+                                <input type="number" id="tiempo-entrega" placeholder="Ej: 2" class="w-1/2 md:w-1/3 px-4 py-2 border rounded-md bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none">
+                            </div>
+                            <div class="col-span-1 md:col-span-2 flex justify-end gap-3 mt-2 border-t pt-4">
+                                <button type="button" id="btn-cancelar-proveedor" onclick="cancelarEdicion('proveedor')" class="hidden px-6 py-2 border text-gray-600 rounded-md hover:bg-slate-50 font-bold">Cancelar</button>
+                                <button type="submit" class="px-8 py-2 bg-slate-800 text-white rounded-md font-bold transition-colors hover:bg-slate-700 shadow-sm">Guardar Proveedor</button>
                             </div>
                         </form>
                         <div class="bg-white rounded-xl shadow-sm border overflow-hidden"><ul id="lista-proveedores" class="divide-y divide-gray-100"></ul></div>
                     </div>
 
                     <div id="seccion-sucursales" class="hidden space-y-4">
-                        <form id="form-sucursal" class="bg-white p-6 rounded-xl shadow-sm border flex gap-4">
-                            <input type="text" id="nombre-sucursal" placeholder="Nombre Sucursal" required class="flex-1 px-4 py-2 border rounded-md">
-                            <input type="text" id="dir-sucursal" placeholder="Dirección (Opcional)" class="flex-1 px-4 py-2 border rounded-md">
-                            <button type="button" id="btn-cancelar-sucursal" onclick="cancelarEdicion('sucursal')" class="hidden px-4 py-2 border text-gray-600 rounded-md">Cancelar</button>
-                            <button type="submit" class="px-6 py-2 bg-slate-800 text-white rounded-md transition-colors">Guardar</button>
+                        <form id="form-sucursal" class="bg-white p-6 rounded-xl shadow-sm border grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre Interno</label>
+                                <input type="text" id="nombre-sucursal" placeholder="Ej: Taller 1, Bodega Central..." required class="w-full px-4 py-2 border rounded-md bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none font-bold">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre Comercial (Público)</label>
+                                <input type="text" id="comercial-sucursal" placeholder="Ej: Olympia Centro" class="w-full px-4 py-2 border rounded-md bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Empresa / Razón Social Asociada</label>
+                                <input type="text" id="empresa-sucursal" placeholder="Razón social que opera este local" class="w-full px-4 py-2 border rounded-md bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Horarios de Atención / Recepción</label>
+                                <input type="text" id="horario-sucursal" placeholder="Ej: Lun-Vie 09:00 a 18:00" class="w-full px-4 py-2 border rounded-md bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none">
+                            </div>
+                            <div class="col-span-1 md:col-span-2">
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1 flex items-center gap-1"><span>📍</span> Dirección Física Exacta (Para Proveedores)</label>
+                                <input type="text" id="dir-sucursal" placeholder="Calle, Número, Ciudad, Referencia..." class="w-full px-4 py-2 border rounded-md bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none">
+                            </div>
+                            <div class="col-span-1 md:col-span-2 flex justify-end gap-3 mt-2 border-t pt-4">
+                                <button type="button" id="btn-cancelar-sucursal" onclick="cancelarEdicion('sucursal')" class="hidden px-6 py-2 border text-gray-600 rounded-md hover:bg-slate-50 font-bold">Cancelar</button>
+                                <button type="submit" class="px-8 py-2 bg-slate-800 text-white rounded-md font-bold transition-colors hover:bg-slate-700 shadow-sm">Guardar Sucursal</button>
+                            </div>
                         </form>
                         <div class="bg-white rounded-xl shadow-sm border overflow-hidden"><ul id="lista-sucursales" class="divide-y divide-gray-100"></ul></div>
                     </div>
 
                     <div id="seccion-ubicaciones" class="hidden space-y-4">
-                        <form id="form-ubicacion" class="bg-white p-6 rounded-xl shadow-sm border grid grid-cols-2 gap-4">
-                            <select id="sel-sucursal-ubi" required class="px-4 py-2 border rounded-md bg-white"></select>
-                            <input type="text" id="nombre-ubicacion" placeholder="Ubicación Interna" required class="px-4 py-2 border rounded-md">
-                            <div class="col-span-2 flex justify-end gap-2">
-                                <button type="button" id="btn-cancelar-ubicacion" onclick="cancelarEdicion('ubicacion')" class="hidden px-4 py-2 border text-gray-600 rounded-md">Cancelar</button>
-                                <button type="submit" class="px-6 py-2 bg-slate-800 text-white rounded-md transition-colors">Guardar</button>
+                        <form id="form-ubicacion" class="bg-white p-6 rounded-xl shadow-sm border grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Sucursal Padre</label>
+                                <select id="sel-sucursal-ubi" required class="w-full px-4 py-2 border rounded-md bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"></select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre Ubicación Interna</label>
+                                <input type="text" id="nombre-ubicacion" placeholder="Ej: Barra, Refri 1, Estante A..." required class="w-full px-4 py-2 border rounded-md bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none">
+                            </div>
+                            <div class="col-span-1 md:col-span-2 flex justify-end gap-3 mt-2 border-t pt-4">
+                                <button type="button" id="btn-cancelar-ubicacion" onclick="cancelarEdicion('ubicacion')" class="hidden px-6 py-2 border text-gray-600 rounded-md hover:bg-slate-50 font-bold">Cancelar</button>
+                                <button type="submit" class="px-8 py-2 bg-slate-800 text-white rounded-md font-bold transition-colors hover:bg-slate-700 shadow-sm">Guardar Ubicación</button>
                             </div>
                         </form>
                         <div class="bg-white rounded-xl shadow-sm border overflow-hidden"><ul id="lista-ubicaciones" class="divide-y divide-gray-100"></ul></div>
                     </div>
 
                     <div id="seccion-tipos_movimiento" class="hidden space-y-4">
-                        <form id="form-tipo-movimiento" class="bg-white p-6 rounded-xl shadow-sm border flex gap-4">
-                            <input type="text" id="nombre-tipo-mov" placeholder="Ej: Merma, Ajuste, Regalo..." required class="flex-1 px-4 py-2 border rounded-md">
-                            <select id="operacion-tipo-mov" required class="px-4 py-2 border rounded-md font-bold">
-                                <option value="">Selecciona Acción...</option>
-                                <option value="+">Suma al Inventario (+)</option>
-                                <option value="-">Resta al Inventario (-)</option>
-                            </select>
-                            <button type="button" id="btn-cancelar-tipo-movimiento" onclick="cancelarEdicion('tipo-movimiento')" class="hidden px-4 py-2 border text-gray-600 rounded-md">Cancelar</button>
-                            <button type="submit" class="px-6 py-2 bg-slate-800 text-white rounded-md transition-colors">Guardar</button>
+                        <form id="form-tipo-movimiento" class="bg-white p-6 rounded-xl shadow-sm border flex items-end gap-4">
+                            <div class="flex-1">
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre del Motivo</label>
+                                <input type="text" id="nombre-tipo-mov" placeholder="Ej: Merma, Rotura, Regalo..." required class="w-full px-4 py-2 border rounded-md bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none">
+                            </div>
+                            <div class="w-48">
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Impacto en Stock</label>
+                                <select id="operacion-tipo-mov" required class="w-full px-4 py-2 border rounded-md bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none font-bold">
+                                    <option value="" disabled selected>Elegir...</option>
+                                    <option value="+">Suma al Inventario (+)</option>
+                                    <option value="-">Resta al Inventario (-)</option>
+                                </select>
+                            </div>
+                            <button type="button" id="btn-cancelar-tipo-movimiento" onclick="cancelarEdicion('tipo-movimiento')" class="hidden px-4 py-2 border text-gray-600 rounded-md hover:bg-slate-50 font-bold">Cancelar</button>
+                            <button type="submit" class="px-6 py-2 bg-slate-800 text-white rounded-md font-bold transition-colors hover:bg-slate-700 shadow-sm h-[40px]">Guardar</button>
                         </form>
                         <div class="bg-white rounded-xl shadow-sm border overflow-hidden"><ul id="lista-tipos-movimiento" class="divide-y divide-gray-100"></ul></div>
                     </div>
@@ -285,7 +337,6 @@
                         <button onclick="cambiarTabMovimientos('ventas')" id="tab-mov-ventas" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors">Subir Ventas (POS)</button>
                         <button onclick="cambiarTabMovimientos('otros')" id="tab-mov-otros" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors">Otros Movimientos</button>
                     </div>
-                    
                     <div id="seccion-mov-pedidos" class="block space-y-6">
                         <div class="flex gap-2 mb-4 bg-slate-100 p-1 rounded-lg w-max">
                             <button onclick="cambiarSubTabPedidos('sugerencias')" id="subtab-sugerencias" class="px-4 py-2 rounded-md font-bold text-sm bg-white shadow-sm text-emerald-700">Ver Sugerencias por Stock</button>
@@ -333,24 +384,12 @@
                             <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><span>📊</span> Importar Ventas (CSV del POS)</h3>
                             <div class="bg-slate-50 p-5 rounded-lg border mb-6 space-y-4">
                                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div>
-                                        <label class="block text-xs font-bold text-gray-500 mb-1">Sucursal / Origen de Ventas</label>
-                                        <select id="csv-sucursal" class="w-full px-3 py-2 border rounded-md bg-white"></select>
-                                    </div>
-                                    <div>
-                                        <label class="block text-xs font-bold text-gray-500 mb-1">Período: Fecha Inicio</label>
-                                        <input type="date" id="csv-fecha-inicio" class="w-full px-3 py-2 border rounded-md bg-white text-sm">
-                                    </div>
-                                    <div>
-                                        <label class="block text-xs font-bold text-gray-500 mb-1">Período: Fecha Fin</label>
-                                        <input type="date" id="csv-fecha-fin" class="w-full px-3 py-2 border rounded-md bg-white text-sm">
-                                    </div>
+                                    <div><label class="block text-xs font-bold text-gray-500 mb-1">Sucursal / Origen de Ventas</label><select id="csv-sucursal" class="w-full px-3 py-2 border rounded-md bg-white"></select></div>
+                                    <div><label class="block text-xs font-bold text-gray-500 mb-1">Período: Fecha Inicio</label><input type="date" id="csv-fecha-inicio" class="w-full px-3 py-2 border rounded-md bg-white text-sm"></div>
+                                    <div><label class="block text-xs font-bold text-gray-500 mb-1">Período: Fecha Fin</label><input type="date" id="csv-fecha-fin" class="w-full px-3 py-2 border rounded-md bg-white text-sm"></div>
                                 </div>
                                 <div class="flex gap-4 items-end">
-                                    <div class="flex-1">
-                                        <label class="block text-xs font-bold text-gray-500 mb-1">Subir Archivo CSV</label>
-                                        <input type="file" id="csv-file" accept=".csv" class="w-full px-3 py-2 border rounded-md text-sm bg-white">
-                                    </div>
+                                    <div class="flex-1"><label class="block text-xs font-bold text-gray-500 mb-1">Subir Archivo CSV</label><input type="file" id="csv-file" accept=".csv" class="w-full px-3 py-2 border rounded-md text-sm bg-white"></div>
                                     <button onclick="procesarArchivoCSV()" class="px-8 py-2 bg-blue-600 text-white rounded-md font-bold hover:bg-blue-700 transition-colors shadow-sm h-[40px]">Analizar CSV</button>
                                 </div>
                             </div>
@@ -362,12 +401,7 @@
                                 <div class="overflow-x-auto bg-white rounded-lg border border-slate-200 mb-4 shadow-sm">
                                     <table class="min-w-full divide-y divide-slate-200">
                                         <thead class="bg-slate-100 text-xs font-bold text-slate-500 uppercase">
-                                            <tr>
-                                                <th class="px-4 py-3 text-left">Producto (POS)</th>
-                                                <th class="px-4 py-3 text-left">Variante (POS)</th>
-                                                <th class="px-4 py-3 text-center">Cant. Vendida</th>
-                                                <th class="px-4 py-3 text-left w-1/3">Equivalente en ERP (Tus productos)</th>
-                                            </tr>
+                                            <tr><th class="px-4 py-3 text-left">Producto (POS)</th><th class="px-4 py-3 text-left">Variante (POS)</th><th class="px-4 py-3 text-center">Cant. Vendida</th><th class="px-4 py-3 text-left w-1/3">Equivalente en ERP (Tus productos)</th></tr>
                                         </thead>
                                         <tbody id="lista-mapeo-csv" class="divide-y divide-slate-100 text-sm"></tbody>
                                     </table>
@@ -401,7 +435,6 @@
                         <h2 class="text-2xl font-bold mb-6 text-slate-800">📦 Selecciona una Sucursal para ver su Inventario</h2>
                         <div id="grid-sucursales-inventario" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
                     </div>
-
                     <div id="inv-vista-detalle" class="hidden">
                         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                             <div>
@@ -411,17 +444,10 @@
                             </div>
                             <button onclick="abrirModalConteoMasivo()" class="px-6 py-3 bg-emerald-600 text-white rounded-md font-bold shadow-sm hover:bg-emerald-700 transition-transform hover:scale-105">🎯 Toma de Inventario Masivo</button>
                         </div>
-
                         <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
                             <table class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-slate-50">
-                                    <tr>
-                                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Estado</th>
-                                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Ubicación Interna</th>
-                                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Producto</th>
-                                        <th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">Stock Actual</th>
-                                        <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase w-32">Acciones</th>
-                                    </tr>
+                                    <tr><th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Estado</th><th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Ubicación Interna</th><th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Producto</th><th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">Stock Actual</th><th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase w-32">Acciones</th></tr>
                                 </thead>
                                 <tbody id="lista-inventario" class="divide-y divide-gray-200"></tbody>
                             </table>
@@ -433,6 +459,39 @@
         </div>
     </div>
 
+    <div id="modal-precios-proveedor" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col border border-slate-200">
+            <div class="flex justify-between items-center mb-4 border-b pb-3">
+                <h2 class="text-xl font-bold text-slate-800" id="titulo-precios-prov">💰 Lista de Precios de: -</h2>
+                <button type="button" onclick="document.getElementById('modal-precios-proveedor').classList.add('hidden')" class="text-slate-400 hover:text-slate-800 text-2xl font-bold">&times;</button>
+            </div>
+            
+            <form id="form-precio-prov" class="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-6 flex gap-4 items-end">
+                <div class="flex-1">
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Producto</label>
+                    <select id="pp-producto" required class="w-full px-3 py-2 border rounded-md bg-white outline-none focus:ring-2 focus:ring-emerald-500"></select>
+                </div>
+                <div class="w-32">
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Precio Ref. ($)</label>
+                    <input type="number" step="0.01" id="pp-precio" required class="w-full px-3 py-2 border rounded-md outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+                <button type="submit" class="px-6 py-2 bg-emerald-600 text-white font-bold rounded-md hover:bg-emerald-700 shadow-sm h-[40px]">Añadir</button>
+            </form>
+
+            <div class="flex-1 overflow-y-auto border rounded-lg">
+                <table class="min-w-full divide-y divide-slate-200">
+                    <thead class="bg-slate-100 text-xs font-bold text-slate-500 uppercase sticky top-0">
+                        <tr><th class="px-4 py-2 text-left">Producto</th><th class="px-4 py-2 text-right">Precio de Referencia</th><th class="px-4 py-2 text-center w-16">Acción</th></tr>
+                    </thead>
+                    <tbody id="lista-precios-prov" class="divide-y divide-slate-100 text-sm">
+                        <tr><td colspan="3" class="text-center py-4 text-slate-500">Sin precios registrados.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+
     <div id="modal-producto" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-4">
         <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto border border-slate-200">
             <h2 class="text-2xl font-bold text-slate-800 mb-6 border-b pb-3" id="titulo-modal-producto">Nuevo Producto / Insumo</h2>
@@ -442,7 +501,6 @@
                     <div><label class="block text-sm font-medium mb-1">Categoría</label><select id="prod-categoria" required class="w-full px-3 py-2 border rounded-md bg-white"></select></div>
                     <div><label class="block text-sm font-medium text-emerald-700 mb-1">SKU</label><input type="text" id="prod-sku" readonly class="w-full px-3 py-2 border border-slate-200 rounded-md bg-slate-100 text-slate-500 font-mono font-bold cursor-not-allowed shadow-inner focus:outline-none"></div>
                 </div>
-                
                 <div class="bg-slate-50 p-6 rounded-lg border">
                     <h4 class="font-bold text-slate-700 mb-4">Conversión de Unidades Inteligente</h4>
                     <div class="flex gap-2 items-end mb-4 text-center">
@@ -465,18 +523,15 @@
                         <div class="w-48"><label class="block text-xs font-bold text-gray-500 mb-1">4. U. RECETA</label><select id="prod-u-receta" required class="w-full px-2 py-2 border rounded-md bg-white"></select></div>
                     </div>
                 </div>
-
                 <div class="bg-orange-50 p-6 rounded-lg border border-orange-100">
                     <h4 class="font-bold text-orange-800 mb-4">Reglas de Inventario por Sucursal (en UA)</h4>
                     <div id="contenedor-reglas-stock" class="space-y-3"></div>
                 </div>
-
                 <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 flex items-center gap-4">
                     <label class="flex items-center gap-2 font-bold text-blue-800 cursor-pointer">
                         <input type="checkbox" id="prod-tiene-receta" class="w-5 h-5 accent-blue-600"> Este producto tiene Receta / Ficha Técnica
                     </label>
                 </div>
-
                 <div class="flex justify-end gap-4 mt-6">
                     <button type="button" onclick="cerrarModalProducto()" class="px-6 py-2 border text-gray-700 rounded-md hover:bg-gray-50 transition-colors">Cancelar</button>
                     <button type="submit" id="btn-guardar-producto" class="px-8 py-2 bg-emerald-600 text-white rounded-md font-bold hover:bg-emerald-700 transition-colors shadow-sm">Guardar</button>
@@ -492,7 +547,6 @@
                 <button type="button" onclick="document.getElementById('modal-historial-precios').classList.add('hidden')" class="text-slate-400 hover:text-slate-800 text-2xl font-bold">&times;</button>
             </div>
             <p class="text-sm font-bold text-emerald-700 mb-4" id="hp-producto-nombre">-</p>
-            
             <div class="bg-slate-50 border rounded-lg overflow-hidden max-h-64 overflow-y-auto">
                 <table class="min-w-full divide-y divide-slate-200">
                     <thead class="bg-slate-100 text-xs font-bold text-slate-500 uppercase sticky top-0">
@@ -521,29 +575,20 @@
                     <p class="text-lg font-bold text-slate-700" id="rm-fecha-hoy"></p>
                 </div>
             </div>
-
             <div class="flex-1 overflow-y-auto bg-slate-50 border rounded-lg shadow-inner">
                 <table class="min-w-full divide-y divide-slate-200">
                     <thead class="bg-slate-200 sticky top-0 z-10 shadow-sm text-xs font-bold text-slate-600 uppercase">
-                        <tr>
-                            <th class="px-4 py-3 text-left">Producto Esperado</th>
-                            <th class="px-4 py-3 text-center w-32">Cant. Esperada</th>
-                            <th class="px-4 py-3 text-left w-56">Estado de Recepción</th>
-                            <th class="px-4 py-3 text-left w-1/2">Detalles (Ubicación / Motivo)</th>
-                        </tr>
+                        <tr><th class="px-4 py-3 text-left">Producto Esperado</th><th class="px-4 py-3 text-center w-32">Cant. Esperada</th><th class="px-4 py-3 text-left w-56">Estado de Recepción</th><th class="px-4 py-3 text-left w-1/2">Detalles (Ubicación / Motivo)</th></tr>
                     </thead>
-                    <tbody id="rm-filas" class="divide-y divide-slate-200 bg-white">
-                    </tbody>
+                    <tbody id="rm-filas" class="divide-y divide-slate-200 bg-white"></tbody>
                 </table>
             </div>
-
             <div class="flex justify-end gap-4 mt-6 pt-4 border-t">
                 <button type="button" onclick="document.getElementById('modal-recepcion-masiva').classList.add('hidden')" class="px-6 py-2 border text-slate-600 rounded font-bold hover:bg-slate-50">Cancelar</button>
                 <button type="button" id="btn-guardar-recepcion" onclick="guardarRecepcionMasiva()" class="px-8 py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 shadow-md transition-transform hover:scale-105">✅ Guardar Recepción</button>
             </div>
         </div>
     </div>
-
 
     <div id="modal-conteo-masivo" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-4">
         <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col border border-slate-200">
@@ -578,8 +623,7 @@
             <h2 class="text-xl font-bold text-slate-800 mb-1" id="ar-titulo">Producto</h2>
             <p class="text-sm text-slate-500 mb-6 font-medium">📍 Ubicación: <span id="ar-ubi"></span></p>
             <form id="form-ajuste-rapido" class="space-y-4">
-                <input type="hidden" id="ar-id-saldo">
-                <input type="hidden" id="ar-id-prod">
+                <input type="hidden" id="ar-id-saldo"><input type="hidden" id="ar-id-prod">
                 <div>
                     <label class="block text-sm font-bold mb-1 text-orange-700">Ajustar Cantidad Exacta</label>
                     <div class="flex items-center gap-2">
