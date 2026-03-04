@@ -1,77 +1,274 @@
-// --- NAVEGACIÓN DE TABS EN CATÁLOGOS ---
 window.cambiarTab = function(tab) {
-    if(!window.miEmpresaId) return;
-    
-    // Agregamos 'tipos_movimiento' a la lista
     ['categorias', 'unidades', 'proveedores', 'sucursales', 'ubicaciones', 'tipos_movimiento'].forEach(t => {
-        const el = document.getElementById(`seccion-${t}`);
-        if(el) el.style.display = tab === t ? 'block' : 'none';
-        
+        const sec = document.getElementById(`seccion-${t}`);
         const btn = document.getElementById(`tab-${t}`);
-        if(btn) btn.className = tab === t ? 'px-6 py-3 font-medium border-b-2 border-emerald-600 text-emerald-600 bg-emerald-50/50' : 'px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors';
+        if(sec) sec.classList.add('hidden');
+        if(btn) btn.className = 'px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors';
     });
     
+    const actSec = document.getElementById(`seccion-${tab}`);
+    const actBtn = document.getElementById(`tab-${tab}`);
+    if(actSec) actSec.classList.remove('hidden');
+    if(actBtn) actBtn.className = 'px-6 py-3 font-medium border-b-2 border-emerald-600 text-emerald-600 bg-emerald-50/50';
+
     if(tab === 'categorias') window.cargarCategorias();
     if(tab === 'unidades') window.cargarUnidades();
     if(tab === 'proveedores') window.cargarProveedores();
     if(tab === 'sucursales') window.cargarSucursales();
-    if(tab === 'ubicaciones') { window.cargarSelectSucursales(); window.cargarUbicaciones(); }
+    if(tab === 'ubicaciones') window.cargarUbicaciones();
     if(tab === 'tipos_movimiento') window.cargarTiposMovimiento();
-    
-    window.cancelarEdicion(tab); 
 }
 
-// --- LOGICA DE GUARDADO Y EDICIÓN ---
-document.getElementById('form-categoria').addEventListener('submit', async (e) => { e.preventDefault(); const nombre = document.getElementById('nombre-categoria').value; if(window.modoEdicion.activo && window.modoEdicion.form === 'categoria') await clienteSupabase.from('categorias').update({nombre}).eq('id', window.modoEdicion.id); else await clienteSupabase.from('categorias').insert([{ nombre, id_empresa: window.miEmpresaId }]); window.cancelarEdicion('categoria'); window.cargarCategorias(); });
-document.getElementById('form-unidad').addEventListener('submit', async (e) => { e.preventDefault(); const nombre = document.getElementById('nombre-unidad').value, abreviatura = document.getElementById('abrev-unidad').value; if(window.modoEdicion.activo && window.modoEdicion.form === 'unidad') await clienteSupabase.from('unidades').update({nombre, abreviatura}).eq('id', window.modoEdicion.id); else await clienteSupabase.from('unidades').insert([{ nombre, abreviatura, id_empresa: window.miEmpresaId }]); window.cancelarEdicion('unidad'); window.cargarUnidades(); });
-document.getElementById('form-proveedor').addEventListener('submit', async (e) => { e.preventDefault(); const nombre = document.getElementById('nombre-proveedor').value, nombre_contacto = document.getElementById('contacto-proveedor').value, lapso_entrega_dias = document.getElementById('tiempo-entrega').value || null; if(window.modoEdicion.activo && window.modoEdicion.form === 'proveedor') await clienteSupabase.from('proveedores').update({nombre, nombre_contacto, lapso_entrega_dias}).eq('id', window.modoEdicion.id); else await clienteSupabase.from('proveedores').insert([{ nombre, nombre_contacto, lapso_entrega_dias, id_empresa: window.miEmpresaId }]); window.cancelarEdicion('proveedor'); window.cargarProveedores(); });
-document.getElementById('form-sucursal').addEventListener('submit', async (e) => { e.preventDefault(); const nombre = document.getElementById('nombre-sucursal').value, direccion = document.getElementById('dir-sucursal').value; if(window.modoEdicion.activo && window.modoEdicion.form === 'sucursal') await clienteSupabase.from('sucursales').update({nombre, direccion}).eq('id', window.modoEdicion.id); else await clienteSupabase.from('sucursales').insert([{ nombre, direccion, id_empresa: window.miEmpresaId }]); window.cancelarEdicion('sucursal'); window.cargarSucursales(); });
-document.getElementById('form-ubicacion').addEventListener('submit', async (e) => { e.preventDefault(); const nombre = document.getElementById('nombre-ubicacion').value, id_sucursal = document.getElementById('sel-sucursal-ubi').value; if(window.modoEdicion.activo && window.modoEdicion.form === 'ubicacion') await clienteSupabase.from('ubicaciones_internas').update({nombre, id_sucursal}).eq('id', window.modoEdicion.id); else await clienteSupabase.from('ubicaciones_internas').insert([{ nombre, id_sucursal, id_empresa: window.miEmpresaId }]); window.cancelarEdicion('ubicacion'); window.cargarUbicaciones(); });
-
-// NUEVO: Guardado de Tipos de Movimiento
-document.getElementById('form-tipo-movimiento')?.addEventListener('submit', async (e) => { 
-    e.preventDefault(); 
-    const nombre = document.getElementById('nombre-tipo-mov').value;
-    const operacion = document.getElementById('operacion-tipo-mov').value;
-    
-    if(window.modoEdicion.activo && window.modoEdicion.form === 'tipo-movimiento') {
-        await clienteSupabase.from('tipos_movimiento').update({nombre, operacion}).eq('id', window.modoEdicion.id);
+// ================= CATEGORÍAS =================
+window.cargarCategorias = async function() {
+    const { data } = await clienteSupabase.from('categorias').select('*').eq('id_empresa', window.miEmpresaId).order('nombre');
+    document.getElementById('lista-categorias').innerHTML = (data||[]).map(c => `
+        <li class="px-6 py-4 flex justify-between items-center hover:bg-slate-50 transition-colors">
+            <span class="font-bold text-slate-700">${c.nombre}</span>
+            <div class="flex gap-4">
+                <button onclick="activarEdicionGlobal('categoria', '${c.id}', {'nombre-categoria': '${c.nombre.replace(/'/g,"\\'")}'})" class="text-blue-500 hover:text-blue-700 text-lg transition-transform hover:scale-110" title="Editar">✏️</button>
+                <button onclick="eliminarReg('categorias', '${c.id}')" class="text-slate-400 hover:text-red-500 text-lg transition-transform hover:scale-110" title="Eliminar">🗑️</button>
+            </div>
+        </li>
+    `).join('');
+}
+document.getElementById('form-categoria')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const nombre = document.getElementById('nombre-categoria').value;
+    if(window.modoEdicion.activo && window.modoEdicion.form === 'categoria') {
+        await clienteSupabase.from('categorias').update({nombre}).eq('id', window.modoEdicion.id);
     } else {
-        await clienteSupabase.from('tipos_movimiento').insert([{ nombre, operacion, id_empresa: window.miEmpresaId }]); 
+        await clienteSupabase.from('categorias').insert([{id_empresa: window.miEmpresaId, nombre}]);
     }
-    window.cancelarEdicion('tipo-movimiento'); 
-    window.cargarTiposMovimiento(); 
+    window.cancelarEdicion('categoria'); window.cargarCategorias();
+});
+
+// ================= UNIDADES =================
+window.cargarUnidades = async function() {
+    const { data } = await clienteSupabase.from('unidades').select('*').eq('id_empresa', window.miEmpresaId).order('nombre');
+    document.getElementById('lista-unidades').innerHTML = (data||[]).map(u => `
+        <li class="px-6 py-4 flex justify-between items-center hover:bg-slate-50 transition-colors">
+            <div>
+                <span class="font-bold text-slate-700">${u.nombre}</span>
+                <span class="ml-2 px-2 py-1 bg-slate-200 text-slate-600 text-xs rounded font-mono">${u.abreviatura}</span>
+            </div>
+            <div class="flex gap-4">
+                <button onclick="activarEdicionGlobal('unidad', '${u.id}', {'nombre-unidad': '${u.nombre.replace(/'/g,"\\'")}', 'abrev-unidad': '${u.abreviatura}'})" class="text-blue-500 hover:text-blue-700 text-lg transition-transform hover:scale-110" title="Editar">✏️</button>
+                <button onclick="eliminarReg('unidades', '${u.id}')" class="text-slate-400 hover:text-red-500 text-lg transition-transform hover:scale-110" title="Eliminar">🗑️</button>
+            </div>
+        </li>
+    `).join('');
+}
+document.getElementById('form-unidad')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const nombre = document.getElementById('nombre-unidad').value;
+    const abrev = document.getElementById('abrev-unidad').value;
+    if(window.modoEdicion.activo && window.modoEdicion.form === 'unidad') {
+        await clienteSupabase.from('unidades').update({nombre, abreviatura: abrev}).eq('id', window.modoEdicion.id);
+    } else {
+        await clienteSupabase.from('unidades').insert([{id_empresa: window.miEmpresaId, nombre, abreviatura: abrev}]);
+    }
+    window.cancelarEdicion('unidad'); window.cargarUnidades();
+});
+
+// ================= PROVEEDORES =================
+window.cargarProveedores = async function() {
+    const { data } = await clienteSupabase.from('proveedores').select('*').eq('id_empresa', window.miEmpresaId).order('nombre');
+    document.getElementById('lista-proveedores').innerHTML = (data||[]).map(p => {
+        const isInterno = p.tipo === 'Interno';
+        const colorBadge = isInterno ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700';
+        return `
+        <li class="px-6 py-4 flex justify-between items-center hover:bg-slate-50 transition-colors">
+            <div>
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="font-bold text-slate-800 text-lg">${p.nombre}</span>
+                    <span class="px-2 py-0.5 text-[10px] font-bold uppercase rounded ${colorBadge}">${p.tipo || 'Externo'}</span>
+                </div>
+                <div class="text-xs text-slate-500 flex gap-4">
+                    <span>📱 ${p.whatsapp || 'Sin WhatsApp'}</span>
+                    <span>✉️ ${p.correo || 'Sin Correo'}</span>
+                </div>
+            </div>
+            <div class="flex gap-4">
+                <button onclick="abrirPreciosProveedor('${p.id}', '${p.nombre.replace(/'/g,"\\'")}')" class="text-emerald-600 bg-emerald-50 px-3 py-1 rounded font-bold hover:bg-emerald-100 text-sm transition-colors shadow-sm">💰 Lista Precios</button>
+                <button onclick="activarEdicionGlobal('proveedor', '${p.id}', {'nombre-proveedor': '${p.nombre.replace(/'/g,"\\'")}', 'tipo-proveedor': '${p.tipo || 'Externo'}', 'whatsapp-proveedor': '${p.whatsapp || ''}', 'correo-proveedor': '${p.correo || ''}', 'tiempo-entrega': '${p.tiempo_entrega || ''}'})" class="text-blue-500 hover:text-blue-700 text-lg transition-transform hover:scale-110 mt-1" title="Editar">✏️</button>
+                <button onclick="eliminarReg('proveedores', '${p.id}')" class="text-slate-400 hover:text-red-500 text-lg transition-transform hover:scale-110 mt-1" title="Eliminar">🗑️</button>
+            </div>
+        </li>
+    `}).join('');
+}
+document.getElementById('form-proveedor')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const payload = {
+        nombre: document.getElementById('nombre-proveedor').value,
+        tipo: document.getElementById('tipo-proveedor').value,
+        whatsapp: document.getElementById('whatsapp-proveedor').value,
+        correo: document.getElementById('correo-proveedor').value,
+        tiempo_entrega: document.getElementById('tiempo-entrega').value || null
+    };
+    if(window.modoEdicion.activo && window.modoEdicion.form === 'proveedor') {
+        await clienteSupabase.from('proveedores').update(payload).eq('id', window.modoEdicion.id);
+    } else {
+        await clienteSupabase.from('proveedores').insert([{...payload, id_empresa: window.miEmpresaId}]);
+    }
+    window.cancelarEdicion('proveedor'); window.cargarProveedores();
+});
+
+// LOGICA MODAL LISTA PRECIOS PROVEEDORES
+window.proveedorActivoPrecio = null;
+window.abrirPreciosProveedor = async function(idProv, nombreProv) {
+    window.proveedorActivoPrecio = idProv;
+    document.getElementById('titulo-precios-prov').innerText = `💰 Lista de Precios de: ${nombreProv}`;
+    document.getElementById('modal-precios-proveedor').classList.remove('hidden');
+
+    const { data: prods } = await clienteSupabase.from('productos').select('id, nombre').eq('id_empresa', window.miEmpresaId).order('nombre');
+    document.getElementById('pp-producto').innerHTML = '<option value="" disabled selected>Elegir producto del catálogo...</option>' + prods.map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
+
+    window.cargarTablaPreciosProv();
+}
+
+window.cargarTablaPreciosProv = async function() {
+    const tbody = document.getElementById('lista-precios-prov');
+    tbody.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-slate-500">Cargando...</td></tr>';
+    
+    const { data: precios } = await clienteSupabase.from('proveedor_precios')
+        .select('id, precio_referencia, productos(nombre)')
+        .eq('id_proveedor', window.proveedorActivoPrecio);
+        
+    if(!precios || precios.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-slate-500 italic">Sin precios registrados. Usa el panel de arriba para agregar uno.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = precios.map(p => `
+        <tr class="hover:bg-slate-50">
+            <td class="px-4 py-3 font-bold text-slate-700">${p.productos?.nombre}</td>
+            <td class="px-4 py-3 text-right font-mono text-emerald-700 font-bold">$${p.precio_referencia}</td>
+            <td class="px-4 py-3 text-center">
+                <button onclick="eliminarReg('proveedor_precios', '${p.id}', false); setTimeout(window.cargarTablaPreciosProv, 500);" class="text-red-400 hover:text-red-600 text-lg">🗑️</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+document.getElementById('form-precio-prov')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const idProd = document.getElementById('pp-producto').value;
+    const precio = parseFloat(document.getElementById('pp-precio').value);
+
+    // Upsert (Actualiza si existe)
+    const { data: previo } = await clienteSupabase.from('proveedor_precios').select('id').eq('id_proveedor', window.proveedorActivoPrecio).eq('id_producto', idProd).maybeSingle();
+    
+    if(previo) {
+        await clienteSupabase.from('proveedor_precios').update({precio_referencia: precio, fecha_actualizacion: new Date()}).eq('id', previo.id);
+    } else {
+        await clienteSupabase.from('proveedor_precios').insert([{
+            id_empresa: window.miEmpresaId, id_proveedor: window.proveedorActivoPrecio, id_producto: idProd, precio_referencia: precio
+        }]);
+    }
+    
+    document.getElementById('pp-precio').value = '';
+    window.cargarTablaPreciosProv();
 });
 
 
-// --- CARGA DE LISTAS ---
-window.cargarCategorias = async function() { const { data } = await clienteSupabase.from('categorias').select('*').eq('id_empresa', window.miEmpresaId).order('nombre'); document.getElementById('lista-categorias').innerHTML = (data||[]).map(c => `<li class="p-4 flex justify-between border-b hover:bg-slate-50 items-center"><span>${c.nombre}</span><div class="flex gap-2"><button onclick='activarEdicionGlobal("categoria", "${c.id}", {"nombre-categoria": "${c.nombre}"})' class="text-blue-500 hover:text-blue-700 text-lg" title="Editar">✏️</button><button onclick="eliminarReg('categorias','${c.id}')" class="text-red-500 hover:text-red-700 text-lg" title="Eliminar">🗑️</button></div></li>`).join(''); }
-window.cargarUnidades = async function() { const { data } = await clienteSupabase.from('unidades').select('*').eq('id_empresa', window.miEmpresaId).order('nombre'); document.getElementById('lista-unidades').innerHTML = (data||[]).map(u => `<li class="p-4 flex justify-between border-b hover:bg-slate-50 items-center"><span>${u.nombre} (${u.abreviatura})</span><div class="flex gap-2"><button onclick='activarEdicionGlobal("unidad", "${u.id}", {"nombre-unidad": "${u.nombre}", "abrev-unidad": "${u.abreviatura}"})' class="text-blue-500 hover:text-blue-700 text-lg">✏️</button><button onclick="eliminarReg('unidades','${u.id}')" class="text-red-500 hover:text-red-700 text-lg">🗑️</button></div></li>`).join(''); }
-window.cargarProveedores = async function() { const { data } = await clienteSupabase.from('proveedores').select('*').eq('id_empresa', window.miEmpresaId).order('nombre'); document.getElementById('lista-proveedores').innerHTML = (data||[]).map(p => `<li class="p-4 flex justify-between border-b hover:bg-slate-50 items-center"><div><p class="font-bold">${p.nombre}</p><p class="text-xs text-gray-500">${p.nombre_contacto||''} - ${p.lapso_entrega_dias||''} días</p></div><div class="flex gap-2"><button onclick='activarEdicionGlobal("proveedor", "${p.id}", {"nombre-proveedor": "${p.nombre}", "contacto-proveedor": "${p.nombre_contacto||''}", "tiempo-entrega": "${p.lapso_entrega_dias||''}"})' class="text-blue-500 hover:text-blue-700 text-lg">✏️</button><button onclick="eliminarReg('proveedores','${p.id}')" class="text-red-500 hover:text-red-700 text-lg">🗑️</button></div></li>`).join(''); }
-window.cargarSucursales = async function() { const { data } = await clienteSupabase.from('sucursales').select('*').eq('id_empresa', window.miEmpresaId).order('nombre'); document.getElementById('lista-sucursales').innerHTML = (data||[]).map(s => `<li class="p-4 flex justify-between border-b hover:bg-slate-50 items-center"><span>${s.nombre}</span><div class="flex gap-2"><button onclick='activarEdicionGlobal("sucursal", "${s.id}", {"nombre-sucursal": "${s.nombre}", "dir-sucursal": "${s.direccion||''}"})' class="text-blue-500 hover:text-blue-700 text-lg">✏️</button><button onclick="eliminarReg('sucursales','${s.id}')" class="text-red-500 hover:text-red-700 text-lg">🗑️</button></div></li>`).join(''); }
-window.cargarSelectSucursales = async function() { const { data } = await clienteSupabase.from('sucursales').select('*').eq('id_empresa', window.miEmpresaId); document.getElementById('sel-sucursal-ubi').innerHTML = '<option value="">Elegir Sucursal...</option>' + (data||[]).map(s => `<option value="${s.id}">${s.nombre}</option>`).join(''); }
-window.cargarUbicaciones = async function() { const { data } = await clienteSupabase.from('ubicaciones_internas').select('*, sucursales(nombre)').eq('id_empresa', window.miEmpresaId); document.getElementById('lista-ubicaciones').innerHTML = (data||[]).map(u => `<li class="p-4 flex justify-between border-b hover:bg-slate-50 items-center"><span>${u.nombre} <b class="text-emerald-600">@${u.sucursales?.nombre}</b></span><div class="flex gap-2"><button onclick='activarEdicionGlobal("ubicacion", "${u.id}", {"nombre-ubicacion": "${u.nombre}", "sel-sucursal-ubi": "${u.id_sucursal}"})' class="text-blue-500 hover:text-blue-700 text-lg">✏️</button><button onclick="eliminarReg('ubicaciones_internas','${u.id}')" class="text-red-500 hover:text-red-700 text-lg">🗑️</button></div></li>`).join(''); }
-
-// NUEVO: Carga de Tipos de Movimiento
-window.cargarTiposMovimiento = async function() { 
-    const { data } = await clienteSupabase.from('tipos_movimiento').select('*').eq('id_empresa', window.miEmpresaId).order('nombre'); 
+// ================= SUCURSALES =================
+window.cargarSucursales = async function() {
+    const { data } = await clienteSupabase.from('sucursales').select('*').eq('id_empresa', window.miEmpresaId).order('nombre');
+    document.getElementById('lista-sucursales').innerHTML = (data||[]).map(s => `
+        <li class="px-6 py-4 flex justify-between items-center hover:bg-slate-50 transition-colors border-b border-slate-100">
+            <div class="flex flex-col gap-1">
+                <div class="flex items-baseline gap-2">
+                    <span class="font-black text-slate-800 text-lg uppercase">${s.nombre}</span>
+                    <span class="text-xs text-slate-400 font-bold">(${s.nombre_comercial || 'Sin Nombre Comercial'})</span>
+                </div>
+                <div class="text-xs text-slate-500 flex gap-4 mt-1">
+                    <span><b class="text-slate-600">Razón Social:</b> ${s.empresa_asociada || '-'}</span>
+                    <span><b class="text-slate-600">Horario:</b> ${s.horarios_atencion || '-'}</span>
+                </div>
+                <div class="text-xs text-slate-500 mt-1">
+                    <span>📍 ${s.direccion || 'Sin dirección física asignada'}</span>
+                </div>
+            </div>
+            <div class="flex gap-4">
+                <button onclick="activarEdicionGlobal('sucursal', '${s.id}', {'nombre-sucursal': '${s.nombre.replace(/'/g,"\\'")}', 'comercial-sucursal': '${(s.nombre_comercial||'').replace(/'/g,"\\'")}', 'empresa-sucursal': '${(s.empresa_asociada||'').replace(/'/g,"\\'")}', 'horario-sucursal': '${(s.horarios_atencion||'').replace(/'/g,"\\'")}', 'dir-sucursal': '${(s.direccion||'').replace(/'/g,"\\'")}'})" class="text-blue-500 hover:text-blue-700 text-lg transition-transform hover:scale-110" title="Editar">✏️</button>
+                <button onclick="eliminarReg('sucursales', '${s.id}')" class="text-slate-400 hover:text-red-500 text-lg transition-transform hover:scale-110" title="Eliminar">🗑️</button>
+            </div>
+        </li>
+    `).join('');
     
-    document.getElementById('lista-tipos-movimiento').innerHTML = (data||[]).map(t => {
-        const colorOp = t.operacion === '+' ? 'text-emerald-600 bg-emerald-50' : 'text-red-600 bg-red-50';
-        return `
-        <li class="p-4 flex justify-between border-b hover:bg-slate-50 items-center">
-            <div>
-                <span class="font-bold">${t.nombre}</span>
-                <span class="ml-2 px-2 py-1 rounded text-xs font-bold border ${colorOp}">
-                    ${t.operacion === '+' ? 'Suma (+)' : 'Resta (-)'}
-                </span>
-            </div>
-            <div class="flex gap-2">
-                ${t.es_sistema ? '<span class="text-xs text-gray-400 italic">Sistema (No editable)</span>' : `
-                <button onclick='activarEdicionGlobal("tipo-movimiento", "${t.id}", {"nombre-tipo-mov": "${t.nombre}", "operacion-tipo-mov": "${t.operacion}"})' class="text-blue-500 hover:text-blue-700 text-lg">✏️</button>
-                <button onclick="eliminarReg('tipos_movimiento','${t.id}')" class="text-red-500 hover:text-red-700 text-lg">🗑️</button>
-                `}
-            </div>
-        </li>`
-    }).join('') || '<li class="p-4 text-center text-gray-500">No hay tipos de movimiento.</li>'; 
+    // Auto-actualizar selects de ubicaciones
+    const selectUbi = document.getElementById('sel-sucursal-ubi');
+    if(selectUbi) {
+        selectUbi.innerHTML = '<option value="" disabled selected>Elige sucursal padre...</option>' + (data||[]).map(s => `<option value="${s.id}">${s.nombre}</option>`).join('');
+    }
 }
+document.getElementById('form-sucursal')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const payload = {
+        nombre: document.getElementById('nombre-sucursal').value,
+        nombre_comercial: document.getElementById('comercial-sucursal').value,
+        empresa_asociada: document.getElementById('empresa-sucursal').value,
+        horarios_atencion: document.getElementById('horario-sucursal').value,
+        direccion: document.getElementById('dir-sucursal').value
+    };
+    if(window.modoEdicion.activo && window.modoEdicion.form === 'sucursal') {
+        await clienteSupabase.from('sucursales').update(payload).eq('id', window.modoEdicion.id);
+    } else {
+        await clienteSupabase.from('sucursales').insert([{...payload, id_empresa: window.miEmpresaId}]);
+    }
+    window.cancelarEdicion('sucursal'); window.cargarSucursales();
+});
+
+// ================= UBICACIONES INTERNAS =================
+window.cargarUbicaciones = async function() {
+    const { data } = await clienteSupabase.from('ubicaciones_internas').select('id, nombre, sucursales(nombre)').eq('id_empresa', window.miEmpresaId).order('nombre');
+    document.getElementById('lista-ubicaciones').innerHTML = (data||[]).map(u => `
+        <li class="px-6 py-4 flex justify-between items-center hover:bg-slate-50 transition-colors">
+            <div>
+                <span class="font-bold text-slate-700">${u.nombre}</span>
+                <span class="ml-2 text-xs text-slate-400">en ${u.sucursales?.nombre || 'Desconocida'}</span>
+            </div>
+            <div class="flex gap-4">
+                <button onclick="eliminarReg('ubicaciones_internas', '${u.id}'); setTimeout(window.cargarUbicaciones, 500);" class="text-slate-400 hover:text-red-500 text-lg transition-transform hover:scale-110" title="Eliminar">🗑️</button>
+            </div>
+        </li>
+    `).join('');
+}
+document.getElementById('form-ubicacion')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const nombre = document.getElementById('nombre-ubicacion').value;
+    const id_sucursal = document.getElementById('sel-sucursal-ubi').value;
+    await clienteSupabase.from('ubicaciones_internas').insert([{id_empresa: window.miEmpresaId, id_sucursal, nombre}]);
+    window.cancelarEdicion('ubicacion'); window.cargarUbicaciones();
+});
+
+// ================= TIPOS DE MOVIMIENTO =================
+window.cargarTiposMovimiento = async function() {
+    const { data } = await clienteSupabase.from('tipos_movimiento').select('*').eq('id_empresa', window.miEmpresaId).order('nombre');
+    document.getElementById('lista-tipos-movimiento').innerHTML = (data||[]).map(t => {
+        const colorOp = t.operacion === '+' ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : 'text-red-600 bg-red-50 border-red-200';
+        return `
+        <li class="px-6 py-4 flex justify-between items-center hover:bg-slate-50 transition-colors">
+            <div>
+                <span class="font-bold text-slate-700">${t.nombre}</span>
+                <span class="ml-2 px-2 py-0.5 text-xs font-bold rounded border ${colorOp}">${t.operacion === '+' ? 'Suma (+)' : 'Resta (-)'}</span>
+            </div>
+            <div class="flex gap-4">
+                <button onclick="activarEdicionGlobal('tipo-movimiento', '${t.id}', {'nombre-tipo-mov': '${t.nombre.replace(/'/g,"\\'")}', 'operacion-tipo-mov': '${t.operacion}'})" class="text-blue-500 hover:text-blue-700 text-lg transition-transform hover:scale-110" title="Editar">✏️</button>
+                <button onclick="eliminarReg('tipos_movimiento', '${t.id}')" class="text-slate-400 hover:text-red-500 text-lg transition-transform hover:scale-110" title="Eliminar">🗑️</button>
+            </div>
+        </li>
+    `}).join('');
+}
+document.getElementById('form-tipo-movimiento')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const nombre = document.getElementById('nombre-tipo-mov').value;
+    const operacion = document.getElementById('operacion-tipo-mov').value;
+    if(window.modoEdicion.activo && window.modoEdicion.form === 'tipo-movimiento') {
+        await clienteSupabase.from('tipos_movimiento').update({nombre, operacion}).eq('id', window.modoEdicion.id);
+    } else {
+        await clienteSupabase.from('tipos_movimiento').insert([{id_empresa: window.miEmpresaId, nombre, operacion}]);
+    }
+    window.cancelarEdicion('tipo-movimiento'); window.cargarTiposMovimiento();
+});
