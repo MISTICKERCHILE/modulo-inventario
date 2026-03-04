@@ -1,0 +1,56 @@
+<div class="flex justify-between items-center mb-6">
+    <h2 class="text-2xl font-bold text-slate-800">📊 Reportes y Auditoría</h2>
+    <button onclick="window.print()" class="px-4 py-2 bg-slate-800 text-white rounded-md font-bold shadow hover:bg-slate-700 transition-colors flex items-center gap-2">
+        <span>🖨️</span> Imprimir Reporte
+    </button>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm border-t-4 border-t-emerald-500">
+        <p class="text-xs font-bold text-slate-500 uppercase tracking-wide">Valorización Total de Inventario</p>
+        <p class="text-4xl font-black text-emerald-600 mt-2" id="rep-kpi-valor">$0</p>
+        <p class="text-xs text-slate-400 mt-2">Costo calculado sobre stock físico real</p>
+    </div>
+    
+    <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm border-t-4 border-t-blue-500">
+        <p class="text-xs font-bold text-slate-500 uppercase tracking-wide">Catálogo Activo</p>
+        <p class="text-4xl font-black text-blue-600 mt-2" id="rep-kpi-prods">0</p>
+        <p class="text-xs text-slate-400 mt-2">Productos registrados en el sistema</p>
+    </div>
+
+    <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm border-t-4 border-t-orange-500">
+        <p class="text-xs font-bold text-slate-500 uppercase tracking-wide">Ítems con Stock (En Bodega)</p>
+        <p class="text-4xl font-black text-orange-600 mt-2" id="rep-kpi-stock">0</p>
+        <p class="text-xs text-slate-400 mt-2">Productos que tienen 1 unidad o más</p>
+    </div>
+</div>
+
+<div class="flex border-b border-slate-200 mb-6 overflow-x-auto bg-white rounded-t-lg shadow-sm">
+    <button class="px-6 py-3 font-medium border-b-2 border-emerald-600 text-emerald-600 bg-emerald-50/50">Valorización por Producto</button>
+    <button class="px-6 py-3 font-medium text-slate-400 cursor-not-allowed" title="Próximamente">Mermas y Ajustes 🔒</button>
+</div>
+
+<div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+    <table class="min-w-full divide-y divide-slate-200">
+        <thead class="bg-slate-50">
+            <tr>
+                <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Producto</th>
+                <th class="px-6 py-3 text-center text-xs font-bold text-slate-500 uppercase">Stock Físico (Consolidado)</th>
+                <th class="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase" title="Costo Unitario por Unidad de Almacenamiento">Costo Promedio (UA)</th>
+                <th class="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase">Valor Total ($)</th>
+            </tr>
+        </thead>
+        <tbody id="lista-rep-valorizacion" class="divide-y divide-slate-100">
+            <tr><td colspan="4" class="text-center py-8 text-slate-500 font-bold">Calculando valorización... 🧮</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<style>
+    @media print {
+        #sidebar-menu, header { display: none !important; }
+        #main-content { padding: 0 !important; width: 100% !important; }
+        body { background-color: white !important; }
+        .shadow-sm, .shadow-md { box-shadow: none !important; }
+    }
+</style>
