@@ -95,7 +95,7 @@ window.cargarProveedores = async function() {
             </div>
             <div class="flex gap-4">
                 <button onclick="abrirPreciosProveedor('${p.id}', '${p.nombre.replace(/'/g,"\\'")}')" class="text-emerald-600 bg-emerald-50 px-3 py-1 rounded font-bold hover:bg-emerald-100 text-sm transition-colors shadow-sm">💰 Lista Precios</button>
-                <button onclick="activarEdicionGlobal('proveedor', '${p.id}', {'nombre-proveedor': '${p.nombre.replace(/'/g,"\\'")}', 'tipo-proveedor': '${p.tipo || 'Externo'}', 'whatsapp-proveedor': '${p.whatsapp || ''}', 'correo-proveedor': '${p.correo || ''}', 'tiempo-entrega': '${p.tiempo_entrega || ''}'})" class="text-blue-500 hover:text-blue-700 text-lg transition-transform hover:scale-110 mt-1" title="Editar">✏️</button>
+                <button onclick="activarEdicionGlobal('proveedor', '${p.id}', {'nombre-proveedor': '${p.nombre.replace(/'/g,"\\'")}', 'tipo-proveedor': '${p.tipo || 'Externo'}', 'whatsapp-proveedor': '${p.whatsapp || ''}', 'correo-proveedor': '${p.correo || ''}', 'tiempo-entrega': '${p.lapso_entrega_dias || ''}'})" class="text-blue-500 hover:text-blue-700 text-lg transition-transform hover:scale-110 mt-1" title="Editar">✏️</button>
                 <button onclick="eliminarReg('proveedores', '${p.id}')" class="text-slate-400 hover:text-red-500 text-lg transition-transform hover:scale-110 mt-1" title="Eliminar">🗑️</button>
             </div>
         </li>
@@ -105,16 +105,16 @@ window.cargarProveedores = async function() {
 document.getElementById('form-proveedor')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     
-    // Validar y asegurar que tiempo_entrega sea numérico
     const tiempoInput = document.getElementById('tiempo-entrega').value;
     const tiempoParsed = tiempoInput ? parseInt(tiempoInput) : null;
 
+    // Cambiamos tiempo_entrega por lapso_entrega_dias para que coincida con tu BD
     const payload = {
         nombre: document.getElementById('nombre-proveedor').value,
         tipo: document.getElementById('tipo-proveedor').value,
         whatsapp: document.getElementById('whatsapp-proveedor').value,
         correo: document.getElementById('correo-proveedor').value,
-        tiempo_entrega: tiempoParsed
+        lapso_entrega_dias: tiempoParsed
     };
     
     let res;
