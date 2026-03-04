@@ -97,6 +97,7 @@ window.cambiarVista = async function(v) {
         if(v === 'recetas') { window.cargarBuscadorRecetas(); }
         if(v === 'movimientos') { window.cambiarTabMovimientos('pedidos'); } 
         if(v === 'inventario') { window.cargarInventario(); }
+        if(v === 'reportes') { window.cargarReportes(); } 
 
     } catch (error) {
         console.error(error);
