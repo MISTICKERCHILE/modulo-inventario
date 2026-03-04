@@ -70,7 +70,7 @@ window.cambiarVista = async function(v) {
     if(!window.miEmpresaId) return; 
     
     // Cambiar color de los botones
-    ['dashboard', 'catalogos', 'productos', 'recetas', 'movimientos', 'inventario'].forEach(vis => {
+    ['dashboard', 'catalogos', 'productos', 'recetas', 'movimientos', 'inventario', 'reportes'].forEach(vis => {
         const btn = document.getElementById(`btn-menu-${vis}`);
         if(btn) btn.className = 'w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium text-white opacity-70 transition-colors mb-1';
     });
