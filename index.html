@@ -325,3 +325,58 @@
             </div>
 
             <div class="flex-1 overflow-y-auto border rounded-lg bg-slate-50 mb-6 shadow-inner pb-32"> <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-slate-200 sticky top-0 z-10 shadow-sm">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Producto</th>
+                            <th class="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase w-20">Unidad</th>
+                            <th class="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase w-32">Cantidad Contada</th>
+                            <th class="px-4 py-3 text-right text-xs font-bold text-slate-600 uppercase w-16">Quitar</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cm-filas" class="divide-y divide-gray-200 bg-white">
+                        <tr><td colspan="4" class="text-center text-slate-400 py-8">Selecciona una ubicación arriba.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="flex justify-between items-center mt-auto border-t pt-4">
+                <button type="button" onclick="agregarFilaConteo()" class="px-4 py-2 text-sm font-bold text-emerald-700 bg-emerald-100 rounded-md hover:bg-emerald-200 transition-colors shadow-sm">+ Agregar otro Producto</button>
+                <div class="flex gap-3">
+                    <button type="button" onclick="document.getElementById('modal-conteo-masivo').classList.add('hidden')" class="px-6 py-2 border text-gray-700 rounded-md hover:bg-gray-50 transition-colors">Cancelar</button>
+                    <button type="button" id="btn-guardar-conteo" onclick="guardarConteoMasivo()" class="px-8 py-2 bg-emerald-600 text-white rounded-md font-bold hover:bg-emerald-700 transition-colors shadow-md">Guardar Conteo ✅</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-historial" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col border border-slate-200 relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 to-indigo-600"></div>
+            <div class="flex justify-between items-start mb-6 pt-4 border-b pb-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-800" id="hm-titulo">Kardex (Historial de Vida)</h2>
+                    <p class="text-sm font-bold text-blue-600 mt-1" id="hm-subtitulo">Producto: -</p>
+                </div>
+                <button onclick="document.getElementById('modal-historial').classList.add('hidden')" class="text-slate-400 hover:text-slate-800 text-3xl font-bold leading-none">&times;</button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto pl-4 pr-2">
+                <div class="relative border-l-2 border-slate-200 ml-3 space-y-8 pb-8" id="hm-timeline">
+                    <p class="text-center py-8 text-slate-500 ml-4">Cargando traza...</p>
+                </div>
+            </div>
+            
+            <div class="mt-4 pt-4 border-t flex justify-end">
+                <button type="button" onclick="document.getElementById('modal-historial').classList.add('hidden')" class="px-6 py-2 bg-slate-100 text-slate-700 font-bold rounded-lg hover:bg-slate-200">Cerrar Kardex</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/supabase.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/catalogos.js"></script>
+    <script src="js/productos.js"></script>
+    <script src="js/inventario.js"></script>
+    <script src="js/movimientos.js"></script>
+</body>
+</html>
