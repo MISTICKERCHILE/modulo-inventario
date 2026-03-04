@@ -1118,3 +1118,147 @@ async function aplicarDescuentoInventario(idProd, idSuc, cantidad_ua_descontar, 
     }
     await clienteSupabase.from('movimientos_inventario').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, tipo_movimiento: 'VENTA_POS', cantidad_movida: -cantidad_ua_descontar, referencia: referencia }]);
 }
+
+// ==========================================
+// --- FASE 6: LOGS RECIENTES Y EXPORTACIÓN ---
+// ==========================================
+
+window.cargarLogsMovimientos = async function(tipo) {
+    const isCompra = tipo === 'COMPRA_DIRECTA';
+    const tbody = document.getElementById(isCompra ? 'log-compras-directas' : 'log-otros-movs');
+    if(!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-slate-400 font-bold animate-pulse">Cargando últimos registros...</td></tr>';
+    
+    let query = clienteSupabase.from('movimientos_inventario')
+        .select('fecha_movimiento, tipo_movimiento, cantidad_movida, referencia, productos(nombre, id_unidad_almacenamiento(abreviatura)), ubicaciones_internas(nombre)')
+        .eq('id_empresa', window.miEmpresaId)
+        .order('fecha_movimiento', { ascending: false })
+        .limit(20);
+        
+    if(isCompra) {
+        query = query.eq('tipo_movimiento', 'COMPRA_DIRECTA');
+    } else {
+        // Excluimos compras y ventas para dejar solo las mermas, ajustes, y producciones
+        query = query.not('tipo_movimiento', 'in', '("COMPRA_DIRECTA", "VENTA_POS", "INGRESO_COMPRA", "AJUSTE_CONTEO")'); 
+    }
+
+    const { data } = await query;
+    
+    if(!data || data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-slate-400 italic">No hay registros recientes de este tipo.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = data.map(d => {
+        const fecha = new Date(d.fecha_movimiento).toLocaleString('es-CL', {dateStyle:'short', timeStyle:'short'});
+        const prod = d.productos?.nombre || 'Desconocido';
+        const abrev = d.productos?.id_unidad_almacenamiento?.abreviatura || 'UA';
+        const ubi = d.ubicaciones_internas?.nombre || 'General';
+        const cantColor = d.cantidad_movida > 0 ? 'text-emerald-600' : 'text-red-600';
+        const signo = d.cantidad_movida > 0 ? '+' : '';
+        
+        if(isCompra) {
+            return `<tr class="hover:bg-slate-50 border-b border-slate-100">
+                <td class="px-4 py-2 font-medium text-slate-600 whitespace-nowrap">${fecha}</td>
+                <td class="px-4 py-2 font-bold text-slate-800">${prod}</td>
+                <td class="px-4 py-2 text-right font-mono ${cantColor} font-bold">${signo}${d.cantidad_movida} <span class="text-xs text-slate-400">${abrev}</span></td>
+                <td class="px-4 py-2 text-slate-500 text-xs">📍 ${ubi}</td>
+            </tr>`;
+        } else {
+            return `<tr class="hover:bg-slate-50 border-b border-slate-100">
+                <td class="px-4 py-2 font-medium text-slate-600 whitespace-nowrap">${fecha}</td>
+                <td class="px-4 py-2"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 whitespace-nowrap border border-slate-200">${d.tipo_movimiento}</span></td>
+                <td class="px-4 py-2 font-bold text-slate-800">${prod}</td>
+                <td class="px-4 py-2 text-right font-mono ${cantColor} font-bold">${signo}${d.cantidad_movida} <span class="text-xs text-slate-400">${abrev}</span></td>
+                <td class="px-4 py-2 text-slate-500 text-xs italic">"${d.referencia || '-'}"</td>
+            </tr>`;
+        }
+    }).join('');
+}
+
+window.cargarLogsVentasPOS = async function() {
+    const tbody = document.getElementById('log-ventas-pos');
+    if(!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-slate-400 font-bold animate-pulse">Cargando períodos procesados...</td></tr>';
+    
+    // Traemos los últimos 500 movimientos del POS para extraer los periodos
+    const { data } = await clienteSupabase.from('movimientos_inventario')
+        .select('fecha_movimiento, referencia')
+        .eq('id_empresa', window.miEmpresaId)
+        .eq('tipo_movimiento', 'VENTA_POS')
+        .order('fecha_movimiento', { ascending: false })
+        .limit(500);
+
+    if(!data || data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-slate-400 italic">No hay ventas del POS importadas aún.</td></tr>';
+        return;
+    }
+
+    const periodosAgrupados = [];
+    data.forEach(d => {
+        // Magia: Extraemos solo el texto que está entre corchetes [Período: ...]
+        const match = d.referencia.match(/\[Período:.*?\]/);
+        const refKey = match ? match[0] : "Período no especificado";
+        
+        let existe = periodosAgrupados.find(p => p.ref === refKey);
+        if(!existe) {
+            periodosAgrupados.push({ ref: refKey, fechaProcesado: new Date(d.fecha_movimiento), itemsAfectados: 1 });
+        } else {
+            existe.itemsAfectados++;
+        }
+    });
+
+    tbody.innerHTML = periodosAgrupados.map(p => {
+        const fechaProc = p.fechaProcesado.toLocaleString('es-CL', {dateStyle:'medium', timeStyle:'short'});
+        return `<tr class="hover:bg-slate-50 border-b border-slate-100">
+            <td class="px-4 py-3 font-medium text-slate-600">${fechaProc}</td>
+            <td class="px-4 py-3 font-bold text-blue-700"><span class="bg-blue-50 border border-blue-100 px-3 py-1 rounded-md shadow-sm">${p.ref}</span></td>
+            <td class="px-4 py-3 text-center text-slate-500 font-medium text-xs">${p.itemsAfectados} líneas de stock descontadas</td>
+        </tr>`;
+    }).join('');
+}
+
+// Auto-recarga al guardar exitosamente
+const oldGuardarCD = window.guardarCompraDirectaMasiva;
+window.guardarCompraDirectaMasiva = async function() { await oldGuardarCD(); window.cargarLogsMovimientos('COMPRA_DIRECTA'); }
+
+const oldGuardarOM = window.guardarOtrosMovimientosMasivo;
+window.guardarOtrosMovimientosMasivo = async function() { await oldGuardarOM(); window.cargarLogsMovimientos('OTROS'); }
+
+const oldConfirmarVentas = window.confirmarDescuentoVentas;
+window.confirmarDescuentoVentas = async function() { await oldConfirmarVentas(); window.cargarLogsVentasPOS(); }
+
+// FUNCIÓN DE EXPORTACIÓN EXCEL
+window.exportarMovimientosCSV = async function() {
+    const { data } = await clienteSupabase.from('movimientos_inventario')
+        .select('fecha_movimiento, tipo_movimiento, cantidad_movida, referencia, productos(nombre, id_unidad_almacenamiento(abreviatura)), ubicaciones_internas(nombre)')
+        .eq('id_empresa', window.miEmpresaId)
+        .order('fecha_movimiento', { ascending: false })
+        .limit(1000); // Exportamos los últimos 1000 por seguridad de rendimiento
+    
+    if(!data || data.length === 0) return alert("No hay movimientos registrados para exportar.");
+
+    let csv = "Fecha,Hora,Producto,Accion,Cantidad,Unidad,Ubicacion,Referencia\n";
+    data.forEach(d => {
+        const f = new Date(d.fecha_movimiento);
+        const fecha = f.toLocaleDateString('es-CL');
+        const hora = f.toLocaleTimeString('es-CL');
+        const prod = `"${(d.productos?.nombre || '').replace(/"/g, '""')}"`;
+        const accion = `"${d.tipo_movimiento}"`;
+        const cant = d.cantidad_movida;
+        const abrev = d.productos?.id_unidad_almacenamiento?.abreviatura || 'UA';
+        const ubi = `"${d.ubicaciones_internas?.nombre || 'General'}"`;
+        const ref = `"${(d.referencia || '').replace(/"/g, '""')}"`;
+        
+        csv += `${fecha},${hora},${prod},${accion},${cant},${abrev},${ubi},${ref}\n`;
+    });
+
+    const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `Log_Movimientos_${new Date().toISOString().split('T')[0]}.csv`;
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
