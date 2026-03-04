@@ -2,6 +2,7 @@ window.miEmpresaId = null;
 window.productoActualParaReceta = null;
 window.unidadesMemoria = []; 
 window.modoEdicion = { activo: false, id: null, form: null };
+window.usuarioActual = 'Equipo'; 
 
 // --- LOGIN Y SESIÓN ---
 document.getElementById('login-form').addEventListener('submit', async (e) => {
@@ -17,16 +18,10 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     if (!perfil) return alert("Usuario sin empresa asignada");
     
     window.miEmpresaId = perfil.id_empresa;
-    const nombreUsuario = perfil.nombre || 'Equipo';
+    window.usuarioActual = perfil.nombre || 'Equipo';
 
     document.getElementById('user-email-dropdown').innerText = data.user.email;
-    document.getElementById('user-name-display').innerText = nombreUsuario;
-
-    const hora = new Date().getHours();
-    let saludo = "Buenas noches";
-    if (hora >= 5 && hora < 12) saludo = "Buenos días";
-    else if (hora >= 12 && hora < 19) saludo = "Buenas tardes";
-    document.getElementById('dash-saludo').innerText = `¡${saludo}, ${nombreUsuario}!`;
+    document.getElementById('user-name-display').innerText = window.usuarioActual;
 
     document.getElementById('login-container').classList.add('hidden');
     document.getElementById('dashboard-container').classList.remove('hidden');
@@ -45,18 +40,16 @@ window.toggleMenu = function() {
     }
 }
 
-// Lógica de menús desplegables de la cabecera (Usuario y Notificaciones)
 window.toggleUserMenu = function() {
     document.getElementById('user-dropdown').classList.toggle('hidden');
-    document.getElementById('panel-notificaciones').classList.add('hidden'); // Cierra el otro
+    document.getElementById('panel-notificaciones').classList.add('hidden');
 }
 
 window.toggleNotificaciones = function() {
     document.getElementById('panel-notificaciones').classList.toggle('hidden');
-    document.getElementById('user-dropdown').classList.add('hidden'); // Cierra el otro
+    document.getElementById('user-dropdown').classList.add('hidden');
 }
 
-// Cerrar clics al hacer tap afuera
 document.addEventListener('click', (e) => {
     const userDropdown = document.getElementById('user-dropdown');
     const userBtn = e.target.closest('button[onclick="toggleUserMenu()"]');
@@ -72,48 +65,59 @@ document.addEventListener('click', (e) => {
 });
 
 
-// --- NAVEGACIÓN GLOBAL ---
-window.cambiarVista = function(v) {
+// --- NAVEGACIÓN GLOBAL CON CARGA DINÁMICA (FETCH) ---
+window.cambiarVista = async function(v) {
     if(!window.miEmpresaId) return; 
     
-    // Ya no existe el botón btn-menu-dashboard, así que solo iteramos sobre los demás
-    ['catalogos', 'productos', 'recetas', 'movimientos', 'inventario'].forEach(vis => {
-        const el = document.getElementById(`vista-${vis}`);
-        if(el) el.classList.add('hidden');
-        
+    // Cambiar color de los botones
+    ['dashboard', 'catalogos', 'productos', 'recetas', 'movimientos', 'inventario'].forEach(vis => {
         const btn = document.getElementById(`btn-menu-${vis}`);
         if(btn) btn.className = 'w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium text-white opacity-70 transition-colors mb-1';
     });
     
-    // Ocultar dashboard que no tiene botón lateral
-    const dashEl = document.getElementById('vista-dashboard');
-    if(dashEl) dashEl.classList.add('hidden');
-    
-    const activeEl = document.getElementById(`vista-${v}`);
-    if(activeEl) activeEl.classList.remove('hidden');
-    
     const activeBtn = document.getElementById(`btn-menu-${v}`);
     if(activeBtn) activeBtn.className = 'w-full flex items-center gap-3 px-4 py-3 bg-emerald-600 rounded-lg font-medium text-white opacity-100 transition-colors mb-1';
     
-    // Disparadores según la vista
-    if(v === 'dashboard') window.cargarDashboard();
-    if(v === 'catalogos') window.cambiarTab('categorias');
-    if(v === 'productos') { window.cargarDatosSelects(); window.cargarProductos(); }
-    if(v === 'recetas') { window.cargarBuscadorRecetas(); }
-    if(v === 'movimientos') { window.cambiarTabMovimientos('pedidos'); } 
-    if(v === 'inventario') { window.cargarInventario(); }
+    // Mostrar loading
+    document.getElementById('main-content').innerHTML = '<div class="flex justify-center items-center h-full text-slate-400 font-bold text-xl">⏳ Cargando módulo...</div>';
+
+    try {
+        // Magia: Ir a buscar el archivo HTML a la carpeta /vistas/
+        const response = await fetch(`vistas/${v}.html`);
+        if(!response.ok) throw new Error(`No se pudo cargar la vista ${v}`);
+        const html = await response.text();
+        
+        // Inyectarlo en la pantalla principal
+        document.getElementById('main-content').innerHTML = html;
+
+        // Ejecutar funciones de inicialización según la vista
+        if(v === 'dashboard') window.cargarDashboard();
+        if(v === 'catalogos') window.cambiarTab('categorias');
+        if(v === 'productos') { window.cargarDatosSelects(); window.cargarProductos(); }
+        if(v === 'recetas') { window.cargarBuscadorRecetas(); }
+        if(v === 'movimientos') { window.cambiarTabMovimientos('pedidos'); } 
+        if(v === 'inventario') { window.cargarInventario(); }
+
+    } catch (error) {
+        console.error(error);
+        document.getElementById('main-content').innerHTML = `<div class="p-8 text-center text-red-500 font-bold">❌ Error cargando la vista: ${v}.html<br><span class="text-sm font-normal">Asegúrate de haber creado el archivo en la carpeta 'vistas/'.</span></div>`;
+    }
 }
 
 
 // --- INTELIGENCIA DEL DASHBOARD ---
 window.cargarDashboard = async function() {
-    // 1. CÁLCULO WIDGET: Días desde último ingreso de ventas (POS)
+    const hora = new Date().getHours();
+    let saludo = "Buenas noches";
+    if (hora >= 5 && hora < 12) saludo = "Buenos días";
+    else if (hora >= 12 && hora < 19) saludo = "Buenas tardes";
+    
+    const elSaludo = document.getElementById('dash-saludo');
+    if(elSaludo) elSaludo.innerText = `¡${saludo}, ${window.usuarioActual}!`;
+
     const { data: posMovs } = await clienteSupabase.from('movimientos_inventario')
-        .select('fecha_movimiento')
-        .eq('id_empresa', window.miEmpresaId)
-        .eq('tipo_movimiento', 'VENTA_POS')
-        .order('fecha_movimiento', { ascending: false })
-        .limit(1);
+        .select('fecha_movimiento').eq('id_empresa', window.miEmpresaId).eq('tipo_movimiento', 'VENTA_POS')
+        .order('fecha_movimiento', { ascending: false }).limit(1);
 
     if (posMovs && posMovs.length > 0) {
         const fechaUltimaVenta = new Date(posMovs[0].fecha_movimiento);
@@ -124,15 +128,11 @@ window.cargarDashboard = async function() {
         document.getElementById('widget-pos-num').innerText = '-';
     }
 
-    // 2. CÁLCULO WIDGET: Pedidos en Tránsito
     const { data: transitoData } = await clienteSupabase.from('compras_detalles')
-        .select('id, compras!inner(id_empresa)')
-        .eq('compras.id_empresa', window.miEmpresaId)
-        .in('estado', ['En Tránsito', 'Postpuesto']);
+        .select('id, compras!inner(id_empresa)').eq('compras.id_empresa', window.miEmpresaId).in('estado', ['En Tránsito', 'Postpuesto']);
     
     document.getElementById('widget-transito-num').innerText = transitoData ? transitoData.length : 0;
 
-    // 3. CÁLCULO WIDGET: Alertas de Stock y Construcción de Notificaciones
     const [{ data: reglas }, { data: saldos }, { data: transitoGlobal }, {data: prods}, {data: sucursales}] = await Promise.all([
         clienteSupabase.from('reglas_stock_sucursal').select('id_sucursal, id_producto, stock_minimo_ua').eq('id_empresa', window.miEmpresaId),
         clienteSupabase.from('inventario_saldos').select('id_sucursal, id_producto, cantidad_actual_ua').eq('id_empresa', window.miEmpresaId),
@@ -155,10 +155,8 @@ window.cargarDashboard = async function() {
         
         if(virtual <= r.stock_minimo_ua) {
             contadorAlertas++;
-            
             const prodName = prods.find(p => p.id === r.id_producto)?.nombre || 'Producto sin nombre';
             const sucName = sucursales.find(s => s.id === r.id_sucursal)?.nombre || 'Sucursal';
-            
             htmlNotificaciones += `
             <div class="px-4 py-3 hover:bg-red-50 cursor-pointer transition-colors" onclick="irAAlertasStock(); toggleNotificaciones();">
                 <p class="text-sm font-bold text-slate-700">⚠️ Bajo Stock: ${prodName}</p>
@@ -170,7 +168,6 @@ window.cargarDashboard = async function() {
     
     document.getElementById('widget-alertas-num').innerText = contadorAlertas;
     
-    // Inyectamos las notificaciones al panel desplegable
     const panelNotif = document.getElementById('lista-notificaciones');
     if(contadorAlertas > 0) {
         panelNotif.innerHTML = htmlNotificaciones;
@@ -178,7 +175,6 @@ window.cargarDashboard = async function() {
         panelNotif.innerHTML = `<div class="px-4 py-8 text-center"><p class="text-3xl mb-2">🎉</p><p class="text-sm text-slate-500 font-bold">¡Todo al día!</p><p class="text-xs text-slate-400">No hay alertas de stock por ahora.</p></div>`;
     }
 
-    // Actualizamos los circulitos rojos de la campanita
     const bell = document.getElementById('bell-indicator');
     const bellText = document.getElementById('bell-badge-text');
     if(bell) {
@@ -197,26 +193,24 @@ window.cargarDashboard = async function() {
     }
 }
 
-// Navegación rápida desde los Widgets y Notificaciones
 window.irAAlertasStock = function() {
     window.cambiarVista('movimientos');
-    if (typeof window.cambiarTabMovimientos === 'function') {
+    setTimeout(() => {
         window.cambiarTabMovimientos('pedidos');
         window.cambiarSubTabPedidos('sugerencias');
-    }
+    }, 100);
 }
 window.irATransito = function() {
     window.cambiarVista('movimientos');
-    if (typeof window.cambiarTabMovimientos === 'function') {
+    setTimeout(() => {
         window.cambiarTabMovimientos('pedidos');
         window.cambiarSubTabPedidos('transito');
-    }
+    }, 100);
 }
 window.irASubirVentas = function() {
     window.cambiarVista('movimientos');
-    if (typeof window.cambiarTabMovimientos === 'function') window.cambiarTabMovimientos('ventas');
+    setTimeout(() => window.cambiarTabMovimientos('ventas'), 100);
 }
-
 
 // --- SISTEMA DE EDICIÓN GLOBAL ---
 window.cancelarEdicion = function(formName) {
@@ -256,3 +250,96 @@ window.eliminarReg = async function(tabla, id) {
         else window.cambiarVista(document.querySelector('.bg-emerald-600').id.replace('btn-menu-',''));
     }
 }
+
+// ===============================================
+// MAGIA NEGRA: DELEGACIÓN DE EVENTOS GLOBALES
+// Para que los formularios funcionen aunque vengan de archivos separados
+// ===============================================
+document.addEventListener('submit', async (e) => {
+    // Si no es uno de nuestros formularios dinámicos, ignorar
+    if (!e.target.id || !e.target.id.startsWith('form-')) return;
+    
+    // Evitamos el reload en todos
+    if (e.target.id !== 'login-form' && e.target.id !== 'form-producto' && e.target.id !== 'form-precio-prov' && e.target.id !== 'form-recepcion' && e.target.id !== 'form-ajuste-rapido') {
+        e.preventDefault(); 
+    }
+
+    const id = e.target.id;
+
+    // CATÁLOGOS
+    if (id === 'form-categoria') {
+        const nombre = document.getElementById('nombre-categoria').value;
+        if(window.modoEdicion.activo) await clienteSupabase.from('categorias').update({nombre}).eq('id', window.modoEdicion.id);
+        else await clienteSupabase.from('categorias').insert([{id_empresa: window.miEmpresaId, nombre}]);
+        window.cancelarEdicion('categoria'); window.cargarCategorias();
+    }
+    else if (id === 'form-unidad') {
+        const nombre = document.getElementById('nombre-unidad').value, abrev = document.getElementById('abrev-unidad').value;
+        if(window.modoEdicion.activo) await clienteSupabase.from('unidades').update({nombre, abreviatura: abrev}).eq('id', window.modoEdicion.id);
+        else await clienteSupabase.from('unidades').insert([{id_empresa: window.miEmpresaId, nombre, abreviatura: abrev}]);
+        window.cancelarEdicion('unidad'); window.cargarUnidades();
+    }
+    else if (id === 'form-proveedor') {
+        const payload = {
+            nombre: document.getElementById('nombre-proveedor').value, tipo: document.getElementById('tipo-proveedor').value,
+            whatsapp: document.getElementById('whatsapp-proveedor').value, correo: document.getElementById('correo-proveedor').value,
+            lapso_entrega_dias: document.getElementById('tiempo-entrega').value ? parseInt(document.getElementById('tiempo-entrega').value) : null
+        };
+        if(window.modoEdicion.activo) await clienteSupabase.from('proveedores').update(payload).eq('id', window.modoEdicion.id);
+        else await clienteSupabase.from('proveedores').insert([{...payload, id_empresa: window.miEmpresaId}]);
+        window.cancelarEdicion('proveedor'); window.cargarProveedores();
+    }
+    else if (id === 'form-sucursal') {
+        const payload = {
+            nombre: document.getElementById('nombre-sucursal').value, nombre_comercial: document.getElementById('comercial-sucursal').value,
+            empresa_asociada: document.getElementById('empresa-sucursal').value, horarios_atencion: document.getElementById('horario-sucursal').value,
+            direccion: document.getElementById('dir-sucursal').value
+        };
+        if(window.modoEdicion.activo) await clienteSupabase.from('sucursales').update(payload).eq('id', window.modoEdicion.id);
+        else await clienteSupabase.from('sucursales').insert([{...payload, id_empresa: window.miEmpresaId}]);
+        window.cancelarEdicion('sucursal'); window.cargarSucursales();
+    }
+    else if (id === 'form-ubicacion') {
+        const nombre = document.getElementById('nombre-ubicacion').value, id_sucursal = document.getElementById('sel-sucursal-ubi').value;
+        await clienteSupabase.from('ubicaciones_internas').insert([{id_empresa: window.miEmpresaId, id_sucursal, nombre}]);
+        window.cancelarEdicion('ubicacion'); window.cargarUbicaciones();
+    }
+    else if (id === 'form-tipo-movimiento') {
+        const nombre = document.getElementById('nombre-tipo-mov').value, operacion = document.getElementById('operacion-tipo-mov').value;
+        if(window.modoEdicion.activo) await clienteSupabase.from('tipos_movimiento').update({nombre, operacion}).eq('id', window.modoEdicion.id);
+        else await clienteSupabase.from('tipos_movimiento').insert([{id_empresa: window.miEmpresaId, nombre, operacion}]);
+        window.cancelarEdicion('tipo-movimiento'); window.cargarTiposMovimiento();
+    }
+    // RECETAS
+    else if (id === 'form-ingrediente') {
+        const payload = { id_producto_padre: window.productoActualParaReceta, id_ingrediente: document.getElementById('sel-ingrediente').value, cantidad_neta: document.getElementById('ing-cantidad').value };
+        if(window.modoEdicion.activo) await clienteSupabase.from('recetas').update(payload).eq('id', window.modoEdicion.id);
+        else await clienteSupabase.from('recetas').insert([{...payload, id_empresa: window.miEmpresaId}]);
+        window.cancelarEdicion('ingrediente'); window.cargarIngredientesReceta();
+    }
+    // MOVIMIENTOS
+    else if (id === 'form-compra-directa') {
+        const idProd = document.getElementById('cd-producto').value, idSuc = document.getElementById('cd-sucursal').value;
+        const cantUC = parseFloat(document.getElementById('cd-cantidad').value), costoTotal = parseFloat(document.getElementById('cd-costo').value), precioUC = costoTotal / cantUC;
+        const { data: cabecera } = await clienteSupabase.from('compras').insert([{ id_empresa: window.miEmpresaId, id_proveedor: document.getElementById('cd-proveedor').value, total_compra: costoTotal, estado: 'Completada' }]).select('id').single();
+        await clienteSupabase.from('compras_detalles').insert([{ id_compra: cabecera.id, id_producto: idProd, cantidad_uc: cantUC, precio_unitario_uc: precioUC, subtotal: costoTotal, estado: 'Recibido' }]);
+        const { data: prod } = await clienteSupabase.from('productos').select('cant_en_ua_de_uc').eq('id', idProd).single();
+        const cantUA_a_sumar = cantUC * prod.cant_en_ua_de_uc;
+        const { data: previo } = await clienteSupabase.from('inventario_saldos').select('id, cantidad_actual_ua').eq('id_producto', idProd).eq('id_sucursal', idSuc).is('id_ubicacion', null).maybeSingle();
+        if (previo) await clienteSupabase.from('inventario_saldos').update({ cantidad_actual_ua: previo.cantidad_actual_ua + cantUA_a_sumar, ultima_actualizacion: new Date() }).eq('id', previo.id);
+        else await clienteSupabase.from('inventario_saldos').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_sucursal: idSuc, cantidad_actual_ua: cantUA_a_sumar }]);
+        await clienteSupabase.from('movimientos_inventario').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, tipo_movimiento: 'COMPRA_DIRECTA', cantidad_movida: cantUA_a_sumar, costo_unitario_movimiento: precioUC, referencia: 'Compra Directa' }]);
+        await clienteSupabase.from('productos').update({ ultimo_costo_uc: precioUC }).eq('id', idProd);
+        alert("✅ Compra Directa registrada con éxito."); document.getElementById('form-compra-directa').reset();
+    }
+    else if (id === 'form-otro-movimiento') {
+        const selectTipo = document.getElementById('om-tipo'), operacion = selectTipo.options[selectTipo.selectedIndex].getAttribute('data-operacion');
+        const idProd = document.getElementById('om-producto').value, idSuc = document.getElementById('om-sucursal').value;
+        const cantidadFinalAplicada = operacion === '+' ? parseFloat(document.getElementById('om-cantidad').value) : -parseFloat(document.getElementById('om-cantidad').value);
+        const { data: previo } = await clienteSupabase.from('inventario_saldos').select('id, cantidad_actual_ua').eq('id_producto', idProd).eq('id_sucursal', idSuc).is('id_ubicacion', null).maybeSingle();
+        if (previo) await clienteSupabase.from('inventario_saldos').update({ cantidad_actual_ua: previo.cantidad_actual_ua + cantidadFinalAplicada, ultima_actualizacion: new Date() }).eq('id', previo.id);
+        else await clienteSupabase.from('inventario_saldos').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_sucursal: idSuc, cantidad_actual_ua: cantidadFinalAplicada }]);
+        await clienteSupabase.from('movimientos_inventario').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, tipo_movimiento: selectTipo.options[selectTipo.selectedIndex].text, cantidad_movida: cantidadFinalAplicada, referencia: 'Ajuste Manual' }]);
+        alert(`✅ Movimiento aplicado.`); document.getElementById('form-otro-movimiento').reset();
+    }
+});
