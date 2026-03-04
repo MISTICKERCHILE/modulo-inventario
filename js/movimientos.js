@@ -1287,7 +1287,10 @@ window.cargarHistorialOrdenes = async function() {
     tbody.innerHTML = data.map(c => {
         const isProd = c.proveedores?.tipo === 'Interno';
         const tipoStr = isProd ? '<span class="bg-purple-100 text-purple-700 px-2 py-1 rounded text-xs font-bold whitespace-nowrap">🏭 Producción</span>' : '<span class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold whitespace-nowrap">🚚 Compra</span>';
-        const fecha = new Date(c.created_at).toLocaleDateString('es-CL', {dateStyle:'short', timeStyle:'short'});
+        
+        // CORRECCIÓN: Separamos Fecha y Hora de manera segura para todos los navegadores
+        const f = new Date(c.created_at);
+        const fecha = f.toLocaleDateString('es-CL') + ' ' + f.toLocaleTimeString('es-CL', {hour: '2-digit', minute: '2-digit'});
         
         let estadoStr = `<span class="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs font-bold whitespace-nowrap">${c.estado}</span>`;
         if (c.estado === 'Completada') estadoStr = `<span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-xs font-bold whitespace-nowrap">✅ Ingresada</span>`;
