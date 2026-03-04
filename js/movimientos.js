@@ -1182,9 +1182,8 @@ window.cargarLogsMovimientos = async function(tipo) {
 window.cargarLogsVentasPOS = async function() {
     const tbody = document.getElementById('log-ventas-pos');
     if(!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-slate-400 font-bold animate-pulse">Cargando períodos procesados...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-slate-400 font-bold animate-pulse">Cargando períodos procesados...</td></tr>';
     
-    // Traemos los últimos 500 movimientos del POS para extraer los periodos
     const { data } = await clienteSupabase.from('movimientos_inventario')
         .select('fecha_movimiento, referencia')
         .eq('id_empresa', window.miEmpresaId)
@@ -1193,13 +1192,12 @@ window.cargarLogsVentasPOS = async function() {
         .limit(500);
 
     if(!data || data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-slate-400 italic">No hay ventas del POS importadas aún.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-slate-400 italic">No hay ventas del POS importadas aún.</td></tr>';
         return;
     }
 
     const periodosAgrupados = [];
     data.forEach(d => {
-        // Magia: Extraemos solo el texto que está entre corchetes [Período: ...]
         const match = d.referencia.match(/\[Período:.*?\]/);
         const refKey = match ? match[0] : "Período no especificado";
         
@@ -1213,10 +1211,50 @@ window.cargarLogsVentasPOS = async function() {
 
     tbody.innerHTML = periodosAgrupados.map(p => {
         const fechaProc = p.fechaProcesado.toLocaleString('es-CL', {dateStyle:'medium', timeStyle:'short'});
+        // Escapamos las comillas por si acaso el string tiene algo raro
+        const refEscapada = p.ref.replace(/'/g, "\\'");
+
         return `<tr class="hover:bg-slate-50 border-b border-slate-100">
             <td class="px-4 py-3 font-medium text-slate-600">${fechaProc}</td>
             <td class="px-4 py-3 font-bold text-blue-700"><span class="bg-blue-50 border border-blue-100 px-3 py-1 rounded-md shadow-sm">${p.ref}</span></td>
-            <td class="px-4 py-3 text-center text-slate-500 font-medium text-xs">${p.itemsAfectados} líneas de stock descontadas</td>
+            <td class="px-4 py-3 text-center text-slate-500 font-medium text-xs">${p.itemsAfectados} líneas descontadas</td>
+            <td class="px-4 py-3 text-center">
+                <button onclick="abrirDetallesVentas('${refEscapada}')" class="text-slate-500 hover:text-blue-600 bg-white border border-slate-300 shadow-sm px-3 py-1 rounded font-bold transition-transform hover:scale-105">👁️ Ver</button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+// NUEVA FUNCIÓN PARA ABRIR EL DESGLOSE DE LAS VENTAS
+window.abrirDetallesVentas = async function(periodoRef) {
+    document.getElementById('dv-periodo').innerText = periodoRef;
+    const tbody = document.getElementById('dv-filas');
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center py-8">⏳ Buscando líneas descontadas...</td></tr>';
+    document.getElementById('modal-detalles-ventas').classList.remove('hidden');
+
+    // Buscamos todos los movimientos de venta que contengan este string exacto en su referencia
+    const { data } = await clienteSupabase.from('movimientos_inventario')
+        .select('cantidad_movida, referencia, productos(nombre, id_unidad_almacenamiento(abreviatura)), ubicaciones_internas(nombre)')
+        .eq('id_empresa', window.miEmpresaId)
+        .eq('tipo_movimiento', 'VENTA_POS')
+        .like('referencia', `%${periodoRef}%`)
+        .order('fecha_movimiento', { ascending: false });
+
+    if(!data || data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-8 text-slate-500">No se encontraron detalles.</td></tr>'; return;
+    }
+
+    tbody.innerHTML = data.map(d => {
+        const abrev = d.productos?.id_unidad_almacenamiento?.abreviatura || 'UA';
+        const ubi = d.ubicaciones_internas?.nombre || 'Bodega General';
+        // Usamos Math.abs para mostrar la cantidad en positivo visualmente (ej: -5 se ve como 5 con un menos adelante)
+        const cant = Math.abs(d.cantidad_movida);
+
+        return `<tr class="border-b border-slate-100 hover:bg-slate-50">
+            <td class="px-4 py-3 font-bold text-slate-700 text-sm whitespace-nowrap">${d.productos?.nombre || 'Desconocido'}</td>
+            <td class="px-4 py-3 text-center font-mono font-bold text-red-600 bg-red-50/50">-${cant} <span class="text-[10px] text-slate-400">${abrev}</span></td>
+            <td class="px-4 py-3 text-sm text-slate-500">📍 ${ubi}</td>
+            <td class="px-4 py-3 text-xs text-slate-500 italic max-w-[250px] truncate" title="${d.referencia}">"${d.referencia}"</td>
         </tr>`;
     }).join('');
 }
