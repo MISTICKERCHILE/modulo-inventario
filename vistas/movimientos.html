@@ -1,4 +1,16 @@
-<h2 class="text-2xl font-bold mb-6">Gestión de Entradas y Salidas</h2>
+<div class="flex justify-between items-center mb-6">
+    <h2 class="text-2xl font-bold">🔄 Gestión de Entradas y Salidas</h2>
+    
+    <div class="flex items-center bg-white border border-slate-200 rounded-md shadow-sm overflow-hidden">
+        <button onclick="exportarMovimientosCSV()" title="Exportar TODO el Historial de Movimientos a Excel" class="px-3 py-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors border-r">
+            📤
+        </button>
+        <button onclick="window.print()" title="Imprimir / PDF" class="px-3 py-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors">
+            🖨️
+        </button>
+    </div>
+</div>
+
 <div class="flex border-b border-gray-200 mb-6 overflow-x-auto bg-white rounded-t-lg shadow-sm">
     <button onclick="cambiarTabMovimientos('pedidos')" id="tab-mov-pedidos" class="px-6 py-3 font-medium border-b-2 border-emerald-600 text-emerald-600 bg-emerald-50/50">Pedidos</button>
     <button onclick="cambiarTabMovimientos('compras')" id="tab-mov-compras" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors">Compras Directas</button>
@@ -12,7 +24,6 @@
         <button onclick="cambiarSubTabPedidos('transito')" id="subtab-transito" class="px-4 py-2 rounded-md font-bold text-sm text-slate-500 hover:text-slate-800 transition-colors">Ver Pedidos en Tránsito</button>
         <button onclick="cambiarSubTabPedidos('produccion')" id="subtab-produccion" class="px-4 py-2 rounded-md font-bold text-sm text-slate-500 hover:text-slate-800 transition-colors">Ver Órdenes de Trabajo / Producción</button>
     </div>
-    
     <div id="subvista-sugerencias" class="block space-y-8">
         <div id="lista-alertas-compras" class="space-y-6"></div>
         <div id="contenedor-bandeja" class="hidden mt-8 border-t-2 border-dashed border-slate-300 pt-8">
@@ -21,7 +32,6 @@
             <div id="lista-carritos-proveedor" class="space-y-6"></div>
         </div>
     </div>
-    
     <div id="subvista-transito" class="hidden space-y-6">
         <div id="transito-vista-sucursales" class="block">
             <h3 class="text-xl font-bold mb-6 text-slate-800" id="transito-titulo-seccion">🚚 Selecciona tu Sucursal</h3>
@@ -38,41 +48,34 @@
 <div id="seccion-mov-compras" class="hidden space-y-6">
     <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-200">
         <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><span>🛒</span> Ingreso de Compra Directa</h3>
-        
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 bg-slate-50 p-4 rounded-lg border border-slate-100">
-            <div>
-                <label class="block text-sm font-bold text-slate-600 mb-1">1. Sucursal de Ingreso</label>
-                <select id="cd-sucursal" onchange="actualizarUbicacionesCD()" class="w-full px-3 py-2 border border-slate-300 rounded-md bg-white font-medium outline-none focus:ring-2 focus:ring-emerald-500"></select>
-            </div>
-            <div>
-                <label class="block text-sm font-bold text-slate-600 mb-1">2. Proveedor</label>
-                <select id="cd-proveedor" class="w-full px-3 py-2 border border-slate-300 rounded-md bg-white font-medium outline-none focus:ring-2 focus:ring-emerald-500"></select>
-            </div>
+            <div><label class="block text-sm font-bold text-slate-600 mb-1">1. Sucursal de Ingreso</label><select id="cd-sucursal" onchange="actualizarUbicacionesCD()" class="w-full px-3 py-2 border border-slate-300 rounded-md bg-white font-medium outline-none focus:ring-2 focus:ring-emerald-500"></select></div>
+            <div><label class="block text-sm font-bold text-slate-600 mb-1">2. Proveedor</label><select id="cd-proveedor" class="w-full px-3 py-2 border border-slate-300 rounded-md bg-white font-medium outline-none focus:ring-2 focus:ring-emerald-500"></select></div>
         </div>
-
         <div class="overflow-x-auto border rounded-lg shadow-inner mb-4 bg-slate-50 pb-32">
             <table class="min-w-full divide-y divide-slate-200">
                 <thead class="bg-slate-200 sticky top-0 z-10">
-                    <tr>
-                        <th class="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase w-1/3 min-w-[250px]">Producto</th>
-                        <th class="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase w-1/4 min-w-[150px]">Ubicación Interna</th>
-                        <th class="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase w-32">Cant.</th>
-                        <th class="px-4 py-3 text-right text-xs font-bold text-slate-600 uppercase w-32 min-w-[120px]">Costo Total ($)</th>
-                        <th class="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase w-16">Quitar</th>
-                    </tr>
+                    <tr><th class="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase w-1/3 min-w-[250px]">Producto</th><th class="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase w-1/4 min-w-[150px]">Ubicación Interna</th><th class="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase w-32">Cant.</th><th class="px-4 py-3 text-right text-xs font-bold text-slate-600 uppercase w-32 min-w-[120px]">Costo Total ($)</th><th class="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase w-16">Quitar</th></tr>
                 </thead>
-                <tbody id="cd-filas" class="divide-y divide-slate-200 bg-white">
-                    </tbody>
+                <tbody id="cd-filas" class="divide-y divide-slate-200 bg-white"></tbody>
             </table>
         </div>
-        
         <div class="flex flex-col md:flex-row justify-between items-center gap-4 border-t pt-4">
             <button type="button" onclick="agregarFilaCD()" class="w-full md:w-auto px-4 py-2 font-bold text-emerald-700 bg-emerald-100 rounded-md hover:bg-emerald-200 transition-colors shadow-sm">+ Agregar Producto</button>
             <button type="button" onclick="guardarCompraDirectaMasiva()" id="btn-guardar-cd" class="w-full md:w-auto px-8 py-3 bg-emerald-600 text-white rounded-md font-bold hover:bg-emerald-700 transition-colors shadow-md text-lg">Registrar Compra</button>
         </div>
+
+        <div class="mt-8 border-t border-slate-100 pt-6">
+            <h4 class="font-bold text-slate-700 mb-3 text-sm uppercase tracking-wider">Últimas Compras Ingresadas</h4>
+            <div class="overflow-x-auto bg-slate-50 rounded-lg border border-slate-200 max-h-64">
+                <table class="min-w-full divide-y divide-slate-200 text-sm">
+                    <thead class="bg-slate-100 sticky top-0"><tr><th class="px-4 py-2 text-left text-slate-500">Fecha</th><th class="px-4 py-2 text-left text-slate-500">Producto</th><th class="px-4 py-2 text-right text-slate-500">Cant. Sumada</th><th class="px-4 py-2 text-left text-slate-500">Ubicación</th></tr></thead>
+                    <tbody id="log-compras-directas" class="divide-y divide-slate-100 bg-white"></tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </div>
-
 
 <div id="seccion-mov-ventas" class="hidden space-y-6">
     <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-200">
@@ -88,7 +91,7 @@
                 <button onclick="procesarArchivoCSV()" class="w-full md:w-auto px-8 py-2 bg-blue-600 text-white rounded-md font-bold hover:bg-blue-700 transition-colors shadow-sm h-[40px]">Analizar CSV</button>
             </div>
         </div>
-        <div id="panel-mapeo-csv" class="hidden border-t pt-6">
+        <div id="panel-mapeo-csv" class="hidden border-t pt-6 mb-6">
             <div class="mb-4">
                 <h4 class="font-bold text-slate-700">Revisión y Asociación de Productos</h4>
                 <p class="text-xs text-slate-500">El sistema recuerda tus selecciones pasadas. Revisa los que están en <span class="text-red-500 font-bold">ROJO</span>.</p>
@@ -106,46 +109,58 @@
                 <button onclick="confirmarDescuentoVentas()" id="btn-procesar-ventas" class="w-full md:w-auto px-6 py-3 bg-slate-800 text-white rounded-md font-bold hover:bg-slate-900 transition-colors shadow-md text-lg">✅ Descontar Inventario</button>
             </div>
         </div>
+
+        <div class="mt-8 border-t border-slate-100 pt-6">
+            <h4 class="font-bold text-slate-700 mb-1 text-sm uppercase tracking-wider">Períodos de Venta ya procesados</h4>
+            <p class="text-xs text-slate-400 mb-3">Revisa esta lista para evitar subir la misma semana dos veces.</p>
+            <div class="overflow-x-auto bg-slate-50 rounded-lg border border-slate-200 max-h-64">
+                <table class="min-w-full divide-y divide-slate-200 text-sm">
+                    <thead class="bg-slate-100 sticky top-0"><tr><th class="px-4 py-2 text-left text-slate-500">Fecha de Subida</th><th class="px-4 py-2 text-left text-slate-500">Período Procesado (Referencia)</th><th class="px-4 py-2 text-center text-slate-500">Impacto</th></tr></thead>
+                    <tbody id="log-ventas-pos" class="divide-y divide-slate-100 bg-white"></tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </div>
 
 <div id="seccion-mov-otros" class="hidden space-y-6">
     <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-200">
         <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><span>🔄</span> Registrar Ajustes, Mermas o Consumos</h3>
-        
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 bg-slate-50 p-4 rounded-lg border border-slate-100">
-            <div>
-                <label class="block text-sm font-bold text-slate-600 mb-1">1. Sucursal</label>
-                <select id="om-sucursal" onchange="actualizarUbicacionesOM()" class="w-full px-3 py-2 border border-slate-300 rounded-md bg-white font-medium outline-none focus:ring-2 focus:ring-slate-500"></select>
-            </div>
-            <div>
-                <label class="block text-sm font-bold text-slate-600 mb-1">2. Tipo de Movimiento</label>
-                <select id="om-tipo" class="w-full px-3 py-2 border border-slate-300 rounded-md bg-white font-medium outline-none focus:ring-2 focus:ring-slate-500"></select>
-            </div>
-            <div>
-                <label class="block text-sm font-bold text-slate-600 mb-1">3. Referencia / Motivo (Opcional)</label>
-                <input type="text" id="om-ref" placeholder="Ej: Merma por caducidad..." class="w-full px-3 py-2 border border-slate-300 rounded-md bg-white outline-none focus:ring-2 focus:ring-slate-500">
-            </div>
+            <div><label class="block text-sm font-bold text-slate-600 mb-1">1. Sucursal</label><select id="om-sucursal" onchange="actualizarUbicacionesOM()" class="w-full px-3 py-2 border border-slate-300 rounded-md bg-white font-medium outline-none focus:ring-2 focus:ring-slate-500"></select></div>
+            <div><label class="block text-sm font-bold text-slate-600 mb-1">2. Tipo de Movimiento</label><select id="om-tipo" class="w-full px-3 py-2 border border-slate-300 rounded-md bg-white font-medium outline-none focus:ring-2 focus:ring-slate-500"></select></div>
+            <div><label class="block text-sm font-bold text-slate-600 mb-1">3. Referencia / Motivo (Opcional)</label><input type="text" id="om-ref" placeholder="Ej: Merma por caducidad..." class="w-full px-3 py-2 border border-slate-300 rounded-md bg-white outline-none focus:ring-2 focus:ring-slate-500"></div>
         </div>
-
         <div class="overflow-x-auto border rounded-lg shadow-inner mb-4 bg-slate-50 pb-32">
             <table class="min-w-full divide-y divide-slate-200">
                 <thead class="bg-slate-200 sticky top-0 z-10">
-                    <tr>
-                        <th class="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase w-1/3 min-w-[250px]">Producto</th>
-                        <th class="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase w-1/3 min-w-[200px]">Ubicación y Stock Actual</th>
-                        <th class="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase w-32">Cant.</th>
-                        <th class="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase w-16">Quitar</th>
-                    </tr>
+                    <tr><th class="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase w-1/3 min-w-[250px]">Producto</th><th class="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase w-1/3 min-w-[200px]">Ubicación y Stock Actual</th><th class="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase w-32">Cant.</th><th class="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase w-16">Quitar</th></tr>
                 </thead>
-                <tbody id="om-filas" class="divide-y divide-slate-200 bg-white">
-                    </tbody>
+                <tbody id="om-filas" class="divide-y divide-slate-200 bg-white"></tbody>
             </table>
         </div>
-        
-        <div class="flex flex-col md:flex-row justify-between items-center gap-4 border-t pt-4">
+        <div class="flex flex-col md:flex-row justify-between items-center gap-4 border-t pt-4 mb-8">
             <button type="button" onclick="agregarFilaOM()" class="w-full md:w-auto px-4 py-2 font-bold text-slate-700 bg-slate-100 rounded-md hover:bg-slate-200 transition-colors shadow-sm">+ Agregar Producto</button>
             <button type="button" onclick="guardarOtrosMovimientosMasivo()" id="btn-guardar-om" class="w-full md:w-auto px-8 py-3 bg-slate-800 text-white rounded-md font-bold hover:bg-slate-900 transition-colors shadow-md text-lg">Aplicar Movimientos</button>
         </div>
+
+        <div class="border-t border-slate-100 pt-6">
+            <h4 class="font-bold text-slate-700 mb-3 text-sm uppercase tracking-wider">Últimos Ajustes Manuales Registrados</h4>
+            <div class="overflow-x-auto bg-slate-50 rounded-lg border border-slate-200 max-h-64">
+                <table class="min-w-full divide-y divide-slate-200 text-sm">
+                    <thead class="bg-slate-100 sticky top-0"><tr><th class="px-4 py-2 text-left text-slate-500">Fecha</th><th class="px-4 py-2 text-left text-slate-500">Acción</th><th class="px-4 py-2 text-left text-slate-500">Producto</th><th class="px-4 py-2 text-right text-slate-500">Cant. Modificada</th><th class="px-4 py-2 text-left text-slate-500">Motivo</th></tr></thead>
+                    <tbody id="log-otros-movs" class="divide-y divide-slate-100 bg-white"></tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </div>
+
+<style>
+    @media print {
+        #sidebar-menu, header, button, .flex.items-center.bg-white.border { display: none !important; }
+        #main-content { padding: 0 !important; width: 100% !important; }
+        body { background-color: white !important; }
+        .shadow-sm, .shadow-md { box-shadow: none !important; border: 1px solid #ccc; }
+    }
+</style>
