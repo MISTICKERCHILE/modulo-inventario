@@ -1265,3 +1265,76 @@ window.exportarMovimientosCSV = async function() {
     link.click();
     document.body.removeChild(link);
 }
+
+// ==========================================
+// --- HISTORIAL DE ÓRDENES Y DETALLES ---
+// ==========================================
+window.cargarHistorialOrdenes = async function() {
+    const tbody = document.getElementById('lista-historial-ordenes');
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8">⏳ Buscando en el archivo...</td></tr>';
+    
+    // Traemos las compras recientes (últimas 100)
+    const { data } = await clienteSupabase.from('compras')
+        .select('id, created_at, total_compra, estado, proveedores(nombre, tipo)')
+        .eq('id_empresa', window.miEmpresaId)
+        .order('created_at', {ascending: false})
+        .limit(100);
+
+    if(!data || data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-slate-500 italic">No hay órdenes registradas.</td></tr>'; return;
+    }
+
+    tbody.innerHTML = data.map(c => {
+        const isProd = c.proveedores?.tipo === 'Interno';
+        const tipoStr = isProd ? '<span class="bg-purple-100 text-purple-700 px-2 py-1 rounded text-xs font-bold whitespace-nowrap">🏭 Producción</span>' : '<span class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold whitespace-nowrap">🚚 Compra</span>';
+        const fecha = new Date(c.created_at).toLocaleDateString('es-CL', {dateStyle:'short', timeStyle:'short'});
+        
+        let estadoStr = `<span class="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs font-bold whitespace-nowrap">${c.estado}</span>`;
+        if (c.estado === 'Completada') estadoStr = `<span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-xs font-bold whitespace-nowrap">✅ Ingresada</span>`;
+        
+        return `<tr class="hover:bg-slate-50 transition-colors border-b border-slate-100">
+            <td class="px-4 py-3 text-slate-600 font-medium text-sm whitespace-nowrap">${fecha}</td>
+            <td class="px-4 py-3">${tipoStr}</td>
+            <td class="px-4 py-3 font-bold text-slate-800">${c.proveedores?.nombre || 'General'}</td>
+            <td class="px-4 py-3 text-right font-mono text-slate-600 font-bold">$${c.total_compra}</td>
+            <td class="px-4 py-3 text-center">${estadoStr}</td>
+            <td class="px-4 py-3 text-center">
+                <button onclick="abrirDetallesOrden('${c.id}', '${(c.proveedores?.nombre || '').replace(/'/g, "\\'")}')" class="text-slate-500 hover:text-slate-800 bg-white border border-slate-300 shadow-sm px-3 py-1 rounded font-bold transition-transform hover:scale-105">👁️ Ver</button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+window.abrirDetallesOrden = async function(idCompra, provNombre) {
+    document.getElementById('do-proveedor').innerText = provNombre;
+    const tbody = document.getElementById('do-filas');
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8">⏳ Desglosando pedido...</td></tr>';
+    document.getElementById('modal-detalles-orden').classList.remove('hidden');
+
+    const { data } = await clienteSupabase.from('compras_detalles')
+        .select('cantidad_uc, estado, motivo_no_recepcion, productos(nombre, id_unidad_compra(abreviatura)), sucursales(nombre), ubicaciones_internas(nombre)')
+        .eq('id_compra', idCompra);
+
+    if(!data || data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-slate-500">No hay detalles para mostrar.</td></tr>'; return;
+    }
+
+    tbody.innerHTML = data.map(d => {
+        const abrev = d.productos?.id_unidad_compra?.abreviatura || 'UC';
+        
+        let estColor = 'bg-slate-100 text-slate-600 border border-slate-200';
+        if(d.estado === 'Recibido') estColor = 'bg-emerald-100 text-emerald-700 border border-emerald-200';
+        if(d.estado === 'No Recibido') estColor = 'bg-red-100 text-red-700 border border-red-200';
+        if(d.estado === 'Postpuesto') estColor = 'bg-yellow-100 text-yellow-700 border border-yellow-200';
+        
+        const destino = `📍 ${d.sucursales?.nombre || 'General'}<br><span class="text-[10px] text-slate-500 font-bold bg-slate-100 px-1 rounded inline-block mt-0.5">Gaveta: ${d.ubicaciones_internas?.nombre || 'General'}</span>`;
+
+        return `<tr class="border-b border-slate-100 hover:bg-slate-50">
+            <td class="px-4 py-3 font-bold text-slate-700 text-sm whitespace-nowrap">${d.productos?.nombre}</td>
+            <td class="px-4 py-3 text-center font-mono font-bold text-slate-800 bg-slate-50/50">${d.cantidad_uc} <span class="text-[10px] text-slate-400">${abrev}</span></td>
+            <td class="px-4 py-3 text-sm">${destino}</td>
+            <td class="px-4 py-3 text-center"><span class="px-2 py-0.5 rounded text-[10px] uppercase font-black tracking-wider ${estColor} whitespace-nowrap">${d.estado}</span></td>
+            <td class="px-4 py-3 text-xs text-slate-500 italic max-w-[200px] truncate" title="${d.motivo_no_recepcion || ''}">"${d.motivo_no_recepcion || '-'}"</td>
+        </tr>`;
+    }).join('');
+}
