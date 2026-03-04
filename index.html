@@ -37,15 +37,33 @@
                 <span class="text-2xl">📦</span>
                 <h1 class="text-xl font-bold">Módulo - Inventario</h1>
             </div>
-            <div class="flex items-center gap-4">
-                <span id="user-email-display" class="text-sm font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full border border-slate-200"></span>
-                <button onclick="cerrarSesion()" class="text-sm text-red-600 font-medium hover:underline">Cerrar Sesión</button>
+            
+            <div class="flex items-center gap-4 relative">
+                <button class="text-slate-400 hover:text-emerald-600 transition-colors relative outline-none" title="Notificaciones">
+                    <span class="text-2xl">🔔</span>
+                    <span class="absolute top-0 right-0 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full transform translate-x-1 -translate-y-1 hidden" id="bell-indicator">!</span>
+                </button>
+                
+                <span id="user-name-display" class="text-sm font-bold text-slate-600 bg-slate-100 px-4 py-2 rounded-full border border-slate-200">Cargando...</span>
+                
+                <div class="relative">
+                    <button onclick="toggleUserMenu()" class="text-slate-500 hover:bg-slate-200 px-2 py-1 rounded-md text-xl font-bold outline-none transition-colors">⋮</button>
+                    <div id="user-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-100 z-50 overflow-hidden">
+                        <div class="px-4 py-3 border-b border-slate-50 bg-slate-50">
+                            <p class="text-xs text-slate-400 font-bold uppercase">Cuenta</p>
+                            <p id="user-email-dropdown" class="text-sm font-medium text-slate-700 truncate">...</p>
+                        </div>
+                        <button onclick="cerrarSesion()" class="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 font-bold transition-colors">Cerrar Sesión</button>
+                    </div>
+                </div>
             </div>
         </header>
 
         <div class="flex flex-1 overflow-hidden">
             
             <aside id="sidebar-menu" class="w-64 bg-slate-800 text-white flex flex-col p-4 space-y-2 z-10 transition-all duration-300 ease-in-out overflow-hidden whitespace-nowrap">
+                <button onclick="cambiarVista('dashboard')" id="btn-menu-dashboard" class="w-full flex items-center gap-3 px-4 py-3 bg-emerald-600 rounded-lg font-medium transition-colors mb-2"><span>📊</span> <span class="menu-texto">Dashboard</span></button>
+                
                 <button onclick="cambiarVista('inventario')" id="btn-menu-inventario" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>📦</span> <span class="menu-texto">Inventario Físico</span></button>
                 <button onclick="cambiarVista('movimientos')" id="btn-menu-movimientos" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>🔄</span> <span class="menu-texto">Movimientos</span></button>
                 
@@ -58,6 +76,51 @@
 
             <main class="flex-1 p-8 overflow-y-auto relative">
                 
+                <div id="vista-dashboard" class="max-w-6xl mx-auto block">
+                    <div class="mb-8 bg-gradient-to-r from-emerald-600 to-teal-500 rounded-2xl p-8 text-white shadow-md">
+                        <h2 id="dash-saludo" class="text-3xl md:text-4xl font-bold mb-2">¡Hola!</h2>
+                        <p class="text-emerald-50 text-lg opacity-90">Aquí tienes el resumen en tiempo real de tu operación.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div onclick="irAAlertasStock()" class="bg-white rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md hover:border-red-300 transition-all cursor-pointer group relative overflow-hidden">
+                            <div class="absolute top-0 right-0 w-16 h-16 bg-red-50 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-150"></div>
+                            <div class="flex justify-between items-start mb-4 relative z-10">
+                                <div class="p-3 bg-red-100 text-red-600 rounded-lg">
+                                    <span class="text-2xl">⚠️</span>
+                                </div>
+                                <span class="text-4xl font-black text-slate-800" id="widget-alertas-num">0</span>
+                            </div>
+                            <h3 class="font-bold text-slate-700 text-lg mb-1 relative z-10">Alertas de Stock</h3>
+                            <p class="text-sm text-slate-500 relative z-10">Productos bajo el mínimo sugerido</p>
+                        </div>
+
+                        <div onclick="irATransito()" class="bg-white rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all cursor-pointer group relative overflow-hidden">
+                            <div class="absolute top-0 right-0 w-16 h-16 bg-blue-50 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-150"></div>
+                            <div class="flex justify-between items-start mb-4 relative z-10">
+                                <div class="p-3 bg-blue-100 text-blue-600 rounded-lg">
+                                    <span class="text-2xl">🚚</span>
+                                </div>
+                                <span class="text-4xl font-black text-slate-800" id="widget-transito-num">0</span>
+                            </div>
+                            <h3 class="font-bold text-slate-700 text-lg mb-1 relative z-10">En Tránsito</h3>
+                            <p class="text-sm text-slate-500 relative z-10">Camiones y entregas pendientes</p>
+                        </div>
+
+                        <div onclick="irASubirVentas()" class="bg-white rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md hover:border-purple-300 transition-all cursor-pointer group relative overflow-hidden">
+                            <div class="absolute top-0 right-0 w-16 h-16 bg-purple-50 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-150"></div>
+                            <div class="flex justify-between items-start mb-4 relative z-10">
+                                <div class="p-3 bg-purple-100 text-purple-600 rounded-lg">
+                                    <span class="text-2xl">📊</span>
+                                </div>
+                                <span class="text-4xl font-black text-slate-800" id="widget-pos-num">-</span>
+                            </div>
+                            <h3 class="font-bold text-slate-700 text-lg mb-1 relative z-10">Último Ingreso POS</h3>
+                            <p class="text-sm text-slate-500 relative z-10">Días sin actualizar ventas</p>
+                        </div>
+                    </div>
+                </div>
+
                 <div id="vista-catalogos" class="max-w-4xl mx-auto hidden">
                     <h2 class="text-2xl font-bold mb-6">Gestión de Catálogos</h2>
                     <div class="flex border-b border-gray-200 mb-6 overflow-x-auto bg-white rounded-t-lg shadow-sm">
@@ -231,16 +294,12 @@
                         <div id="subvista-transito" class="hidden space-y-6">
                             <div id="transito-vista-sucursales" class="block">
                                 <h3 class="text-xl font-bold mb-6 text-slate-800">🚚 Selecciona tu Sucursal para ver las Recepciones Pendientes</h3>
-                                <div id="grid-sucursales-transito" class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    </div>
+                                <div id="grid-sucursales-transito" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
                             </div>
-
                             <div id="transito-vista-detalle" class="hidden">
                                 <button onclick="volverGridTransito()" class="text-blue-600 font-bold mb-4 flex items-center gap-1 hover:underline text-sm transition-colors">← Cambiar Sucursal</button>
                                 <h3 class="text-2xl font-bold mb-6 text-slate-800" id="transito-titulo-sucursal">🚚 En Camino a: -</h3>
-                                
-                                <div id="lista-transito-proveedores" class="space-y-6">
-                                    </div>
+                                <div id="lista-transito-proveedores" class="space-y-6"></div>
                             </div>
                         </div>
                     </div>
@@ -333,7 +392,7 @@
                     </div>
                 </div>
                 
-                <div id="vista-inventario" class="max-w-6xl mx-auto block">
+                <div id="vista-inventario" class="max-w-6xl mx-auto hidden">
                     <div id="inv-vista-sucursales" class="block">
                         <h2 class="text-2xl font-bold mb-6 text-slate-800">📦 Selecciona una Sucursal para ver su Inventario</h2>
                         <div id="grid-sucursales-inventario" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
@@ -470,7 +529,7 @@
                         </tr>
                     </thead>
                     <tbody id="rm-filas" class="divide-y divide-slate-200 bg-white">
-                        </tbody>
+                    </tbody>
                 </table>
             </div>
 
