@@ -25,8 +25,9 @@ window.cambiarTabMovimientos = function(tab) {
     });
 
     if(tab === 'pedidos') window.cambiarSubTabPedidos('sugerencias');
-    if(tab === 'compras' || tab === 'otros') window.cargarSelectsMovimientosFormularios(); 
-    if(tab === 'ventas') window.prepararPanelVentas();
+    if(tab === 'compras') { window.cargarSelectsMovimientosFormularios(); window.cargarLogsMovimientos('COMPRA_DIRECTA'); }
+    if(tab === 'ventas') { window.prepararPanelVentas(); window.cargarLogsVentasPOS(); }
+    if(tab === 'otros') { window.cargarSelectsMovimientosFormularios(); window.cargarLogsMovimientos('OTROS'); }
 }
 
 window.cambiarSubTabPedidos = function(subtab) {
