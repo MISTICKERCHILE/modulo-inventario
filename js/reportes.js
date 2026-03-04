@@ -1,13 +1,26 @@
 window.movimientosGlobales = []; // Caché para no consultar la BD cada vez que filtramos
+window.prodsGlobalesReportes = [];
+window.ubisGlobalesReportes = [];
 
 window.cargarReportes = async function() {
     window.cambiarTabReportes('valorizacion'); // Por defecto abre valorización
     
     // --- 1. CARGA DE VALORIZACIÓN ---
-    const [{data: prods}, {data: saldos}] = await Promise.all([
-        clienteSupabase.from('productos').select('id, nombre, ultimo_costo_uc, cant_en_ua_de_uc, id_unidad_almacenamiento(abreviatura)').eq('id_empresa', window.miEmpresaId).order('nombre'),
-        clienteSupabase.from('inventario_saldos').select('id_producto, cantidad_actual_ua').eq('id_empresa', window.miEmpresaId)
+    // Traemos productos, saldos y ubicaciones de forma plana (sin cruces complejos)
+    const [{data: prods, error: errP}, {data: saldos}, {data: ubis}] = await Promise.all([
+        clienteSupabase.from('productos').select('id, nombre, ultimo_costo_uc, cant_en_ua_de_uc, created_at, id_unidad_almacenamiento(abreviatura)').eq('id_empresa', window.miEmpresaId).order('nombre'),
+        clienteSupabase.from('inventario_saldos').select('id_producto, cantidad_actual_ua').eq('id_empresa', window.miEmpresaId),
+        clienteSupabase.from('ubicaciones_internas').select('id, nombre').eq('id_empresa', window.miEmpresaId)
     ]);
+
+    if (errP) { 
+        console.error(errP); 
+        return alert("Error cargando productos: " + errP.message); 
+    }
+
+    // Guardamos en memoria para usarlos luego en el Kardex
+    window.prodsGlobalesReportes = prods || [];
+    window.ubisGlobalesReportes = ubis || [];
 
     const stockPorProducto = {};
     (saldos || []).forEach(s => {
@@ -17,7 +30,7 @@ window.cargarReportes = async function() {
 
     let valorTotalGlobal = 0, itemsConStock = 0, htmlFilas = '';
 
-    (prods || []).forEach(p => {
+    window.prodsGlobalesReportes.forEach(p => {
         const stockFisicoUA = stockPorProducto[p.id] || 0;
         
         if (stockFisicoUA > 0) {
@@ -41,13 +54,13 @@ window.cargarReportes = async function() {
 
     document.getElementById('lista-rep-valorizacion').innerHTML = htmlFilas || '<tr><td colspan="4" class="text-center py-8 text-slate-400 italic">No hay productos con stock para valorizar.</td></tr>';
     document.getElementById('rep-kpi-valor').innerText = `$${valorTotalGlobal.toLocaleString('es-CL', {minimumFractionDigits: 0, maximumFractionDigits: 0})}`;
-    document.getElementById('rep-kpi-prods').innerText = prods ? prods.length : 0;
+    document.getElementById('rep-kpi-prods').innerText = window.prodsGlobalesReportes.length;
     document.getElementById('rep-kpi-stock').innerText = itemsConStock;
 
-    // Poblar el filtro del Kardex con los productos obtenidos
+    // Poblar el filtro del Kardex
     const selectFiltro = document.getElementById('filtro-kardex-prod');
     let opts = '<option value="TODOS">-- Mostrar todo el historial mezclado --</option>';
-    (prods || []).forEach(p => opts += `<option value="${p.id}">${p.nombre}</option>`);
+    window.prodsGlobalesReportes.forEach(p => opts += `<option value="${p.id}">${p.nombre}</option>`);
     selectFiltro.innerHTML = opts;
 }
 
@@ -57,7 +70,7 @@ window.cambiarTabReportes = function(tab) {
     const btnKar = document.getElementById('tab-rep-kardex');
     const secVal = document.getElementById('seccion-rep-valorizacion');
     const secKar = document.getElementById('seccion-rep-kardex');
-    const kpis = document.getElementById('rep-kpis-container'); // Ocultar KPIs en historial
+    const kpis = document.getElementById('rep-kpis-container'); 
 
     if(tab === 'valorizacion') {
         btnVal.className = "px-6 py-3 font-medium border-b-2 border-emerald-600 text-emerald-600 bg-emerald-50/50 transition-colors";
@@ -78,37 +91,42 @@ window.cargarKardexGlobalBD = async function() {
     const tbody = document.getElementById('lista-rep-kardex');
     tbody.innerHTML = '<tr><td colspan="6" class="text-center py-16"><p class="text-3xl mb-2 animate-bounce">⏳</p><p class="text-slate-500 font-bold">Recopilando auditoría completa...</p><p class="text-xs text-slate-400">Esto puede tardar unos segundos.</p></td></tr>';
 
-    // A. Traer todos los movimientos
-    const { data: movs } = await clienteSupabase.from('movimientos_inventario')
-        .select(`fecha_movimiento, tipo_movimiento, cantidad_movida, referencia, id_producto, productos(nombre, id_unidad_almacenamiento(abreviatura)), ubicaciones_internas(nombre)`)
+    // Petición 100% plana y segura
+    const { data: movs, error: errMovs } = await clienteSupabase.from('movimientos_inventario')
+        .select('fecha_movimiento, tipo_movimiento, cantidad_movida, referencia, id_producto, id_ubicacion')
         .eq('id_empresa', window.miEmpresaId)
         .order('fecha_movimiento', { ascending: false });
 
-    // B. Traer la fecha de "Nacimiento" de los productos
-    const { data: prods } = await clienteSupabase.from('productos')
-        .select('id, nombre, created_at, id_unidad_almacenamiento(abreviatura)')
-        .eq('id_empresa', window.miEmpresaId);
+    if (errMovs) {
+        console.error("Error BD:", errMovs);
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-red-500 font-bold">❌ Error en Base de Datos: ${errMovs.message}</td></tr>`;
+        return;
+    }
 
     let trazaAuditoria = [];
     
-    // Unir movimientos
+    // Armar el historial cruzando datos manualmente (Evita errores de Foreign Keys)
     (movs || []).forEach(m => {
+        const prodInfo = window.prodsGlobalesReportes.find(p => p.id === m.id_producto);
+        const ubiInfo = window.ubisGlobalesReportes.find(u => u.id === m.id_ubicacion);
+
         trazaAuditoria.push({
             fechaObj: new Date(m.fecha_movimiento),
             idProd: m.id_producto,
-            nombreProd: m.productos?.nombre || 'Desconocido',
-            abrev: m.productos?.id_unidad_almacenamiento?.abreviatura || 'UA',
+            nombreProd: prodInfo ? prodInfo.nombre : 'Desconocido',
+            abrev: prodInfo?.id_unidad_almacenamiento?.abreviatura || 'UA',
             accion: m.tipo_movimiento,
-            ubicacion: m.ubicaciones_internas?.nombre || 'Bodega General',
+            ubicacion: ubiInfo ? ubiInfo.nombre : 'Bodega General',
             cantidad: m.cantidad_movida,
             ref: m.referencia || '-'
         });
     });
 
     // Unir "Nacimientos"
-    (prods || []).forEach(p => {
+    window.prodsGlobalesReportes.forEach(p => {
+        const fechaCreacion = p.created_at ? new Date(p.created_at) : new Date();
         trazaAuditoria.push({
-            fechaObj: new Date(p.created_at),
+            fechaObj: fechaCreacion,
             idProd: p.id,
             nombreProd: p.nombre,
             abrev: p.id_unidad_almacenamiento?.abreviatura || 'UA',
@@ -123,8 +141,9 @@ window.cargarKardexGlobalBD = async function() {
     trazaAuditoria.sort((a, b) => b.fechaObj - a.fechaObj);
     window.movimientosGlobales = trazaAuditoria;
 
-    // Pintar la tabla
-    window.renderizarTablaKardex('TODOS');
+    // Pintar la tabla manteniendo el filtro activo
+    const filtroActual = document.getElementById('filtro-kardex-prod').value;
+    window.renderizarTablaKardex(filtroActual);
 }
 
 // --- 3. PINTAR TABLA Y FILTRAR ---
@@ -132,7 +151,8 @@ window.renderizarTablaKardex = function(filtroIdProd) {
     const tbody = document.getElementById('lista-rep-kardex');
     let listaFiltrada = window.movimientosGlobales;
 
-    if (filtroIdProd !== 'TODOS') {
+    // Filtro inteligente
+    if (filtroIdProd && filtroIdProd !== 'TODOS') {
         listaFiltrada = listaFiltrada.filter(t => t.idProd === filtroIdProd);
     }
 
@@ -155,9 +175,12 @@ window.renderizarTablaKardex = function(filtroIdProd) {
         let icono = isCreacion ? '🐣' : (isPositivo ? '📥' : '📤');
         if(isCero && !isCreacion) icono = '🔄';
 
-        // Formato de Fecha y Hora chilena
-        const fechaFormat = t.fechaObj.toLocaleDateString('es-CL', { year: 'numeric', month: '2-digit', day: '2-digit' });
-        const horaFormat = t.fechaObj.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+        // Formato de Fecha a prueba de fallos
+        let fechaFormat = '-', horaFormat = '-';
+        if (t.fechaObj && !isNaN(t.fechaObj.getTime())) {
+            fechaFormat = t.fechaObj.toLocaleDateString('es-CL', { year: 'numeric', month: '2-digit', day: '2-digit' });
+            horaFormat = t.fechaObj.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+        }
 
         return `
         <tr class="${colorFila} transition-colors border-b border-slate-100">
@@ -175,7 +198,6 @@ window.renderizarTablaKardex = function(filtroIdProd) {
     }).join('');
 }
 
-// Evento que se dispara al cambiar el <select>
 window.filtrarKardexGlobal = function(idProdSeleccionado) {
     window.renderizarTablaKardex(idProdSeleccionado);
 }
