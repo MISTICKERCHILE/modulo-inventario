@@ -1,10 +1,47 @@
 <div class="flex justify-between items-center mb-6">
-    <h2 class="text-2xl font-bold">Catálogo de Productos</h2>
-    <button onclick="abrirModalProducto()" class="px-4 py-2 bg-emerald-600 text-white rounded-md font-medium shadow-sm hover:bg-emerald-700 transition-colors">+ Nuevo Producto</button>
+    <h2 class="text-2xl font-bold">🍔 Catálogo de Productos</h2>
+    
+    <div class="flex items-center gap-2">
+        <div class="flex bg-white border border-slate-200 rounded-md shadow-sm mr-2 overflow-hidden">
+            <button onclick="document.getElementById('file-importar-productos').click()" title="Importar CSV (Usar plantilla exportada)" class="px-3 py-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition-colors border-r">
+                📥
+            </button>
+            <input type="file" id="file-importar-productos" accept=".csv" class="hidden" onchange="importarProductosCSV(this)">
+            
+            <button onclick="exportarProductosCSV()" title="Exportar a Excel / Descargar Plantilla" class="px-3 py-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors border-r">
+                📤
+            </button>
+            
+            <button onclick="window.print()" title="Imprimir / PDF" class="px-3 py-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors">
+                🖨️
+            </button>
+        </div>
+        
+        <button onclick="abrirModalProducto()" class="px-4 py-2 bg-emerald-600 text-white rounded-md font-medium shadow-sm hover:bg-emerald-700 transition-colors">+ Nuevo Producto</button>
+    </div>
 </div>
+
 <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
-    <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-slate-50"><tr><th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Nombre</th><th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase">Estado</th><th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">Ver Opciones</th></tr></thead>
-        <tbody id="lista-productos" class="divide-y divide-gray-200"></tbody>
+    <table class="min-w-full divide-y divide-gray-200" id="tabla-exportar-productos">
+        <thead class="bg-slate-50">
+            <tr>
+                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Nombre del Producto</th>
+                <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase">Unidad Base (UA)</th>
+                <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase">Receta Asignada</th>
+                <th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase no-print">Acciones</th>
+            </tr>
+        </thead>
+        <tbody id="lista-productos" class="divide-y divide-gray-200">
+            </tbody>
     </table>
 </div>
+
+<style>
+    /* Ocultar botones e interfaces cuando se imprime a PDF */
+    @media print {
+        #sidebar-menu, header, button, .no-print { display: none !important; }
+        #main-content { padding: 0 !important; width: 100% !important; }
+        body { background-color: white !important; }
+        .shadow-sm, .shadow-md { box-shadow: none !important; border: 1px solid #ccc; }
+    }
+</style>
