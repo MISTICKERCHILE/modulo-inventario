@@ -1,0 +1,71 @@
+<h2 class="text-2xl font-bold mb-6 text-slate-800">⚙️ Gestión de Catálogos Maestros</h2>
+<div class="flex border-b border-gray-200 mb-6 overflow-x-auto bg-white rounded-t-lg shadow-sm">
+    <button onclick="cambiarTab('categorias')" id="tab-categorias" class="px-6 py-3 font-medium border-b-2 border-emerald-600 text-emerald-600 bg-emerald-50/50">Categorías</button>
+    <button onclick="cambiarTab('unidades')" id="tab-unidades" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors">Unidades</button>
+    <button onclick="cambiarTab('proveedores')" id="tab-proveedores" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors">Proveedores</button>
+    <button onclick="cambiarTab('sucursales')" id="tab-sucursales" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors">Sucursales</button>
+    <button onclick="cambiarTab('ubicaciones')" id="tab-ubicaciones" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors">Ubicaciones</button>
+    <button onclick="cambiarTab('tipos_movimiento')" id="tab-tipos_movimiento" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors">Tipos de Mov.</button>
+</div>
+
+<div id="seccion-categorias" class="block space-y-4">
+    <form id="form-categoria" class="bg-white p-6 rounded-xl shadow-sm border flex items-end gap-4">
+        <div class="flex-1"><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre de Categoría</label><input type="text" id="nombre-categoria" required class="w-full px-4 py-2 border rounded-md bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"></div>
+        <button type="button" id="btn-cancelar-categoria" onclick="cancelarEdicion('categoria')" class="hidden px-4 py-2 border text-gray-600 rounded-md font-bold">Cancelar</button>
+        <button type="submit" class="px-6 py-2 bg-slate-800 text-white rounded-md font-bold transition-colors hover:bg-slate-700 shadow-sm h-[40px]">Guardar</button>
+    </form>
+    <div class="bg-white rounded-xl shadow-sm border overflow-hidden"><ul id="lista-categorias" class="divide-y divide-gray-100"></ul></div>
+</div>
+
+<div id="seccion-unidades" class="hidden space-y-4">
+    <form id="form-unidad" class="bg-white p-6 rounded-xl shadow-sm border flex items-end gap-4">
+        <div class="flex-1"><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre Completo</label><input type="text" id="nombre-unidad" required class="w-full px-4 py-2 border rounded-md bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"></div>
+        <div class="w-32"><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Abreviatura</label><input type="text" id="abrev-unidad" required class="w-full px-4 py-2 border rounded-md bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"></div>
+        <button type="button" id="btn-cancelar-unidad" onclick="cancelarEdicion('unidad')" class="hidden px-4 py-2 border text-gray-600 rounded-md font-bold">Cancelar</button>
+        <button type="submit" class="px-6 py-2 bg-slate-800 text-white rounded-md font-bold transition-colors hover:bg-slate-700 shadow-sm h-[40px]">Guardar</button>
+    </form>
+    <div class="bg-white rounded-xl shadow-sm border overflow-hidden"><ul id="lista-unidades" class="divide-y divide-gray-100"></ul></div>
+</div>
+
+<div id="seccion-proveedores" class="hidden space-y-4">
+    <form id="form-proveedor" class="bg-white p-6 rounded-xl shadow-sm border grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre Proveedor</label><input type="text" id="nombre-proveedor" required class="w-full px-4 py-2 border rounded-md bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"></div>
+        <div><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Tipo de Proveedor</label><select id="tipo-proveedor" required class="w-full px-4 py-2 border rounded-md bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none font-bold"><option value="Externo">Externo</option><option value="Interno">Interno</option></select></div>
+        <div><label class="block text-xs font-bold text-slate-500 uppercase mb-1">WhatsApp</label><input type="text" id="whatsapp-proveedor" class="w-full px-4 py-2 border rounded-md bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"></div>
+        <div><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Correo Electrónico</label><input type="email" id="correo-proveedor" class="w-full px-4 py-2 border rounded-md bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"></div>
+        <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Días Promedio Entrega</label><input type="number" id="tiempo-entrega" class="w-1/2 md:w-1/3 px-4 py-2 border rounded-md bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"></div>
+        <div class="col-span-1 md:col-span-2 flex justify-end gap-3 mt-2 border-t pt-4"><button type="button" id="btn-cancelar-proveedor" onclick="cancelarEdicion('proveedor')" class="hidden px-6 py-2 border text-gray-600 rounded-md font-bold">Cancelar</button><button type="submit" class="px-8 py-2 bg-slate-800 text-white rounded-md font-bold shadow-sm">Guardar Proveedor</button></div>
+    </form>
+    <div class="bg-white rounded-xl shadow-sm border overflow-hidden"><ul id="lista-proveedores" class="divide-y divide-gray-100"></ul></div>
+</div>
+
+<div id="seccion-sucursales" class="hidden space-y-4">
+    <form id="form-sucursal" class="bg-white p-6 rounded-xl shadow-sm border grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre Interno</label><input type="text" id="nombre-sucursal" required class="w-full px-4 py-2 border rounded-md bg-slate-50 outline-none font-bold"></div>
+        <div><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre Comercial</label><input type="text" id="comercial-sucursal" class="w-full px-4 py-2 border rounded-md bg-slate-50 outline-none"></div>
+        <div><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Razón Social Asociada</label><input type="text" id="empresa-sucursal" class="w-full px-4 py-2 border rounded-md bg-slate-50 outline-none"></div>
+        <div><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Horarios</label><input type="text" id="horario-sucursal" class="w-full px-4 py-2 border rounded-md bg-slate-50 outline-none"></div>
+        <div class="col-span-1 md:col-span-2"><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Dirección Exacta</label><input type="text" id="dir-sucursal" class="w-full px-4 py-2 border rounded-md bg-slate-50 outline-none"></div>
+        <div class="col-span-1 md:col-span-2 flex justify-end gap-3 mt-2 border-t pt-4"><button type="button" id="btn-cancelar-sucursal" onclick="cancelarEdicion('sucursal')" class="hidden px-6 py-2 border text-gray-600 rounded-md font-bold">Cancelar</button><button type="submit" class="px-8 py-2 bg-slate-800 text-white rounded-md font-bold shadow-sm">Guardar Sucursal</button></div>
+    </form>
+    <div class="bg-white rounded-xl shadow-sm border overflow-hidden"><ul id="lista-sucursales" class="divide-y divide-gray-100"></ul></div>
+</div>
+
+<div id="seccion-ubicaciones" class="hidden space-y-4">
+    <form id="form-ubicacion" class="bg-white p-6 rounded-xl shadow-sm border grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+        <div><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Sucursal Padre</label><select id="sel-sucursal-ubi" required class="w-full px-4 py-2 border rounded-md bg-slate-50 outline-none"></select></div>
+        <div><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Ubicación Interna</label><input type="text" id="nombre-ubicacion" required class="w-full px-4 py-2 border rounded-md bg-slate-50 outline-none"></div>
+        <div class="col-span-1 md:col-span-2 flex justify-end gap-3 mt-2 border-t pt-4"><button type="button" id="btn-cancelar-ubicacion" onclick="cancelarEdicion('ubicacion')" class="hidden px-6 py-2 border text-gray-600 rounded-md font-bold">Cancelar</button><button type="submit" class="px-8 py-2 bg-slate-800 text-white rounded-md font-bold shadow-sm">Guardar Ubicación</button></div>
+    </form>
+    <div class="bg-white rounded-xl shadow-sm border overflow-hidden"><ul id="lista-ubicaciones" class="divide-y divide-gray-100"></ul></div>
+</div>
+
+<div id="seccion-tipos_movimiento" class="hidden space-y-4">
+    <form id="form-tipo-movimiento" class="bg-white p-6 rounded-xl shadow-sm border flex items-end gap-4">
+        <div class="flex-1"><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Motivo</label><input type="text" id="nombre-tipo-mov" required class="w-full px-4 py-2 border rounded-md bg-slate-50 outline-none"></div>
+        <div class="w-48"><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Impacto</label><select id="operacion-tipo-mov" required class="w-full px-4 py-2 border rounded-md bg-slate-50 outline-none font-bold"><option value="+">Suma (+)</option><option value="-">Resta (-)</option></select></div>
+        <button type="button" id="btn-cancelar-tipo-movimiento" onclick="cancelarEdicion('tipo-movimiento')" class="hidden px-4 py-2 border text-gray-600 rounded-md font-bold">Cancelar</button>
+        <button type="submit" class="px-6 py-2 bg-slate-800 text-white rounded-md font-bold shadow-sm h-[40px]">Guardar</button>
+    </form>
+    <div class="bg-white rounded-xl shadow-sm border overflow-hidden"><ul id="lista-tipos-movimiento" class="divide-y divide-gray-100"></ul></div>
+</div>
