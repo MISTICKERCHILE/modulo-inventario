@@ -1,0 +1,34 @@
+<div class="bg-emerald-700 text-white p-6 rounded-t-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div class="w-full md:w-1/2">
+        <h2 class="text-2xl font-bold mb-3" id="receta-titulo">Gestión de Recetas</h2>
+        <select id="buscador-recetas" onchange="seleccionarRecetaDesdeBuscador(this.value)" class="w-full px-3 py-2 text-slate-800 rounded-md font-medium outline-none shadow-sm"></select>
+        <p class="text-emerald-200 text-sm mt-2 hidden" id="receta-unidad-base">Unidad base: -</p>
+    </div>
+    <div id="panel-estadisticas-receta" class="hidden bg-emerald-800 p-4 rounded-lg flex gap-6 items-center border border-emerald-600">
+        <div>
+            <label class="block text-xs text-emerald-300 font-bold mb-1">Rendimiento Real</label>
+            <div class="flex items-center gap-2">
+                <input type="number" step="0.01" id="receta-rendimiento" class="w-24 px-2 py-1 text-slate-800 rounded font-bold text-center outline-none focus:ring-2 focus:ring-emerald-500">
+                <span id="receta-label-rendimiento" class="text-sm font-bold"></span>
+                <button onclick="guardarRendimiento()" class="text-xs bg-emerald-600 hover:bg-emerald-500 px-2 py-1 rounded transition-colors">Guardar</button>
+            </div>
+        </div>
+        <div class="border-l border-emerald-600 pl-6"><p class="text-xs text-emerald-300 font-bold mb-1">Costo Unitario</p><p class="text-2xl font-bold" id="receta-costo-unitario">$0.00</p></div>
+    </div>
+</div>
+<div id="msj-receta-vacia" class="bg-white p-16 border-x border-b rounded-b-xl shadow-sm text-center text-slate-400">
+    <span class="text-5xl mb-4 block">📝</span>
+    <p class="text-lg">Selecciona una receta en el buscador superior para armar su composición.</p>
+</div>
+<div id="panel-receta-activa" class="hidden bg-white p-6 border-x border-b rounded-b-xl shadow-sm">
+    <form id="form-ingrediente" class="flex gap-4 items-end mb-6">
+        <div class="flex-1"><label class="block text-xs font-bold text-gray-500 mb-1">Insumo</label><select id="sel-ingrediente" required class="w-full px-3 py-2 border rounded-md bg-white outline-none focus:ring-2 focus:ring-emerald-500"></select></div>
+        <div class="w-32 relative"><label class="block text-xs font-bold text-gray-500 mb-1">Cantidad</label><input type="number" step="0.0001" id="ing-cantidad" required class="w-full px-3 py-2 border rounded-md pr-10 outline-none focus:ring-2 focus:ring-emerald-500"><span id="label-unidad-ingrediente" class="absolute right-3 top-8 text-xs font-bold text-emerald-600"></span></div>
+        <button type="button" id="btn-cancelar-ingrediente" onclick="cancelarEdicion('ingrediente')" class="hidden px-4 py-2 border text-gray-600 rounded-md">Cancelar</button>
+        <button type="submit" class="px-6 py-2 bg-emerald-600 text-white rounded-md font-bold transition-colors hover:bg-emerald-700">Añadir</button>
+    </form>
+    <table class="min-w-full">
+        <thead><tr class="border-b text-slate-400 text-xs font-bold uppercase"><th class="py-3 text-left">Ingrediente</th><th class="py-3 text-center">Cantidad</th><th class="py-3 text-right">Acciones</th></tr></thead>
+        <tbody id="lista-ingredientes-receta" class="divide-y divide-gray-100"></tbody>
+    </table>
+</div>
