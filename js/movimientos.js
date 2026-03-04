@@ -76,19 +76,14 @@ window.cargarPedidosPlanificados = async function() {
             const regla = (reglas||[]).find(r => r.id_sucursal === suc.id && r.id_producto === p.id);
             if(!regla || regla.stock_minimo_ua <= 0) return;
 
-            // FÍSICO: Lo que hay en la bodega sumando todas las ubicaciones
             const stockFisico = saldos.filter(s => s.id_sucursal === suc.id && s.id_producto === p.id).reduce((sum, s) => sum + Number(s.cantidad_actual_ua), 0);
             
-            // EN CAMINO: Lo que viene en los camiones para esta sucursal (Convertido a UA)
             const incomingUA = (transitoGlobal||[]).filter(t => t.id_sucursal_destino === suc.id && t.id_producto === p.id)
                                 .reduce((sum, t) => sum + (t.cantidad_uc * (t.productos?.cant_en_ua_de_uc || 1)), 0);
 
-            // VIRTUAL: Físico + En Camino
             const stockVirtual = stockFisico + incomingUA;
 
-            // SOLO sugerimos comprar si, aun con lo que viene en camino, no llegamos al mínimo
             if (stockVirtual <= regla.stock_minimo_ua) {
-                // Sugerimos pedir para llegar al Ideal.
                 const sugeridoUA = regla.stock_ideal_ua > 0 ? (regla.stock_ideal_ua - stockVirtual) : (regla.stock_minimo_ua - stockVirtual + 1); 
                 const sugeridoUC = p.cant_en_ua_de_uc > 0 ? (sugeridoUA / p.cant_en_ua_de_uc).toFixed(2) : sugeridoUA;
                 const abrevUA = p.id_unidad_almacenamiento?.abreviatura || 'UA';
@@ -151,14 +146,77 @@ window.cargarPedidosPlanificados = async function() {
     window.renderizarBandejaPedidos(); 
 }
 
+// LOGICA ACTUALIZADA: COMBINA COMPRAS REALES Y PRECIOS DEL CATÁLOGO
 window.abrirModalHistorialPrecios = async function(idProd, nombreProd) {
     document.getElementById('hp-producto-nombre').innerText = nombreProd;
     document.getElementById('modal-historial-precios').classList.remove('hidden');
     const tbody = document.getElementById('lista-historial-precios');
-    tbody.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-slate-500">Buscando facturas... 🕵️‍♀️</td></tr>';
-    const { data: historial } = await clienteSupabase.from('compras_detalles').select(`precio_unitario_uc, compras!inner(fecha_compra, proveedores(nombre))`).eq('id_producto', idProd).order('compras(fecha_compra)', { ascending: false }).limit(10);
-    if(!historial || historial.length === 0) { tbody.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-slate-400 italic">No hay compras registradas.</td></tr>'; return; }
-    tbody.innerHTML = historial.map(h => `<tr class="hover:bg-slate-50"><td class="px-4 py-2 text-slate-500">${h.compras.fecha_compra}</td><td class="px-4 py-2 font-bold text-slate-700">${h.compras.proveedores?.nombre || 'Desconocido'}</td><td class="px-4 py-2 text-right font-mono font-bold text-emerald-700">$${h.precio_unitario_uc}</td></tr>`).join('');
+    tbody.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-slate-500">Buscando precios... 🕵️‍♀️</td></tr>';
+
+    // 1. Buscar Historial de Compras Reales (Últimas 10)
+    const { data: historialCompras } = await clienteSupabase
+        .from('compras_detalles')
+        .select(`precio_unitario_uc, compras!inner(fecha_compra, proveedores(nombre))`)
+        .eq('id_producto', idProd)
+        .order('compras(fecha_compra)', { ascending: false })
+        .limit(10);
+
+    // 2. Buscar Precios de Referencia del Catálogo de Proveedores
+    const { data: historialRef } = await clienteSupabase
+        .from('proveedor_precios')
+        .select(`precio_referencia, fecha_actualizacion, proveedores(nombre)`)
+        .eq('id_producto', idProd);
+
+    // 3. Combinar ambos resultados en un solo arreglo
+    let datosCombinados = [];
+
+    if (historialCompras) {
+        historialCompras.forEach(h => {
+            datosCombinados.push({
+                fecha: new Date(h.compras.fecha_compra),
+                proveedor: h.compras.proveedores?.nombre || 'Desconocido',
+                precio: h.precio_unitario_uc,
+                tipo: '✅ Compra Real',
+                colorBadge: 'bg-blue-100 text-blue-700'
+            });
+        });
+    }
+
+    if (historialRef) {
+        historialRef.forEach(r => {
+            datosCombinados.push({
+                fecha: new Date(r.fecha_actualizacion),
+                proveedor: r.proveedores?.nombre || 'Desconocido',
+                precio: r.precio_referencia,
+                tipo: '📌 Ref. Catálogo',
+                colorBadge: 'bg-emerald-100 text-emerald-700'
+            });
+        });
+    }
+
+    // 4. Ordenar por fecha (El más reciente arriba)
+    datosCombinados.sort((a, b) => b.fecha - a.fecha);
+
+    // 5. Renderizar la tabla con los datos combinados
+    if (datosCombinados.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center py-8 text-slate-400 italic">No hay precios registrados ni compras previas para este producto.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = datosCombinados.map(d => {
+        // Formatear la fecha a YYYY-MM-DD para que se vea limpia
+        const fechaStr = d.fecha.toISOString().split('T')[0];
+        
+        return `
+        <tr class="hover:bg-slate-50 border-b border-slate-100 transition-colors">
+            <td class="px-4 py-3 text-slate-500 text-sm font-medium">${fechaStr}</td>
+            <td class="px-4 py-3">
+                <span class="font-bold text-slate-700 block">${d.proveedor}</span>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded uppercase mt-1 inline-block ${d.colorBadge}">${d.tipo}</span>
+            </td>
+            <td class="px-4 py-3 text-right font-mono font-black text-slate-800 text-lg">$${d.precio}</td>
+        </tr>`;
+    }).join('');
 }
 
 window.agregarPedidoAlCarrito = function(idSuc, nombreSuc, idProd, nombreProd, cantUC, abrevUC, precioRef, idProv) {
@@ -242,7 +300,7 @@ window.generarPedidoTransitoMasivo = async function(idProv) {
         const detallesAInsertar = itemsDelProveedor.map(item => ({
             id_compra: cabecera.id,
             id_producto: item.idProd,
-            id_sucursal_destino: item.idSuc, // AHORA CADA LÍNEA SABE A QUÉ SUCURSAL VA
+            id_sucursal_destino: item.idSuc, 
             cantidad_uc: item.cantUC,
             precio_unitario_uc: item.precioRef,
             subtotal: item.cantUC * item.precioRef,
@@ -253,7 +311,7 @@ window.generarPedidoTransitoMasivo = async function(idProv) {
 
     window.carritoPedidos = window.carritoPedidos.filter(i => i.idProv !== idProv);
     window.renderizarBandejaPedidos();
-    window.cargarPedidosPlanificados(); // Al recargar, como ya están en tránsito, desaparecerán de las alertas.
+    window.cargarPedidosPlanificados(); 
     alert("✅ Pedido generado y enviado a Tránsito exitosamente.");
 }
 
@@ -263,7 +321,6 @@ window.generarPedidoTransitoMasivo = async function(idProv) {
 window.recepcionActivaSuc = null;
 window.recepcionActivaProv = null;
 
-// 1. Mostrar Cuadrícula de Sucursales
 window.cargarPedidosEnTransito = async function() {
     document.getElementById('transito-vista-sucursales').classList.remove('hidden');
     document.getElementById('transito-vista-detalle').classList.add('hidden');
@@ -286,7 +343,6 @@ window.volverGridTransito = function() {
     window.cargarPedidosEnTransito();
 }
 
-// 2. Mostrar Tarjetas por Proveedor en la Sucursal
 window.abrirTransitoSucursal = async function(idSuc, nombreSuc) {
     document.getElementById('transito-titulo-sucursal').innerText = `🚚 En Camino a: ${nombreSuc}`;
     document.getElementById('transito-vista-sucursales').classList.add('hidden');
@@ -295,7 +351,6 @@ window.abrirTransitoSucursal = async function(idSuc, nombreSuc) {
     const lista = document.getElementById('lista-transito-proveedores');
     lista.innerHTML = '<p class="text-slate-500 font-bold py-8">⏳ Buscando camiones...</p>';
 
-    // Buscamos todo lo que viene a esta sucursal
     const { data: transito } = await clienteSupabase.from('compras_detalles')
         .select(`id, id_producto, cantidad_uc, compras!inner(id_proveedor, proveedores(nombre))`)
         .eq('id_sucursal_destino', idSuc)
@@ -306,7 +361,6 @@ window.abrirTransitoSucursal = async function(idSuc, nombreSuc) {
         return;
     }
 
-    // Agrupar por proveedor
     const agrupado = {};
     transito.forEach(t => {
         const idProv = t.compras.id_proveedor;
@@ -326,7 +380,6 @@ window.abrirTransitoSucursal = async function(idSuc, nombreSuc) {
     `).join('');
 }
 
-// 3. Abrir el Súper Modal de Recepción
 window.abrirModalRecepcionMasiva = async function(idSuc, nombreSuc, idProv, nombreProv) {
     window.recepcionActivaSuc = idSuc;
     window.recepcionActivaProv = idProv;
@@ -394,7 +447,6 @@ window.cambiarEstadoFilaRecepcion = function(selectTag, idFila) {
     const zonaRec = document.getElementById(`zona-recibido-${idFila}`);
     const zonaNoRec = document.getElementById(`zona-no-recibido-${idFila}`);
     
-    // Resetear colores del select para feedback visual
     selectTag.className = "w-full px-2 py-2 border rounded text-sm font-bold outline-none focus:ring-2 select-estado-rec text-white";
     
     if (selectTag.value === 'Recibido') {
@@ -409,11 +461,9 @@ window.cambiarEstadoFilaRecepcion = function(selectTag, idFila) {
     }
 }
 
-// 4. Guardar la Recepción en la BD
 window.guardarRecepcionMasiva = async function() {
     const filas = document.querySelectorAll('.fila-recepcion');
     
-    // Validar que todas las filas tengan un estado seleccionado
     for (const fila of filas) {
         if(!fila.querySelector('.select-estado-rec').value) {
             return alert("❌ Debes seleccionar un estado (Recibido, Postpuesto o No Recibido) para todos los productos de la lista.");
@@ -455,17 +505,15 @@ window.guardarRecepcionMasiva = async function() {
 
         } else if (estado === 'No Recibido') {
             const motivo = fila.querySelector('.input-motivo-rec').value;
-            // Al marcarlo como No Recibido, la consulta de "Stock Virtual" dejará de sumarlo, y volverá a salir la alerta en Sugerencias.
             await clienteSupabase.from('compras_detalles').update({estado: 'No Recibido', motivo_no_recepcion: motivo}).eq('id', idDetalle);
         } else {
-            // Postpuesto: Se queda en tránsito y sigue sumando al Stock Virtual.
             await clienteSupabase.from('compras_detalles').update({estado: 'Postpuesto'}).eq('id', idDetalle);
         }
     }
 
     btn.innerText = "✅ Guardar Recepción"; btn.disabled = false;
     document.getElementById('modal-recepcion-masiva').classList.add('hidden');
-    window.abrirTransitoSucursal(window.recepcionActivaSuc, document.getElementById('rm-sucursal').innerText); // Recarga la vista
+    window.abrirTransitoSucursal(window.recepcionActivaSuc, document.getElementById('rm-sucursal').innerText); 
 }
 
 // ==========================================
