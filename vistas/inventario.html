@@ -1,0 +1,22 @@
+<div id="inv-vista-sucursales" class="block">
+    <h2 class="text-2xl font-bold mb-6 text-slate-800">📦 Selecciona una Sucursal para ver su Inventario</h2>
+    <div id="grid-sucursales-inventario" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
+</div>
+<div id="inv-vista-detalle" class="hidden">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+        <div>
+            <button onclick="volverGridInventario()" class="text-emerald-600 font-bold mb-1 flex items-center gap-1 hover:underline text-sm transition-colors">← Volver al inicio</button>
+            <h2 class="text-2xl font-bold text-slate-800" id="inv-titulo-sucursal">📦 Inventario: -</h2>
+            <p class="text-slate-500 text-sm mt-1">Control de saldos agrupados por ubicación interna.</p>
+        </div>
+        <button onclick="abrirModalConteoMasivo()" class="px-6 py-3 bg-emerald-600 text-white rounded-md font-bold shadow-sm hover:bg-emerald-700 transition-transform hover:scale-105">🎯 Toma de Inventario Masivo</button>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border overflow-hidden pb-32">
+        <table class="min-w-full divide-y divide-gray-200 overflow-visible">
+            <thead class="bg-slate-50">
+                <tr><th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase w-32">Estado</th><th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase w-48">Ubicación Interna</th><th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Producto</th><th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">Stock Actual</th><th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase w-40">Acciones</th></tr>
+            </thead>
+            <tbody id="lista-inventario" class="divide-y divide-gray-200 bg-white"></tbody>
+        </table>
+    </div>
+</div>
