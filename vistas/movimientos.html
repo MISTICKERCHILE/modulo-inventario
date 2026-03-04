@@ -1,6 +1,6 @@
 <h2 class="text-2xl font-bold mb-6">Gestión de Entradas y Salidas</h2>
 <div class="flex border-b border-gray-200 mb-6 overflow-x-auto bg-white rounded-t-lg shadow-sm">
-    <button onclick="cambiarTabMovimientos('pedidos')" id="tab-mov-pedidos" class="px-6 py-3 font-medium border-b-2 border-emerald-600 text-emerald-600 bg-emerald-50/50">Pedidos (Planificados)</button>
+    <button onclick="cambiarTabMovimientos('pedidos')" id="tab-mov-pedidos" class="px-6 py-3 font-medium border-b-2 border-emerald-600 text-emerald-600 bg-emerald-50/50">Pedidos</button>
     <button onclick="cambiarTabMovimientos('compras')" id="tab-mov-compras" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors">Compras Directas</button>
     <button onclick="cambiarTabMovimientos('ventas')" id="tab-mov-ventas" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors">Subir Ventas (POS)</button>
     <button onclick="cambiarTabMovimientos('otros')" id="tab-mov-otros" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors">Otros Movimientos</button>
@@ -9,20 +9,26 @@
 <div id="seccion-mov-pedidos" class="block space-y-6">
     <div class="flex gap-2 mb-4 bg-slate-100 p-1 rounded-lg w-max">
         <button onclick="cambiarSubTabPedidos('sugerencias')" id="subtab-sugerencias" class="px-4 py-2 rounded-md font-bold text-sm bg-white shadow-sm text-emerald-700">Ver Sugerencias por Stock</button>
-        <button onclick="cambiarSubTabPedidos('transito')" id="subtab-transito" class="px-4 py-2 rounded-md font-bold text-sm text-slate-500 hover:text-slate-800">Ver Pedidos en Tránsito</button>
+        <button onclick="cambiarSubTabPedidos('transito')" id="subtab-transito" class="px-4 py-2 rounded-md font-bold text-sm text-slate-500 hover:text-slate-800 transition-colors">Ver Pedidos en Tránsito</button>
+        <button onclick="cambiarSubTabPedidos('produccion')" id="subtab-produccion" class="px-4 py-2 rounded-md font-bold text-sm text-slate-500 hover:text-slate-800 transition-colors">Ver Órdenes de Trabajo / Producción</button>
     </div>
+    
     <div id="subvista-sugerencias" class="block space-y-8">
         <div id="lista-alertas-compras" class="space-y-6"></div>
         <div id="contenedor-bandeja" class="hidden mt-8 border-t-2 border-dashed border-slate-300 pt-8">
             <h3 class="text-xl font-bold mb-4 text-slate-800 flex items-center gap-2"><span>🛒</span> Bandeja de Pedidos (Pre-armados)</h3>
-            <p class="text-sm text-slate-500 mb-6">Toma un pantallazo de esta sección para enviárselo a tu proveedor. Luego haz clic en "Pedido Generado".</p>
+            <p class="text-sm text-slate-500 mb-6">Ajusta las cantidades si lo necesitas. Toma un pantallazo para tu proveedor y luego haz clic en "Pedido Generado".</p>
             <div id="lista-carritos-proveedor" class="space-y-6"></div>
         </div>
     </div>
+    
     <div id="subvista-transito" class="hidden space-y-6">
-        <div id="transito-vista-sucursales" class="block"><div id="grid-sucursales-transito" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div></div>
+        <div id="transito-vista-sucursales" class="block">
+            <h3 class="text-xl font-bold mb-6 text-slate-800" id="transito-titulo-seccion">🚚 Selecciona tu Sucursal</h3>
+            <div id="grid-sucursales-transito" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
+        </div>
         <div id="transito-vista-detalle" class="hidden">
-            <button onclick="volverGridTransito()" class="text-blue-600 font-bold mb-4 flex items-center gap-1 hover:underline text-sm transition-colors">← Cambiar Sucursal</button>
+            <button onclick="volverGridTransito()" class="text-slate-500 font-bold mb-4 flex items-center gap-1 hover:text-slate-800 text-sm transition-colors">← Cambiar Sucursal</button>
             <h3 class="text-2xl font-bold mb-6 text-slate-800" id="transito-titulo-sucursal">🚚 En Camino a: -</h3>
             <div id="lista-transito-proveedores" class="space-y-6"></div>
         </div>
