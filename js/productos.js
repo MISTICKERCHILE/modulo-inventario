@@ -305,3 +305,106 @@ window.quitarIngrediente = async function(id) {
         window.cargarIngredientesReceta();
     }
 }
+
+// ==========================================
+// --- IMPORTAR Y EXPORTAR (CSV / EXCEL) ---
+// ==========================================
+
+window.exportarProductosCSV = function() {
+    // 1. Tomamos los datos limpios de la memoria global
+    if (!window.productosERPGlobal || window.productosERPGlobal.length === 0) {
+        return alert("No hay productos para exportar.");
+    }
+
+    // 2. Armamos la cabecera (Esta será la plantilla)
+    let csvContent = "Nombre,Categoria_ID,Unidad_Compra_ID,Cant_UA_por_UC,Unidad_Almacen_ID,Tiene_Receta\n";
+
+    // 3. Llenamos las filas
+    window.productosERPGlobal.forEach(p => {
+        // Escapamos comillas por si un producto tiene una coma en su nombre
+        let nombre = p.nombre ? `"${p.nombre.replace(/"/g, '""')}"` : "";
+        let idCat = p.id_categoria || "";
+        let idUC = p.id_unidad_compra?.id || "";
+        let factor = p.cant_en_ua_de_uc || "1";
+        let idUA = p.id_unidad_almacenamiento?.id || "";
+        let tieneReceta = p.tiene_receta ? "TRUE" : "FALSE";
+        
+        csvContent += `${nombre},${idCat},${idUC},${factor},${idUA},${tieneReceta}\n`;
+    });
+
+    // 4. Forzamos la descarga del archivo en el navegador
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' }); // \uFEFF es para que Excel lea los acentos (UTF-8)
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Catalogo_Productos_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+window.importarProductosCSV = function(inputElement) {
+    const file = inputElement.files[0];
+    if (!file) return;
+
+    // Reseteamos el input para que permita subir el mismo archivo dos veces si se equivocó
+    inputElement.value = '';
+
+    // Usamos PapaParse para leer el CSV mágicamente
+    Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: async function(results) {
+            const filas = results.data;
+            if(filas.length === 0) return alert("El archivo está vacío.");
+            
+            // Verificamos que tenga la columna principal de nuestra plantilla
+            if(!filas[0].hasOwnProperty('Nombre')) {
+                return alert("❌ Formato incorrecto. Por favor descarga la plantilla con el botón Exportar primero.");
+            }
+
+            let insertados = 0;
+            let omitidos = 0;
+
+            // Mostramos feedback al usuario
+            const tbody = document.getElementById('lista-productos');
+            tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-emerald-600 font-bold animate-pulse">⏳ Importando y validando ${filas.length} productos...</td></tr>`;
+
+            for (const fila of filas) {
+                const nombre = fila['Nombre']?.trim();
+                if (!nombre) continue;
+
+                // PROTECCIÓN: Revisamos si ya existe un producto con ese nombre exacto
+                const existe = window.productosERPGlobal.some(p => p.nombre.toLowerCase() === nombre.toLowerCase());
+                
+                if (existe) {
+                    omitidos++;
+                    continue; // Nos saltamos este para no sobreescribir ni duplicar
+                }
+
+                // Preparamos los datos con valores por defecto si dejaron la celda en blanco
+                const payload = {
+                    id_empresa: window.miEmpresaId,
+                    nombre: nombre,
+                    id_categoria: fila['Categoria_ID'] || null,
+                    id_unidad_compra: fila['Unidad_Compra_ID'] || null,
+                    cant_en_ua_de_uc: fila['Cant_UA_por_UC'] ? parseFloat(fila['Cant_UA_por_UC']) : 1,
+                    id_unidad_almacenamiento: fila['Unidad_Almacen_ID'] || null,
+                    tiene_receta: fila['Tiene_Receta'] === 'TRUE'
+                };
+
+                // Insertamos en Supabase
+                const { error } = await clienteSupabase.from('productos').insert([payload]);
+                if (!error) insertados++;
+            }
+
+            alert(`✅ Importación terminada.\n\nNuevos agregados: ${insertados}\nDuplicados omitidos: ${omitidos}`);
+            window.cargarProductos(); // Recargamos la tabla para ver los cambios
+            if(window.cargarDatosSelects) window.cargarDatosSelects(); // Actualizamos variables globales
+        },
+        error: function(err) {
+            alert("Error leyendo el archivo CSV: " + err.message);
+        }
+    });
+}
