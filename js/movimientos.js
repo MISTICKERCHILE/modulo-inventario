@@ -327,4 +327,459 @@ window.generarPedidoTransitoMasivo = async function(idProv) {
 // ==========================================
 // --- SECCIÓN 2 y 3: EN TRÁNSITO Y PRODUCCIÓN ---
 // ==========================================
-// (El resto del código se mantiene igual... lo omito para que te quepa, puedes dejar el que ya tenías abajo)
+window.recepcionActivaSuc = null;
+window.recepcionActivaProv = null;
+window.tipoVistaTransitoActiva = 'Externo'; // Puede ser 'Externo' (Tránsito) o 'Interno' (Producción)
+
+window.cargarPedidosEnTransito = async function(tipoFiltro = 'Externo') {
+    window.tipoVistaTransitoActiva = tipoFiltro;
+    document.getElementById('transito-vista-sucursales').classList.remove('hidden');
+    document.getElementById('transito-vista-detalle').classList.add('hidden');
+
+    const { data: sucursales } = await clienteSupabase.from('sucursales').select('id, nombre').eq('id_empresa', window.miEmpresaId);
+    const grid = document.getElementById('grid-sucursales-transito');
+    
+    const isProd = tipoFiltro === 'Interno';
+    const icon = isProd ? '🏭' : '🏢';
+    const textDesc = isProd ? 'Ver tareas de producción →' : 'Ver camiones en camino →';
+    const borderColor = isProd ? 'hover:border-purple-400' : 'hover:border-blue-400';
+    const textColor = isProd ? 'text-purple-600' : 'text-blue-600';
+
+    grid.innerHTML = (sucursales||[]).map(s => `
+        <button onclick="abrirTransitoSucursal('${s.id}', '${s.nombre}')" class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md ${borderColor} transition-all text-left flex flex-col items-start gap-4 cursor-pointer outline-none">
+            <span class="text-5xl">${icon}</span>
+            <div>
+                <span class="block font-bold text-xl text-slate-800">${s.nombre}</span>
+                <span class="text-sm ${textColor} font-medium mt-1">${textDesc}</span>
+            </div>
+        </button>
+    `).join('');
+}
+
+window.volverGridTransito = function() {
+    window.cargarPedidosEnTransito(window.tipoVistaTransitoActiva);
+}
+
+window.abrirTransitoSucursal = async function(idSuc, nombreSuc) {
+    const isProd = window.tipoVistaTransitoActiva === 'Interno';
+    document.getElementById('transito-titulo-sucursal').innerText = isProd ? `🏭 En Producción para: ${nombreSuc}` : `🚚 En Camino a: ${nombreSuc}`;
+    document.getElementById('transito-vista-sucursales').classList.add('hidden');
+    document.getElementById('transito-vista-detalle').classList.remove('hidden');
+
+    const lista = document.getElementById('lista-transito-proveedores');
+    lista.innerHTML = '<p class="text-slate-500 font-bold py-8">⏳ Buscando...</p>';
+
+    const { data: transito } = await clienteSupabase.from('compras_detalles')
+        .select(`id, id_producto, cantidad_uc, compras!inner(id_proveedor, proveedores(nombre, tipo))`)
+        .eq('id_sucursal_destino', idSuc)
+        .in('estado', ['En Tránsito', 'Postpuesto']);
+
+    // Filtramos solo los que corresponden a la vista actual (Interno o Externo)
+    const filtrados = (transito||[]).filter(t => (t.compras.proveedores?.tipo || 'Externo') === window.tipoVistaTransitoActiva);
+
+    if(filtrados.length === 0) {
+        const bg = isProd ? 'bg-purple-50 border-purple-200 text-purple-700' : 'bg-blue-50 border-blue-200 text-blue-700';
+        lista.innerHTML = `<div class="p-8 text-center border rounded-xl font-bold ${bg}">Todo está al día. No hay pendientes aquí.</div>`;
+        return;
+    }
+
+    const agrupado = {};
+    filtrados.forEach(t => {
+        const idProv = t.compras.id_proveedor;
+        const nombreProv = t.compras.proveedores?.nombre || 'General';
+        if(!agrupado[idProv]) agrupado[idProv] = { nombre: nombreProv, items: 0 };
+        agrupado[idProv].items++;
+    });
+
+    const borderCard = isProd ? 'border-purple-200' : 'border-blue-200';
+    const btnClass = isProd ? 'bg-purple-600 hover:bg-purple-700' : 'bg-blue-600 hover:bg-blue-700';
+    const btnText = isProd ? '✅ Registrar Producción' : '✅ Recepción de Pedido';
+    const iconBox = isProd ? '🧑‍🍳' : '📦';
+
+    lista.innerHTML = Object.keys(agrupado).map(idProv => `
+        <div class="bg-white rounded-lg border ${borderCard} p-6 flex justify-between items-center shadow-sm hover:shadow-md transition-shadow">
+            <div>
+                <h4 class="font-bold text-xl text-slate-800">${iconBox} Origen: ${agrupado[idProv].nombre}</h4>
+                <p class="text-slate-500 text-sm mt-1">${agrupado[idProv].items} ítems en espera.</p>
+            </div>
+            <button onclick="abrirModalRecepcionMasiva('${idSuc}', '${nombreSuc}', '${idProv}', '${agrupado[idProv].nombre}')" class="px-6 py-3 ${btnClass} text-white rounded-md font-bold shadow transition-transform hover:scale-105">${btnText}</button>
+        </div>
+    `).join('');
+}
+
+// MODAL INTELIGENTE (Sirve para Tránsito y Producción)
+window.abrirModalRecepcionMasiva = async function(idSuc, nombreSuc, idProv, nombreProv) {
+    window.recepcionActivaSuc = idSuc;
+    window.recepcionActivaProv = idProv;
+    const isProd = window.tipoVistaTransitoActiva === 'Interno';
+
+    // Textos dinámicos del Modal
+    document.getElementById('rm-titulo-modal').innerText = isProd ? "🏭 Registro de Trabajo / Producción" : "📦 Recepción de Pedido Externo";
+    document.getElementById('rm-titulo-estado').innerText = isProd ? "Estado del Trabajo" : "Estado de Recepción";
+    
+    // UI del modal
+    const colorBorde = isProd ? 'border-purple-500' : 'border-blue-500';
+    const modalBox = document.getElementById('rm-borde-modal');
+    modalBox.classList.remove('border-blue-500', 'border-purple-500');
+    modalBox.classList.add(colorBorde);
+
+    document.getElementById('rm-sucursal').innerText = nombreSuc;
+    document.getElementById('rm-proveedor').innerText = nombreProv;
+    document.getElementById('rm-fecha-hoy').innerText = new Date().toLocaleDateString();
+
+    // Traer info de contacto del proveedor para el botón nuevo
+    const { data: provInfo } = await clienteSupabase.from('proveedores').select('whatsapp, correo').eq('id', idProv).single();
+    let btnContactHTML = '';
+    if(provInfo?.whatsapp) {
+        const telf = provInfo.whatsapp.replace(/\D/g,''); // limpia espacios y +
+        btnContactHTML = `<a href="https://wa.me/${telf}" target="_blank" class="text-[10px] bg-green-500 text-white px-2 py-1 rounded-full font-bold hover:bg-green-600 transition-colors flex items-center gap-1 shadow-sm">💬 Escribir</a>`;
+    } else if (provInfo?.correo) {
+        btnContactHTML = `<a href="mailto:${provInfo.correo}" target="_blank" class="text-[10px] bg-blue-500 text-white px-2 py-1 rounded-full font-bold hover:bg-blue-600 transition-colors flex items-center gap-1 shadow-sm">✉️ Correo</a>`;
+    }
+    document.getElementById('rm-contacto-container').innerHTML = btnContactHTML;
+
+    // Cargar datos
+    const { data: ubicaciones } = await clienteSupabase.from('ubicaciones_internas').select('id, nombre').eq('id_sucursal', idSuc);
+    const optsUbi = '<option value="">-- General (Sin ubicación) --</option>' + (ubicaciones||[]).map(u => `<option value="${u.id}">${u.nombre}</option>`).join('');
+
+    const { data: detalles } = await clienteSupabase.from('compras_detalles')
+        .select('id, cantidad_uc, precio_unitario_uc, id_producto, estado, motivo_no_recepcion, productos(nombre, cant_en_ua_de_uc, id_unidad_compra(abreviatura)), compras!inner(id, id_proveedor)')
+        .eq('id_sucursal_destino', idSuc)
+        .eq('compras.id_proveedor', idProv)
+        .in('estado', ['En Tránsito', 'Postpuesto']);
+
+    const txtRecibido = isProd ? '🟢 Producido / Finalizado' : '🟢 Sí, Recibido';
+    const txtPostpuesto = isProd ? '🟡 En Proceso / Pausado' : '🟡 Postpuesto (No llegó hoy)';
+    const txtNoRecibido = isProd ? '🔴 Fallido / Cancelado' : '🔴 No Recibido (Rechazado/Falta)';
+    const txtCantReal = isProd ? 'Cant. Producida:' : 'Cant. Real Llegó:';
+    const txtMotivo = isProd ? 'Motivo (Ej: Fallo máquina, Falta insumo)...' : 'Motivo (Ej: Roto, No llegó)...';
+
+    const tbody = document.getElementById('rm-filas');
+    tbody.innerHTML = detalles.map(d => {
+        const abrev = d.productos?.id_unidad_compra?.abreviatura || 'UC';
+        const isPostpuesto = d.estado === 'Postpuesto';
+        const labelPost = isPostpuesto ? `<span class="block mt-1 text-[10px] bg-yellow-100 text-yellow-800 px-2 py-1 rounded w-max">Estaba en espera</span>` : '';
+        const colorInputCant = isProd ? 'text-purple-700' : 'text-emerald-700';
+
+        return `
+        <tr class="fila-recepcion border-b border-slate-100 hover:bg-slate-50 transition-colors" data-id-detalle="${d.id}" data-id-prod="${d.id_producto}" data-factor="${d.productos?.cant_en_ua_de_uc || 1}" data-precio-uc="${d.precio_unitario_uc}">
+            <td class="px-4 py-3 font-bold text-slate-700 text-sm">${d.productos?.nombre} ${labelPost}</td>
+            <td class="px-4 py-3 text-center font-mono font-bold text-slate-700 bg-slate-100/50">${d.cantidad_uc} <span class="text-xs text-slate-400">${abrev}</span></td>
+            <td class="px-4 py-3">
+                <select class="w-full px-2 py-2 border border-slate-300 rounded bg-white text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 select-estado-rec" onchange="cambiarEstadoFilaRecepcion(this, '${d.id}', ${isProd})">
+                    <option value="" disabled selected>👉 Selecciona Estado...</option>
+                    <option value="Recibido">${txtRecibido}</option>
+                    <option value="Postpuesto">${txtPostpuesto}</option>
+                    <option value="No Recibido">${txtNoRecibido}</option>
+                </select>
+            </td>
+            <td class="px-4 py-3">
+                <div id="zona-recibido-${d.id}" class="zona-dinamica hidden space-y-2 bg-slate-50 p-2 rounded border border-slate-200">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-slate-500 font-bold w-24">${txtCantReal}</span>
+                        <input type="number" step="0.01" value="${d.cantidad_uc}" class="w-24 px-2 py-1 border rounded text-sm font-bold text-center ${colorInputCant} outline-none focus:ring-1 focus:ring-emerald-500 input-cant-real">
+                        <span class="text-xs font-bold text-slate-400">${abrev}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-slate-500 font-bold w-24">Guardar en:</span>
+                        <select class="flex-1 px-2 py-1 border rounded text-xs select-ubi-rec bg-white outline-none focus:ring-1 focus:ring-emerald-500">${optsUbi}</select>
+                    </div>
+                </div>
+                <div id="zona-no-recibido-${d.id}" class="zona-dinamica hidden bg-red-50 p-2 rounded border border-red-100">
+                    <input type="text" placeholder="${txtMotivo}" value="${d.motivo_no_recepcion || ''}" class="w-full px-2 py-2 border border-red-300 rounded bg-white text-sm outline-none focus:ring-1 focus:ring-red-500 input-motivo-rec">
+                </div>
+            </td>
+        </tr>
+        `;
+    }).join('');
+
+    document.getElementById('modal-recepcion-masiva').classList.remove('hidden');
+}
+
+window.cambiarEstadoFilaRecepcion = function(selectTag, idFila, isProd) {
+    const zonaRec = document.getElementById(`zona-recibido-${idFila}`);
+    const zonaNoRec = document.getElementById(`zona-no-recibido-${idFila}`);
+    
+    selectTag.className = "w-full px-2 py-2 border rounded text-sm font-bold outline-none focus:ring-2 select-estado-rec text-white shadow-inner";
+    
+    if (selectTag.value === 'Recibido') {
+        zonaRec.classList.remove('hidden'); zonaNoRec.classList.add('hidden');
+        selectTag.classList.add(isProd ? 'bg-purple-600' : 'bg-emerald-600', isProd ? 'border-purple-600' : 'border-emerald-600');
+    } else if (selectTag.value === 'No Recibido') {
+        zonaRec.classList.add('hidden'); zonaNoRec.classList.remove('hidden');
+        selectTag.classList.add('bg-red-600', 'border-red-600');
+    } else {
+        zonaRec.classList.add('hidden'); zonaNoRec.classList.add('hidden');
+        selectTag.classList.add('bg-yellow-500', 'border-yellow-500');
+    }
+}
+
+window.guardarRecepcionMasiva = async function() {
+    const filas = document.querySelectorAll('.fila-recepcion');
+    const isProd = window.tipoVistaTransitoActiva === 'Interno';
+    
+    for (const fila of filas) {
+        if(!fila.querySelector('.select-estado-rec').value) {
+            return alert("❌ Debes seleccionar un estado para todos los productos de la lista.");
+        }
+        if(fila.querySelector('.select-estado-rec').value === 'No Recibido' && fila.querySelector('.input-motivo-rec').value.trim() === '') {
+            return alert("❌ Debes escribir un motivo para los productos marcados como fallidos o no recibidos.");
+        }
+    }
+
+    const btn = document.getElementById('btn-guardar-recepcion');
+    btn.innerText = "⏳ Guardando Inventario..."; btn.disabled = true;
+    
+    for (const fila of filas) {
+        const idDetalle = fila.getAttribute('data-id-detalle');
+        const idProd = fila.getAttribute('data-id-prod');
+        const factorConversion = parseFloat(fila.getAttribute('data-factor'));
+        const precioUC = parseFloat(fila.getAttribute('data-precio-uc'));
+        const estado = fila.querySelector('.select-estado-rec').value;
+
+        if (estado === 'Recibido') {
+            const cantUC = parseFloat(fila.querySelector('.input-cant-real').value);
+            const idUbi = fila.querySelector('.select-ubi-rec').value || null;
+            const cantUA = cantUC * factorConversion;
+
+            await clienteSupabase.from('compras_detalles').update({estado: 'Recibido'}).eq('id', idDetalle);
+
+            let query = clienteSupabase.from('inventario_saldos').select('id, cantidad_actual_ua').eq('id_producto', idProd).eq('id_sucursal', window.recepcionActivaSuc);
+            if(idUbi) query = query.eq('id_ubicacion', idUbi); else query = query.is('id_ubicacion', null);
+            
+            const { data: previo } = await query.maybeSingle();
+            if (previo) {
+                await clienteSupabase.from('inventario_saldos').update({ cantidad_actual_ua: previo.cantidad_actual_ua + cantUA, ultima_actualizacion: new Date() }).eq('id', previo.id);
+            } else {
+                await clienteSupabase.from('inventario_saldos').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_sucursal: window.recepcionActivaSuc, id_ubicacion: idUbi, cantidad_actual_ua: cantUA }]);
+            }
+
+            const refMov = isProd ? 'Producción Interna Terminada' : 'Recepción Masiva de Proveedor';
+            const tipoMov = isProd ? 'INGRESO_PRODUCCION' : 'INGRESO_COMPRA';
+
+            await clienteSupabase.from('movimientos_inventario').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_ubicacion: idUbi, tipo_movimiento: tipoMov, cantidad_movida: cantUA, costo_unitario_movimiento: precioUC, referencia: refMov }]);
+            if(!isProd) await clienteSupabase.from('productos').update({ ultimo_costo_uc: precioUC }).eq('id', idProd);
+
+        } else if (estado === 'No Recibido') {
+            const motivo = fila.querySelector('.input-motivo-rec').value;
+            await clienteSupabase.from('compras_detalles').update({estado: 'No Recibido', motivo_no_recepcion: motivo}).eq('id', idDetalle);
+        } else {
+            await clienteSupabase.from('compras_detalles').update({estado: 'Postpuesto'}).eq('id', idDetalle);
+        }
+    }
+
+    btn.innerText = "✅ Guardar Recepción"; btn.disabled = false;
+    document.getElementById('modal-recepcion-masiva').classList.add('hidden');
+    window.abrirTransitoSucursal(window.recepcionActivaSuc, document.getElementById('rm-sucursal').innerText.replace('🏭 En Producción para: ','').replace('🚚 En Camino a: ','')); 
+}
+
+// ==========================================
+// --- COMPRAS DIRECTAS Y OTROS MOVIMIENTOS ---
+// ==========================================
+// (El resto del código se mantiene igual... lo dejo completo para que no pase lo de la otra vez jaja)
+
+window.cargarSelectsMovimientosFormularios = async function() {
+    const [{ data: provs }, { data: prods }, { data: sucs }, { data: tipos }] = await Promise.all([
+        clienteSupabase.from('proveedores').select('id, nombre').eq('id_empresa', window.miEmpresaId),
+        clienteSupabase.from('productos').select('id, nombre').eq('id_empresa', window.miEmpresaId).order('nombre'),
+        clienteSupabase.from('sucursales').select('id, nombre').eq('id_empresa', window.miEmpresaId),
+        clienteSupabase.from('tipos_movimiento').select('id, nombre, operacion').eq('id_empresa', window.miEmpresaId)
+    ]);
+
+    const optsProvs = '<option value="">Selecciona...</option>' + (provs||[]).map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
+    const optsProds = '<option value="">Selecciona Producto...</option>' + (prods||[]).map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
+    const optsSucs = '<option value="">Bodega...</option>' + (sucs||[]).map(s => `<option value="${s.id}">${s.nombre}</option>`).join('');
+    const optsTipos = '<option value="">Selecciona Tipo...</option>' + (tipos||[]).map(t => `<option value="${t.id}" data-operacion="${t.operacion}">${t.nombre} (${t.operacion})</option>`).join('');
+
+    document.getElementById('cd-proveedor').innerHTML = optsProvs; document.getElementById('cd-producto').innerHTML = optsProds; document.getElementById('cd-sucursal').innerHTML = optsSucs;
+    document.getElementById('om-tipo').innerHTML = optsTipos; document.getElementById('om-producto').innerHTML = optsProds; document.getElementById('om-sucursal').innerHTML = optsSucs;
+}
+
+window.prepararPanelVentas = async function() {
+    const { data: sucursales } = await clienteSupabase.from('sucursales').select('id, nombre').eq('id_empresa', window.miEmpresaId);
+    document.getElementById('csv-sucursal').innerHTML = (sucursales||[]).map(s => `<option value="${s.id}">${s.nombre}</option>`).join('');
+}
+
+window.procesarArchivoCSV = function() {
+    const fInicio = document.getElementById('csv-fecha-inicio').value;
+    const fFin = document.getElementById('csv-fecha-fin').value;
+    if (!fInicio || !fFin) return alert("❌ Por favor, selecciona la Fecha de Inicio y Fecha Fin del período de ventas antes de analizar.");
+
+    const fileInput = document.getElementById('csv-file');
+    if (!fileInput.files.length) return alert("❌ Selecciona un archivo CSV primero.");
+    
+    Papa.parse(fileInput.files[0], {
+        header: true, skipEmptyLines: true,
+        complete: function(results) { agruparYAsociarVentas(results.data); }
+    });
+}
+
+async function agruparYAsociarVentas(filasCSV) {
+    const agrupado = {};
+    filasCSV.forEach(fila => {
+        const keyNombre = Object.keys(fila).find(k => k.toLowerCase().includes('producto') || k.toLowerCase().includes('servicio')) || 'Producto';
+        const keyVariante = Object.keys(fila).find(k => k.toLowerCase().includes('variante')) || 'Variante';
+        const keyCant = Object.keys(fila).find(k => k.toLowerCase().includes('cantidad')) || 'Cantidad';
+        const nombre = (fila[keyNombre] || '').trim();
+        const variante = (fila[keyVariante] || '').trim();
+        const cant = parseFloat(fila[keyCant]) || 0;
+        if(nombre && cant > 0) {
+            const clave = `${nombre}_||_${variante}`;
+            if(!agrupado[clave]) agrupado[clave] = { nombre_pos: nombre, variante_pos: variante, cantidad: 0 };
+            agrupado[clave].cantidad += cant;
+        }
+    });
+
+    window.datosCSVAgrupados = Object.values(agrupado);
+
+    const [{ data: prodsERP }, { data: homologaciones }] = await Promise.all([
+        clienteSupabase.from('productos').select('id, nombre').eq('id_empresa', window.miEmpresaId).order('nombre'),
+        clienteSupabase.from('homologacion_pos').select('*').eq('id_empresa', window.miEmpresaId)
+    ]);
+
+    window.productosERPGlobal = prodsERP || [];
+    const tbody = document.getElementById('lista-mapeo-csv');
+    tbody.innerHTML = '';
+
+    window.datosCSVAgrupados.forEach((item, index) => {
+        const match = homologaciones.find(h => h.nombre_pos === item.nombre_pos && (h.variante_pos || '') === item.variante_pos);
+        const idPreseleccionado = match ? match.id_producto_erp : '';
+        const prodPreseleccionado = window.productosERPGlobal.find(p => p.id === idPreseleccionado);
+        const nombrePreseleccionado = prodPreseleccionado ? prodPreseleccionado.nombre : '';
+        const colorFila = idPreseleccionado ? '' : 'bg-red-50 border-l-4 border-red-500';
+        const bordeInput = idPreseleccionado ? 'border-slate-300' : 'border-red-300';
+
+        tbody.innerHTML += `
+        <tr class="${colorFila}" id="fila-csv-${index}">
+            <td class="px-4 py-3 font-bold">${item.nombre_pos}</td>
+            <td class="px-4 py-3 text-slate-500">${item.variante_pos || '-'}</td>
+            <td class="px-4 py-3 text-center font-mono text-lg font-bold">${item.cantidad}</td>
+            <td class="px-4 py-3 relative dropdown-container" data-index="${index}">
+                <input type="hidden" class="selector-homologacion" id="hidden-prod-${index}" data-index="${index}" value="${idPreseleccionado}">
+                <div class="relative">
+                    <input type="text" id="search-prod-${index}" class="w-full px-3 py-2 border ${bordeInput} rounded bg-white text-sm focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" placeholder="-- Buscar producto --" value="${nombrePreseleccionado}" onfocus="abrirDropdownCSV(${index})" oninput="filtrarDropdownCSV(${index}, this.value)" autocomplete="off">
+                    <div id="dropdown-${index}" class="lista-dropdown-custom hidden absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded shadow-xl max-h-48 overflow-y-auto">
+                        <ul id="ul-prod-${index}" class="py-1 text-sm text-slate-700 divide-y divide-slate-100"></ul>
+                    </div>
+                </div>
+            </td>
+        </tr>`;
+    });
+    document.getElementById('panel-mapeo-csv').classList.remove('hidden');
+}
+
+window.abrirDropdownCSV = function(index) {
+    document.querySelectorAll('.lista-dropdown-custom').forEach(el => el.classList.add('hidden'));
+    window.filtrarDropdownCSV(index, ''); 
+    document.getElementById(`search-prod-${index}`).select();
+}
+
+window.filtrarDropdownCSV = function(index, texto) {
+    const ul = document.getElementById(`ul-prod-${index}`);
+    const term = texto.toLowerCase().trim();
+    let filtrados = window.productosERPGlobal;
+    if (term) filtrados = filtrados.filter(p => p.nombre.toLowerCase().includes(term));
+
+    let html = filtrados.map(p => `<li class="px-3 py-2 hover:bg-blue-50 cursor-pointer transition-colors" onclick="seleccionarProductoCSV(${index}, '${p.id}', '${p.nombre.replace(/'/g, "\\'")}')">${p.nombre}</li>`).join('');
+    html += `<li class="px-3 py-3 hover:bg-emerald-50 cursor-pointer font-bold text-emerald-600 bg-slate-50 transition-colors border-t border-emerald-100" onclick="crearNuevoProductoCSV(${index})">➕ Crear Nuevo Producto...</li>`;
+    ul.innerHTML = html;
+    document.getElementById(`dropdown-${index}`).classList.remove('hidden');
+}
+
+window.seleccionarProductoCSV = function(index, idProd, nombreProd) {
+    document.getElementById(`hidden-prod-${index}`).value = idProd;
+    const searchInput = document.getElementById(`search-prod-${index}`);
+    searchInput.value = nombreProd;
+    searchInput.classList.remove('border-red-300'); searchInput.classList.add('border-slate-300');
+    document.getElementById(`dropdown-${index}`).classList.add('hidden');
+    window.quitarRojoFila(index);
+}
+
+window.crearNuevoProductoCSV = function(index) {
+    document.getElementById(`dropdown-${index}`).classList.add('hidden');
+    const item = window.datosCSVAgrupados[index];
+    const nombreSugerido = item.variante_pos ? `${item.nombre_pos} ${item.variante_pos}` : item.nombre_pos;
+    window.selectCSVActivoIndex = index; 
+    window.abrirModalProducto(false, nombreSugerido);
+}
+
+window.actualizarSelectsMapeoCSV = async function(nuevoIdProducto) {
+    const { data: prodsERP } = await clienteSupabase.from('productos').select('id, nombre').eq('id_empresa', window.miEmpresaId).order('nombre');
+    window.productosERPGlobal = prodsERP || [];
+    if (window.selectCSVActivoIndex !== null && nuevoIdProducto) {
+        const nuevoProd = window.productosERPGlobal.find(p => p.id === nuevoIdProducto);
+        if(nuevoProd) window.seleccionarProductoCSV(window.selectCSVActivoIndex, nuevoProd.id, nuevoProd.nombre);
+        window.selectCSVActivoIndex = null; 
+    }
+}
+
+window.quitarRojoFila = function(index) {
+    const fila = document.getElementById(`fila-csv-${index}`);
+    if(fila) fila.classList.remove('bg-red-50', 'border-l-4', 'border-red-500');
+}
+
+window.cancelarCSV = function() {
+    document.getElementById('panel-mapeo-csv').classList.add('hidden');
+    document.getElementById('csv-file').value = ''; document.getElementById('csv-fecha-inicio').value = ''; document.getElementById('csv-fecha-fin').value = '';
+    window.datosCSVAgrupados = [];
+}
+
+window.confirmarDescuentoVentas = async function() {
+    const idSucursal = document.getElementById('csv-sucursal').value;
+    const fInicio = document.getElementById('csv-fecha-inicio').value;
+    const fFin = document.getElementById('csv-fecha-fin').value;
+    const periodoReferencia = `[Período: ${fInicio} al ${fFin}]`;
+    const selects = document.querySelectorAll('.selector-homologacion');
+    
+    let todoAsociado = true;
+    selects.forEach(sel => { if(!sel.value) todoAsociado = false; });
+    if(!todoAsociado) return alert("❌ Debes asociar todos los productos del POS con tus productos del sistema (que no quede ninguno en rojo) antes de continuar.");
+
+    const btn = document.getElementById('btn-procesar-ventas');
+    btn.innerText = "⏳ Procesando y descontando..."; btn.disabled = true;
+
+    const { data: catalogoCompleto } = await clienteSupabase.from('productos').select('id, tiene_receta, cant_en_um_de_ua, cant_en_ur_de_um').eq('id_empresa', window.miEmpresaId);
+
+    for (const sel of selects) {
+        const index = sel.getAttribute('data-index');
+        const itemPOS = window.datosCSVAgrupados[index];
+        const idProductoERP = sel.value;
+        const cantidadVendida = itemPOS.cantidad;
+
+        const { data: existeH } = await clienteSupabase.from('homologacion_pos').select('id').eq('id_empresa', window.miEmpresaId).eq('nombre_pos', itemPOS.nombre_pos).eq('variante_pos', itemPOS.variante_pos).maybeSingle();
+        if(existeH) await clienteSupabase.from('homologacion_pos').update({ id_producto_erp: idProductoERP }).eq('id', existeH.id);
+        else await clienteSupabase.from('homologacion_pos').insert([{ id_empresa: window.miEmpresaId, nombre_pos: itemPOS.nombre_pos, variante_pos: itemPOS.variante_pos, id_producto_erp: idProductoERP }]);
+
+        const prodERP = catalogoCompleto.find(p => p.id === idProductoERP);
+
+        if (prodERP.tiene_receta) {
+            const { data: ingredientes } = await clienteSupabase.from('recetas').select('cantidad_neta, id_ingrediente(id, cant_en_um_de_ua, cant_en_ur_de_um)').eq('id_producto_padre', idProductoERP);
+            for (const ing of (ingredientes||[])) {
+                const infoInsumo = ing.id_ingrediente;
+                const factorUM = infoInsumo.cant_en_um_de_ua || 1;
+                const factorUR = infoInsumo.cant_en_ur_de_um || 1;
+                const ua_a_descontar = (cantidadVendida * ing.cantidad_neta) / (factorUM * factorUR);
+                await aplicarDescuentoInventario(infoInsumo.id, idSucursal, ua_a_descontar, `Venta POS (Receta de ${itemPOS.nombre_pos}) ${periodoReferencia}`);
+            }
+        } else {
+            const factorUM = prodERP.cant_en_um_de_ua || 1;
+            const ua_a_descontar = cantidadVendida / factorUM;
+            await aplicarDescuentoInventario(idProductoERP, idSucursal, ua_a_descontar, `Venta POS Directa (${itemPOS.nombre_pos}) ${periodoReferencia}`);
+        }
+    }
+
+    alert("✅ ¡Ventas importadas y stock descontado con éxito!");
+    btn.innerText = "✅ Confirmar y Descontar Inventario"; btn.disabled = false;
+    cancelarCSV();
+}
+
+async function aplicarDescuentoInventario(idProd, idSuc, cantidad_ua_descontar, referencia) {
+    if(cantidad_ua_descontar <= 0) return;
+    const { data: saldos } = await clienteSupabase.from('inventario_saldos').select('id, cantidad_actual_ua').eq('id_producto', idProd).eq('id_sucursal', idSuc).order('cantidad_actual_ua', { ascending: false });
+    if(saldos && saldos.length > 0) {
+        await clienteSupabase.from('inventario_saldos').update({ cantidad_actual_ua: saldos[0].cantidad_actual_ua - cantidad_ua_descontar, ultima_actualizacion: new Date() }).eq('id', saldos[0].id);
+    } else {
+        await clienteSupabase.from('inventario_saldos').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_sucursal: idSuc, cantidad_actual_ua: -cantidad_ua_descontar }]);
+    }
+    await clienteSupabase.from('movimientos_inventario').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, tipo_movimiento: 'VENTA_POS', cantidad_movida: -cantidad_ua_descontar, referencia: referencia }]);
+}
