@@ -150,6 +150,7 @@ window.cambiarVista = async function(v) {
         if(v === 'movimientos') { window.cambiarTabMovimientos('pedidos'); } 
         if(v === 'inventario') { window.cargarInventario(); }
         if(v === 'reportes') { window.cargarReportes(); }
+        if(v === 'empresas') { window.cargarVistaEmpresas(); }
 
     } catch (error) {
         console.error(error);
