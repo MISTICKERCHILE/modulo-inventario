@@ -63,8 +63,6 @@ document.getElementById('auth-form').addEventListener('submit', async (e) => {
     if (error) return alert("❌ Credenciales incorrectas. Verifica tu correo y contraseña.");
 
     const { data: perfil } = await clienteSupabase.from('perfiles').select('nombre, apellido').eq('id_usuario', data.user.id).maybeSingle();
-    
-    // Solo usamos el nombre de pila para saludar
     const nombreReal = perfil?.nombre || emailInput.split('@')[0];
 
     const { data: empresasAsignadas } = await clienteSupabase.from('usuarios_empresas').select('id_empresa, nombre_empresa').eq('id_usuario', data.user.id);
@@ -88,41 +86,40 @@ document.getElementById('auth-form').addEventListener('submit', async (e) => {
     }
 });
 
-window.iniciarSesionEmpresa = function(idEmpresa, nombreEmpresa, emailUsuario, nombreReal) {
-    window.miEmpresaId = idEmpresa;
-    window.usuarioActual = nombreReal;
-
-    const selector = document.getElementById('selector-empresa-container');
-    if(selector) selector.classList.add('hidden');
+window.iniciarSesionEmpresa = function(id, nombre, email, nombreUsuario) {
+    window.miEmpresaId = id;
+    window.usuarioActual = nombreUsuario;
+    document.getElementById('selector-empresa-container').classList.add('hidden');
     document.getElementById('dashboard-container').classList.remove('hidden');
+    document.getElementById('user-email-dropdown').innerText = email;
+    document.getElementById('user-name-display').innerText = nombreUsuario;
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    const vistaDirecta = urlParams.get('v');
+    if(vistaDirecta) {
+        window.cambiarVista(vistaDirecta);
+    } else {
+        window.cambiarVista('dashboard');
+    }
+    
+    if(window.cargarDatosSelects) window.cargarDatosSelects();
+    if(window.cargarDashboard) window.cargarDashboard();
+}
 
-    document.getElementById('user-email-dropdown').innerText = emailUsuario;
-    document.getElementById('user-name-display').innerText = window.usuarioActual;
-
-    window.actualizarBadgeCarrito();
-    window.cambiarVista('dashboard');
-};
-
-// --- FUNCIÓN PARA CAMBIAR DE EMPRESA SIN CERRAR SESIÓN ---
 window.volverASelectorEmpresa = async function() {
-    // 1. Buscamos al usuario logueado actualmente
     const { data: { user } } = await clienteSupabase.auth.getUser();
     if(!user) return window.cerrarSesion();
 
-    // 2. Buscamos de nuevo sus empresas (por si le dieron acceso a otra recientemente)
     const { data: empresasAsignadas } = await clienteSupabase.from('usuarios_empresas')
         .select('id_empresa, nombre_empresa')
         .eq('id_usuario', user.id);
 
-    // 3. Recuperamos los datos visuales
     const emailUsuario = document.getElementById('user-email-dropdown').innerText;
     const nombreReal = window.usuarioActual;
 
-    // 4. Escondemos el Dashboard y mostramos el Selector
     document.getElementById('dashboard-container').classList.add('hidden');
     document.getElementById('selector-empresa-container').classList.remove('hidden');
 
-    // 5. Dibujamos los botones de las empresas
     document.getElementById('lista-empresas-usuario').innerHTML = empresasAsignadas.map(emp => `
         <button onclick="iniciarSesionEmpresa('${emp.id_empresa}', '${emp.nombre_empresa}', '${emailUsuario}', '${nombreReal}')" class="w-full text-left px-6 py-4 border border-slate-200 rounded-xl hover:bg-emerald-50 hover:border-emerald-500 transition-all font-bold text-slate-700 shadow-sm flex items-center justify-between group">
             <span>🏢 ${emp.nombre_empresa}</span>
@@ -131,17 +128,16 @@ window.volverASelectorEmpresa = async function() {
     `).join('');
 }
 
-window.cerrarSesion = function() { location.reload(); }
+window.cerrarSesion = async function() {
+    await clienteSupabase.auth.signOut();
+    location.reload();
+}
 
-// --- FRENO DE EMERGENCIA Y MEMORIA ---
 window.actualizarBadgeCarrito = function() {
-    if(!window.miEmpresaId) return;
-    const guardado = localStorage.getItem('carrito_pedidos_' + window.miEmpresaId);
     const badge = document.getElementById('badge-cart');
     if(badge) {
-        const arr = guardado ? JSON.parse(guardado) : [];
-        if(arr.length > 0) {
-            badge.innerText = arr.length;
+        if(window.carritoPedidos && window.carritoPedidos.length > 0) {
+            badge.innerText = window.carritoPedidos.length;
             badge.classList.remove('hidden');
         } else {
             badge.classList.add('hidden');
@@ -149,192 +145,105 @@ window.actualizarBadgeCarrito = function() {
     }
 }
 
-window.addEventListener('beforeunload', (e) => {
-    if(!window.miEmpresaId) return;
-    const guardado = localStorage.getItem('carrito_pedidos_' + window.miEmpresaId);
-    if (guardado && JSON.parse(guardado).length > 0) {
-        e.preventDefault();
-        e.returnValue = '';
-    }
-});
-
-// NUEVO LOGICA MENU CELULAR Y ESCRITORIO (DRAWER)
+// --- NAVEGACIÓN Y UI ---
 window.toggleMenu = function() {
-    const sidebar = document.getElementById('sidebar-menu');
+    const menu = document.getElementById('sidebar-menu');
     const backdrop = document.getElementById('sidebar-backdrop');
-    
-    if (window.innerWidth >= 768) {
-        sidebar.classList.toggle('md:hidden');
+    if (menu.classList.contains('-translate-x-full')) {
+        menu.classList.remove('-translate-x-full');
+        backdrop.classList.remove('hidden');
     } else {
-        sidebar.classList.toggle('-translate-x-full');
-        backdrop.classList.toggle('hidden');
+        menu.classList.add('-translate-x-full');
+        backdrop.classList.add('hidden');
     }
 }
 
 window.toggleUserMenu = function() {
     document.getElementById('user-dropdown').classList.toggle('hidden');
-    document.getElementById('panel-notificaciones').classList.add('hidden');
 }
+
 window.toggleNotificaciones = function() {
     document.getElementById('panel-notificaciones').classList.toggle('hidden');
-    document.getElementById('user-dropdown').classList.add('hidden');
 }
 
+// Cierra menús al hacer clic fuera
 document.addEventListener('click', (e) => {
     const userDropdown = document.getElementById('user-dropdown');
-    const userBtn = e.target.closest('button[onclick="toggleUserMenu()"]');
-    if (!userBtn && userDropdown && !userDropdown.classList.contains('hidden') && !e.target.closest('#user-dropdown')) {
+    const userBtn = userDropdown.previousElementSibling;
+    if (!userDropdown.contains(e.target) && !userBtn.contains(e.target)) {
         userDropdown.classList.add('hidden');
     }
-    const notifDropdown = document.getElementById('panel-notificaciones');
-    const notifBtn = e.target.closest('button[onclick="toggleNotificaciones()"]');
-    if (!notifBtn && notifDropdown && !notifDropdown.classList.contains('hidden') && !e.target.closest('#panel-notificaciones')) {
-        notifDropdown.classList.add('hidden');
+
+    const notifPanel = document.getElementById('panel-notificaciones');
+    const notifBtn = notifPanel.previousElementSibling;
+    if (!notifPanel.contains(e.target) && !notifBtn.contains(e.target)) {
+        notifPanel.classList.add('hidden');
     }
 });
 
-// --- NAVEGACIÓN GLOBAL CON CARGA DINÁMICA ---
-window.cambiarVista = async function(v) {
-    if(!window.miEmpresaId) return; 
+// CARGA DINÁMICA DE VISTAS
+window.cambiarVista = async function(vista) {
+    const main = document.getElementById('main-content');
+    main.innerHTML = '<div class="flex h-full items-center justify-center"><p class="text-slate-400 font-bold text-lg animate-pulse">Cargando...</p></div>';
     
-    if (window.innerWidth < 768) {
-        document.getElementById('sidebar-menu')?.classList.add('-translate-x-full');
-        document.getElementById('sidebar-backdrop')?.classList.add('hidden');
-    }
-    
-    ['dashboard', 'catalogos', 'productos', 'recetas', 'movimientos', 'inventario', 'reportes', 'empresas'].forEach(vis => {
-        const btn = document.getElementById(`btn-menu-${vis}`);
-        if(btn) btn.className = 'w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium text-white opacity-70 transition-colors mb-1';
+    document.querySelectorAll('#sidebar-menu button').forEach(b => {
+        b.classList.remove('bg-emerald-600', 'text-white', 'shadow-md');
+        b.classList.add('hover:bg-slate-700');
     });
     
-    const activeBtn = document.getElementById(`btn-menu-${v}`);
-    if(activeBtn) activeBtn.className = 'w-full flex items-center gap-3 px-4 py-3 bg-emerald-600 rounded-lg font-medium text-white opacity-100 transition-colors mb-1';
+    const btnActivo = document.getElementById(`btn-menu-${vista}`);
+    if (btnActivo) {
+        btnActivo.classList.remove('hover:bg-slate-700');
+        btnActivo.classList.add('bg-emerald-600', 'text-white', 'shadow-md');
+    }
     
-    document.getElementById('main-content').innerHTML = '<div class="flex justify-center items-center h-full text-slate-400 font-bold text-xl w-full">⏳ Cargando módulo...</div>';
+    if (window.innerWidth < 768) { window.toggleMenu(); }
 
     try {
-        const response = await fetch(`vistas/${v}.html`);
-        if(!response.ok) throw new Error(`No se pudo cargar la vista ${v}`);
+        const response = await fetch(`vistas/${vista}.html`);
+        if (!response.ok) throw new Error('Vista no encontrada');
         const html = await response.text();
-        document.getElementById('main-content').innerHTML = html;
-
-        if(v === 'dashboard') window.cargarDashboard();
-        if(v === 'catalogos') window.cambiarTab('categorias');
-        if(v === 'productos') { window.cargarDatosSelects(); window.cargarProductos(); }
-        if(v === 'recetas') { window.cargarBuscadorRecetas(); }
-        if(v === 'movimientos') { window.cambiarTabMovimientos('pedidos'); } 
-        if(v === 'inventario') { window.cargarInventario(); }
-        if(v === 'reportes') { window.cargarReportes(); }
-        if(v === 'empresas') { window.cargarVistaEmpresas(); }
+        main.innerHTML = html;
+        
+        // AUTO-ARRANQUE DEPENDIENDO DE LA VISTA
+        if(vista === 'dashboard' && typeof window.cargarDashboard === 'function') window.cargarDashboard();
+        if(vista === 'empresas' && typeof window.cargarEmpresas === 'function') window.cargarEmpresas();
+        if(vista === 'catalogos' && typeof window.cargarCategorias === 'function') {
+            window.cargarCategorias(); window.cargarUnidades(); window.cargarUbicaciones(); window.cargarProveedores(); window.cargarSucursales(); window.cargarTiposMovimiento();
+        }
+        if(vista === 'productos' && typeof window.cargarProductos === 'function') window.cargarProductos();
+        if(vista === 'inventario' && typeof window.cargarInventario === 'function') window.cargarInventario();
+        if(vista === 'recetas' && typeof window.cargarBuscadorRecetas === 'function') window.cargarBuscadorRecetas();
+        
+        // LOS NUEVOS AUTO-ARRANQUES
+        if(vista === 'pedidos' && typeof window.cambiarSubTabPedidos === 'function') window.cambiarSubTabPedidos('sugerencias');
+        if(vista === 'movimientos' && typeof window.cambiarTabMovimientos === 'function') window.cambiarTabMovimientos('compras');
+        if(vista === 'reportes' && typeof window.cargarReportes === 'function') window.cargarReportes();
 
     } catch (error) {
-        console.error(error);
-        document.getElementById('main-content').innerHTML = `<div class="p-8 text-center text-red-500 font-bold w-full">❌ Error cargando la vista: ${v}.html</div>`;
+        main.innerHTML = `<div class="p-8 text-center text-red-500"><p class="text-4xl mb-4">❌</p><h2 class="text-xl font-bold">Error cargando la vista: ${vista}.html</h2></div>`;
     }
 }
 
-// LÓGICA DE FORMULARIOS GLOBALES
-window.cancelarEdicion = function(formName) {
+// --- UTILIDADES GLOBALES ---
+window.cancelarEdicion = function(formId) {
+    document.getElementById(`form-${formId}`).reset();
     window.modoEdicion = { activo: false, id: null, form: null };
-    const formEl = document.getElementById(`form-${formName}`);
-    if(formEl) {
-        formEl.reset();
-        const btnSubmit = formEl.querySelector('button[type="submit"]');
-        if(btnSubmit) { btnSubmit.innerText = formName === 'producto' ? 'Guardar Producto' : 'Guardar'; btnSubmit.classList.replace('bg-blue-600', formName === 'ingrediente' || formName === 'producto' ? 'bg-emerald-600' : 'bg-slate-800'); }
-        const btnCancel = document.getElementById(`btn-cancelar-${formName}`);
-        if(btnCancel) btnCancel.classList.add('hidden');
-    }
-}
-window.activarEdicionGlobal = function(formName, id, objJS) {
-    window.modoEdicion = { activo: true, id: id, form: formName };
-    for (const [inputId, valor] of Object.entries(objJS)) { document.getElementById(inputId).value = valor; }
-    const btnSubmit = document.querySelector(`#form-${formName} button[type="submit"]`);
-    if(btnSubmit) { btnSubmit.innerText = 'Actualizar ✏️'; btnSubmit.classList.replace('bg-slate-800', 'bg-blue-600'); btnSubmit.classList.replace('bg-emerald-600', 'bg-blue-600'); }
-    const btnCancel = document.getElementById(`btn-cancelar-${formName}`);
-    if(btnCancel) btnCancel.classList.remove('hidden');
-};
-window.eliminarReg = async function(tabla, id) {
-    if(confirm("¿Seguro de eliminar este registro definitivamente? 🗑️")) {
-        await clienteSupabase.from(tabla).delete().eq('id', id);
-        if(tabla === 'sucursales') window.cargarSucursales(); else if (tabla === 'tipos_movimiento') window.cargarTiposMovimiento(); else window.cambiarVista(document.querySelector('.bg-emerald-600').id.replace('btn-menu-',''));
-    }
-}
-
-document.addEventListener('submit', async (e) => {
-    if (!e.target.id || !e.target.id.startsWith('form-')) return;
-    if (e.target.id !== 'auth-form' && e.target.id !== 'form-producto' && e.target.id !== 'form-precio-prov' && e.target.id !== 'form-recepcion' && e.target.id !== 'form-ajuste-rapido' && e.target.id !== 'form-nueva-empresa' && e.target.id !== 'form-vincular-usuario') { e.preventDefault(); }
     
-    const id = e.target.id;
-    if (id === 'form-categoria') {
-        const nombre = document.getElementById('nombre-categoria').value;
-        if(window.modoEdicion.activo) await clienteSupabase.from('categorias').update({nombre}).eq('id', window.modoEdicion.id); else await clienteSupabase.from('categorias').insert([{id_empresa: window.miEmpresaId, nombre}]);
-        window.cancelarEdicion('categoria'); window.cargarCategorias();
-    } else if (id === 'form-unidad') {
-        const nombre = document.getElementById('nombre-unidad').value, abrev = document.getElementById('abrev-unidad').value;
-        if(window.modoEdicion.activo) await clienteSupabase.from('unidades').update({nombre, abreviatura: abrev}).eq('id', window.modoEdicion.id); else await clienteSupabase.from('unidades').insert([{id_empresa: window.miEmpresaId, nombre, abreviatura: abrev}]);
-        window.cancelarEdicion('unidad'); window.cargarUnidades();
-    } else if (id === 'form-proveedor') {
-        const payload = { nombre: document.getElementById('nombre-proveedor').value, tipo: document.getElementById('tipo-proveedor').value, whatsapp: document.getElementById('whatsapp-proveedor').value, correo: document.getElementById('correo-proveedor').value, lapso_entrega_dias: document.getElementById('tiempo-entrega').value ? parseInt(document.getElementById('tiempo-entrega').value) : null };
-        if(window.modoEdicion.activo) await clienteSupabase.from('proveedores').update(payload).eq('id', window.modoEdicion.id); else await clienteSupabase.from('proveedores').insert([{...payload, id_empresa: window.miEmpresaId}]);
-        window.cancelarEdicion('proveedor'); window.cargarProveedores();
-    } else if (id === 'form-sucursal') {
-        const payload = { nombre: document.getElementById('nombre-sucursal').value, nombre_comercial: document.getElementById('comercial-sucursal').value, empresa_asociada: document.getElementById('empresa-sucursal').value, horarios_atencion: document.getElementById('horario-sucursal').value, direccion: document.getElementById('dir-sucursal').value };
-        if(window.modoEdicion.activo) await clienteSupabase.from('sucursales').update(payload).eq('id', window.modoEdicion.id); else await clienteSupabase.from('sucursales').insert([{...payload, id_empresa: window.miEmpresaId}]);
-        window.cancelarEdicion('sucursal'); window.cargarSucursales();
-    } else if (id === 'form-ubicacion') {
-        const nombre = document.getElementById('nombre-ubicacion').value, id_sucursal = document.getElementById('sel-sucursal-ubi').value;
-        await clienteSupabase.from('ubicaciones_internas').insert([{id_empresa: window.miEmpresaId, id_sucursal, nombre}]);
-        window.cancelarEdicion('ubicacion'); window.cargarUbicaciones();
-    } else if (id === 'form-tipo-movimiento') {
-        const nombre = document.getElementById('nombre-tipo-mov').value, operacion = document.getElementById('operacion-tipo-mov').value;
-        if(window.modoEdicion.activo) await clienteSupabase.from('tipos_movimiento').update({nombre, operacion}).eq('id', window.modoEdicion.id); else await clienteSupabase.from('tipos_movimiento').insert([{id_empresa: window.miEmpresaId, nombre, operacion}]);
-        window.cancelarEdicion('tipo-movimiento'); window.cargarTiposMovimiento();
-    } else if (id === 'form-ingrediente') {
-        const payload = { id_producto_padre: window.productoActualParaReceta, id_ingrediente: document.getElementById('sel-ingrediente').value, cantidad_neta: document.getElementById('ing-cantidad').value };
-        if(window.modoEdicion.activo) await clienteSupabase.from('recetas').update(payload).eq('id', window.modoEdicion.id); else await clienteSupabase.from('recetas').insert([{...payload, id_empresa: window.miEmpresaId}]);
-        window.cancelarEdicion('ingrediente'); window.cargarIngredientesReceta();
-    } else if (id === 'form-compra-directa') {
-        const idProd = document.getElementById('cd-producto').value, idSuc = document.getElementById('cd-sucursal').value;
-        const cantUC = parseFloat(document.getElementById('cd-cantidad').value), costoTotal = parseFloat(document.getElementById('cd-costo').value), precioUC = costoTotal / cantUC;
-        const { data: cabecera } = await clienteSupabase.from('compras').insert([{ id_empresa: window.miEmpresaId, id_proveedor: document.getElementById('cd-proveedor').value, total_compra: costoTotal, estado: 'Completada' }]).select('id').single();
-        await clienteSupabase.from('compras_detalles').insert([{ id_compra: cabecera.id, id_producto: idProd, cantidad_uc: cantUC, precio_unitario_uc: precioUC, subtotal: costoTotal, estado: 'Recibido' }]);
-        const { data: prod } = await clienteSupabase.from('productos').select('cant_en_ua_de_uc').eq('id', idProd).single();
-        const cantUA_a_sumar = cantUC * prod.cant_en_ua_de_uc;
-        const { data: previo } = await clienteSupabase.from('inventario_saldos').select('id, cantidad_actual_ua').eq('id_producto', idProd).eq('id_sucursal', idSuc).is('id_ubicacion', null).maybeSingle();
-        if (previo) await clienteSupabase.from('inventario_saldos').update({ cantidad_actual_ua: previo.cantidad_actual_ua + cantUA_a_sumar, ultima_actualizacion: new Date() }).eq('id', previo.id);
-        else await clienteSupabase.from('inventario_saldos').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_sucursal: idSuc, cantidad_actual_ua: cantUA_a_sumar }]);
-        await clienteSupabase.from('movimientos_inventario').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, tipo_movimiento: 'COMPRA_DIRECTA', cantidad_movida: cantUA_a_sumar, costo_unitario_movimiento: precioUC, referencia: 'Compra Directa' }]);
-        await clienteSupabase.from('productos').update({ ultimo_costo_uc: precioUC }).eq('id', idProd);
-        alert("✅ Compra Directa registrada con éxito."); document.getElementById('form-compra-directa').reset();
-    } else if (id === 'form-otro-movimiento') {
-        const selectTipo = document.getElementById('om-tipo'), operacion = selectTipo.options[selectTipo.selectedIndex].getAttribute('data-operacion');
-        const idProd = document.getElementById('om-producto').value, idSuc = document.getElementById('om-sucursal').value;
-        const cantidadFinalAplicada = operacion === '+' ? parseFloat(document.getElementById('om-cantidad').value) : -parseFloat(document.getElementById('om-cantidad').value);
-        const { data: previo } = await clienteSupabase.from('inventario_saldos').select('id, cantidad_actual_ua').eq('id_producto', idProd).eq('id_sucursal', idSuc).is('id_ubicacion', null).maybeSingle();
-        if (previo) await clienteSupabase.from('inventario_saldos').update({ cantidad_actual_ua: previo.cantidad_actual_ua + cantidadFinalAplicada, ultima_actualizacion: new Date() }).eq('id', previo.id);
-        else await clienteSupabase.from('inventario_saldos').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_sucursal: idSuc, cantidad_actual_ua: cantidadFinalAplicada }]);
-        await clienteSupabase.from('movimientos_inventario').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, tipo_movimiento: selectTipo.options[selectTipo.selectedIndex].text, cantidad_movida: cantidadFinalAplicada, referencia: 'Ajuste Manual' }]);
-        alert(`✅ Movimiento aplicado.`); document.getElementById('form-otro-movimiento').reset();
-    } else if (id === 'form-ajuste-rapido') {
-        // DETIENE EL COMPORTAMIENTO POR DEFECTO DEL FORMULARIO
-        e.preventDefault(); 
-        const idSaldo = document.getElementById('ar-id-saldo').value;
-        const idProd = document.getElementById('ar-id-prod').value;
-        const cantNueva = parseFloat(document.getElementById('ar-cant').value);
-
-        const { data: previo } = await clienteSupabase.from('inventario_saldos').select('cantidad_actual_ua, id_ubicacion, id_sucursal').eq('id', idSaldo).single();
-        const diferencia = cantNueva - previo.cantidad_actual_ua;
-
-        if(diferencia !== 0) {
-            await clienteSupabase.from('inventario_saldos').update({ cantidad_actual_ua: cantNueva, ultima_actualizacion: new Date() }).eq('id', idSaldo);
-            await clienteSupabase.from('movimientos_inventario').insert([{
-                id_empresa: window.miEmpresaId, id_producto: idProd, id_ubicacion: previo.id_ubicacion,
-                tipo_movimiento: 'AJUSTE_RAPIDO', cantidad_movida: diferencia, referencia: 'Ajuste Rápido en Panel'
-            }]);
-        }
-        
-        alert("✅ Stock ajustado correctamente.");
-        document.getElementById('modal-ajuste-rapido').classList.add('hidden');
-        window.abrirInventarioSucursal(previo.id_sucursal, window.sucursalActivaNombre);
+    let titulo = "Nuevo Elemento";
+    if(formId === 'producto') titulo = "Nuevo Producto / Insumo";
+    const elTitulo = document.getElementById(`titulo-modal-${formId}`);
+    if(elTitulo) elTitulo.innerText = titulo;
+    
+    const btnSubmit = document.querySelector(`#form-${formId} button[type="submit"]`);
+    if(btnSubmit) {
+        btnSubmit.innerText = 'Guardar';
+        btnSubmit.classList.replace('bg-blue-600', 'bg-emerald-600');
     }
-});
+}
+
+window.eliminarReg = async function(tabla, id) {
+    if(confirm('¿Estás seguro de eliminar este registro? Esta acción no se puede deshacer.')) {
+        await clienteSupabase.from(tabla).delete().eq('id', id);
+    }
+}
