@@ -16,7 +16,7 @@
         <h3 class="font-bold text-slate-700 text-lg mb-1 relative z-10">En Tránsito</h3>
         <p class="text-sm text-slate-500 relative z-10">Camiones y entregas pendientes</p>
     </div>
-    <div onclick="irASubirVentas()" class="bg-white rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md hover:border-purple-300 transition-all cursor-pointer group relative overflow-hidden">
+    <div onclick="irACargarVentas()" class="bg-white rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md hover:border-purple-300 transition-all cursor-pointer group relative overflow-hidden">
         <div class="absolute top-0 right-0 w-16 h-16 bg-purple-50 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-150"></div>
         <div class="flex justify-between items-start mb-4 relative z-10"><div class="p-3 bg-purple-100 text-purple-600 rounded-lg"><span class="text-2xl">📊</span></div><span class="text-4xl font-black text-slate-800" id="widget-pos-num">-</span></div>
         <h3 class="font-bold text-slate-700 text-lg mb-1 relative z-10">Último Ingreso POS</h3>
@@ -26,9 +26,9 @@
 
 <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2"><span>⚡</span> Accesos Rápidos</h3>
 <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-    <button onclick="irASubirVentas()" class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-emerald-400 hover:bg-emerald-50 transition-all flex flex-col items-center justify-center gap-2 group">
+    <button onclick="irACargarVentas()" class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-emerald-400 hover:bg-emerald-50 transition-all flex flex-col items-center justify-center gap-2 group">
         <span class="text-3xl group-hover:scale-110 transition-transform">📊</span>
-        <span class="font-bold text-slate-700 text-sm text-center">Ingresar Ventas</span>
+        <span class="font-bold text-slate-700 text-sm text-center">Cargar Ventas</span>
     </button>
     <button onclick="irAComprasDirectas()" class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-emerald-400 hover:bg-emerald-50 transition-all flex flex-col items-center justify-center gap-2 group">
         <span class="text-3xl group-hover:scale-110 transition-transform">🛒</span>
