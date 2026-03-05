@@ -86,7 +86,7 @@ document.addEventListener('submit', async (e) => {
             id_usuario: user.id,
             id_empresa: nuevoIdEmpresa,
             nombre_empresa: nombre,
-            rol: 'Admin' // El que crea la empresa automáticamente es Admin
+            rol: 'Admin'
         });
 
         if(error) return alert("❌ Error: " + error.message);
