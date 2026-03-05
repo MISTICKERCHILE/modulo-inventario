@@ -42,20 +42,27 @@ window.cambiarSubTabPedidos = function(subtab) {
     [btnS, btnT, btnP, btnH].forEach(b => { if(b) b.className = 'px-4 py-2 rounded-md font-bold text-sm text-slate-500 hover:text-slate-800 transition-colors cursor-pointer outline-none whitespace-nowrap'; });
     [divS, divT, divH].forEach(d => { if(d) d.classList.add('hidden'); });
 
+    // Actualizamos el texto del botón por si venía con el nombre viejo
+    if(btnP) btnP.innerText = "Órdenes de Producción";
+
     if(subtab === 'sugerencias') {
-        btnS.className = 'px-4 py-2 rounded-md font-bold text-sm bg-white shadow-sm text-emerald-700 outline-none whitespace-nowrap';
-        divS.classList.remove('hidden'); window.cargarPedidosPlanificados();
+        if(btnS) btnS.className = 'px-4 py-2 rounded-md font-bold text-sm bg-white shadow-sm text-emerald-700 outline-none whitespace-nowrap';
+        if(divS) divS.classList.remove('hidden'); window.cargarPedidosPlanificados();
     } else if(subtab === 'transito') {
-        btnT.className = 'px-4 py-2 rounded-md font-bold text-sm bg-white shadow-sm text-blue-700 outline-none whitespace-nowrap';
-        divT.classList.remove('hidden'); document.getElementById('transito-titulo-seccion').innerHTML = "🚚 Selecciona tu Sucursal para ver las <span class='text-blue-600'>Recepciones Pendientes</span>";
+        if(btnT) btnT.className = 'px-4 py-2 rounded-md font-bold text-sm bg-white shadow-sm text-blue-700 outline-none whitespace-nowrap';
+        if(divT) divT.classList.remove('hidden'); 
+        const titulo = document.getElementById('transito-titulo-seccion');
+        if(titulo) titulo.innerHTML = "🚚 Selecciona tu Sucursal para ver las <span class='text-blue-600'>Recepciones Pendientes</span>";
         window.cargarPedidosEnTransito('Externo');
     } else if(subtab === 'produccion') {
-        btnP.className = 'px-4 py-2 rounded-md font-bold text-sm bg-white shadow-sm text-purple-700 outline-none whitespace-nowrap';
-        divT.classList.remove('hidden'); document.getElementById('transito-titulo-seccion').innerHTML = "🏭 Selecciona tu Sucursal para ver las <span class='text-purple-600'>Órdenes de Producción</span>";
+        if(btnP) btnP.className = 'px-4 py-2 rounded-md font-bold text-sm bg-white shadow-sm text-purple-700 outline-none whitespace-nowrap';
+        if(divT) divT.classList.remove('hidden'); 
+        const titulo = document.getElementById('transito-titulo-seccion');
+        if(titulo) titulo.innerHTML = "🏭 Selecciona tu Sucursal para ver las <span class='text-purple-600'>Órdenes de Producción</span>";
         window.cargarPedidosEnTransito('Interno');
     } else if(subtab === 'historial') {
-        btnH.className = 'px-4 py-2 rounded-md font-bold text-sm bg-white shadow-sm text-slate-800 outline-none whitespace-nowrap';
-        divH.classList.remove('hidden'); window.cargarHistorialOrdenes();
+        if(btnH) btnH.className = 'px-4 py-2 rounded-md font-bold text-sm bg-white shadow-sm text-slate-800 outline-none whitespace-nowrap';
+        if(divH) divH.classList.remove('hidden'); window.cargarHistorialOrdenes();
     }
 }
 
