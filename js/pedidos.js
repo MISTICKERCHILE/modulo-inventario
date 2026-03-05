@@ -251,7 +251,7 @@ window.renderizarBandejaPedidos = function() {
                         <span class="text-lg">💬</span> <span class="hidden sm:inline">WhatsApp</span>
                     </button>
                     <button onclick="generarPedidoTransitoMasivo('${idProv}')" class="px-6 py-2 bg-blue-600 text-white rounded font-bold shadow hover:bg-blue-700 transition-transform hover:scale-105 flex items-center gap-2">
-                        <span>🚀</span> Pedido Generado
+                        <span>🚀</span> Ingresar al Sistema
                     </button>
                 </div>
             </div>
@@ -260,17 +260,12 @@ window.renderizarBandejaPedidos = function() {
     lista.innerHTML = html;
 }
 
-// --- NUEVAS FUNCIONES DE EXPORTACIÓN DIRECTA AL PROVEEDOR ---
-
 window.imprimirPedido = async function(idProv, nombreProv) {
     const items = window.carritoPedidos.filter(i => i.idProv === idProv);
     if(items.length === 0) return alert("No hay productos en este pedido.");
 
-    // Tomamos la sucursal del primer item como referencia principal
     const idSuc = items[0].idSuc;
     const nombreSuc = items[0].nombreSuc;
-    
-    // Buscamos dirección de la sucursal en BD
     const { data: sucData } = await clienteSupabase.from('sucursales').select('direccion').eq('id', idSuc).maybeSingle();
     const direccionStr = sucData?.direccion || 'No registrada';
     
@@ -335,17 +330,16 @@ window.whatsappPedido = async function(idProv, nombreProv) {
     const items = window.carritoPedidos.filter(i => i.idProv === idProv);
     if(items.length === 0) return alert("No hay productos en este pedido.");
 
-    // Buscamos número del proveedor en BD
     const { data: provData } = await clienteSupabase.from('proveedores').select('whatsapp').eq('id', idProv).maybeSingle();
-    let telf = provData?.whatsapp ? provData.whatsapp.replace(/\D/g,'') : ''; // Limpia cualquier espacio o + del número
+    let telf = provData?.whatsapp ? provData.whatsapp.replace(/\D/g,'') : ''; 
 
     const nombreSuc = items[0].nombreSuc;
     const fechaHoy = new Date().toLocaleDateString('es-CL');
 
     let texto = `Hola, este es nuestro pedido para el ${fechaHoy}:\n\n`;
-    texto += `*Destino:* Sucursal ${nombreSuc}\n`;
-    texto += `*Proveedor:* ${nombreProv}\n\n`;
-    texto += `*LISTA DE PRODUCTOS:*\n`;
+    texto += `🏢 *Destino:* Sucursal ${nombreSuc}\n`;
+    texto += `📦 *Proveedor:* ${nombreProv}\n\n`;
+    texto += `*📋 LISTA DE PRODUCTOS:*\n`;
 
     items.forEach(item => {
         texto += `- ${item.cantUC} ${item.abrevUC} de ${item.nombreProd}\n`;
@@ -353,15 +347,12 @@ window.whatsappPedido = async function(idProv, nombreProv) {
 
     texto += `\nPor favor confirmar recepción. ¡Gracias!`;
 
-    // Si tiene número configurado abre directo el chat, si no, abre WA genérico para que escoja el contacto.
     const url = telf 
         ? `https://wa.me/${telf}?text=${encodeURIComponent(texto)}` 
         : `https://wa.me/?text=${encodeURIComponent(texto)}`;
         
     window.open(url, '_blank');
 }
-
-// --- FIN FUNCIONES DE EXPORTACIÓN ---
 
 window.generarPedidoTransitoMasivo = async function(idProv) {
     const itemsDelProveedor = window.carritoPedidos.filter(i => i.idProv === idProv);
@@ -439,7 +430,7 @@ window.abrirTransitoSucursal = async function(idSuc, nombreSuc) {
     lista.innerHTML = '<p class="text-slate-500 font-bold py-8">⏳ Buscando...</p>';
 
     const { data: transito } = await clienteSupabase.from('compras_detalles')
-        .select(`id, id_producto, cantidad_uc, compras!inner(id_proveedor, proveedores(nombre, tipo))`)
+        .select(`id, id_producto, cantidad_uc, compras!inner(id, id_proveedor, proveedores(nombre, tipo))`)
         .eq('id_sucursal_destino', idSuc)
         .in('estado', ['En Tránsito', 'Postpuesto']);
 
@@ -524,8 +515,9 @@ window.abrirModalRecepcionMasiva = async function(idSuc, nombreSuc, idProv, nomb
         const labelPost = isPostpuesto ? `<span class="block mt-1 text-[10px] bg-yellow-100 text-yellow-800 px-2 py-1 rounded w-max">Estaba en espera</span>` : '';
         const colorInputCant = isProd ? 'text-purple-700' : 'text-emerald-700';
 
+        // INYECTAMOS EL ID DE LA COMPRA EN LA FILA (data-id-compra)
         return `
-        <tr class="fila-recepcion border-b border-slate-100 hover:bg-slate-50 transition-colors" data-id-detalle="${d.id}" data-id-prod="${d.id_producto}" data-factor="${d.productos?.cant_en_ua_de_uc || 1}" data-precio-uc="${d.precio_unitario_uc}">
+        <tr class="fila-recepcion border-b border-slate-100 hover:bg-slate-50 transition-colors" data-id-detalle="${d.id}" data-id-prod="${d.id_producto}" data-factor="${d.productos?.cant_en_ua_de_uc || 1}" data-precio-uc="${d.precio_unitario_uc}" data-id-compra="${d.compras.id}">
             <td class="px-4 py-3 font-bold text-slate-700 text-sm">${d.productos?.nombre} ${labelPost}</td>
             <td class="px-4 py-3 text-center font-mono font-bold text-slate-700 bg-slate-100/50">${d.cantidad_uc} <span class="text-xs text-slate-400">${abrev}</span></td>
             <td class="px-4 py-3">
@@ -593,9 +585,12 @@ window.guardarRecepcionMasiva = async function() {
     const btn = document.getElementById('btn-guardar-recepcion');
     btn.innerText = "⏳ Guardando Inventario..."; btn.disabled = true;
     
+    const comprasAfectadas = new Set(); // Guardará los ID de las órdenes que estamos cerrando
+
     for (const fila of filas) {
         const idDetalle = fila.getAttribute('data-id-detalle');
         const idProd = fila.getAttribute('data-id-prod');
+        const idCompraPadre = fila.getAttribute('data-id-compra');
         const factorConversion = parseFloat(fila.getAttribute('data-factor'));
         const precioUC = parseFloat(fila.getAttribute('data-precio-uc'));
         const estado = fila.querySelector('.select-estado-rec').value;
@@ -623,12 +618,22 @@ window.guardarRecepcionMasiva = async function() {
             await clienteSupabase.from('movimientos_inventario').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_ubicacion: idUbi, tipo_movimiento: tipoMov, cantidad_movida: cantUA, costo_unitario_movimiento: precioUC, referencia: refMov }]);
             if(!isProd) await clienteSupabase.from('productos').update({ ultimo_costo_uc: precioUC }).eq('id', idProd);
 
+            // Si se recibió (o falló definitivamente), guardamos el ID para cerrarlo
+            if(idCompraPadre) comprasAfectadas.add(idCompraPadre);
+
         } else if (estado === 'No Recibido') {
             const motivo = fila.querySelector('.input-motivo-rec').value;
             await clienteSupabase.from('compras_detalles').update({estado: 'No Recibido', motivo_no_recepcion: motivo}).eq('id', idDetalle);
+            
+            if(idCompraPadre) comprasAfectadas.add(idCompraPadre);
         } else {
             await clienteSupabase.from('compras_detalles').update({estado: 'Postpuesto'}).eq('id', idDetalle);
         }
+    }
+
+    // EL NUEVO CEREBRO: Actualiza el Estado Global a "Completada"
+    for(const idC of comprasAfectadas) {
+        await clienteSupabase.from('compras').update({estado: 'Completada'}).eq('id', idC);
     }
 
     btn.innerText = "✅ Guardar Recepción"; btn.disabled = false;
