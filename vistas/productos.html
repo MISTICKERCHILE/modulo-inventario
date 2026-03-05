@@ -21,18 +21,18 @@
     </div>
 </div>
 
-<div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+<div class="bg-white rounded-xl shadow-sm border overflow-x-auto w-full">
     <table class="min-w-full divide-y divide-gray-200" id="tabla-exportar-productos">
         <thead class="bg-slate-50">
             <tr>
-                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Nombre del Producto</th>
-                <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase">Unidad Base (UA)</th>
-                <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase">Receta Asignada</th>
-                <th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase no-print">Acciones</th>
+                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Nombre del Producto</th>
+                <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Control Físico</th>
+                <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Receta Asignada</th>
+                <th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider no-print">Acciones</th>
             </tr>
         </thead>
-        <tbody id="lista-productos" class="divide-y divide-gray-200">
-            </tbody>
+        <tbody id="lista-productos" class="divide-y divide-gray-200 bg-white">
+        </tbody>
     </table>
 </div>
 
@@ -43,5 +43,7 @@
         #main-content { padding: 0 !important; width: 100% !important; }
         body { background-color: white !important; }
         .shadow-sm, .shadow-md { box-shadow: none !important; border: 1px solid #ccc; }
+        /* Forzar impresión de fondos para que se vean las etiquetas */
+        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
     }
 </style>
