@@ -5,16 +5,24 @@ window.modoEdicion = { activo: false, id: null, form: null };
 window.usuarioActual = 'Equipo'; 
 
 // --- LOGIN Y SESIÓN MULTI-EMPRESA ---
+// --- LOGIN Y SESIÓN MULTI-EMPRESA ---
 window.toggleAuthMode = function(mode) {
     document.getElementById('auth-mode').value = mode;
+    const regFields = document.getElementById('register-fields');
+    const regNombre = document.getElementById('reg-nombre');
+
     if(mode === 'login') {
-        document.getElementById('tab-login').className = 'flex-1 pb-2 border-b-2 border-emerald-600 font-bold text-emerald-600 outline-none';
-        document.getElementById('tab-register').className = 'flex-1 pb-2 font-bold text-slate-400 outline-none hover:text-emerald-500';
+        document.getElementById('tab-login').className = 'flex-1 pb-2 border-b-2 border-emerald-600 font-bold text-emerald-600 outline-none transition-colors';
+        document.getElementById('tab-register').className = 'flex-1 pb-2 font-bold text-slate-400 outline-none hover:text-emerald-500 transition-colors';
         document.getElementById('auth-btn').innerText = 'Entrar al Sistema';
+        regFields.classList.add('hidden');
+        regNombre.removeAttribute('required'); // En login no es obligatorio
     } else {
-        document.getElementById('tab-register').className = 'flex-1 pb-2 border-b-2 border-emerald-600 font-bold text-emerald-600 outline-none';
-        document.getElementById('tab-login').className = 'flex-1 pb-2 font-bold text-slate-400 outline-none hover:text-emerald-500';
+        document.getElementById('tab-register').className = 'flex-1 pb-2 border-b-2 border-emerald-600 font-bold text-emerald-600 outline-none transition-colors';
+        document.getElementById('tab-login').className = 'flex-1 pb-2 font-bold text-slate-400 outline-none hover:text-emerald-500 transition-colors';
         document.getElementById('auth-btn').innerText = 'Crear mi Cuenta';
+        regFields.classList.remove('hidden');
+        regNombre.setAttribute('required', 'true'); // En registro sí es obligatorio
     }
 }
 
@@ -25,15 +33,30 @@ document.getElementById('auth-form').addEventListener('submit', async (e) => {
     const mode = document.getElementById('auth-mode').value;
 
     if(mode === 'register') {
-        const { data, error } = await clienteSupabase.auth.signUp({ email: emailInput, password: passwordInput });
+        // FLUJO DE REGISTRO CON METADATA NUEVA
+        const nombreInput = document.getElementById('reg-nombre').value.trim();
+        const telInput = document.getElementById('reg-telefono').value.trim();
+
+        const { data, error } = await clienteSupabase.auth.signUp({ 
+            email: emailInput, 
+            password: passwordInput,
+            options: {
+                data: {
+                    nombre: nombreInput,
+                    telefono: telInput
+                }
+            }
+        });
+        
         if(error) return alert("❌ Error al registrar: " + error.message);
         
-        alert("✅ Cuenta creada con éxito. Ahora pide a tu administrador que te dé acceso a la empresa.");
+        alert(`✅ Cuenta creada para ${nombreInput}. Ahora pide a tu administrador que te dé acceso a la empresa.`);
         window.toggleAuthMode('login');
         document.getElementById('password').value = '';
         return;
     }
 
+    // FLUJO DE LOGIN NORMAL
     const { data, error } = await clienteSupabase.auth.signInWithPassword({ email: emailInput, password: passwordInput });
     if (error) return alert("❌ Credenciales incorrectas. Verifica tu correo y contraseña.");
 
