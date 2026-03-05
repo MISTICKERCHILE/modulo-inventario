@@ -251,7 +251,7 @@ window.renderizarBandejaPedidos = function() {
                         <span class="text-lg">💬</span> <span class="hidden sm:inline">WhatsApp</span>
                     </button>
                     <button onclick="generarPedidoTransitoMasivo('${idProv}')" class="px-6 py-2 bg-blue-600 text-white rounded font-bold shadow hover:bg-blue-700 transition-transform hover:scale-105 flex items-center gap-2">
-                        <span>🚀</span> Ingresar al Sistema
+                        <span>🚀</span> Pedido Generado
                     </button>
                 </div>
             </div>
