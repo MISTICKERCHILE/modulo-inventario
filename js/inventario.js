@@ -470,7 +470,6 @@ window.abrirHistorial = async function(idProd, nombreProd) {
     `;
 
     container.innerHTML = html;
-}
 
 // --- FUNCIÓN PARA ABRIR MODAL DE AJUSTE RÁPIDO ---
 window.abrirAjusteRapido = function(idSaldo, idProd, nombreProd, ubiNombre, cantActual, abrev) {
