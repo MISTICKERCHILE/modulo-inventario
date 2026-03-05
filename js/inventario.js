@@ -444,3 +444,14 @@ window.abrirHistorialKardex = async function(idProd, nombreProd) {
 
     container.innerHTML = html;
 }
+
+// --- FUNCIÓN PARA ABRIR MODAL DE AJUSTE RÁPIDO ---
+window.abrirAjusteRapido = function(idSaldo, idProd, nombreProd, ubiNombre, cantActual, abrev) {
+    document.getElementById('ar-id-saldo').value = idSaldo;
+    document.getElementById('ar-id-prod').value = idProd;
+    document.getElementById('ar-titulo').innerText = nombreProd;
+    document.getElementById('ar-ubi').innerText = ubiNombre;
+    document.getElementById('ar-cant').value = cantActual;
+    document.getElementById('ar-abrev').innerText = abrev;
+    document.getElementById('modal-ajuste-rapido').classList.remove('hidden');
+}
