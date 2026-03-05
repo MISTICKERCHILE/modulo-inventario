@@ -2,7 +2,8 @@
     <h2 id="dash-saludo" class="text-3xl md:text-4xl font-bold mb-2">¡Hola!</h2>
     <p class="text-emerald-50 text-lg opacity-90">Aquí tienes el resumen en tiempo real de tu operación.</p>
 </div>
-<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
     <div onclick="irAAlertasStock()" class="bg-white rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md hover:border-red-300 transition-all cursor-pointer group relative overflow-hidden">
         <div class="absolute top-0 right-0 w-16 h-16 bg-red-50 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-150"></div>
         <div class="flex justify-between items-start mb-4 relative z-10"><div class="p-3 bg-red-100 text-red-600 rounded-lg"><span class="text-2xl">⚠️</span></div><span class="text-4xl font-black text-slate-800" id="widget-alertas-num">0</span></div>
@@ -21,4 +22,32 @@
         <h3 class="font-bold text-slate-700 text-lg mb-1 relative z-10">Último Ingreso POS</h3>
         <p class="text-sm text-slate-500 relative z-10">Días sin actualizar ventas</p>
     </div>
+</div>
+
+<h3 class="text-slate-500 font-bold text-xs uppercase tracking-widest mb-4">Acciones Rápidas</h3>
+<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+    <button onclick="irASubirVentas()" class="flex flex-col items-center p-4 bg-white border rounded-xl hover:border-emerald-500 hover:shadow-md transition-all group">
+        <span class="text-3xl mb-2 group-hover:scale-110 transition-transform">💰</span>
+        <span class="text-[10px] font-black uppercase text-slate-500">Ingresar Ventas</span>
+    </button>
+    <button onclick="cambiarVista('movimientos'); setTimeout(()=>cambiarTabMovimientos('compras'), 150)" class="flex flex-col items-center p-4 bg-white border rounded-xl hover:border-emerald-500 hover:shadow-md transition-all group">
+        <span class="text-3xl mb-2 group-hover:scale-110 transition-transform">🛒</span>
+        <span class="text-[10px] font-black uppercase text-slate-500">Ingresar Compra</span>
+    </button>
+    <button onclick="irATransito()" class="flex flex-col items-center p-4 bg-white border rounded-xl hover:border-emerald-500 hover:shadow-md transition-all group">
+        <span class="text-3xl mb-2 group-hover:scale-110 transition-transform">📦</span>
+        <span class="text-[10px] font-black uppercase text-slate-500">Recepcionar</span>
+    </button>
+    <button onclick="cambiarVista('movimientos'); setTimeout(()=>cambiarSubTabPedidos('produccion'), 150)" class="flex flex-col items-center p-4 bg-white border rounded-xl hover:border-emerald-500 hover:shadow-md transition-all group">
+        <span class="text-3xl mb-2 group-hover:scale-110 transition-transform">🏭</span>
+        <span class="text-[10px] font-black uppercase text-slate-500">Producción</span>
+    </button>
+    <button onclick="cambiarVista('movimientos'); setTimeout(()=>cambiarTabMovimientos('otros'), 150)" class="flex flex-col items-center p-4 bg-white border rounded-xl hover:border-emerald-500 hover:shadow-md transition-all group">
+        <span class="text-3xl mb-2 group-hover:scale-110 transition-transform">🔄</span>
+        <span class="text-[10px] font-black uppercase text-slate-500">Otros Mov.</span>
+    </button>
+    <button onclick="cambiarVista('reportes')" class="flex flex-col items-center p-4 bg-white border rounded-xl hover:border-emerald-500 hover:shadow-md transition-all group">
+        <span class="text-3xl mb-2 group-hover:scale-110 transition-transform">📈</span>
+        <span class="text-[10px] font-black uppercase text-slate-500">Reportes</span>
+    </button>
 </div>
