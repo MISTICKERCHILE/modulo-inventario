@@ -103,6 +103,34 @@ window.iniciarSesionEmpresa = function(idEmpresa, nombreEmpresa, emailUsuario, n
     window.cambiarVista('dashboard');
 };
 
+// --- FUNCIÓN PARA CAMBIAR DE EMPRESA SIN CERRAR SESIÓN ---
+window.volverASelectorEmpresa = async function() {
+    // 1. Buscamos al usuario logueado actualmente
+    const { data: { user } } = await clienteSupabase.auth.getUser();
+    if(!user) return window.cerrarSesion();
+
+    // 2. Buscamos de nuevo sus empresas (por si le dieron acceso a otra recientemente)
+    const { data: empresasAsignadas } = await clienteSupabase.from('usuarios_empresas')
+        .select('id_empresa, nombre_empresa')
+        .eq('id_usuario', user.id);
+
+    // 3. Recuperamos los datos visuales
+    const emailUsuario = document.getElementById('user-email-dropdown').innerText;
+    const nombreReal = window.usuarioActual;
+
+    // 4. Escondemos el Dashboard y mostramos el Selector
+    document.getElementById('dashboard-container').classList.add('hidden');
+    document.getElementById('selector-empresa-container').classList.remove('hidden');
+
+    // 5. Dibujamos los botones de las empresas
+    document.getElementById('lista-empresas-usuario').innerHTML = empresasAsignadas.map(emp => `
+        <button onclick="iniciarSesionEmpresa('${emp.id_empresa}', '${emp.nombre_empresa}', '${emailUsuario}', '${nombreReal}')" class="w-full text-left px-6 py-4 border border-slate-200 rounded-xl hover:bg-emerald-50 hover:border-emerald-500 transition-all font-bold text-slate-700 shadow-sm flex items-center justify-between group">
+            <span>🏢 ${emp.nombre_empresa}</span>
+            <span class="text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity">Entrar →</span>
+        </button>
+    `).join('');
+}
+
 window.cerrarSesion = function() { location.reload(); }
 
 // --- FRENO DE EMERGENCIA Y MEMORIA ---
