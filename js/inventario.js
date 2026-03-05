@@ -8,7 +8,6 @@ window.productosGlobalConteo = [];
 window.ubicacionesGlobalSucursal = []; 
 window.selectConteoActivoIndex = null; 
 
-// 1. CARGA LA CUADRÍCULA INICIAL DE SUCURSALES
 window.cargarInventario = async function() {
     document.getElementById('inv-vista-sucursales').classList.remove('hidden');
     document.getElementById('inv-vista-detalle').classList.add('hidden');
@@ -38,7 +37,6 @@ window.volverGridInventario = function() {
     window.cargarInventario();
 }
 
-// 2. CARGA LA TABLA DE INVENTARIO (CON UBICACIÓN EDITABLE)
 window.abrirInventarioSucursal = async function(idSuc, nombreSuc) {
     window.sucursalActivaID = idSuc;
     window.sucursalActivaNombre = nombreSuc;
@@ -127,9 +125,6 @@ window.cambiarUbicacionSaldo = async function(idSaldo, nuevoIdUbicacionStr) {
     window.abrirInventarioSucursal(window.sucursalActivaID, window.sucursalActivaNombre); 
 }
 
-// ==========================================
-// --- CONTEO MASIVO CON BUSCADOR INTELIGENTE ---
-// ==========================================
 window.abrirModalConteoMasivo = async function() {
     document.getElementById('cm-sucursal-nombre').innerText = window.sucursalActivaNombre;
     
@@ -344,9 +339,6 @@ window.guardarConteoMasivo = async function() {
     window.abrirInventarioSucursal(window.sucursalActivaID, window.sucursalActivaNombre);
 }
 
-// ==========================================
-// --- KARDEX: LÍNEA DE TIEMPO (TIMELINE) ---
-// ==========================================
 window.abrirHistorialKardex = async function(idProd, nombreProd) {
     document.getElementById('hm-subtitulo').innerText = `Producto: ${nombreProd}`;
     document.getElementById('modal-historial').classList.remove('hidden');
@@ -413,6 +405,42 @@ window.abrirAjusteRapido = function(idSaldo, idProd, nombreProd, ubiNombre, cant
     document.getElementById('modal-ajuste-rapido').classList.remove('hidden');
 }
 
+// NUEVO: EL CEREBRO DEL FORMULARIO DE AJUSTE RÁPIDO PARA QUE NO RECARGUE LA PÁGINA
+document.getElementById('form-ajuste-rapido')?.addEventListener('submit', async (e) => {
+    e.preventDefault(); // Evitamos que se recargue la pantalla
+    const idSaldo = document.getElementById('ar-id-saldo').value;
+    const idProd = document.getElementById('ar-id-prod').value;
+    const cantNueva = parseFloat(document.getElementById('ar-cant').value);
+
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.innerText = "⏳ Aplicando..."; btn.disabled = true;
+
+    // Buscamos el stock anterior y la ubicación en la base de datos
+    const { data: previo } = await clienteSupabase.from('inventario_saldos').select('cantidad_actual_ua, id_ubicacion, id_sucursal').eq('id', idSaldo).single();
+    
+    if(previo) {
+        const diferencia = cantNueva - previo.cantidad_actual_ua;
+        
+        if(diferencia !== 0) {
+            // Actualizamos la cantidad
+            await clienteSupabase.from('inventario_saldos').update({ cantidad_actual_ua: cantNueva, ultima_actualizacion: new Date() }).eq('id', idSaldo);
+            
+            // Guardamos el recibo (log) en el historial
+            await clienteSupabase.from('movimientos_inventario').insert([{ 
+                id_empresa: window.miEmpresaId, id_producto: idProd, id_ubicacion: previo.id_ubicacion, 
+                tipo_movimiento: 'AJUSTE_CONTEO', cantidad_movida: diferencia, referencia: 'Ajuste Rápido Individual' 
+            }]);
+        }
+    }
+
+    document.getElementById('modal-ajuste-rapido').classList.add('hidden');
+    btn.innerText = "Aplicar"; btn.disabled = false;
+    
+    // Refrescamos visualmente la tabla de fondo
+    window.abrirInventarioSucursal(window.sucursalActivaID, window.sucursalActivaNombre);
+});
+
+
 // ==========================================
 // --- IMPRESIÓN DE PLANILLA FÍSICA ---
 // ==========================================
@@ -433,7 +461,6 @@ window.imprimirPlanillaConteo = function() {
 
     let filasHtml = '';
     filas.forEach(tr => {
-        // Extraer el nombre de forma limpia (ignorando inputs ocultos o de búsqueda)
         let celdaNombre = tr.querySelector('td:nth-child(1)');
         let inputBusqueda = celdaNombre.querySelector('input[type="text"]');
         let nombreProd = "";
@@ -446,7 +473,7 @@ window.imprimirPlanillaConteo = function() {
             nombreProd = clone.textContent.trim();
         }
 
-        if(!nombreProd) return; // Evitar filas vacías
+        if(!nombreProd) return; 
         
         let abrev = tr.querySelector('td:nth-child(2)').textContent.trim();
 
@@ -459,135 +486,46 @@ window.imprimirPlanillaConteo = function() {
         `;
     });
 
-    // Abrimos una ventana blanca temporal para imprimir
     const printWindow = window.open('', '_blank', 'width=800,height=600');
-    
     printWindow.document.write(`
         <html>
         <head>
             <title>Planilla de Conteo - ${nombreUbicacion}</title>
             <style>
                 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-                body { 
-                    font-family: 'Inter', sans-serif; 
-                    margin: 0; 
-                    padding: 20px; 
-                    color: #333;
-                }
-                .header-box {
-                    border: 2px solid #000;
-                    padding: 15px;
-                    border-radius: 8px;
-                    margin-bottom: 20px;
-                }
-                .header-title {
-                    font-size: 24px;
-                    font-weight: 900;
-                    text-transform: uppercase;
-                    margin: 0 0 15px 0;
-                    text-align: center;
-                    border-bottom: 2px solid #000;
-                    padding-bottom: 10px;
-                }
-                .info-grid {
-                    display: flex;
-                    flex-wrap: wrap;
-                    gap: 15px;
-                }
-                .info-item {
-                    flex: 1 1 45%;
-                    font-size: 14px;
-                }
-                .info-item strong {
-                    text-transform: uppercase;
-                    font-size: 12px;
-                    color: #555;
-                    display: block;
-                }
-                .info-item .line {
-                    border-bottom: 1px solid #000;
-                    height: 20px;
-                    display: block;
-                    margin-top: 5px;
-                }
-                
-                table { 
-                    width: 100%; 
-                    border-collapse: collapse; 
-                    margin-top: 10px;
-                }
-                th, td { 
-                    border: 1px solid #000; 
-                    padding: 12px 8px; 
-                    text-align: left; 
-                }
-                th { 
-                    background-color: #f1f5f9; 
-                    font-weight: bold; 
-                    text-transform: uppercase;
-                    font-size: 12px;
-                }
-                
-                /* Magia para que el encabezado se repita en cada hoja impresa */
+                body { font-family: 'Inter', sans-serif; margin: 0; padding: 20px; color: #333; }
+                .header-box { border: 2px solid #000; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+                .header-title { font-size: 24px; font-weight: 900; text-transform: uppercase; margin: 0 0 15px 0; text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; }
+                .info-grid { display: flex; flex-wrap: wrap; gap: 15px; }
+                .info-item { flex: 1 1 45%; font-size: 14px; }
+                .info-item strong { text-transform: uppercase; font-size: 12px; color: #555; display: block; }
+                .info-item .line { border-bottom: 1px solid #000; height: 20px; display: block; margin-top: 5px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                th, td { border: 1px solid #000; padding: 12px 8px; text-align: left; }
+                th { background-color: #f1f5f9; font-weight: bold; text-transform: uppercase; font-size: 12px; }
                 thead { display: table-header-group; } 
                 tr { page-break-inside: avoid; }
-                
                 .prod-col { font-weight: bold; font-size: 14px; }
                 .box-col { width: 120px; }
                 .unit-col { width: 60px; text-align: center; font-size: 12px; color: #666; font-weight: bold;}
-                
-                @media print {
-                    body { padding: 0; }
-                    @page { margin: 15mm; }
-                    .header-box { background-color: white !important; -webkit-print-color-adjust: exact; }
-                    th { background-color: #f1f5f9 !important; -webkit-print-color-adjust: exact; }
-                }
+                @media print { body { padding: 0; } @page { margin: 15mm; } .header-box { background-color: white !important; -webkit-print-color-adjust: exact; } th { background-color: #f1f5f9 !important; -webkit-print-color-adjust: exact; } }
             </style>
         </head>
         <body>
             <div class="header-box">
                 <h1 class="header-title">Planilla de Conteo Físico</h1>
                 <div class="info-grid">
-                    <div class="info-item">
-                        <strong>Sucursal:</strong>
-                        <div style="font-size: 16px; font-weight: bold; margin-top: 4px;">${nombreSucursal}</div>
-                    </div>
-                    <div class="info-item">
-                        <strong>Ubicación a Contar:</strong>
-                        <div style="font-size: 16px; font-weight: bold; margin-top: 4px;">${nombreUbicacion}</div>
-                    </div>
-                    <div class="info-item">
-                        <strong>Responsable del Conteo:</strong>
-                        <span class="line"></span>
-                    </div>
-                    <div class="info-item">
-                        <strong>Fecha:</strong>
-                        <div style="font-size: 16px; margin-top: 4px;">${fechaHoy}</div>
-                    </div>
+                    <div class="info-item"><strong>Sucursal:</strong><div style="font-size: 16px; font-weight: bold; margin-top: 4px;">${nombreSucursal}</div></div>
+                    <div class="info-item"><strong>Ubicación a Contar:</strong><div style="font-size: 16px; font-weight: bold; margin-top: 4px;">${nombreUbicacion}</div></div>
+                    <div class="info-item"><strong>Responsable del Conteo:</strong><span class="line"></span></div>
+                    <div class="info-item"><strong>Fecha:</strong><div style="font-size: 16px; margin-top: 4px;">${fechaHoy}</div></div>
                 </div>
             </div>
-            
             <table>
-                <thead>
-                    <tr>
-                        <th>Producto / Insumo</th>
-                        <th style="text-align: center;">Cantidad Contada</th>
-                        <th style="text-align: center;">Unidad</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${filasHtml}
-                </tbody>
+                <thead><tr><th>Producto / Insumo</th><th style="text-align: center;">Cantidad Contada</th><th style="text-align: center;">Unidad</th></tr></thead>
+                <tbody>${filasHtml}</tbody>
             </table>
-            
-            <script>
-                // Se ejecuta al cargar la mini-página
-                window.onload = function() {
-                    window.print();
-                    // Cerramos la ventana solita después de imprimir
-                    setTimeout(function() { window.close(); }, 500);
-                }
-            </script>
+            <script>window.onload = function() { window.print(); setTimeout(function() { window.close(); }, 500); }</script>
         </body>
         </html>
     `);
