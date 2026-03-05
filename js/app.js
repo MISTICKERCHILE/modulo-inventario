@@ -57,12 +57,19 @@ window.addEventListener('beforeunload', (e) => {
 });
 
 
-// NUEVO LOGICA MENU CELULAR (DRAWER)
+// NUEVO LOGICA MENU CELULAR Y ESCRITORIO (DRAWER)
 window.toggleMenu = function() {
     const sidebar = document.getElementById('sidebar-menu');
     const backdrop = document.getElementById('sidebar-backdrop');
-    sidebar.classList.toggle('-translate-x-full');
-    backdrop.classList.toggle('hidden');
+    
+    if (window.innerWidth >= 768) {
+        // En escritorio: Ocultamos completamente la barra
+        sidebar.classList.toggle('md:hidden');
+    } else {
+        // En celular: Deslizamos y mostramos el fondo oscuro
+        sidebar.classList.toggle('-translate-x-full');
+        backdrop.classList.toggle('hidden');
+    }
 }
 
 window.toggleUserMenu = function() {
@@ -178,9 +185,14 @@ window.cargarDashboard = async function() {
     }
 }
 
+// ATAJOS DEL DASHBOARD Y NOTIFICACIONES
 window.irAAlertasStock = function() { window.cambiarVista('movimientos'); setTimeout(() => { window.cambiarTabMovimientos('pedidos'); window.cambiarSubTabPedidos('sugerencias'); }, 100); }
 window.irATransito = function() { window.cambiarVista('movimientos'); setTimeout(() => { window.cambiarTabMovimientos('pedidos'); window.cambiarSubTabPedidos('transito'); }, 100); }
 window.irASubirVentas = function() { window.cambiarVista('movimientos'); setTimeout(() => window.cambiarTabMovimientos('ventas'), 100); }
+window.irAComprasDirectas = function() { window.cambiarVista('movimientos'); setTimeout(() => window.cambiarTabMovimientos('compras'), 100); }
+window.irARecepcionPedidos = function() { window.cambiarVista('movimientos'); setTimeout(() => { window.cambiarTabMovimientos('pedidos'); window.cambiarSubTabPedidos('transito'); }, 100); }
+window.irAOrdenesProduccion = function() { window.cambiarVista('movimientos'); setTimeout(() => { window.cambiarTabMovimientos('pedidos'); window.cambiarSubTabPedidos('produccion'); }, 100); }
+window.irAOtrosMovimientos = function() { window.cambiarVista('movimientos'); setTimeout(() => window.cambiarTabMovimientos('otros'), 100); }
 
 window.cancelarEdicion = function(formName) {
     window.modoEdicion = { activo: false, id: null, form: null };
