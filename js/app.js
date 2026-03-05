@@ -148,7 +148,7 @@ window.cambiarVista = async function(v) {
         document.getElementById('sidebar-backdrop')?.classList.add('hidden');
     }
     
-    ['dashboard', 'catalogos', 'productos', 'recetas', 'movimientos', 'inventario', 'reportes'].forEach(vis => {
+    ['dashboard', 'catalogos', 'productos', 'recetas', 'movimientos', 'inventario', 'reportes', 'empresas'].forEach(vis => {
         const btn = document.getElementById(`btn-menu-${vis}`);
         if(btn) btn.className = 'w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium text-white opacity-70 transition-colors mb-1';
     });
