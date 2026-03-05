@@ -46,7 +46,7 @@ window.cargarUsuariosDeEmpresa = async function(idEmpresa, nombreEmpresa) {
 
     // Buscamos quién más tiene asignada esta ID de empresa
     const { data: usuarios } = await clienteSupabase.from('usuarios_empresas')
-        .select('id, id_usuario, rol, perfiles(nombre)') 
+        .select('id, id_usuario, rol, perfiles(nombre)')
         .eq('id_empresa', idEmpresa);
 
     if(!usuarios || usuarios.length === 0) {
@@ -80,12 +80,13 @@ document.addEventListener('submit', async (e) => {
         e.preventDefault();
         const { data: { user } } = await clienteSupabase.auth.getUser();
         const nombre = document.getElementById('ne-nombre').value;
-        const nuevoIdEmpresa = crypto.randomUUID(); // Generamos un ID único universal para la empresa
+        const nuevoIdEmpresa = crypto.randomUUID(); // Generamos un ID único
 
         const { error } = await clienteSupabase.from('usuarios_empresas').insert({
             id_usuario: user.id,
             id_empresa: nuevoIdEmpresa,
-            nombre_empresa: nombre
+            nombre_empresa: nombre,
+            rol: 'Admin' // El que crea la empresa automáticamente es Admin
         });
 
         if(error) return alert("❌ Error: " + error.message);
@@ -124,17 +125,16 @@ document.addEventListener('submit', async (e) => {
 
         if(error) return alert("❌ Error al vincular.");
         
-        alert(`✅ ${perfilEncontrado.nombre} ha sido vinculado a ${nombreEmpresa} como ${rolAsignado}.`);
+        alert(`✅ ${perfilEncontrado.nombre || emailTarget} ha sido vinculado a ${nombreEmpresa} como ${rolAsignado}.`);
         document.getElementById('modal-vincular-usuario').classList.add('hidden');
         document.getElementById('form-vincular-usuario').reset();
         window.cargarUsuariosDeEmpresa(idEmpresa, nombreEmpresa);
-    });
-
+    }
+});
 
 window.eliminarAcceso = async function(idRegistro) {
     if(confirm("¿Seguro que deseas revocar el acceso a este usuario para esta empresa?")) {
         await clienteSupabase.from('usuarios_empresas').delete().eq('id', idRegistro);
-        // Recargar la vista vaciando el panel derecho
         document.getElementById('lista-usuarios-empresa').innerHTML = '<li class="p-8 text-center text-slate-400 font-medium text-sm">👈 Selecciona una empresa a la izquierda para ver su equipo.</li>';
         window.cargarMisEmpresas();
     }
