@@ -1,0 +1,68 @@
+<div class="flex justify-between items-center mb-6">
+    <h2 class="text-2xl font-bold">🛒 Gestión de Pedidos y Recepciones</h2>
+    
+    <div class="flex items-center bg-white border border-slate-200 rounded-md shadow-sm overflow-hidden">
+        <button onclick="exportarMovimientosCSV()" title="Exportar TODO el Historial de Movimientos a Excel" class="px-3 py-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors border-r">
+            📤
+        </button>
+        <button onclick="window.print()" title="Imprimir / PDF" class="px-3 py-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors">
+            🖨️
+        </button>
+    </div>
+</div>
+
+<div class="flex border-b border-gray-200 mb-6 overflow-x-auto bg-white rounded-t-lg shadow-sm">
+    <button onclick="cambiarSubTabPedidos('sugerencias')" id="subtab-sugerencias" class="px-6 py-3 font-medium border-b-2 border-emerald-600 text-emerald-600 bg-emerald-50/50 whitespace-nowrap">Sugerencias por Stock</button>
+    <button onclick="cambiarSubTabPedidos('transito')" id="subtab-transito" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors whitespace-nowrap">Pedidos en Tránsito</button>
+    <button onclick="cambiarSubTabPedidos('produccion')" id="subtab-produccion" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors whitespace-nowrap">Órdenes de Producción</button>
+    <button onclick="cambiarSubTabPedidos('historial')" id="subtab-historial" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors whitespace-nowrap">📚 Historial de Órdenes</button>
+</div>
+
+<div id="subvista-sugerencias" class="block space-y-8">
+    <div id="lista-alertas-compras" class="space-y-6"></div>
+    <div id="contenedor-bandeja" class="hidden mt-8 border-t-2 border-dashed border-slate-300 pt-8">
+        <h3 class="text-xl font-bold mb-4 text-slate-800 flex items-center gap-2"><span>🛒</span> Bandeja de Pedidos (Pre-armados)</h3>
+        <p class="text-sm text-slate-500 mb-6">Ajusta las cantidades si lo necesitas. Toma un pantallazo para tu proveedor y luego haz clic en "Pedido Generado".</p>
+        <div id="lista-carritos-proveedor" class="space-y-6"></div>
+    </div>
+</div>
+
+<div id="subvista-transito" class="hidden space-y-6">
+    <div id="transito-vista-sucursales" class="block">
+        <h3 class="text-xl font-bold mb-6 text-slate-800" id="transito-titulo-seccion">🚚 Selecciona tu Sucursal</h3>
+        <div id="grid-sucursales-transito" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
+    </div>
+    <div id="transito-vista-detalle" class="hidden">
+        <button onclick="volverGridTransito()" class="text-slate-500 font-bold mb-4 flex items-center gap-1 hover:text-slate-800 text-sm transition-colors">← Cambiar Sucursal</button>
+        <h3 class="text-2xl font-bold mb-6 text-slate-800" id="transito-titulo-sucursal">🚚 En Camino a: -</h3>
+        <div id="lista-transito-proveedores" class="space-y-6"></div>
+    </div>
+</div>
+
+<div id="subvista-historial" class="hidden space-y-6">
+    <h3 class="text-xl font-bold mb-4 text-slate-800">📚 Historial de Pedidos y Producción</h3>
+    <div class="overflow-x-auto border rounded-lg shadow-inner bg-slate-50 max-h-[70vh]">
+        <table class="min-w-full divide-y divide-slate-200">
+            <thead class="bg-slate-200 sticky top-0 z-10 shadow-sm">
+                <tr>
+                    <th class="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase whitespace-nowrap">Fecha</th>
+                    <th class="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Tipo</th>
+                    <th class="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Origen / Proveedor</th>
+                    <th class="px-4 py-3 text-right text-xs font-bold text-slate-600 uppercase whitespace-nowrap">Total Estimado</th>
+                    <th class="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase">Estado Global</th>
+                    <th class="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase">Detalles</th>
+                </tr>
+            </thead>
+            <tbody id="lista-historial-ordenes" class="divide-y divide-slate-200 bg-white"></tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+    @media print {
+        #sidebar-menu, header, button, .flex.items-center.bg-white.border { display: none !important; }
+        #main-content { padding: 0 !important; width: 100% !important; }
+        body { background-color: white !important; }
+        .shadow-sm, .shadow-md { box-shadow: none !important; border: 1px solid #ccc; }
+    }
+</style>
