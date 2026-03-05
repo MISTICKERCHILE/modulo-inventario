@@ -42,7 +42,6 @@ window.cambiarSubTabPedidos = function(subtab) {
     [btnS, btnT, btnP, btnH].forEach(b => { if(b) b.className = 'px-4 py-2 rounded-md font-bold text-sm text-slate-500 hover:text-slate-800 transition-colors cursor-pointer outline-none whitespace-nowrap'; });
     [divS, divT, divH].forEach(d => { if(d) d.classList.add('hidden'); });
 
-    // Actualizamos el texto del botón por si venía con el nombre viejo
     if(btnP) btnP.innerText = "Órdenes de Producción";
 
     if(subtab === 'sugerencias') {
@@ -63,7 +62,8 @@ window.cambiarSubTabPedidos = function(subtab) {
     } else if(subtab === 'historial') {
         if(btnH) btnH.className = 'px-4 py-2 rounded-md font-bold text-sm bg-white shadow-sm text-slate-800 outline-none whitespace-nowrap';
         if(divH) divH.classList.remove('hidden'); window.cargarHistorialOrdenes();
-}
+    }
+} // <-- ESTA LLAVE FALTABA
 
 // ==========================================
 // --- SECCIÓN 1: PEDIDOS SUGERIDOS Y LOCALSTORAGE ---
@@ -71,14 +71,12 @@ window.cambiarSubTabPedidos = function(subtab) {
 window.carritoPedidos = []; 
 window.proveedoresGlobal = []; 
 
-// Función de Memoria (Guarda silenciosamente en el navegador)
 window.guardarCarritoEnMemoria = function() {
     localStorage.setItem('carrito_pedidos_' + window.miEmpresaId, JSON.stringify(window.carritoPedidos));
     if(window.actualizarBadgeCarrito) window.actualizarBadgeCarrito();
 }
 
 window.cargarPedidosPlanificados = async function() {
-    // 1. Cargar el carrito desde la memoria al entrar
     const guardado = localStorage.getItem('carrito_pedidos_' + window.miEmpresaId);
     if(guardado) {
         window.carritoPedidos = JSON.parse(guardado);
@@ -213,9 +211,7 @@ window.agregarPedidoAlCarrito = function(idSuc, nombreSuc, idProd, nombreProd, c
     if (existente) existente.cantUC += Number(cantUC);
     else window.carritoPedidos.push({ idSuc, nombreSuc, idProd, nombreProd, cantUC: Number(cantUC), abrevUC, precioRef, idProv, nombreProv });
     
-    // GUARDAR EN MEMORIA CADA VEZ QUE AGREGA ALGO
     window.guardarCarritoEnMemoria();
-    
     window.renderizarBandejaPedidos();
     const fila = document.getElementById(`fila-sug-${idSuc}-${idProd}`);
     if(fila) fila.style.display = 'none';
@@ -223,10 +219,7 @@ window.agregarPedidoAlCarrito = function(idSuc, nombreSuc, idProd, nombreProd, c
 
 window.quitarDelCarrito = function(idSuc, idProd, idProv) {
     window.carritoPedidos = window.carritoPedidos.filter(i => !(i.idSuc === idSuc && i.idProd === idProd && i.idProv === idProv));
-    
-    // ACTUALIZAR MEMORIA AL QUITAR
     window.guardarCarritoEnMemoria();
-
     window.renderizarBandejaPedidos();
     const fila = document.getElementById(`fila-sug-${idSuc}-${idProd}`);
     if(fila) fila.style.display = '';
@@ -236,10 +229,7 @@ window.actualizarCantCarrito = function(idSuc, idProd, idProv, nuevaCant) {
     const item = window.carritoPedidos.find(i => i.idSuc === idSuc && i.idProd === idProd && i.idProv === idProv);
     if (item) {
         item.cantUC = parseFloat(nuevaCant) || 0;
-        
-        // ACTUALIZAR MEMORIA AL EDITAR LA CANTIDAD
         window.guardarCarritoEnMemoria();
-
         let totalEstimado = 0;
         window.carritoPedidos.filter(i => i.idProv === idProv).forEach(i => { totalEstimado += (i.cantUC * i.precioRef); });
         const spanTotal = document.getElementById(`total-est-${idProv}`);
@@ -323,7 +313,6 @@ window.generarPedidoTransitoMasivo = async function(idProv) {
         await clienteSupabase.from('compras_detalles').insert(detallesAInsertar);
     }
 
-    // LIMPIAR MEMORIA TRAS COMPLETAR
     window.carritoPedidos = window.carritoPedidos.filter(i => i.idProv !== idProv);
     window.guardarCarritoEnMemoria();
     
@@ -337,7 +326,7 @@ window.generarPedidoTransitoMasivo = async function(idProv) {
 // ==========================================
 window.recepcionActivaSuc = null;
 window.recepcionActivaProv = null;
-window.tipoVistaTransitoActiva = 'Externo'; // Puede ser 'Externo' (Tránsito) o 'Interno' (Producción)
+window.tipoVistaTransitoActiva = 'Externo'; 
 
 window.cargarPedidosEnTransito = async function(tipoFiltro = 'Externo') {
     window.tipoVistaTransitoActiva = tipoFiltro;
@@ -382,7 +371,6 @@ window.abrirTransitoSucursal = async function(idSuc, nombreSuc) {
         .eq('id_sucursal_destino', idSuc)
         .in('estado', ['En Tránsito', 'Postpuesto']);
 
-    // Filtramos solo los que corresponden a la vista actual (Interno o Externo)
     const filtrados = (transito||[]).filter(t => (t.compras.proveedores?.tipo || 'Externo') === window.tipoVistaTransitoActiva);
 
     if(filtrados.length === 0) {
@@ -415,17 +403,14 @@ window.abrirTransitoSucursal = async function(idSuc, nombreSuc) {
     `).join('');
 }
 
-// MODAL INTELIGENTE (Sirve para Tránsito y Producción)
 window.abrirModalRecepcionMasiva = async function(idSuc, nombreSuc, idProv, nombreProv) {
     window.recepcionActivaSuc = idSuc;
     window.recepcionActivaProv = idProv;
     const isProd = window.tipoVistaTransitoActiva === 'Interno';
 
-    // Textos dinámicos del Modal
     document.getElementById('rm-titulo-modal').innerText = isProd ? "🏭 Registro de Trabajo / Producción" : "📦 Recepción de Pedido Externo";
     document.getElementById('rm-titulo-estado').innerText = isProd ? "Estado del Trabajo" : "Estado de Recepción";
     
-    // UI del modal
     const colorBorde = isProd ? 'border-purple-500' : 'border-blue-500';
     const modalBox = document.getElementById('rm-borde-modal');
     modalBox.classList.remove('border-blue-500', 'border-purple-500');
@@ -435,18 +420,16 @@ window.abrirModalRecepcionMasiva = async function(idSuc, nombreSuc, idProv, nomb
     document.getElementById('rm-proveedor').innerText = nombreProv;
     document.getElementById('rm-fecha-hoy').innerText = new Date().toLocaleDateString();
 
-    // Traer info de contacto del proveedor para el botón nuevo
     const { data: provInfo } = await clienteSupabase.from('proveedores').select('whatsapp, correo').eq('id', idProv).single();
     let btnContactHTML = '';
     if(provInfo?.whatsapp) {
-        const telf = provInfo.whatsapp.replace(/\D/g,''); // limpia espacios y +
+        const telf = provInfo.whatsapp.replace(/\D/g,''); 
         btnContactHTML = `<a href="https://wa.me/${telf}" target="_blank" class="text-[10px] bg-green-500 text-white px-2 py-1 rounded-full font-bold hover:bg-green-600 transition-colors flex items-center gap-1 shadow-sm">💬 Escribir</a>`;
     } else if (provInfo?.correo) {
         btnContactHTML = `<a href="mailto:${provInfo.correo}" target="_blank" class="text-[10px] bg-blue-500 text-white px-2 py-1 rounded-full font-bold hover:bg-blue-600 transition-colors flex items-center gap-1 shadow-sm">✉️ Correo</a>`;
     }
     document.getElementById('rm-contacto-container').innerHTML = btnContactHTML;
 
-    // Cargar datos
     const { data: ubicaciones } = await clienteSupabase.from('ubicaciones_internas').select('id, nombre').eq('id_sucursal', idSuc);
     const optsUbi = '<option value="">-- General (Sin ubicación) --</option>' + (ubicaciones||[]).map(u => `<option value="${u.id}">${u.nombre}</option>`).join('');
 
@@ -602,7 +585,6 @@ window.cargarSelectsMovimientosFormularios = async function() {
 
     window.productosERPGlobal = prods || [];
 
-    // Agrupar ubicaciones por sucursal
     window.ubicacionesGlobalesPorSucursal = {};
     (ubis||[]).forEach(u => {
         if(!window.ubicacionesGlobalesPorSucursal[u.id_sucursal]) window.ubicacionesGlobalesPorSucursal[u.id_sucursal] = [];
@@ -618,18 +600,13 @@ window.cargarSelectsMovimientosFormularios = async function() {
     document.getElementById('om-sucursal').innerHTML = optsSucs;
     document.getElementById('om-tipo').innerHTML = optsTipos;
 
-    // Limpiar tablas si entra por primera vez
     if(document.getElementById('cd-filas').innerHTML.trim() === '') agregarFilaCD();
     if(document.getElementById('om-filas').innerHTML.trim() === '') agregarFilaOM();
 }
 
-// -----------------------------------------
-// LÓGICA COMPRAS DIRECTAS
-// -----------------------------------------
 window.actualizarUbicacionesCD = function() {
     const idSuc = document.getElementById('cd-sucursal').value;
     const selectsUbi = document.querySelectorAll('.cd-select-ubi');
-    
     let opts = '<option value="NULL_UBI">General (Sin Ubicación)</option>';
     if(window.ubicacionesGlobalesPorSucursal[idSuc]) {
         opts += window.ubicacionesGlobalesPorSucursal[idSuc].map(u => `<option value="${u.id}">${u.nombre}</option>`).join('');
@@ -700,7 +677,6 @@ window.guardarCompraDirectaMasiva = async function() {
     const btn = document.getElementById('btn-guardar-cd');
     btn.innerText = "⏳ Guardando..."; btn.disabled = true;
 
-    // 1. Crear cabecera Compra
     const { data: cabecera } = await clienteSupabase.from('compras').insert([{ 
         id_empresa: window.miEmpresaId, id_proveedor: idProv, total_compra: totalGlobal, estado: 'Completada' 
     }]).select('id').single();
@@ -708,10 +684,8 @@ window.guardarCompraDirectaMasiva = async function() {
     for(const item of dataValida) {
         const precioUC = item.costoTotal / item.cantUC;
         
-        // 2. Detalle
         await clienteSupabase.from('compras_detalles').insert([{ id_compra: cabecera.id, id_producto: item.idProd, cantidad_uc: item.cantUC, precio_unitario_uc: precioUC, subtotal: item.costoTotal, estado: 'Recibido' }]);
         
-        // 3. Inventario
         const prodInfo = window.productosERPGlobal.find(p => p.id === item.idProd);
         const factor = prodInfo?.cant_en_ua_de_uc || 1;
         const cantUA_a_sumar = item.cantUC * factor;
@@ -723,7 +697,6 @@ window.guardarCompraDirectaMasiva = async function() {
         if (previo) await clienteSupabase.from('inventario_saldos').update({ cantidad_actual_ua: previo.cantidad_actual_ua + cantUA_a_sumar, ultima_actualizacion: new Date() }).eq('id', previo.id);
         else await clienteSupabase.from('inventario_saldos').insert([{ id_empresa: window.miEmpresaId, id_producto: item.idProd, id_sucursal: idSuc, id_ubicacion: item.idUbicacion, cantidad_actual_ua: cantUA_a_sumar }]);
 
-        // 4. Historial + Precio
         await clienteSupabase.from('movimientos_inventario').insert([{ id_empresa: window.miEmpresaId, id_producto: item.idProd, id_ubicacion: item.idUbicacion, tipo_movimiento: 'COMPRA_DIRECTA', cantidad_movida: cantUA_a_sumar, costo_unitario_movimiento: precioUC, referencia: 'Compra Directa Masiva' }]);
         await clienteSupabase.from('productos').update({ ultimo_costo_uc: precioUC }).eq('id', item.idProd);
     }
@@ -733,20 +706,15 @@ window.guardarCompraDirectaMasiva = async function() {
     btn.innerText = "Registrar Compra"; btn.disabled = false;
 }
 
-// -----------------------------------------
-// LÓGICA OTROS MOVIMIENTOS
-// -----------------------------------------
 window.actualizarUbicacionesOM = function() {
     const idSuc = document.getElementById('om-sucursal').value;
     const selectsUbi = document.querySelectorAll('.om-select-ubi');
-    
     let opts = '<option value="NULL_UBI">General (Sin Ubicación)</option>';
     if(window.ubicacionesGlobalesPorSucursal[idSuc]) {
         opts += window.ubicacionesGlobalesPorSucursal[idSuc].map(u => `<option value="${u.id}">${u.nombre}</option>`).join('');
     }
     selectsUbi.forEach(sel => {
         sel.innerHTML = opts;
-        // Al cambiar sucursal, forzamos recálculo de stock de esa fila
         const idx = sel.getAttribute('data-idx');
         if(idx) window.verificarStockFilaOM(idx);
     });
@@ -793,7 +761,6 @@ window.agregarFilaOM = function() {
     tbody.appendChild(tr);
 }
 
-// LOGICA STOCK TIEMPO REAL
 window.verificarStockFilaOM = async function(idx) {
     const idProd = document.getElementById(`hidden-om-prod-${idx}`)?.value;
     const idSuc = document.getElementById('om-sucursal').value;
@@ -866,9 +833,6 @@ window.guardarOtrosMovimientosMasivo = async function() {
     btn.innerText = "Aplicar Movimientos"; btn.disabled = false;
 }
 
-// -----------------------------------------
-// FUNCIONES GENÉRICAS PARA DROPDOWNS (CD y OM)
-// -----------------------------------------
 window.abrirDropdownGeneric = function(index, tipo) {
     document.querySelectorAll('.lista-dropdown-custom').forEach(el => el.classList.add('hidden'));
     window.filtrarDropdownGeneric(index, '', tipo); 
@@ -901,8 +865,6 @@ window.seleccionarProductoGeneric = function(index, idProd, nombreProd, abrev, t
     if(badgeAbrev) badgeAbrev.innerText = abrev;
 
     document.getElementById(`dropdown-${tipo}-${index}`).classList.add('hidden');
-    
-    // Si es OM, forzar chequeo de stock
     if(tipo === 'OM') window.verificarStockFilaOM(index);
 }
 
@@ -916,9 +878,6 @@ window.crearNuevoProductoGeneric = function(index, tipo) {
     window.abrirModalProducto(false, searchInput.value);
 }
 
-// -----------------------------------------
-// EXTENSIÓN DE ACTUALIZAR SELECTS GLOBALES (Para que atrape lo de Ventas, CD y OM)
-// -----------------------------------------
 window.actualizarSelectsMapeoCSV = async function(nuevoIdProducto) {
     const { data: prodsERP } = await clienteSupabase.from('productos').select('id, nombre, cant_en_ua_de_uc, id_unidad_almacenamiento(abreviatura), id_unidad_compra(abreviatura)').eq('id_empresa', window.miEmpresaId).order('nombre');
     window.productosERPGlobal = prodsERP || [];
@@ -1128,7 +1087,6 @@ async function aplicarDescuentoInventario(idProd, idSuc, cantidad_ua_descontar, 
 // ==========================================
 // --- FASE 6: LOGS RECIENTES Y EXPORTACIÓN ---
 // ==========================================
-
 window.cargarLogsMovimientos = async function(tipo) {
     const isCompra = tipo === 'COMPRA_DIRECTA';
     const tbody = document.getElementById(isCompra ? 'log-compras-directas' : 'log-otros-movs');
@@ -1144,7 +1102,6 @@ window.cargarLogsMovimientos = async function(tipo) {
     if(isCompra) {
         query = query.eq('tipo_movimiento', 'COMPRA_DIRECTA');
     } else {
-        // Excluimos compras y ventas para dejar solo las mermas, ajustes, y producciones
         query = query.not('tipo_movimiento', 'in', '("COMPRA_DIRECTA", "VENTA_POS", "INGRESO_COMPRA", "AJUSTE_CONTEO")'); 
     }
 
@@ -1214,7 +1171,6 @@ window.cargarLogsVentasPOS = async function() {
 
     tbody.innerHTML = periodosAgrupados.map(p => {
         const fechaProc = p.fechaProcesado.toLocaleString('es-CL', {dateStyle:'medium', timeStyle:'short'});
-        // Escapamos las comillas por si acaso el string tiene algo raro
         const refEscapada = p.ref.replace(/'/g, "\\'");
 
         return `<tr class="hover:bg-slate-50 border-b border-slate-100">
@@ -1228,14 +1184,12 @@ window.cargarLogsVentasPOS = async function() {
     }).join('');
 }
 
-// NUEVA FUNCIÓN PARA ABRIR EL DESGLOSE DE LAS VENTAS
 window.abrirDetallesVentas = async function(periodoRef) {
     document.getElementById('dv-periodo').innerText = periodoRef;
     const tbody = document.getElementById('dv-filas');
     tbody.innerHTML = '<tr><td colspan="4" class="text-center py-8">⏳ Buscando líneas descontadas...</td></tr>';
     document.getElementById('modal-detalles-ventas').classList.remove('hidden');
 
-    // Buscamos todos los movimientos de venta que contengan este string exacto en su referencia
     const { data } = await clienteSupabase.from('movimientos_inventario')
         .select('cantidad_movida, referencia, productos(nombre, id_unidad_almacenamiento(abreviatura)), ubicaciones_internas(nombre)')
         .eq('id_empresa', window.miEmpresaId)
@@ -1250,7 +1204,6 @@ window.abrirDetallesVentas = async function(periodoRef) {
     tbody.innerHTML = data.map(d => {
         const abrev = d.productos?.id_unidad_almacenamiento?.abreviatura || 'UA';
         const ubi = d.ubicaciones_internas?.nombre || 'Bodega General';
-        // Usamos Math.abs para mostrar la cantidad en positivo visualmente (ej: -5 se ve como 5 con un menos adelante)
         const cant = Math.abs(d.cantidad_movida);
 
         return `<tr class="border-b border-slate-100 hover:bg-slate-50">
@@ -1262,7 +1215,7 @@ window.abrirDetallesVentas = async function(periodoRef) {
     }).join('');
 }
 
-// Auto-recarga al guardar exitosamente
+// Auto-recargas
 const oldGuardarCD = window.guardarCompraDirectaMasiva;
 window.guardarCompraDirectaMasiva = async function() { await oldGuardarCD(); window.cargarLogsMovimientos('COMPRA_DIRECTA'); }
 
@@ -1272,13 +1225,12 @@ window.guardarOtrosMovimientosMasivo = async function() { await oldGuardarOM(); 
 const oldConfirmarVentas = window.confirmarDescuentoVentas;
 window.confirmarDescuentoVentas = async function() { await oldConfirmarVentas(); window.cargarLogsVentasPOS(); }
 
-// FUNCIÓN DE EXPORTACIÓN EXCEL
 window.exportarMovimientosCSV = async function() {
     const { data } = await clienteSupabase.from('movimientos_inventario')
         .select('fecha_movimiento, tipo_movimiento, cantidad_movida, referencia, productos(nombre, id_unidad_almacenamiento(abreviatura)), ubicaciones_internas(nombre)')
         .eq('id_empresa', window.miEmpresaId)
         .order('fecha_movimiento', { ascending: false })
-        .limit(1000); // Exportamos los últimos 1000 por seguridad de rendimiento
+        .limit(1000); 
     
     if(!data || data.length === 0) return alert("No hay movimientos registrados para exportar.");
 
@@ -1314,7 +1266,6 @@ window.cargarHistorialOrdenes = async function() {
     const tbody = document.getElementById('lista-historial-ordenes');
     tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8">⏳ Buscando en el archivo...</td></tr>';
     
-    // Traemos las compras recientes (últimas 100)
     const { data } = await clienteSupabase.from('compras')
         .select('id, created_at, total_compra, estado, proveedores(nombre, tipo)')
         .eq('id_empresa', window.miEmpresaId)
@@ -1329,7 +1280,6 @@ window.cargarHistorialOrdenes = async function() {
         const isProd = c.proveedores?.tipo === 'Interno';
         const tipoStr = isProd ? '<span class="bg-purple-100 text-purple-700 px-2 py-1 rounded text-xs font-bold whitespace-nowrap">🏭 Producción</span>' : '<span class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold whitespace-nowrap">🚚 Compra</span>';
         
-        // CORRECCIÓN: Separamos Fecha y Hora de manera segura para todos los navegadores
         const f = new Date(c.created_at);
         const fecha = f.toLocaleDateString('es-CL') + ' ' + f.toLocaleTimeString('es-CL', {hour: '2-digit', minute: '2-digit'});
         
