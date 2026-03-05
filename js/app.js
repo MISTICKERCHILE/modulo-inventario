@@ -5,24 +5,26 @@ window.modoEdicion = { activo: false, id: null, form: null };
 window.usuarioActual = 'Equipo'; 
 
 // --- LOGIN Y SESIÓN MULTI-EMPRESA ---
-// --- LOGIN Y SESIÓN MULTI-EMPRESA ---
 window.toggleAuthMode = function(mode) {
     document.getElementById('auth-mode').value = mode;
     const regFields = document.getElementById('register-fields');
     const regNombre = document.getElementById('reg-nombre');
+    const regApellido = document.getElementById('reg-apellido');
 
     if(mode === 'login') {
         document.getElementById('tab-login').className = 'flex-1 pb-2 border-b-2 border-emerald-600 font-bold text-emerald-600 outline-none transition-colors';
         document.getElementById('tab-register').className = 'flex-1 pb-2 font-bold text-slate-400 outline-none hover:text-emerald-500 transition-colors';
         document.getElementById('auth-btn').innerText = 'Entrar al Sistema';
         regFields.classList.add('hidden');
-        regNombre.removeAttribute('required'); // En login no es obligatorio
+        regNombre.removeAttribute('required'); 
+        regApellido.removeAttribute('required');
     } else {
         document.getElementById('tab-register').className = 'flex-1 pb-2 border-b-2 border-emerald-600 font-bold text-emerald-600 outline-none transition-colors';
         document.getElementById('tab-login').className = 'flex-1 pb-2 font-bold text-slate-400 outline-none hover:text-emerald-500 transition-colors';
         document.getElementById('auth-btn').innerText = 'Crear mi Cuenta';
         regFields.classList.remove('hidden');
-        regNombre.setAttribute('required', 'true'); // En registro sí es obligatorio
+        regNombre.setAttribute('required', 'true'); 
+        regApellido.setAttribute('required', 'true');
     }
 }
 
@@ -33,8 +35,8 @@ document.getElementById('auth-form').addEventListener('submit', async (e) => {
     const mode = document.getElementById('auth-mode').value;
 
     if(mode === 'register') {
-        // FLUJO DE REGISTRO CON METADATA NUEVA
         const nombreInput = document.getElementById('reg-nombre').value.trim();
+        const apellidoInput = document.getElementById('reg-apellido').value.trim();
         const telInput = document.getElementById('reg-telefono').value.trim();
 
         const { data, error } = await clienteSupabase.auth.signUp({ 
@@ -43,6 +45,7 @@ document.getElementById('auth-form').addEventListener('submit', async (e) => {
             options: {
                 data: {
                     nombre: nombreInput,
+                    apellido: apellidoInput,
                     telefono: telInput
                 }
             }
@@ -56,11 +59,12 @@ document.getElementById('auth-form').addEventListener('submit', async (e) => {
         return;
     }
 
-    // FLUJO DE LOGIN NORMAL
     const { data, error } = await clienteSupabase.auth.signInWithPassword({ email: emailInput, password: passwordInput });
     if (error) return alert("❌ Credenciales incorrectas. Verifica tu correo y contraseña.");
 
-    const { data: perfil } = await clienteSupabase.from('perfiles').select('nombre').eq('id_usuario', data.user.id).maybeSingle();
+    const { data: perfil } = await clienteSupabase.from('perfiles').select('nombre, apellido').eq('id_usuario', data.user.id).maybeSingle();
+    
+    // Solo usamos el nombre de pila para saludar
     const nombreReal = perfil?.nombre || emailInput.split('@')[0];
 
     const { data: empresasAsignadas } = await clienteSupabase.from('usuarios_empresas').select('id_empresa, nombre_empresa').eq('id_usuario', data.user.id);
