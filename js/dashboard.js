@@ -50,12 +50,11 @@ window.cargarDashboard = async function() {
     }
 }
 
-// ATAJOS DEL DASHBOARD Y NOTIFICACIONES
-window.irAAlertasStock = function() { window.cambiarVista('movimientos'); setTimeout(() => { window.cambiarTabMovimientos('pedidos'); window.cambiarSubTabPedidos('sugerencias'); }, 100); }
-window.irATransito = function() { window.cambiarVista('movimientos'); setTimeout(() => { window.cambiarTabMovimientos('pedidos'); window.cambiarSubTabPedidos('transito'); }, 100); }
-window.irASubirVentas = function() { window.cambiarVista('movimientos'); setTimeout(() => window.cambiarTabMovimientos('ventas'), 100); }
-window.irAComprasDirectas = function() { window.cambiarVista('movimientos'); setTimeout(() => window.cambiarTabMovimientos('compras'), 100); }
-window.irARecepcionPedidos = function() { window.cambiarVista('movimientos'); setTimeout(() => { window.cambiarTabMovimientos('pedidos'); window.cambiarSubTabPedidos('transito'); }, 100); }
-window.irAOrdenesProduccion = function() { window.cambiarVista('movimientos'); setTimeout(() => { window.cambiarTabMovimientos('pedidos'); window.cambiarSubTabPedidos('produccion'); }, 100); }
-window.irAOtrosMovimientos = function() { window.cambiarVista('movimientos'); setTimeout(() => window.cambiarTabMovimientos('otros'), 100); }
-
+// ATAJOS CON TIEMPO DE CARGA SEGURO PARA EVITAR ERROR DE CLASSNAME
+window.irAAlertasStock = function() { window.cambiarVista('movimientos'); setTimeout(() => { window.cambiarTabMovimientos('pedidos'); window.cambiarSubTabPedidos('sugerencias'); }, 300); }
+window.irATransito = function() { window.cambiarVista('movimientos'); setTimeout(() => { window.cambiarTabMovimientos('pedidos'); window.cambiarSubTabPedidos('transito'); }, 300); }
+window.irACargarVentas = function() { window.cambiarVista('movimientos'); setTimeout(() => window.cambiarTabMovimientos('ventas'), 300); }
+window.irAComprasDirectas = function() { window.cambiarVista('movimientos'); setTimeout(() => window.cambiarTabMovimientos('compras'), 300); }
+window.irARecepcionPedidos = function() { window.cambiarVista('movimientos'); setTimeout(() => { window.cambiarTabMovimientos('pedidos'); window.cambiarSubTabPedidos('transito'); }, 300); }
+window.irAOrdenesProduccion = function() { window.cambiarVista('movimientos'); setTimeout(() => { window.cambiarTabMovimientos('pedidos'); window.cambiarSubTabPedidos('produccion'); }, 300); }
+window.irAOtrosMovimientos = function() { window.cambiarVista('movimientos'); setTimeout(() => window.cambiarTabMovimientos('otros'), 300); }
