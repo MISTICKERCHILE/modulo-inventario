@@ -5,8 +5,8 @@
 window.sucursalActivaID = null;
 window.sucursalActivaNombre = null;
 window.productosGlobalConteo = [];
-window.ubicacionesGlobalSucursal = []; // Para el dropdown editable
-window.selectConteoActivoIndex = null; // Para el buscador inteligente del modal de conteo
+window.ubicacionesGlobalSucursal = []; 
+window.selectConteoActivoIndex = null; 
 
 // 1. CARGA LA CUADRÍCULA INICIAL DE SUCURSALES
 window.cargarInventario = async function() {
@@ -50,7 +50,6 @@ window.abrirInventarioSucursal = async function(idSuc, nombreSuc) {
     const tbody = document.getElementById('lista-inventario');
     tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-8 text-center text-slate-500 font-bold">⏳ Cargando inventario...</td></tr>';
 
-    // Traemos saldos y ubicaciones al mismo tiempo
     const [{ data: saldos }, { data: ubicaciones }, { data: reglas }] = await Promise.all([
         clienteSupabase.from('inventario_saldos').select(`id, id_producto, cantidad_actual_ua, id_ubicacion, productos (nombre, id_unidad_almacenamiento(abreviatura)), ubicaciones_internas (nombre)`).eq('id_empresa', window.miEmpresaId).eq('id_sucursal', idSuc),
         clienteSupabase.from('ubicaciones_internas').select('id, nombre').eq('id_sucursal', idSuc),
@@ -59,7 +58,6 @@ window.abrirInventarioSucursal = async function(idSuc, nombreSuc) {
 
     window.ubicacionesGlobalSucursal = ubicaciones || [];
     
-    // Opciones del <select> para edición rápida
     const optsUbicacionesEdit = `<option value="NULL_UBI">General / Sin Ubicación Específica</option>` + 
                                 window.ubicacionesGlobalSucursal.map(u => `<option value="${u.id}">${u.nombre}</option>`).join('');
 
@@ -123,11 +121,10 @@ window.abrirInventarioSucursal = async function(idSuc, nombreSuc) {
     tbody.innerHTML = html;
 }
 
-// Función que se dispara al cambiar el select de la tabla
 window.cambiarUbicacionSaldo = async function(idSaldo, nuevoIdUbicacionStr) {
     const idUbicacionFinal = nuevoIdUbicacionStr === 'NULL_UBI' ? null : nuevoIdUbicacionStr;
     await clienteSupabase.from('inventario_saldos').update({ id_ubicacion: idUbicacionFinal, ultima_actualizacion: new Date() }).eq('id', idSaldo);
-    window.abrirInventarioSucursal(window.sucursalActivaID, window.sucursalActivaNombre); // Recargar
+    window.abrirInventarioSucursal(window.sucursalActivaID, window.sucursalActivaNombre); 
 }
 
 // ==========================================
@@ -350,7 +347,6 @@ window.guardarConteoMasivo = async function() {
 // ==========================================
 // --- KARDEX: LÍNEA DE TIEMPO (TIMELINE) ---
 // ==========================================
-// Notar el cambio de nombre de función a abrirHistorialKardex para que coincida con el HTML
 window.abrirHistorialKardex = async function(idProd, nombreProd) {
     document.getElementById('hm-subtitulo').innerText = `Producto: ${nombreProd}`;
     document.getElementById('modal-historial').classList.remove('hidden');
@@ -407,7 +403,6 @@ window.abrirHistorialKardex = async function(idProd, nombreProd) {
     }).join('');
 }
 
-// --- FUNCIÓN PARA ABRIR MODAL DE AJUSTE RÁPIDO ---
 window.abrirAjusteRapido = function(idSaldo, idProd, nombreProd, ubiNombre, cantActual, abrev) {
     document.getElementById('ar-id-saldo').value = idSaldo;
     document.getElementById('ar-id-prod').value = idProd;
@@ -416,4 +411,185 @@ window.abrirAjusteRapido = function(idSaldo, idProd, nombreProd, ubiNombre, cant
     document.getElementById('ar-cant').value = cantActual;
     document.getElementById('ar-abrev').innerText = abrev;
     document.getElementById('modal-ajuste-rapido').classList.remove('hidden');
+}
+
+// ==========================================
+// --- IMPRESIÓN DE PLANILLA FÍSICA ---
+// ==========================================
+window.imprimirPlanillaConteo = function() {
+    const ubiSelect = document.getElementById('cm-ubicacion');
+    if(!ubiSelect || !ubiSelect.value) {
+        return alert("❌ Por favor, selecciona una ubicación a contar primero para generar la planilla.");
+    }
+
+    const filas = document.querySelectorAll('.fila-conteo-item');
+    if(filas.length === 0) {
+        return alert("❌ No hay productos en la lista para imprimir.");
+    }
+
+    const nombreSucursal = window.sucursalActivaNombre || 'General';
+    const nombreUbicacion = ubiSelect.options[ubiSelect.selectedIndex].text;
+    const fechaHoy = new Date().toLocaleDateString('es-CL');
+
+    let filasHtml = '';
+    filas.forEach(tr => {
+        // Extraer el nombre de forma limpia (ignorando inputs ocultos o de búsqueda)
+        let celdaNombre = tr.querySelector('td:nth-child(1)');
+        let inputBusqueda = celdaNombre.querySelector('input[type="text"]');
+        let nombreProd = "";
+        
+        if (inputBusqueda && inputBusqueda.value) {
+            nombreProd = inputBusqueda.value.trim();
+        } else {
+            let clone = celdaNombre.cloneNode(true);
+            clone.querySelectorAll('input, div').forEach(el => el.remove());
+            nombreProd = clone.textContent.trim();
+        }
+
+        if(!nombreProd) return; // Evitar filas vacías
+        
+        let abrev = tr.querySelector('td:nth-child(2)').textContent.trim();
+
+        filasHtml += `
+            <tr>
+                <td class="prod-col">${nombreProd}</td>
+                <td class="box-col"></td>
+                <td class="unit-col">${abrev}</td>
+            </tr>
+        `;
+    });
+
+    // Abrimos una ventana blanca temporal para imprimir
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    
+    printWindow.document.write(`
+        <html>
+        <head>
+            <title>Planilla de Conteo - ${nombreUbicacion}</title>
+            <style>
+                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+                body { 
+                    font-family: 'Inter', sans-serif; 
+                    margin: 0; 
+                    padding: 20px; 
+                    color: #333;
+                }
+                .header-box {
+                    border: 2px solid #000;
+                    padding: 15px;
+                    border-radius: 8px;
+                    margin-bottom: 20px;
+                }
+                .header-title {
+                    font-size: 24px;
+                    font-weight: 900;
+                    text-transform: uppercase;
+                    margin: 0 0 15px 0;
+                    text-align: center;
+                    border-bottom: 2px solid #000;
+                    padding-bottom: 10px;
+                }
+                .info-grid {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 15px;
+                }
+                .info-item {
+                    flex: 1 1 45%;
+                    font-size: 14px;
+                }
+                .info-item strong {
+                    text-transform: uppercase;
+                    font-size: 12px;
+                    color: #555;
+                    display: block;
+                }
+                .info-item .line {
+                    border-bottom: 1px solid #000;
+                    height: 20px;
+                    display: block;
+                    margin-top: 5px;
+                }
+                
+                table { 
+                    width: 100%; 
+                    border-collapse: collapse; 
+                    margin-top: 10px;
+                }
+                th, td { 
+                    border: 1px solid #000; 
+                    padding: 12px 8px; 
+                    text-align: left; 
+                }
+                th { 
+                    background-color: #f1f5f9; 
+                    font-weight: bold; 
+                    text-transform: uppercase;
+                    font-size: 12px;
+                }
+                
+                /* Magia para que el encabezado se repita en cada hoja impresa */
+                thead { display: table-header-group; } 
+                tr { page-break-inside: avoid; }
+                
+                .prod-col { font-weight: bold; font-size: 14px; }
+                .box-col { width: 120px; }
+                .unit-col { width: 60px; text-align: center; font-size: 12px; color: #666; font-weight: bold;}
+                
+                @media print {
+                    body { padding: 0; }
+                    @page { margin: 15mm; }
+                    .header-box { background-color: white !important; -webkit-print-color-adjust: exact; }
+                    th { background-color: #f1f5f9 !important; -webkit-print-color-adjust: exact; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="header-box">
+                <h1 class="header-title">Planilla de Conteo Físico</h1>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <strong>Sucursal:</strong>
+                        <div style="font-size: 16px; font-weight: bold; margin-top: 4px;">${nombreSucursal}</div>
+                    </div>
+                    <div class="info-item">
+                        <strong>Ubicación a Contar:</strong>
+                        <div style="font-size: 16px; font-weight: bold; margin-top: 4px;">${nombreUbicacion}</div>
+                    </div>
+                    <div class="info-item">
+                        <strong>Responsable del Conteo:</strong>
+                        <span class="line"></span>
+                    </div>
+                    <div class="info-item">
+                        <strong>Fecha:</strong>
+                        <div style="font-size: 16px; margin-top: 4px;">${fechaHoy}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>Producto / Insumo</th>
+                        <th style="text-align: center;">Cantidad Contada</th>
+                        <th style="text-align: center;">Unidad</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${filasHtml}
+                </tbody>
+            </table>
+            
+            <script>
+                // Se ejecuta al cargar la mini-página
+                window.onload = function() {
+                    window.print();
+                    // Cerramos la ventana solita después de imprimir
+                    setTimeout(function() { window.close(); }, 500);
+                }
+            </script>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
 }
