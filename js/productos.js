@@ -42,7 +42,7 @@ window.abrirModalProducto = async function(esEdicion = false, nombreSugerido = '
                 <input type="checkbox" id="prod-control-stock" class="mt-1 w-4 h-4 text-blue-600 rounded border-blue-300 focus:ring-blue-500 cursor-pointer" checked>
                 <div>
                     <label for="prod-control-stock" class="font-bold text-blue-900 cursor-pointer block">¿Lleva control de stock físico?</label>
-                    <p class="text-xs text-blue-700 mt-1 leading-tight">Apágalo solo si es un producto "Sin Control de Stock" (Ej: Un combo o plato que se prepara al momento) para que el sistema no te exija tenerlo en bodega y descuente directamente sus ingredientes.</p>
+                    <p class="text-xs text-blue-700 mt-1 leading-tight">Apágalo solo si es un producto ensamblado al momento (Ej: Un combo o plato preparado) para que el sistema no te exija tenerlo en bodega y descuente directamente sus ingredientes.</p>
                 </div>
             </div>
         `;
@@ -135,7 +135,6 @@ window.cambiarFiltroCatProd = function(val) { window.prodFilterCat = val; window
 window.cambiarOrdenProd = function(val) { window.prodSortMode = val; window.prodCurrentPage = 1; window.renderizarTablaProductos(); }
 window.cambiarPageSizeProd = function(val) { window.prodItemsPerPage = parseInt(val); window.prodCurrentPage = 1; window.renderizarTablaProductos(); }
 
-// Clics en la cabecera de la tabla
 window.ordenarTablaProd = function(columna) {
     if(window.prodSortCol === columna) {
         window.prodSortAsc = !window.prodSortAsc; 
@@ -154,7 +153,6 @@ window.cambiarPaginaProd = function(delta) {
     window.renderizarTablaProductos();
 }
 
-// Lógica Maestra de Filtrado y Renderizado
 window.renderizarTablaProductos = function() {
     let filtrados = [...window.productosListMemoria];
 
@@ -203,6 +201,8 @@ window.renderizarTablaProductos = function() {
         lista.innerHTML = '<tr><td colspan="4" class="text-center py-8 text-slate-400 italic">No se encontraron productos con estos filtros.</td></tr>';
     } else {
         lista.innerHTML = paginaActualData.map(p => {
+            
+            // LOS NUEVOS TEXTOS FORMALES
             const labelStock = p.control_stock === false 
                 ? '<span class="px-2 py-1 bg-slate-100 text-slate-600 rounded-full text-[10px] font-bold uppercase tracking-wider border border-slate-200">Sin Control de Stock</span>' 
                 : '<span class="px-2 py-1 bg-emerald-50 text-emerald-700 rounded-full text-[10px] font-bold uppercase tracking-wider border border-emerald-200">Control Stock</span>';
@@ -239,7 +239,6 @@ window.renderizarTablaProductos = function() {
     if(elNext) elNext.disabled = window.prodCurrentPage === totalPages || totalPages === 0;
 }
 
-// --- ACTUALIZACIÓN DE PRODUCTO ---
 window.editarProductoFull = async function(id) {
     const { data } = await clienteSupabase.from('productos').select('*').eq('id', id).single();
     
@@ -454,18 +453,19 @@ window.quitarIngrediente = async function(id) {
 // ==========================================
 
 window.exportarProductosCSV = function() {
-    if (!window.productosERPGlobal || window.productosERPGlobal.length === 0) {
+    // 1. Ahora lee desde la variable de memoria correcta de esta vista
+    if (!window.productosListMemoria || window.productosListMemoria.length === 0) {
         return alert("No hay productos para exportar.");
     }
 
     let csvContent = "Nombre,Categoria_ID,Unidad_Compra_ID,Cant_UA_por_UC,Unidad_Almacen_ID,Tiene_Receta,Control_Fisico\n";
 
-    window.productosERPGlobal.forEach(p => {
+    window.productosListMemoria.forEach(p => {
         let nombre = p.nombre ? `"${p.nombre.replace(/"/g, '""')}"` : "";
         let idCat = p.id_categoria || "";
-        let idUC = p.id_unidad_compra?.id || "";
+        let idUC = p.id_unidad_compra || "";
         let factor = p.cant_en_ua_de_uc || "1";
-        let idUA = p.id_unidad_almacenamiento?.id || "";
+        let idUA = p.id_unidad_almacenamiento || "";
         let tieneReceta = p.tiene_receta ? "TRUE" : "FALSE";
         let controlFisico = p.control_stock !== false ? "TRUE" : "FALSE";
         
@@ -504,13 +504,14 @@ window.importarProductosCSV = function(inputElement) {
             let omitidos = 0;
 
             const tbody = document.getElementById('lista-productos');
-            tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-emerald-600 font-bold animate-pulse">⏳ Importando y validando ${filas.length} productos...</td></tr>`;
+            if(tbody) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-emerald-600 font-bold animate-pulse">⏳ Importando y validando ${filas.length} productos...</td></tr>`;
 
             for (const fila of filas) {
                 const nombre = fila['Nombre']?.trim();
                 if (!nombre) continue;
 
-                const existe = window.productosERPGlobal.some(p => p.nombre.toLowerCase() === nombre.toLowerCase());
+                // 2. Usa la variable correcta para verificar duplicados
+                const existe = window.productosListMemoria.some(p => p.nombre.toLowerCase() === nombre.toLowerCase());
                 
                 if (existe) {
                     omitidos++;
@@ -546,7 +547,6 @@ window.importarProductosCSV = function(inputElement) {
 window.imprimirCatalogoProductos = function() {
     let filtrados = [...window.productosListMemoria];
 
-    // Aplicar filtros actuales
     if(window.prodSearchText) filtrados = filtrados.filter(p => p.nombre.toLowerCase().includes(window.prodSearchText));
     if(window.prodFilterCat !== 'TODOS') filtrados = filtrados.filter(p => p.id_categoria === window.prodFilterCat);
     
@@ -570,7 +570,7 @@ window.imprimirCatalogoProductos = function() {
     let filasHtml = '';
     filtrados.forEach(p => {
         const catNombre = p.categorias?.nombre || '-';
-        const controlStr = p.control_stock === false ? 'No (Fantasma)' : 'Sí (Físico)';
+        const controlStr = p.control_stock === false ? 'Sin Control' : 'Control Stock';
         const recetaStr = p.tiene_receta ? 'Sí' : 'No';
         
         filasHtml += `
