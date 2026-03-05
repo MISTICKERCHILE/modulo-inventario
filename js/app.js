@@ -61,8 +61,15 @@ window.addEventListener('beforeunload', (e) => {
 window.toggleMenu = function() {
     const sidebar = document.getElementById('sidebar-menu');
     const backdrop = document.getElementById('sidebar-backdrop');
-    sidebar.classList.toggle('-translate-x-full');
-    backdrop.classList.toggle('hidden');
+    
+    // Si estamos en celular (ancho menor a 768px)
+    if (window.innerWidth < 768) {
+        sidebar.classList.toggle('-translate-x-full');
+        backdrop.classList.toggle('hidden');
+    } else {
+        // Si estamos en computadora, simplemente lo ocultamos o mostramos
+        sidebar.classList.toggle('md:hidden');
+    }
 }
 
 window.toggleUserMenu = function() {
