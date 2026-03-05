@@ -343,9 +343,9 @@ window.whatsappPedido = async function(idProv, nombreProv) {
     const fechaHoy = new Date().toLocaleDateString('es-CL');
 
     let texto = `Hola, este es nuestro pedido para el ${fechaHoy}:\n\n`;
-    texto += `🏢 *Destino:* Sucursal ${nombreSuc}\n`;
-    texto += `📦 *Proveedor:* ${nombreProv}\n\n`;
-    texto += `*📋 LISTA DE PRODUCTOS:*\n`;
+    texto += `*Destino:* Sucursal ${nombreSuc}\n`;
+    texto += `*Proveedor:* ${nombreProv}\n\n`;
+    texto += `*LISTA DE PRODUCTOS:*\n`;
 
     items.forEach(item => {
         texto += `- ${item.cantUC} ${item.abrevUC} de ${item.nombreProd}\n`;
