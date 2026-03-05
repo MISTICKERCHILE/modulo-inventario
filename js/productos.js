@@ -42,7 +42,7 @@ window.abrirModalProducto = async function(esEdicion = false, nombreSugerido = '
                 <input type="checkbox" id="prod-control-stock" class="mt-1 w-4 h-4 text-blue-600 rounded border-blue-300 focus:ring-blue-500 cursor-pointer" checked>
                 <div>
                     <label for="prod-control-stock" class="font-bold text-blue-900 cursor-pointer block">¿Lleva control de stock físico?</label>
-                    <p class="text-xs text-blue-700 mt-1 leading-tight">Apágalo solo si es un producto "Fantasma" (Ej: Un combo o plato que se prepara al momento) para que el sistema no te exija tenerlo en bodega y descuente directamente sus ingredientes.</p>
+                    <p class="text-xs text-blue-700 mt-1 leading-tight">Apágalo solo si es un producto "Sin Control de Stock" (Ej: Un combo o plato que se prepara al momento) para que el sistema no te exija tenerlo en bodega y descuente directamente sus ingredientes.</p>
                 </div>
             </div>
         `;
@@ -204,8 +204,8 @@ window.renderizarTablaProductos = function() {
     } else {
         lista.innerHTML = paginaActualData.map(p => {
             const labelStock = p.control_stock === false 
-                ? '<span class="px-2 py-1 bg-slate-100 text-slate-600 rounded-full text-[10px] font-bold uppercase tracking-wider border border-slate-200">👻 Fantasma (Sin Stock)</span>' 
-                : '<span class="px-2 py-1 bg-emerald-50 text-emerald-700 rounded-full text-[10px] font-bold uppercase tracking-wider border border-emerald-200">📦 Bodega Física</span>';
+                ? '<span class="px-2 py-1 bg-slate-100 text-slate-600 rounded-full text-[10px] font-bold uppercase tracking-wider border border-slate-200">Sin Control de Stock</span>' 
+                : '<span class="px-2 py-1 bg-emerald-50 text-emerald-700 rounded-full text-[10px] font-bold uppercase tracking-wider border border-emerald-200">Control Stock</span>';
 
             const labelReceta = p.tiene_receta 
                 ? '<span class="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold border border-blue-200">Con Receta</span>' 
