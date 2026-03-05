@@ -1,14 +1,5 @@
 <div class="flex justify-between items-center mb-6">
     <h2 class="text-2xl font-bold">🔄 Movimientos Manuales y POS</h2>
-    
-    <div class="flex items-center bg-white border border-slate-200 rounded-md shadow-sm overflow-hidden">
-        <button onclick="exportarMovimientosCSV()" title="Exportar TODO el Historial de Movimientos a Excel" class="px-3 py-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors border-r">
-            📤
-        </button>
-        <button onclick="window.print()" title="Imprimir / PDF" class="px-3 py-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors">
-            🖨️
-        </button>
-    </div>
 </div>
 
 <div class="flex border-b border-gray-200 mb-6 overflow-x-auto bg-white rounded-t-lg shadow-sm">
@@ -137,7 +128,7 @@
 
 <style>
     @media print {
-        #sidebar-menu, header, button, .flex.items-center.bg-white.border { display: none !important; }
+        #sidebar-menu, header, button { display: none !important; }
         #main-content { padding: 0 !important; width: 100% !important; }
         body { background-color: white !important; }
         .shadow-sm, .shadow-md { box-shadow: none !important; border: 1px solid #ccc; }
