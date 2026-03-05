@@ -44,24 +44,34 @@ window.cargarUsuariosDeEmpresa = async function(idEmpresa, nombreEmpresa) {
     const lista = document.getElementById('lista-usuarios-empresa');
     lista.innerHTML = '<li class="p-8 text-center text-slate-400 font-bold">⏳ Buscando equipo...</li>';
 
-    // Buscamos quién más tiene asignada esta ID de empresa (Ahora traemos nombre y apellido)
-    const { data: usuarios, error } = await clienteSupabase.from('usuarios_empresas')
-        .select('id, id_usuario, rol, perfiles(nombre, apellido)')
+    // 1. Buscamos los accesos en usuarios_empresas (SIN EL JOIN QUE DA ERROR 400)
+    const { data: accesos, error } = await clienteSupabase.from('usuarios_empresas')
+        .select('id, id_usuario, rol')
         .eq('id_empresa', idEmpresa);
 
-    if(error || !usuarios || usuarios.length === 0) {
+    if(error || !accesos || accesos.length === 0) {
         lista.innerHTML = `<li class="p-8 text-center text-slate-400">Nadie tiene acceso a ${nombreEmpresa} aún.</li>`;
         return;
     }
 
+    // 2. Extraemos los IDs de esos usuarios y buscamos sus nombres reales en la tabla perfiles
+    const idsUsuarios = accesos.map(a => a.id_usuario);
+    const { data: perfiles } = await clienteSupabase.from('perfiles')
+        .select('id_usuario, nombre, apellido')
+        .in('id_usuario', idsUsuarios);
+
+    // 3. Cruzamos la información manualmente (A prueba de errores)
     lista.innerHTML = `
         <li class="px-6 py-3 bg-slate-200/50 text-xs font-bold text-slate-500 uppercase tracking-wider">
             Equipo en: ${nombreEmpresa}
         </li>
-    ` + usuarios.map(u => {
-        // Armamos el nombre completo y las iniciales de forma segura
-        const nombreStr = u.perfiles?.nombre || 'Usuario';
-        const apellidoStr = u.perfiles?.apellido || '';
+    ` + accesos.map(acceso => {
+        // Encontramos el perfil que hace match con este acceso
+        const perfil = (perfiles || []).find(p => p.id_usuario === acceso.id_usuario);
+        
+        // Armamos el nombre y las iniciales
+        const nombreStr = perfil?.nombre || 'Usuario';
+        const apellidoStr = perfil?.apellido || '';
         const nombreCompleto = `${nombreStr} ${apellidoStr}`.trim();
         const iniciales = (nombreStr.substring(0,1) + (apellidoStr ? apellidoStr.substring(0,1) : nombreStr.substring(1,2))).toUpperCase();
 
@@ -73,10 +83,10 @@ window.cargarUsuariosDeEmpresa = async function(idEmpresa, nombreEmpresa) {
                 </div>
                 <div class="flex flex-col">
                     <span class="font-bold text-slate-800">${nombreCompleto}</span>
-                    <span class="text-[10px] font-bold text-emerald-600 uppercase tracking-wide">${u.rol || 'Operador'}</span>
+                    <span class="text-[10px] font-bold text-emerald-600 uppercase tracking-wide">${acceso.rol || 'Operador'}</span>
                 </div>
             </div>
-            <button onclick="eliminarAcceso('${u.id}')" class="text-red-400 hover:text-red-600 font-bold text-xs bg-red-50 px-3 py-1.5 rounded shadow-sm transition-transform hover:scale-105" title="Revocar Acceso">Revocar</button>
+            <button onclick="eliminarAcceso('${acceso.id}')" class="text-red-400 hover:text-red-600 font-bold text-xs bg-red-50 px-3 py-1.5 rounded shadow-sm transition-transform hover:scale-105" title="Revocar Acceso">Revocar</button>
         </li>
         `;
     }).join('');
