@@ -26,12 +26,13 @@
 </div>
 
 <div class="flex border-b border-slate-200 mb-6 overflow-x-auto bg-white rounded-t-lg shadow-sm">
-    <button onclick="cambiarTabReportes('valorizacion')" id="tab-rep-valorizacion" class="px-6 py-3 font-medium border-b-2 border-emerald-600 text-emerald-600 bg-emerald-50/50 transition-colors">Valorización de Inventario</button>
-    <button onclick="cambiarTabReportes('kardex')" id="tab-rep-kardex" class="px-6 py-3 font-medium text-slate-500 hover:text-slate-700 transition-colors">Historial Global (Kardex Auditoría)</button>
+    <button onclick="cambiarTabReportes('valorizacion')" id="tab-rep-valorizacion" class="px-6 py-3 font-medium border-b-2 border-emerald-600 text-emerald-600 bg-emerald-50/50 transition-colors whitespace-nowrap">Valorización de Inventario</button>
+    <button onclick="cambiarTabReportes('kardex')" id="tab-rep-kardex" class="px-6 py-3 font-medium text-slate-500 hover:text-slate-700 transition-colors whitespace-nowrap">Movimientos Globales (Kardex)</button>
+    <button onclick="cambiarTabReportes('compras')" id="tab-rep-compras" class="px-6 py-3 font-medium text-slate-500 hover:text-slate-700 transition-colors whitespace-nowrap">Historial Compras y Producción</button>
 </div>
 
 <div id="seccion-rep-valorizacion" class="block">
-    <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+    <div class="bg-white rounded-xl shadow-sm border overflow-x-auto">
         <table class="min-w-full divide-y divide-slate-200">
             <thead class="bg-slate-50">
                 <tr>
@@ -72,6 +73,28 @@
                 </thead>
                 <tbody id="lista-rep-kardex" class="divide-y divide-slate-100 text-sm bg-white">
                     </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div id="seccion-rep-compras" class="hidden">
+    <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+        <div class="max-h-[65vh] overflow-y-auto relative">
+            <table class="min-w-full divide-y divide-slate-200">
+                <thead class="bg-slate-200 sticky top-0 z-10 shadow-sm">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-bold text-slate-600 uppercase whitespace-nowrap">Fecha de Ingreso</th>
+                        <th class="px-6 py-3 text-left text-xs font-bold text-slate-600 uppercase">Tipo</th>
+                        <th class="px-6 py-3 text-left text-xs font-bold text-slate-600 uppercase">Origen / Proveedor</th>
+                        <th class="px-6 py-3 text-right text-xs font-bold text-slate-600 uppercase whitespace-nowrap">Total Estimado</th>
+                        <th class="px-6 py-3 text-center text-xs font-bold text-slate-600 uppercase">Estado</th>
+                        <th class="px-6 py-3 text-center text-xs font-bold text-slate-600 uppercase">Desglose</th>
+                    </tr>
+                </thead>
+                <tbody id="lista-historial-compras" class="divide-y divide-slate-100 bg-white text-sm">
+                    <tr><td colspan="6" class="text-center py-8 text-slate-500 font-bold">Buscando órdenes...</td></tr>
+                </tbody>
             </table>
         </div>
     </div>
