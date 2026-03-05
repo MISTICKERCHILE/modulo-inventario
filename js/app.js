@@ -63,10 +63,9 @@ document.getElementById('auth-form').addEventListener('submit', async (e) => {
     }
 });
 
-// 4. Función que arranca el sistema
 window.iniciarSesionEmpresa = function(idEmpresa, nombreEmpresa, emailUsuario, nombreReal) {
     window.miEmpresaId = idEmpresa;
-    window.usuarioActual = nombreReal; // AHORA SÍ USA TU NOMBRE REAL
+    window.usuarioActual = nombreReal;
 
     document.getElementById('selector-empresa-container')?.classList.add('hidden');
     document.getElementById('dashboard-container').classList.remove('hidden');
@@ -101,10 +100,9 @@ window.addEventListener('beforeunload', (e) => {
     const guardado = localStorage.getItem('carrito_pedidos_' + window.miEmpresaId);
     if (guardado && JSON.parse(guardado).length > 0) {
         e.preventDefault();
-        e.returnValue = ''; // Gatilla la alerta del navegador
+        e.returnValue = '';
     }
 });
-
 
 // NUEVO LOGICA MENU CELULAR Y ESCRITORIO (DRAWER)
 window.toggleMenu = function() {
@@ -112,10 +110,8 @@ window.toggleMenu = function() {
     const backdrop = document.getElementById('sidebar-backdrop');
     
     if (window.innerWidth >= 768) {
-        // En escritorio: Ocultamos completamente la barra
         sidebar.classList.toggle('md:hidden');
     } else {
-        // En celular: Deslizamos y mostramos el fondo oscuro
         sidebar.classList.toggle('-translate-x-full');
         backdrop.classList.toggle('hidden');
     }
@@ -182,6 +178,8 @@ window.cambiarVista = async function(v) {
         document.getElementById('main-content').innerHTML = `<div class="p-8 text-center text-red-500 font-bold w-full">❌ Error cargando la vista: ${v}.html</div>`;
     }
 }
+
+// LÓGICA DE FORMULARIOS GLOBALES
 window.cancelarEdicion = function(formName) {
     window.modoEdicion = { activo: false, id: null, form: null };
     const formEl = document.getElementById(`form-${formName}`);
@@ -210,7 +208,8 @@ window.eliminarReg = async function(tabla, id) {
 
 document.addEventListener('submit', async (e) => {
     if (!e.target.id || !e.target.id.startsWith('form-')) return;
-    if (e.target.id !== 'login-form' && e.target.id !== 'form-producto' && e.target.id !== 'form-precio-prov' && e.target.id !== 'form-recepcion' && e.target.id !== 'form-ajuste-rapido') { e.preventDefault(); }
+    if (e.target.id !== 'auth-form' && e.target.id !== 'form-producto' && e.target.id !== 'form-precio-prov' && e.target.id !== 'form-recepcion' && e.target.id !== 'form-ajuste-rapido' && e.target.id !== 'form-nueva-empresa' && e.target.id !== 'form-vincular-usuario') { e.preventDefault(); }
+    
     const id = e.target.id;
     if (id === 'form-categoria') {
         const nombre = document.getElementById('nombre-categoria').value;
