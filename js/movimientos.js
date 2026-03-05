@@ -63,7 +63,6 @@ window.cambiarSubTabPedidos = function(subtab) {
     } else if(subtab === 'historial') {
         if(btnH) btnH.className = 'px-4 py-2 rounded-md font-bold text-sm bg-white shadow-sm text-slate-800 outline-none whitespace-nowrap';
         if(divH) divH.classList.remove('hidden'); window.cargarHistorialOrdenes();
-    }
 }
 
 // ==========================================
