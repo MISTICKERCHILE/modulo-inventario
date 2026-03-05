@@ -320,20 +320,8 @@ window.generarPedidoTransitoMasivo = async function(idProv) {
             id_compra: cabecera.id, id_producto: item.idProd, id_sucursal_destino: item.idSuc, 
             cantidad_uc: item.cantUC, precio_unitario_uc: item.precioRef, subtotal: item.cantUC * item.precioRef, estado: 'En Tránsito'
         }));
-        // ESTA ES LA LÍNEA QUE ARREGLA EL ERROR (Insertamos correctamente a la BD)
         await clienteSupabase.from('compras_detalles').insert(detallesAInsertar);
     }
-
-    // LIMPIAR MEMORIA TRAS COMPLETAR
-    window.carritoPedidos = window.carritoPedidos.filter(i => i.idProv !== idProv);
-    window.guardarCarritoEnMemoria();
-    
-    window.renderizarBandejaPedidos();
-    window.cargarPedidosPlanificados(); 
-    alert("✅ Pedido/Orden generada exitosamente. Revisa las pestañas de Tránsito o Producción.");
-}
-
-   
 
     // LIMPIAR MEMORIA TRAS COMPLETAR
     window.carritoPedidos = window.carritoPedidos.filter(i => i.idProv !== idProv);
@@ -955,7 +943,6 @@ window.actualizarSelectsMapeoCSV = async function(nuevoIdProducto) {
 // ==========================================
 // --- FASE 5: VENTAS POS (CSV) Y HOMOLOGACIÓN ---
 // ==========================================
-// (Aquí iba el código original de VENTAS POS que ya tenías, manténlo intacto)
 window.datosCSVAgrupados = [];
 window.selectCSVActivoIndex = null;
 
