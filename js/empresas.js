@@ -97,25 +97,36 @@ document.addEventListener('submit', async (e) => {
         const seleccion = document.getElementById('vu-empresa').value.split('|');
         const idEmpresa = seleccion[0];
         const nombreEmpresa = seleccion[1];
-        const uidTarget = document.getElementById('vu-uid').value.trim();
+        const emailTarget = document.getElementById('vu-email').value.trim();
+        const rolAsignado = document.getElementById('vu-rol').value;
 
+        // 1. Buscamos el ID del usuario usando su correo
+        const { data: perfilEncontrado } = await clienteSupabase.from('perfiles').select('id_usuario, nombre').eq('email', emailTarget).maybeSingle();
+
+        if(!perfilEncontrado) {
+            return alert("❌ No encontramos ningún usuario con ese correo. Pídele que vaya a la página principal y se cree una cuenta primero.");
+        }
+
+        // 2. Revisamos que no esté vinculado ya a esta empresa
+        const { data: yaExiste } = await clienteSupabase.from('usuarios_empresas').select('id').eq('id_usuario', perfilEncontrado.id_usuario).eq('id_empresa', idEmpresa).maybeSingle();
+        if(yaExiste) return alert("⚠️ Este usuario ya tiene acceso a esta empresa.");
+
+        // 3. Lo vinculamos
         const { error } = await clienteSupabase.from('usuarios_empresas').insert({
-            id_usuario: uidTarget,
+            id_usuario: perfilEncontrado.id_usuario,
             id_empresa: idEmpresa,
-            nombre_empresa: nombreEmpresa
+            nombre_empresa: nombreEmpresa,
+            rol: rolAsignado
         });
 
-        if(error) {
-            console.error(error);
-            return alert("❌ Error al vincular. Verifica que el ID del usuario sea correcto.");
-        }
+        if(error) return alert("❌ Error al vincular.");
         
-        alert("✅ Usuario vinculado correctamente.");
+        alert(`✅ ${perfilEncontrado.nombre} ha sido vinculado a ${nombreEmpresa} como ${rolAsignado}.`);
         document.getElementById('modal-vincular-usuario').classList.add('hidden');
         document.getElementById('form-vincular-usuario').reset();
         window.cargarUsuariosDeEmpresa(idEmpresa, nombreEmpresa);
-    }
-});
+    });
+
 
 window.eliminarAcceso = async function(idRegistro) {
     if(confirm("¿Seguro que deseas revocar el acceso a este usuario para esta empresa?")) {
