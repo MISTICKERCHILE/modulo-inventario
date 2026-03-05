@@ -25,7 +25,6 @@ document.getElementById('auth-form').addEventListener('submit', async (e) => {
     const mode = document.getElementById('auth-mode').value;
 
     if(mode === 'register') {
-        // FLUJO DE REGISTRO
         const { data, error } = await clienteSupabase.auth.signUp({ email: emailInput, password: passwordInput });
         if(error) return alert("❌ Error al registrar: " + error.message);
         
@@ -35,9 +34,8 @@ document.getElementById('auth-form').addEventListener('submit', async (e) => {
         return;
     }
 
-    // FLUJO DE LOGIN
     const { data, error } = await clienteSupabase.auth.signInWithPassword({ email: emailInput, password: passwordInput });
-    if (error) return alert("❌ Credenciales incorrectas");
+    if (error) return alert("❌ Credenciales incorrectas. Verifica tu correo y contraseña.");
 
     const { data: perfil } = await clienteSupabase.from('perfiles').select('nombre').eq('id_usuario', data.user.id).maybeSingle();
     const nombreReal = perfil?.nombre || emailInput.split('@')[0];
@@ -67,7 +65,8 @@ window.iniciarSesionEmpresa = function(idEmpresa, nombreEmpresa, emailUsuario, n
     window.miEmpresaId = idEmpresa;
     window.usuarioActual = nombreReal;
 
-    document.getElementById('selector-empresa-container')?.classList.add('hidden');
+    const selector = document.getElementById('selector-empresa-container');
+    if(selector) selector.classList.add('hidden');
     document.getElementById('dashboard-container').classList.remove('hidden');
 
     document.getElementById('user-email-dropdown').innerText = emailUsuario;
