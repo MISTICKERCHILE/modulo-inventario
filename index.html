@@ -117,13 +117,15 @@
                 </div>
             
                 <button onclick="cambiarVista('inventario')" id="btn-menu-inventario" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>📦</span> <span class="menu-texto">Inventario</span></button>
+                
                 <button onclick="cambiarVista('pedidos')" id="btn-menu-pedidos" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors">
                     <span>🛒</span> <span class="menu-texto flex items-center gap-2">Pedidos<span id="badge-cart" class="hidden bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm animate-pulse">0</span></span>
                 </button>
-                
+
                 <button onclick="cambiarVista('movimientos')" id="btn-menu-movimientos" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors">
                     <span>🔄</span> <span class="menu-texto">Movimientos</span>
                 </button>
+
                 <div class="my-2 border-t border-slate-700"></div>
                 <button onclick="cambiarVista('productos')" id="btn-menu-productos" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>🍔</span> <span class="menu-texto">Productos</span></button>
                 <button onclick="cambiarVista('recetas')" id="btn-menu-recetas" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>📝</span> <span class="menu-texto">Recetas</span></button>
@@ -377,6 +379,7 @@
     <script src="js/catalogos.js"></script>
     <script src="js/productos.js"></script>
     <script src="js/inventario.js"></script>
+    <script src="js/pedidos.js"></script> 
     <script src="js/movimientos.js"></script>
     <script src="js/reportes.js"></script>
 </body>
