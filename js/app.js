@@ -10,28 +10,27 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     const emailInput = document.getElementById('email').value;
     const passwordInput = document.getElementById('password').value;
 
-    // 1. Autenticar en Supabase
     const { data, error } = await clienteSupabase.auth.signInWithPassword({ email: emailInput, password: passwordInput });
     if (error) return alert("❌ Credenciales incorrectas");
 
-    // 2. Buscar a cuántas empresas pertenece este usuario
+    // BUSCAMOS TU NOMBRE REAL EN PERFILES
+    const { data: perfil } = await clienteSupabase.from('perfiles').select('nombre').eq('id_usuario', data.user.id).maybeSingle();
+    const nombreReal = perfil?.nombre || emailInput.split('@')[0];
+
     const { data: empresasAsignadas } = await clienteSupabase.from('usuarios_empresas').select('id_empresa, nombre_empresa').eq('id_usuario', data.user.id);
 
     if (!empresasAsignadas || empresasAsignadas.length === 0) {
         return alert("❌ Usuario sin empresas asignadas. Contacta al soporte.");
     }
 
-    // 3. Lógica de redirección
     document.getElementById('login-container').classList.add('hidden');
 
     if (empresasAsignadas.length === 1) {
-        // Si solo tiene una, entra directo (Flujo transparente)
-        window.iniciarSesionEmpresa(empresasAsignadas[0].id_empresa, empresasAsignadas[0].nombre_empresa, emailInput);
+        window.iniciarSesionEmpresa(empresasAsignadas[0].id_empresa, empresasAsignadas[0].nombre_empresa, emailInput, nombreReal);
     } else {
-        // Si tiene varias, mostramos el selector
         document.getElementById('selector-empresa-container').classList.remove('hidden');
         document.getElementById('lista-empresas-usuario').innerHTML = empresasAsignadas.map(emp => `
-            <button onclick="iniciarSesionEmpresa('${emp.id_empresa}', '${emp.nombre_empresa}', '${emailInput}')" class="w-full text-left px-6 py-4 border border-slate-200 rounded-xl hover:bg-emerald-50 hover:border-emerald-500 transition-all font-bold text-slate-700 shadow-sm flex items-center justify-between group">
+            <button onclick="iniciarSesionEmpresa('${emp.id_empresa}', '${emp.nombre_empresa}', '${emailInput}', '${nombreReal}')" class="w-full text-left px-6 py-4 border border-slate-200 rounded-xl hover:bg-emerald-50 hover:border-emerald-500 transition-all font-bold text-slate-700 shadow-sm flex items-center justify-between group">
                 <span>🏢 ${emp.nombre_empresa}</span>
                 <span class="text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity">Entrar →</span>
             </button>
@@ -39,19 +38,18 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     }
 });
 
-// 4. Función que arranca el sistema una vez elegida la empresa
-window.iniciarSesionEmpresa = function(idEmpresa, nombreEmpresa, emailUsuario) {
+// 4. Función que arranca el sistema
+window.iniciarSesionEmpresa = function(idEmpresa, nombreEmpresa, emailUsuario, nombreReal) {
     window.miEmpresaId = idEmpresa;
-    window.usuarioActual = emailUsuario.split('@')[0]; // Usamos la primera parte del correo como nombre
+    window.usuarioActual = nombreReal; // AHORA SÍ USA TU NOMBRE REAL
 
-    // Ocultamos el selector si estaba abierto y mostramos el dashboard
     document.getElementById('selector-empresa-container')?.classList.add('hidden');
     document.getElementById('dashboard-container').classList.remove('hidden');
 
     document.getElementById('user-email-dropdown').innerText = emailUsuario;
     document.getElementById('user-name-display').innerText = window.usuarioActual;
 
-    window.actualizarBadgeCarrito(); // Revisa la memoria al entrar
+    window.actualizarBadgeCarrito();
     window.cambiarVista('dashboard');
 };
 
