@@ -5,22 +5,47 @@ window.modoEdicion = { activo: false, id: null, form: null };
 window.usuarioActual = 'Equipo'; 
 
 // --- LOGIN Y SESIÓN MULTI-EMPRESA ---
-document.getElementById('login-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const emailInput = document.getElementById('email').value;
-    const passwordInput = document.getElementById('password').value;
+window.toggleAuthMode = function(mode) {
+    document.getElementById('auth-mode').value = mode;
+    if(mode === 'login') {
+        document.getElementById('tab-login').className = 'flex-1 pb-2 border-b-2 border-emerald-600 font-bold text-emerald-600 outline-none';
+        document.getElementById('tab-register').className = 'flex-1 pb-2 font-bold text-slate-400 outline-none hover:text-emerald-500';
+        document.getElementById('auth-btn').innerText = 'Entrar al Sistema';
+    } else {
+        document.getElementById('tab-register').className = 'flex-1 pb-2 border-b-2 border-emerald-600 font-bold text-emerald-600 outline-none';
+        document.getElementById('tab-login').className = 'flex-1 pb-2 font-bold text-slate-400 outline-none hover:text-emerald-500';
+        document.getElementById('auth-btn').innerText = 'Crear mi Cuenta';
+    }
+}
 
+document.getElementById('auth-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const emailInput = document.getElementById('email').value.trim();
+    const passwordInput = document.getElementById('password').value;
+    const mode = document.getElementById('auth-mode').value;
+
+    if(mode === 'register') {
+        // FLUJO DE REGISTRO
+        const { data, error } = await clienteSupabase.auth.signUp({ email: emailInput, password: passwordInput });
+        if(error) return alert("❌ Error al registrar: " + error.message);
+        
+        alert("✅ Cuenta creada con éxito. Ahora pide a tu administrador que te dé acceso a la empresa.");
+        window.toggleAuthMode('login');
+        document.getElementById('password').value = '';
+        return;
+    }
+
+    // FLUJO DE LOGIN
     const { data, error } = await clienteSupabase.auth.signInWithPassword({ email: emailInput, password: passwordInput });
     if (error) return alert("❌ Credenciales incorrectas");
 
-    // BUSCAMOS TU NOMBRE REAL EN PERFILES
     const { data: perfil } = await clienteSupabase.from('perfiles').select('nombre').eq('id_usuario', data.user.id).maybeSingle();
     const nombreReal = perfil?.nombre || emailInput.split('@')[0];
 
     const { data: empresasAsignadas } = await clienteSupabase.from('usuarios_empresas').select('id_empresa, nombre_empresa').eq('id_usuario', data.user.id);
 
     if (!empresasAsignadas || empresasAsignadas.length === 0) {
-        return alert("❌ Usuario sin empresas asignadas. Contacta al soporte.");
+        return alert("🛑 Tu cuenta existe, pero aún no tienes empresas asignadas. Contacta a tu administrador.");
     }
 
     document.getElementById('login-container').classList.add('hidden');
