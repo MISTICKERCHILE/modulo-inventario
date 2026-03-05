@@ -315,5 +315,26 @@ document.addEventListener('submit', async (e) => {
         else await clienteSupabase.from('inventario_saldos').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_sucursal: idSuc, cantidad_actual_ua: cantidadFinalAplicada }]);
         await clienteSupabase.from('movimientos_inventario').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, tipo_movimiento: selectTipo.options[selectTipo.selectedIndex].text, cantidad_movida: cantidadFinalAplicada, referencia: 'Ajuste Manual' }]);
         alert(`✅ Movimiento aplicado.`); document.getElementById('form-otro-movimiento').reset();
+    } else if (id === 'form-ajuste-rapido') {
+        // DETIENE EL COMPORTAMIENTO POR DEFECTO DEL FORMULARIO
+        e.preventDefault(); 
+        const idSaldo = document.getElementById('ar-id-saldo').value;
+        const idProd = document.getElementById('ar-id-prod').value;
+        const cantNueva = parseFloat(document.getElementById('ar-cant').value);
+
+        const { data: previo } = await clienteSupabase.from('inventario_saldos').select('cantidad_actual_ua, id_ubicacion, id_sucursal').eq('id', idSaldo).single();
+        const diferencia = cantNueva - previo.cantidad_actual_ua;
+
+        if(diferencia !== 0) {
+            await clienteSupabase.from('inventario_saldos').update({ cantidad_actual_ua: cantNueva, ultima_actualizacion: new Date() }).eq('id', idSaldo);
+            await clienteSupabase.from('movimientos_inventario').insert([{
+                id_empresa: window.miEmpresaId, id_producto: idProd, id_ubicacion: previo.id_ubicacion,
+                tipo_movimiento: 'AJUSTE_RAPIDO', cantidad_movida: diferencia, referencia: 'Ajuste Rápido en Panel'
+            }]);
+        }
+        
+        alert("✅ Stock ajustado correctamente.");
+        document.getElementById('modal-ajuste-rapido').classList.add('hidden');
+        window.abrirInventarioSucursal(previo.id_sucursal, window.sucursalActivaNombre);
     }
 });
