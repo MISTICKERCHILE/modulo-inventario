@@ -46,7 +46,7 @@ window.cargarUsuariosDeEmpresa = async function(idEmpresa, nombreEmpresa) {
 
     // Buscamos quién más tiene asignada esta ID de empresa
     const { data: usuarios } = await clienteSupabase.from('usuarios_empresas')
-        .select('id, id_usuario, perfiles(nombre)')
+        .select('id, id_usuario, rol, perfiles(nombre)') 
         .eq('id_empresa', idEmpresa);
 
     if(!usuarios || usuarios.length === 0) {
@@ -61,12 +61,15 @@ window.cargarUsuariosDeEmpresa = async function(idEmpresa, nombreEmpresa) {
     ` + usuarios.map(u => `
         <li class="px-6 py-4 hover:bg-white transition-colors flex justify-between items-center bg-slate-50/50">
             <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-full bg-slate-300 flex items-center justify-center text-slate-600 font-bold text-xs uppercase">
-                    ${u.perfiles?.nombre} (${u.rol}) ? u.perfiles.nombre.substring(0,2) : 'US'}
+                <div class="w-8 h-8 rounded-full bg-slate-300 flex items-center justify-center text-slate-600 font-bold text-xs uppercase shadow-sm">
+                    ${u.perfiles?.nombre ? u.perfiles.nombre.substring(0,2) : 'US'}
                 </div>
-                <span class="font-bold text-slate-700">${u.perfiles?.nombre || 'Usuario sin nombre ('+u.id_usuario.substring(0,8)+'...)'}</span>
+                <div class="flex flex-col">
+                    <span class="font-bold text-slate-800">${u.perfiles?.nombre || 'Usuario nuevo ('+u.id_usuario.substring(0,8)+'...)'}</span>
+                    <span class="text-[10px] font-bold text-emerald-600 uppercase tracking-wide">${u.rol || 'Operador'}</span>
+                </div>
             </div>
-            <button onclick="eliminarAcceso('${u.id}')" class="text-red-400 hover:text-red-600 font-bold text-xs bg-red-50 px-2 py-1 rounded" title="Revocar Acceso">Revocar</button>
+            <button onclick="eliminarAcceso('${u.id}')" class="text-red-400 hover:text-red-600 font-bold text-xs bg-red-50 px-3 py-1.5 rounded shadow-sm transition-transform hover:scale-105" title="Revocar Acceso">Revocar</button>
         </li>
     `).join('');
 }
