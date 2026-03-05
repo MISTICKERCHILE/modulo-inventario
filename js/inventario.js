@@ -359,37 +359,64 @@ window.guardarConteoMasivo = async function() {
 // ==========================================
 // --- KARDEX: LÍNEA DE TIEMPO (TIMELINE) ---
 // ==========================================
-window.abrirHistorialKardex = async function(idProd, nombreProd) {
+window.abrirHistorial = async function(idProd, nombreProd) {
     document.getElementById('hm-subtitulo').innerText = `Producto: ${nombreProd}`;
     document.getElementById('modal-historial').classList.remove('hidden');
-    
-    const container = document.getElementById('hm-timeline');
-    container.innerHTML = '<div class="absolute -left-1.5 top-0 w-3 h-3 bg-blue-400 rounded-full animate-ping"></div><p class="ml-6 text-slate-500">Recopilando la vida de este producto...</p>';
+    const timeline = document.getElementById('hm-timeline');
+    timeline.innerHTML = '<p class="text-center py-8 text-slate-500">⏳ Trazando movimientos...</p>';
 
-    // Traemos TODOS los movimientos de este producto, ordenados por fecha descendente
-    const { data: movs } = await clienteSupabase.from('movimientos_inventario')
+    // 1. Buscamos TODOS los movimientos (ordenados del más antiguo al más nuevo para calcular)
+    const { data } = await clienteSupabase.from('movimientos_inventario')
         .select('fecha_movimiento, tipo_movimiento, cantidad_movida, referencia, ubicaciones_internas(nombre)')
-        .eq('id_producto', idProd)
         .eq('id_empresa', window.miEmpresaId)
-        .order('fecha_movimiento', { ascending: false });
+        .eq('id_producto', idProd)
+        .order('fecha_movimiento', { ascending: true }); 
 
-    // Traemos la fecha de creación del producto para marcar el "Nacimiento" en la línea de tiempo
-    const { data: prodInfo } = await clienteSupabase.from('productos').select('created_at, id_unidad_almacenamiento(abreviatura)').eq('id', idProd).single();
-    const abrev = prodInfo?.id_unidad_almacenamiento?.abreviatura || 'UA';
-
-    if(!movs || movs.length === 0) {
-        container.innerHTML = `
-            <div class="relative flex items-start group">
-                <div class="absolute -left-[9px] top-1 w-4 h-4 bg-indigo-500 rounded-full border-4 border-white shadow"></div>
-                <div class="ml-6 bg-indigo-50 px-4 py-3 rounded-lg border border-indigo-100 w-full">
-                    <p class="text-xs font-bold text-indigo-400 uppercase mb-1">${new Date(prodInfo.created_at).toLocaleString()}</p>
-                    <p class="font-bold text-indigo-700">Producto Registrado en el Sistema 🐣</p>
-                    <p class="text-sm text-indigo-600 mt-1">Aún no tiene movimientos de stock.</p>
-                </div>
-            </div>
-        `;
+    if(!data || data.length === 0) {
+        timeline.innerHTML = '<p class="text-center py-8 text-slate-500 italic">No hay historial registrado.</p>';
         return;
     }
+
+    // 2. Calculamos el "Stock Acumulado" paso a paso
+    let saldoAcumulado = 0;
+    const movimientosCalculados = data.map(d => {
+        saldoAcumulado += d.cantidad_movida;
+        return { ...d, saldoAcumulado };
+    }).reverse(); // Volteamos la lista para mostrar el más nuevo arriba
+
+    // 3. Dibujamos la línea de tiempo
+    timeline.innerHTML = movimientosCalculados.map(d => {
+        const f = new Date(d.fecha_movimiento);
+        const fecha = f.toLocaleDateString('es-CL') + ' ' + f.toLocaleTimeString('es-CL', {hour: '2-digit', minute:'2-digit'});
+        
+        const isPos = d.cantidad_movida > 0;
+        const color = isPos ? 'text-emerald-600' : 'text-red-600';
+        const bg = isPos ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100';
+        const ubi = d.ubicaciones_internas?.nombre || 'Bodega General';
+        const signo = isPos ? '+' : '';
+
+        return `
+        <div class="relative pl-6 sm:pl-8 py-2">
+            <div class="absolute left-[-5px] top-4 w-3 h-3 rounded-full ${isPos ? 'bg-emerald-500' : 'bg-red-500'} ring-4 ring-white"></div>
+            <div class="bg-white p-3 sm:p-4 rounded-lg border shadow-sm ${bg}">
+                <div class="flex justify-between items-start mb-1">
+                    <span class="text-xs font-bold text-slate-500">${fecha}</span>
+                    <span class="font-mono font-black text-lg ${color}">${signo}${d.cantidad_movida}</span>
+                </div>
+                <div class="flex justify-between items-end mt-2">
+                    <div>
+                        <p class="text-sm font-bold text-slate-800 uppercase">${d.tipo_movimiento.replace(/_/g, ' ')}</p>
+                        <p class="text-xs text-slate-500 mt-0.5">📍 ${ubi} <br> <span class="italic text-[10px]">"${d.referencia || ''}"</span></p>
+                    </div>
+                    <div class="text-right">
+                        <span class="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Stock Histórico</span>
+                        <span class="font-mono font-bold text-slate-700 text-sm bg-white px-2 py-1 rounded border">${d.saldoAcumulado.toFixed(2)}</span>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
 
     let html = '';
     
