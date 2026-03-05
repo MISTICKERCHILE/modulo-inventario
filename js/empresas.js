@@ -62,7 +62,7 @@ window.cargarUsuariosDeEmpresa = async function(idEmpresa, nombreEmpresa) {
         <li class="px-6 py-4 hover:bg-white transition-colors flex justify-between items-center bg-slate-50/50">
             <div class="flex items-center gap-3">
                 <div class="w-8 h-8 rounded-full bg-slate-300 flex items-center justify-center text-slate-600 font-bold text-xs uppercase">
-                    ${u.perfiles?.nombre ? u.perfiles.nombre.substring(0,2) : 'US'}
+                    ${u.perfiles?.nombre} (${u.rol}) ? u.perfiles.nombre.substring(0,2) : 'US'}
                 </div>
                 <span class="font-bold text-slate-700">${u.perfiles?.nombre || 'Usuario sin nombre ('+u.id_usuario.substring(0,8)+'...)'}</span>
             </div>
