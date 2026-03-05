@@ -26,9 +26,9 @@
 
     <div id="dashboard-container" class="hidden h-screen flex flex-col relative overflow-hidden">
         
-        <header class="bg-white border-b px-4 md:px-6 py-3 md:py-4 flex justify-between items-center shadow-sm z-50 shrink-0">
+        <header class="bg-white border-b px-4 md:px-6 py-3 md:py-4 flex justify-between items-center shadow-sm z-20 shrink-0">
             <div class="flex items-center gap-2 md:gap-4">
-                <button onclick="toggleMenu()" class="text-slate-500 hover:bg-slate-100 p-2 rounded-md transition-colors outline-none">
+                <button onclick="toggleMenu()" class="text-slate-500 hover:bg-slate-100 p-2 rounded-md transition-colors outline-none md:hidden">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
                 </button>
                 <div class="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity" onclick="cambiarVista('dashboard')" title="Ir al Dashboard">
@@ -67,16 +67,22 @@
         </header>
 
         <div class="flex flex-1 overflow-hidden relative">
-            <div id="sidebar-backdrop" class="fixed inset-0 bg-slate-900/60 z-30 hidden backdrop-blur-sm" onclick="toggleMenu()"></div>
+            
+            <div id="sidebar-backdrop" class="fixed inset-0 bg-slate-900/60 z-30 hidden md:hidden backdrop-blur-sm" onclick="toggleMenu()"></div>
 
-            <aside id="sidebar-menu" class="w-64 bg-slate-800 text-white flex flex-col p-4 space-y-2 fixed md:relative inset-y-0 left-0 z-40 transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out h-full overflow-y-auto shadow-2xl md:shadow-none shrink-0">
+            <aside id="sidebar-menu" class="w-64 bg-slate-800 text-white flex flex-col p-4 space-y-2 absolute inset-y-0 left-0 z-40 transform -translate-x-full transition-transform duration-300 ease-in-out md:relative md:translate-x-0 h-full overflow-y-auto shadow-2xl md:shadow-none shrink-0">
                 <div class="flex justify-between items-center md:hidden mb-4 border-b border-slate-700 pb-2">
                     <span class="font-bold text-lg">Menú</span>
                     <button onclick="toggleMenu()" class="text-slate-300 hover:text-white text-3xl font-bold">&times;</button>
                 </div>
             
                 <button onclick="cambiarVista('inventario')" id="btn-menu-inventario" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>📦</span> <span class="menu-texto">Inventario Físico</span></button>
-                <button onclick="cambiarVista('movimientos')" id="btn-menu-movimientos" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>🔄</span> <span class="menu-texto flex items-center gap-2">Movimientos <span id="badge-cart" class="hidden bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm animate-pulse">0</span></span></button>
+                
+                <button onclick="cambiarVista('movimientos')" id="btn-menu-movimientos" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors">
+                    <span>🔄</span> 
+                    <span class="menu-texto flex items-center gap-2">Movimientos <span id="badge-cart" class="hidden bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm animate-pulse">0</span></span>
+                </button>
+                
                 <div class="my-2 border-t border-slate-700"></div>
                 <button onclick="cambiarVista('productos')" id="btn-menu-productos" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>🍔</span> <span class="menu-texto">Productos</span></button>
                 <button onclick="cambiarVista('recetas')" id="btn-menu-recetas" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>📝</span> <span class="menu-texto">Recetas</span></button>
@@ -87,6 +93,237 @@
             <main id="main-content" class="flex-1 p-4 md:p-8 overflow-y-auto w-full relative"></main>
         </div>
     </div>
+
+    <div id="modal-producto" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-2 md:p-4">
+        <div class="bg-white p-4 md:p-8 rounded-xl shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-y-auto border border-slate-200">
+            <div class="flex justify-between items-center mb-4 md:mb-6 border-b pb-3">
+                <h2 class="text-xl md:text-2xl font-bold text-slate-800" id="titulo-modal-producto">Nuevo Producto / Insumo</h2>
+                <button type="button" onclick="cerrarModalProducto()" class="text-slate-400 hover:text-slate-800 text-3xl font-bold md:hidden">&times;</button>
+            </div>
+            <form id="form-producto" class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+                    <div><label class="block text-sm font-medium mb-1">Nombre</label><input type="text" id="prod-nombre" required class="w-full px-3 py-2 border rounded-md"></div>
+                    <div><label class="block text-sm font-medium mb-1">Categoría</label><select id="prod-categoria" required class="w-full px-3 py-2 border rounded-md bg-white"></select></div>
+                    <div><label class="block text-sm font-medium text-emerald-700 mb-1">SKU</label><input type="text" id="prod-sku" readonly class="w-full px-3 py-2 border border-slate-200 rounded-md bg-slate-100 text-slate-500 font-mono font-bold cursor-not-allowed shadow-inner focus:outline-none"></div>
+                </div>
+                <div class="bg-slate-50 p-4 md:p-6 rounded-lg border overflow-x-auto">
+                    <h4 class="font-bold text-slate-700 mb-4 whitespace-nowrap">Conversión de Unidades Inteligente</h4>
+                    <div class="flex gap-2 items-end mb-4 text-center min-w-max">
+                        <div class="w-16"><label class="block text-xs font-bold text-gray-500 mb-1">Cant.</label><input type="text" value="1" disabled class="w-full px-2 py-2 border rounded-md bg-gray-100 font-bold text-center"></div>
+                        <div class="w-40 md:w-48"><label class="block text-xs font-bold text-gray-500 mb-1">1. U. COMPRA</label><select id="prod-u-compra" required class="w-full px-2 py-2 border rounded-md bg-white"></select></div>
+                        <div class="w-20 md:w-24 pb-2 text-slate-400 font-bold text-xs uppercase">▶ Contiene ▶</div>
+                        <div class="w-20"><label class="block text-xs font-bold text-gray-500 mb-1">Cant.</label><input type="number" step="0.0001" id="prod-cant-ua" required class="w-full px-2 py-2 border rounded-md text-center"></div>
+                        <div class="w-40 md:w-48"><label class="block text-xs font-bold text-gray-500 mb-1">2. U. ALMACÉN</label><select id="prod-u-almacen" required class="w-full px-2 py-2 border rounded-md bg-white"></select></div>
+                    </div>
+                    <div class="flex gap-2 items-end mb-4 text-center min-w-max">
+                        <div class="w-16"></div><div class="w-40 md:w-48"></div>
+                        <div class="w-20 md:w-24 pb-2 text-slate-400 font-bold text-xs uppercase">▶ Contiene ▶</div>
+                        <div class="w-20"><label class="block text-xs font-bold text-gray-500 mb-1">Cant.</label><input type="number" step="0.0001" id="prod-cant-um" required class="w-full px-2 py-2 border rounded-md text-center"></div>
+                        <div class="w-40 md:w-48"><label class="block text-xs font-bold text-gray-500 mb-1">3. U. MENOR</label><select id="prod-u-menor" required class="w-full px-2 py-2 border rounded-md bg-white"></select></div>
+                    </div>
+                    <div class="flex gap-2 items-end text-center min-w-max">
+                        <div class="w-16"></div><div class="w-40 md:w-48"></div>
+                        <div class="w-20 md:w-24 pb-2 text-slate-400 font-bold text-xs uppercase">▶ Contiene ▶</div>
+                        <div class="w-20"><label class="block text-xs font-bold text-gray-500 mb-1">Cant.</label><input type="number" step="0.0001" id="prod-cant-ur" required class="w-full px-2 py-2 border rounded-md text-center"></div>
+                        <div class="w-40 md:w-48"><label class="block text-xs font-bold text-gray-500 mb-1">4. U. RECETA</label><select id="prod-u-receta" required class="w-full px-2 py-2 border rounded-md bg-white"></select></div>
+                    </div>
+                </div>
+                <div class="bg-orange-50 p-4 md:p-6 rounded-lg border border-orange-100">
+                    <h4 class="font-bold text-orange-800 mb-4">Reglas de Inventario por Sucursal (en UA)</h4>
+                    <div id="contenedor-reglas-stock" class="space-y-3"></div>
+                </div>
+                <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 flex items-center gap-4">
+                    <label class="flex items-center gap-2 font-bold text-blue-800 cursor-pointer">
+                        <input type="checkbox" id="prod-tiene-receta" class="w-5 h-5 accent-blue-600"> Este producto tiene Receta / Ficha Técnica
+                    </label>
+                </div>
+                <div class="flex flex-col-reverse md:flex-row justify-end gap-3 md:gap-4 mt-6">
+                    <button type="button" onclick="cerrarModalProducto()" class="w-full md:w-auto px-6 py-3 md:py-2 border text-gray-700 rounded-md hover:bg-gray-50 font-bold text-center">Cancelar</button>
+                    <button type="submit" id="btn-guardar-producto" class="w-full md:w-auto px-8 py-3 md:py-2 bg-emerald-600 text-white rounded-md font-bold shadow-sm text-center">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-precios-proveedor" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-2 md:p-4">
+        <div class="bg-white p-4 md:p-6 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col border border-slate-200">
+            <div class="flex justify-between items-center mb-4 border-b pb-3">
+                <h2 class="text-lg md:text-xl font-bold text-slate-800 truncate" id="titulo-precios-prov">💰 Lista Precios</h2>
+                <button type="button" onclick="document.getElementById('modal-precios-proveedor').classList.add('hidden')" class="text-slate-400 hover:text-slate-800 text-3xl font-bold">&times;</button>
+            </div>
+            <form id="form-precio-prov" class="bg-slate-50 p-3 md:p-4 rounded-lg border border-slate-200 mb-4 md:mb-6 flex flex-col md:flex-row gap-3 md:items-end">
+                <div class="flex-1"><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Producto</label><select id="pp-producto" required class="w-full px-3 py-2 border rounded-md bg-white outline-none focus:ring-2 focus:ring-emerald-500"></select></div>
+                <div class="w-full md:w-32"><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Precio Ref. ($)</label><input type="number" step="0.01" id="pp-precio" required class="w-full px-3 py-2 border rounded-md outline-none focus:ring-2 focus:ring-emerald-500"></div>
+                <button type="submit" class="w-full md:w-auto px-6 py-2 bg-emerald-600 text-white font-bold rounded-md hover:bg-emerald-700 shadow-sm h-[40px]">Añadir</button>
+            </form>
+            <div class="flex-1 overflow-auto border rounded-lg w-full">
+                <table class="min-w-full divide-y divide-slate-200">
+                    <thead class="bg-slate-100 text-xs font-bold text-slate-500 uppercase sticky top-0"><tr><th class="px-4 py-2 text-left">Producto</th><th class="px-4 py-2 text-right">Precio</th><th class="px-4 py-2 text-center w-16">Acción</th></tr></thead>
+                    <tbody id="lista-precios-prov" class="divide-y divide-slate-100 text-sm"><tr><td colspan="3" class="text-center py-4 text-slate-500">Sin precios registrados.</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-historial-precios" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-2 md:p-4">
+        <div class="bg-white p-4 md:p-6 rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col border border-slate-200">
+            <div class="flex justify-between items-center mb-4 border-b pb-3">
+                <h2 class="text-lg md:text-xl font-bold text-slate-800">💰 Precios Compra</h2>
+                <button type="button" onclick="document.getElementById('modal-historial-precios').classList.add('hidden')" class="text-slate-400 hover:text-slate-800 text-3xl font-bold">&times;</button>
+            </div>
+            <p class="text-sm font-bold text-emerald-700 mb-4 truncate" id="hp-producto-nombre">-</p>
+            <div class="bg-slate-50 border rounded-lg overflow-auto flex-1 w-full">
+                <table class="min-w-full divide-y divide-slate-200">
+                    <thead class="bg-slate-100 text-xs font-bold text-slate-500 uppercase sticky top-0"><tr><th class="px-4 py-2 text-left">Fecha</th><th class="px-4 py-2 text-left">Proveedor</th><th class="px-4 py-2 text-right">Precio (UC)</th></tr></thead>
+                    <tbody id="lista-historial-precios" class="divide-y divide-slate-100 text-sm whitespace-nowrap"><tr><td colspan="3" class="text-center py-4 text-slate-500">Buscando...</td></tr></tbody>
+                </table>
+            </div>
+            <div class="mt-4 flex justify-end w-full"><button type="button" onclick="document.getElementById('modal-historial-precios').classList.add('hidden')" class="w-full md:w-auto px-4 py-3 md:py-2 bg-slate-200 text-slate-700 font-bold rounded hover:bg-slate-300">Cerrar</button></div>
+        </div>
+    </div>
+
+    <div id="modal-recepcion-masiva" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-2 md:p-4">
+        <div class="bg-white p-4 md:p-6 rounded-xl shadow-2xl w-full max-w-5xl max-h-[95vh] flex flex-col border-t-4 border-blue-500" id="rm-borde-modal">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 border-b pb-3 gap-2">
+                <div>
+                    <h2 class="text-xl md:text-2xl font-bold text-slate-800" id="rm-titulo-modal">📦 Recepción</h2>
+                    <div class="flex flex-wrap items-center gap-2 mt-1">
+                        <p class="text-xs md:text-sm font-medium text-slate-500">De: <span id="rm-proveedor" class="font-bold text-slate-800"></span> | A: <span id="rm-sucursal" class="font-bold text-slate-800"></span></p>
+                        <div id="rm-contacto-container"></div>
+                    </div>
+                </div>
+                <div class="text-left md:text-right hidden sm:block">
+                    <p class="text-xs font-bold text-slate-400 uppercase">Fecha Recepción</p>
+                    <p class="text-lg font-bold text-slate-700" id="rm-fecha-hoy"></p>
+                </div>
+            </div>
+            <div class="flex-1 overflow-auto bg-slate-50 border rounded-lg shadow-inner w-full">
+                <table class="min-w-full divide-y divide-slate-200">
+                    <thead class="bg-slate-200 sticky top-0 z-10 shadow-sm text-xs font-bold text-slate-600 uppercase">
+                        <tr><th class="px-4 py-3 text-left whitespace-nowrap">Producto Esperado</th><th class="px-4 py-3 text-center w-24">Cant.</th><th class="px-4 py-3 text-left w-48" id="rm-titulo-estado">Estado</th><th class="px-4 py-3 text-left min-w-[200px]">Detalles</th></tr>
+                    </thead>
+                    <tbody id="rm-filas" class="divide-y divide-slate-200 bg-white"></tbody>
+                </table>
+            </div>
+            <div class="flex flex-col-reverse md:flex-row justify-end gap-3 mt-4 pt-4 border-t w-full">
+                <button type="button" onclick="document.getElementById('modal-recepcion-masiva').classList.add('hidden')" class="w-full md:w-auto px-6 py-3 md:py-2 border text-slate-600 rounded font-bold text-center">Cancelar</button>
+                <button type="button" id="btn-guardar-recepcion" onclick="guardarRecepcionMasiva()" class="w-full md:w-auto px-8 py-3 md:py-2 bg-blue-600 text-white rounded font-bold shadow-md text-center">✅ Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-conteo-masivo" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-2 md:p-4">
+        <div class="bg-white p-4 md:p-8 rounded-xl shadow-2xl w-full max-w-4xl max-h-[95vh] flex flex-col border border-slate-200">
+            <h2 class="text-xl md:text-2xl font-bold text-slate-800 mb-1 md:mb-2">🎯 Conteo Físico Masivo</h2>
+            <p class="text-xs md:text-sm text-slate-500 mb-4 md:mb-6">Sucursal: <span id="cm-sucursal-nombre" class="font-bold text-emerald-700"></span></p>
+            <div class="mb-4">
+                <label class="block text-sm font-bold mb-1">Ubicación a contar:</label>
+                <select id="cm-ubicacion" onchange="cargarFilasConteoMasivo(this.value)" class="w-full md:w-1/2 px-3 py-2 md:py-3 border border-emerald-300 rounded-md bg-emerald-50 focus:ring-2 focus:ring-emerald-500 font-medium outline-none text-sm md:text-base"></select>
+            </div>
+            <div class="flex-1 overflow-auto border rounded-lg bg-slate-50 mb-4 md:mb-6 shadow-inner pb-32 w-full">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-slate-200 sticky top-0 z-10 shadow-sm"><tr><th class="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Producto</th><th class="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase w-20 hidden sm:table-cell">Unid.</th><th class="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase w-32">Cant.</th><th class="px-4 py-3 text-right text-xs font-bold text-slate-600 uppercase w-12 md:w-16">Quitar</th></tr></thead>
+                    <tbody id="cm-filas" class="divide-y divide-gray-200 bg-white"><tr><td colspan="4" class="text-center text-slate-400 py-8 text-sm">Selecciona una ubicación arriba.</td></tr></tbody>
+                </table>
+            </div>
+            <div class="flex flex-col md:flex-row justify-between items-stretch md:items-center mt-auto border-t pt-4 gap-4 w-full">
+                <button type="button" onclick="agregarFilaConteo()" class="w-full md:w-auto px-4 py-3 md:py-2 text-sm font-bold text-emerald-700 bg-emerald-100 rounded-md shadow-sm">+ Agregar Producto</button>
+                <div class="flex flex-col-reverse md:flex-row gap-3 w-full md:w-auto">
+                    <button type="button" onclick="document.getElementById('modal-conteo-masivo').classList.add('hidden')" class="w-full md:w-auto px-6 py-3 md:py-2 border text-gray-700 rounded-md text-center font-bold">Cancelar</button>
+                    <button type="button" id="btn-guardar-conteo" onclick="guardarConteoMasivo()" class="w-full md:w-auto px-8 py-3 md:py-2 bg-emerald-600 text-white rounded-md font-bold shadow-md text-center">Guardar ✅</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-ajuste-rapido" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white p-6 md:p-8 rounded-xl shadow-2xl w-full max-w-sm border-t-4 border-orange-500">
+            <h2 class="text-lg md:text-xl font-bold text-slate-800 mb-1 truncate" id="ar-titulo">Producto</h2>
+            <p class="text-xs md:text-sm text-slate-500 mb-6 font-medium">📍 <span id="ar-ubi"></span></p>
+            <form id="form-ajuste-rapido" class="space-y-4">
+                <input type="hidden" id="ar-id-saldo"><input type="hidden" id="ar-id-prod">
+                <div>
+                    <label class="block text-sm font-bold mb-1 text-orange-700">Ajustar Cantidad Exacta</label>
+                    <div class="flex items-center gap-2">
+                        <input type="number" step="0.01" id="ar-cant" required class="w-full px-3 py-3 border rounded-md focus:ring-2 focus:ring-orange-500 outline-none text-2xl font-bold text-center"><span id="ar-abrev" class="text-lg font-bold text-slate-400"></span>
+                    </div>
+                </div>
+                <div class="flex flex-col-reverse md:flex-row justify-end gap-3 mt-6 border-t pt-4">
+                    <button type="button" onclick="document.getElementById('modal-ajuste-rapido').classList.add('hidden')" class="w-full md:w-auto px-4 py-3 md:py-2 border text-gray-700 rounded-md text-center font-bold">Cancelar</button>
+                    <button type="submit" class="w-full md:w-auto px-6 py-3 md:py-2 bg-orange-600 text-white rounded-md font-bold shadow-sm text-center">Aplicar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-historial" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-0 md:p-4 sm:p-2">
+        <div class="bg-white p-4 md:p-6 rounded-none md:rounded-xl shadow-2xl w-full h-full md:h-auto md:max-h-[85vh] max-w-3xl flex flex-col border border-slate-200 relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 to-indigo-600"></div>
+            <div class="flex justify-between items-start mb-4 md:mb-6 pt-4 border-b pb-4">
+                <div class="pr-4">
+                    <h2 class="text-xl md:text-2xl font-bold text-slate-800" id="hm-titulo">Kardex (Historial)</h2>
+                    <p class="text-xs md:text-sm font-bold text-blue-600 mt-1" id="hm-subtitulo">Producto: -</p>
+                </div>
+                <button onclick="document.getElementById('modal-historial').classList.add('hidden')" class="text-slate-400 hover:text-slate-800 text-4xl leading-none">&times;</button>
+            </div>
+            <div class="flex-1 overflow-y-auto pl-2 pr-2 md:pl-4">
+                <div class="relative border-l-2 border-slate-200 ml-2 md:ml-3 space-y-6 md:space-y-8 pb-8" id="hm-timeline"><p class="text-center py-8 text-slate-500">Cargando...</p></div>
+            </div>
+            <div class="mt-4 pt-4 border-t flex justify-end w-full">
+                <button type="button" onclick="document.getElementById('modal-historial').classList.add('hidden')" class="w-full md:w-auto px-6 py-3 md:py-2 bg-slate-100 text-slate-700 font-bold rounded-lg hover:bg-slate-200">Cerrar</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="modal-detalles-orden" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-2 md:p-4">
+        <div class="bg-white p-4 md:p-6 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col border-t-4 border-slate-800">
+            <div class="flex justify-between items-center mb-4 border-b pb-3">
+                <h2 class="text-xl md:text-2xl font-bold text-slate-800">📋 Detalles de la Orden</h2>
+                <button type="button" onclick="document.getElementById('modal-detalles-orden').classList.add('hidden')" class="text-slate-400 hover:text-slate-800 text-3xl font-bold">&times;</button>
+            </div>
+            <p class="text-sm text-slate-500 mb-4 font-medium">Proveedor / Origen: <span id="do-proveedor" class="font-bold text-slate-800"></span></p>
+            
+            <div class="flex-1 overflow-auto border rounded-lg shadow-inner bg-slate-50 w-full">
+                <table class="min-w-full divide-y divide-slate-200">
+                    <thead class="bg-slate-200 sticky top-0 text-xs font-bold text-slate-600 uppercase">
+                        <tr><th class="px-4 py-2 text-left min-w-[200px]">Producto</th><th class="px-4 py-2 text-center">Cant.</th><th class="px-4 py-2 text-left min-w-[200px]">Destino / Ubicación</th><th class="px-4 py-2 text-center">Estado</th><th class="px-4 py-2 text-left">Notas</th></tr>
+                    </thead>
+                    <tbody id="do-filas" class="divide-y divide-slate-200 bg-white text-sm"></tbody>
+                </table>
+            </div>
+            <div class="mt-4 pt-4 border-t flex justify-end">
+                <button type="button" onclick="document.getElementById('modal-detalles-orden').classList.add('hidden')" class="px-6 py-2 bg-slate-100 text-slate-700 font-bold rounded hover:bg-slate-200">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-detalles-ventas" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-2 md:p-4">
+        <div class="bg-white p-4 md:p-6 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col border-t-4 border-blue-500">
+            <div class="flex justify-between items-center mb-4 border-b pb-3">
+                <h2 class="text-xl md:text-2xl font-bold text-slate-800">📊 Detalles de Descuento POS</h2>
+                <button type="button" onclick="document.getElementById('modal-detalles-ventas').classList.add('hidden')" class="text-slate-400 hover:text-slate-800 text-3xl font-bold">&times;</button>
+            </div>
+            <p class="text-sm text-slate-500 mb-4 font-medium">Período Procesado: <span id="dv-periodo" class="font-bold text-blue-700 bg-blue-50 border border-blue-100 px-2 py-1 rounded"></span></p>
+            
+            <div class="flex-1 overflow-auto border rounded-lg shadow-inner bg-slate-50 w-full">
+                <table class="min-w-full divide-y divide-slate-200">
+                    <thead class="bg-slate-200 sticky top-0 text-xs font-bold text-slate-600 uppercase">
+                        <tr>
+                            <th class="px-4 py-2 text-left min-w-[200px]">Producto / Insumo</th>
+                            <th class="px-4 py-2 text-center">Cant. Descontada</th>
+                            <th class="px-4 py-2 text-left min-w-[150px]">Bodega/Ubicación</th>
+                            <th class="px-4 py-2 text-left">Referencia / Motivo</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dv-filas" class="divide-y divide-slate-200 bg-white text-sm"></tbody>
+                </table>
+            </div>
+            <div class="mt-4 pt-4 border-t flex justify-end">
+                <button type="button" onclick="document.getElementById('modal-detalles-ventas').classList.add('hidden')" class="px-6 py-2 bg-slate-100 text-slate-700 font-bold rounded hover:bg-slate-200">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
     <script src="js/supabase.js"></script>
     <script src="js/app.js"></script>
     <script src="js/catalogos.js"></script>
