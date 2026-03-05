@@ -176,7 +176,6 @@ window.cargarFilasConteoMasivo = async function(idUbicacion) {
     }
 }
 
-// Carga las filas que YA existen (no son editables el nombre)
 window.agregarFilaConteoFija = function(idProd, nombre, abrev, cantActual) {
     const tbody = document.getElementById('cm-filas');
     if(tbody.innerHTML.includes('No hay productos')) tbody.innerHTML = '';
@@ -199,7 +198,6 @@ window.agregarFilaConteoFija = function(idProd, nombre, abrev, cantActual) {
     tbody.appendChild(tr);
 }
 
-// NUEVO: Agrega una fila con el BUSCADOR INTELIGENTE
 window.contadorFilasNuevasConteo = 0;
 window.agregarFilaConteo = function() {
     const tbody = document.getElementById('cm-filas');
@@ -235,11 +233,9 @@ window.agregarFilaConteo = function() {
         <td class="py-3 px-4 text-right"><button onclick="this.closest('tr').remove()" class="text-red-400 hover:text-red-600 text-lg">🗑️</button></td>
     `;
     tbody.appendChild(tr);
-    // Auto abrir el dropdown al crear la fila para fluidez
     setTimeout(() => document.getElementById(`search-cm-prod-${idx}`).focus(), 50);
 }
 
-// LOGICA DROPDOWN CONTEO
 window.abrirDropdownConteo = function(index) {
     document.querySelectorAll('.lista-dropdown-custom').forEach(el => el.classList.add('hidden'));
     window.filtrarDropdownConteo(index, ''); 
@@ -282,32 +278,27 @@ window.crearNuevoProductoDesdeConteo = function(index) {
     document.getElementById(`dropdown-cm-${index}`).classList.add('hidden');
     window.selectConteoActivoIndex = index; 
     const inputActual = document.getElementById(`search-cm-prod-${index}`).value;
-    window.abrirModalProducto(false, inputActual); // Abre modal con el texto que había escrito
+    window.abrirModalProducto(false, inputActual); 
 }
 
-// Función global que se llama al guardar un producto nuevo desde cualquier lado
 window.actualizarSelectsMapeoCSV = async function(nuevoIdProducto) {
     const { data: prodsERP } = await clienteSupabase.from('productos').select('id, nombre, id_unidad_almacenamiento(abreviatura)').eq('id_empresa', window.miEmpresaId).order('nombre');
     
-    // Actualizamos las memorias
-    window.productosERPGlobal = prodsERP || []; // Para Ventas POS
-    window.productosGlobalConteo = prodsERP || []; // Para Conteo Masivo
+    window.productosERPGlobal = prodsERP || []; 
+    window.productosGlobalConteo = prodsERP || []; 
 
-    // Si viene de Ventas POS
     if (window.selectCSVActivoIndex !== null && nuevoIdProducto) {
         const nuevoProd = window.productosERPGlobal.find(p => p.id === nuevoIdProducto);
         if(nuevoProd) window.seleccionarProductoCSV(window.selectCSVActivoIndex, nuevoProd.id, nuevoProd.nombre);
         window.selectCSVActivoIndex = null; 
     }
 
-    // Si viene del Conteo Masivo
     if (window.selectConteoActivoIndex !== null && nuevoIdProducto) {
         const nuevoProd = window.productosGlobalConteo.find(p => p.id === nuevoIdProducto);
         if(nuevoProd) window.seleccionarProductoConteo(window.selectConteoActivoIndex, nuevoProd.id, nuevoProd.nombre, nuevoProd.id_unidad_almacenamiento?.abreviatura || 'UA');
         window.selectConteoActivoIndex = null; 
     }
 }
-
 
 window.guardarConteoMasivo = async function() {
     const ubiSelect = document.getElementById('cm-ubicacion').value;
@@ -359,13 +350,13 @@ window.guardarConteoMasivo = async function() {
 // ==========================================
 // --- KARDEX: LÍNEA DE TIEMPO (TIMELINE) ---
 // ==========================================
-window.abrirHistorial = async function(idProd, nombreProd) {
+// Notar el cambio de nombre de función a abrirHistorialKardex para que coincida con el HTML
+window.abrirHistorialKardex = async function(idProd, nombreProd) {
     document.getElementById('hm-subtitulo').innerText = `Producto: ${nombreProd}`;
     document.getElementById('modal-historial').classList.remove('hidden');
     const timeline = document.getElementById('hm-timeline');
     timeline.innerHTML = '<p class="text-center py-8 text-slate-500">⏳ Trazando movimientos...</p>';
 
-    // 1. Buscamos TODOS los movimientos (ordenados del más antiguo al más nuevo para calcular)
     const { data } = await clienteSupabase.from('movimientos_inventario')
         .select('fecha_movimiento, tipo_movimiento, cantidad_movida, referencia, ubicaciones_internas(nombre)')
         .eq('id_empresa', window.miEmpresaId)
@@ -377,14 +368,12 @@ window.abrirHistorial = async function(idProd, nombreProd) {
         return;
     }
 
-    // 2. Calculamos el "Stock Acumulado" paso a paso
     let saldoAcumulado = 0;
     const movimientosCalculados = data.map(d => {
         saldoAcumulado += d.cantidad_movida;
         return { ...d, saldoAcumulado };
-    }).reverse(); // Volteamos la lista para mostrar el más nuevo arriba
+    }).reverse();
 
-    // 3. Dibujamos la línea de tiempo
     timeline.innerHTML = movimientosCalculados.map(d => {
         const f = new Date(d.fecha_movimiento);
         const fecha = f.toLocaleDateString('es-CL') + ' ' + f.toLocaleTimeString('es-CL', {hour: '2-digit', minute:'2-digit'});
@@ -416,60 +405,6 @@ window.abrirHistorial = async function(idProd, nombreProd) {
             </div>
         </div>`;
     }).join('');
-}
-
-    let html = '';
-    
-    // Nodos de Movimientos
-    movs.forEach(m => {
-        const ubi = m.ubicaciones_internas?.nombre || 'General';
-        const isPositivo = m.cantidad_movida > 0;
-        const isCero = m.cantidad_movida === 0; // A veces hay ajustes nulos
-        
-        let colorPunto = 'bg-slate-400';
-        let colorCaja = 'bg-white border-slate-200';
-        let colorTexto = 'text-slate-700';
-        let icono = '🔄';
-
-        if(isPositivo) {
-            colorPunto = 'bg-emerald-500'; colorCaja = 'bg-emerald-50 border-emerald-100'; colorTexto = 'text-emerald-700'; icono = '📥';
-        } else if (!isCero) {
-            colorPunto = 'bg-red-500'; colorCaja = 'bg-red-50 border-red-100'; colorTexto = 'text-red-700'; icono = '📤';
-        }
-
-        const signo = isPositivo ? '+' : '';
-        const fecha = new Date(m.fecha_movimiento).toLocaleString();
-
-        html += `
-        <div class="relative flex items-start group hover:-translate-y-0.5 transition-transform">
-            <div class="absolute -left-[9px] top-1 w-4 h-4 ${colorPunto} rounded-full border-4 border-white shadow z-10 group-hover:scale-125 transition-transform"></div>
-            
-            <div class="ml-6 ${colorCaja} px-4 py-3 rounded-lg border w-full shadow-sm">
-                <div class="flex justify-between items-start mb-1">
-                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wide">${fecha}</p>
-                    <span class="font-mono text-lg font-black ${colorTexto}">${signo}${m.cantidad_movida} <span class="text-xs">${abrev}</span></span>
-                </div>
-                <p class="font-bold text-slate-800 text-sm flex items-center gap-2"><span>${icono}</span> ${m.tipo_movimiento}</p>
-                <div class="mt-2 text-xs text-slate-500 flex justify-between items-end">
-                    <p>📍 <span class="font-medium">${ubi}</span></p>
-                    <p class="italic">"${m.referencia || 'Sin detalle'}"</p>
-                </div>
-            </div>
-        </div>`;
-    });
-
-    // Nodo Final (Origen del producto)
-    html += `
-        <div class="relative flex items-start group mt-4">
-            <div class="absolute -left-[9px] top-1 w-4 h-4 bg-indigo-500 rounded-full border-4 border-white shadow"></div>
-            <div class="ml-6 bg-indigo-50 px-4 py-3 rounded-lg border border-indigo-100 w-full">
-                <p class="text-xs font-bold text-indigo-400 uppercase mb-1">${new Date(prodInfo.created_at).toLocaleString()}</p>
-                <p class="font-bold text-indigo-700">Producto Registrado en el Sistema 🐣</p>
-            </div>
-        </div>
-    `;
-
-    container.innerHTML = html;
 }
 
 // --- FUNCIÓN PARA ABRIR MODAL DE AJUSTE RÁPIDO ---
