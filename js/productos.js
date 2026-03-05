@@ -25,13 +25,28 @@ window.abrirModalProducto = async function(esEdicion = false, nombreSugerido = '
     });
     document.getElementById('contenedor-reglas-stock').innerHTML = htmlReglas;
 
+    // AÑADIMOS EL NUEVO INTERRUPTOR DE CONTROL DE STOCK (Si no existe en el DOM, lo creamos dinámicamente)
+    if(!document.getElementById('contenedor-control-stock')) {
+        const contenedorTipoReceta = document.getElementById('prod-tiene-receta').parentElement;
+        const htmlInterruptor = `
+            <div id="contenedor-control-stock" class="mt-4 p-4 bg-blue-50 border border-blue-100 rounded-lg flex items-start gap-3">
+                <input type="checkbox" id="prod-control-stock" class="mt-1 w-4 h-4 text-blue-600 rounded border-blue-300 focus:ring-blue-500 cursor-pointer" checked>
+                <div>
+                    <label for="prod-control-stock" class="font-bold text-blue-900 cursor-pointer block">¿Lleva control de stock físico?</label>
+                    <p class="text-xs text-blue-700 mt-1 leading-tight">Apágalo solo si es un producto "Fantasma" (Ej: Un combo o un plato que se prepara al momento) para que el sistema no te exija tenerlo en bodega y descuente directamente sus ingredientes al venderlo.</p>
+                </div>
+            </div>
+        `;
+        contenedorTipoReceta.insertAdjacentHTML('afterend', htmlInterruptor);
+    }
+
     if(!esEdicion) {
         window.cancelarEdicion('producto');
         document.getElementById('titulo-modal-producto').innerText = "Nuevo Producto / Insumo";
         const aleatorio = Math.random().toString(36).substring(2, 8).toUpperCase();
         document.getElementById('prod-sku').value = 'PRD-' + aleatorio;
+        if(document.getElementById('prod-control-stock')) document.getElementById('prod-control-stock').checked = true;
         
-        // AUTO-LLENADO DEL NOMBRE SI VIENE SUGERIDO DESDE EL CSV
         if (nombreSugerido) {
             document.getElementById('prod-nombre').value = nombreSugerido;
         }
@@ -81,40 +96,46 @@ document.getElementById('prod-u-menor')?.addEventListener('change', () => { proc
 window.cargarProductos = async function() {
     const lista = document.getElementById('lista-productos');
     
-    // EL FRENO DE EMERGENCIA: Si la tabla no existe en esta vista, detenemos la función aquí mismo.
     if (!lista) {
-        // Si estamos en la vista de inventario, recargamos el inventario visualmente
         if(document.getElementById('cuerpo-inventario')) window.cargarInventario();
         return; 
     }
     
-    // Mensaje de carga mientras busca en la base de datos
-    lista.innerHTML = '<tr><td colspan="3" class="text-center py-8 text-slate-400 font-bold">⏳ Cargando catálogo...</td></tr>';
+    lista.innerHTML = '<tr><td colspan="4" class="text-center py-8 text-slate-400 font-bold">⏳ Cargando catálogo...</td></tr>';
 
     const { data } = await clienteSupabase.from('productos').select('*').eq('id_empresa', window.miEmpresaId).order('nombre');
     
-    lista.innerHTML = (data||[]).map(p => `
-        <tr class="hover:bg-slate-50 border-b transition-colors cursor-pointer" onclick="toggleFilaProducto('acciones-${p.id}')">
-            <td class="px-6 py-4 font-medium">${p.nombre}</td>
-            <td class="px-6 py-4 text-center">${p.tiene_receta ? '<span class="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold border border-blue-200">Con Receta</span>' : '<span class="text-gray-400 text-xs">Simple</span>'}</td>
-            <td class="px-6 py-4 text-right text-slate-400 text-xs">Opciones ▼</td>
+    lista.innerHTML = (data||[]).map(p => {
+        const labelStock = p.control_stock === false 
+            ? '<span class="px-2 py-1 bg-slate-100 text-slate-600 rounded-full text-[10px] font-bold uppercase tracking-wider border border-slate-200">👻 Fantasma (Sin Stock)</span>' 
+            : '<span class="px-2 py-1 bg-emerald-50 text-emerald-700 rounded-full text-[10px] font-bold uppercase tracking-wider border border-emerald-200">📦 Bodega Física</span>';
+
+        const labelReceta = p.tiene_receta 
+            ? '<span class="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold border border-blue-200">Con Receta</span>' 
+            : '<span class="text-gray-400 text-xs italic">Simple</span>';
+
+        return `
+        <tr class="hover:bg-slate-50 border-b transition-colors cursor-pointer group" onclick="toggleFilaProducto('acciones-${p.id}')">
+            <td class="px-6 py-4 font-medium text-slate-800 group-hover:text-emerald-700 transition-colors">${p.nombre}</td>
+            <td class="px-6 py-4 text-center">${labelStock}</td>
+            <td class="px-6 py-4 text-center">${labelReceta}</td>
+            <td class="px-6 py-4 text-right text-slate-400 text-xs no-print">Opciones ▼</td>
         </tr>
-        <tr id="acciones-${p.id}" class="hidden bg-slate-100/60 border-b border-slate-200 shadow-inner">
-            <td colspan="3" class="px-6 py-3">
+        <tr id="acciones-${p.id}" class="hidden bg-slate-100/60 border-b border-slate-200 shadow-inner no-print">
+            <td colspan="4" class="px-6 py-3">
                 <div class="flex justify-end gap-6 items-center">
-                    ${p.tiene_receta ? `<button onclick="abrirReceta('${p.id}', '${p.nombre}')" class="text-emerald-700 font-bold hover:underline flex items-center gap-1"><span>📝</span> Receta</button>` : ''}
-                    <button onclick="editarProductoFull('${p.id}')" class="text-blue-600 font-bold hover:underline flex items-center gap-1 text-lg">✏️ Editar</button>
-                    <button onclick="eliminarReg('productos', '${p.id}'); cargarProductos();" class="text-red-600 font-bold hover:underline flex items-center gap-1 text-lg">🗑️ Eliminar</button>
+                    ${p.tiene_receta ? `<button onclick="abrirReceta('${p.id}', '${p.nombre.replace(/'/g, "\\'")}')" class="text-emerald-700 font-bold hover:underline flex items-center gap-1 bg-white px-3 py-1.5 rounded shadow-sm border border-emerald-200"><span>📝</span> Construir Receta</button>` : ''}
+                    <button onclick="editarProductoFull('${p.id}')" class="text-blue-600 font-bold hover:underline flex items-center gap-1 text-sm bg-white px-3 py-1.5 rounded shadow-sm border border-blue-200">✏️ Editar Detalles</button>
+                    <button onclick="eliminarReg('productos', '${p.id}'); cargarProductos();" class="text-red-600 font-bold hover:underline flex items-center gap-1 text-sm bg-white px-3 py-1.5 rounded shadow-sm border border-red-200">🗑️ Eliminar</button>
                 </div>
             </td>
         </tr>
-    `).join('');
+    `}).join('');
 }
 
 window.editarProductoFull = async function(id) {
     const { data } = await clienteSupabase.from('productos').select('*').eq('id', id).single();
     
-    // Primero abrimos el modal para que dibuje las sucursales vacías
     await window.abrirModalProducto(true); 
 
     document.getElementById('prod-nombre').value = data.nombre;
@@ -129,7 +150,12 @@ window.editarProductoFull = async function(id) {
     document.getElementById('prod-u-receta').value = data.id_unidad_receta;
     document.getElementById('prod-tiene-receta').checked = data.tiene_receta;
     
-    // Cargar las reglas por sucursal guardadas en la BD
+    const checkControl = document.getElementById('prod-control-stock');
+    if(checkControl) {
+        // Si data.control_stock es estrictamente false, lo apagamos. Si es true o null, lo prendemos.
+        checkControl.checked = data.control_stock !== false; 
+    }
+
     const { data: reglas } = await clienteSupabase.from('reglas_stock_sucursal').select('*').eq('id_producto', id);
     (reglas || []).forEach(r => {
         const inputMin = document.getElementById(`regla-min-${r.id_sucursal}`);
@@ -146,6 +172,11 @@ window.editarProductoFull = async function(id) {
 
 document.getElementById('form-producto')?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    
+    // Capturamos el valor del interruptor (si no existe el elemento en el DOM, asumimos true por seguridad)
+    const checkControl = document.getElementById('prod-control-stock');
+    const valorControlStock = checkControl ? checkControl.checked : true;
+
     const payload = {
         nombre: document.getElementById('prod-nombre').value, 
         sku: document.getElementById('prod-sku').value, 
@@ -157,7 +188,8 @@ document.getElementById('form-producto')?.addEventListener('submit', async (e) =
         id_unidad_menor: document.getElementById('prod-u-menor').value, 
         cant_en_ur_de_um: parseFloat(document.getElementById('prod-cant-ur').value),
         id_unidad_receta: document.getElementById('prod-u-receta').value, 
-        tiene_receta: document.getElementById('prod-tiene-receta').checked
+        tiene_receta: document.getElementById('prod-tiene-receta').checked,
+        control_stock: valorControlStock // GUARDAMOS EL NUEVO VALOR EN BD
     };
     
     let idProdActual = null;
@@ -170,37 +202,31 @@ document.getElementById('form-producto')?.addEventListener('submit', async (e) =
         if(nuevoProd) idProdActual = nuevoProd.id;
     }
 
-    // --- GUARDAR REGLAS DE STOCK POR SUCURSAL ---
-    if(idProdActual) {
+    if(idProdActual && valorControlStock === true) {
         const { data: sucursales } = await clienteSupabase.from('sucursales').select('id').eq('id_empresa', window.miEmpresaId);
-        
         for (const suc of sucursales) {
             const valMin = parseFloat(document.getElementById(`regla-min-${suc.id}`)?.value) || 0;
             const valIdeal = parseFloat(document.getElementById(`regla-ideal-${suc.id}`)?.value) || 0;
-
-            const { data: existeRegla } = await clienteSupabase.from('reglas_stock_sucursal')
-                .select('id').eq('id_producto', idProdActual).eq('id_sucursal', suc.id).maybeSingle();
-            
+            const { data: existeRegla } = await clienteSupabase.from('reglas_stock_sucursal').select('id').eq('id_producto', idProdActual).eq('id_sucursal', suc.id).maybeSingle();
             if(existeRegla) {
                 await clienteSupabase.from('reglas_stock_sucursal').update({ stock_minimo_ua: valMin, stock_ideal_ua: valIdeal }).eq('id', existeRegla.id);
             } else {
                 await clienteSupabase.from('reglas_stock_sucursal').insert([{ 
-                    id_empresa: window.miEmpresaId, id_producto: idProdActual, id_sucursal: suc.id, 
-                    stock_minimo_ua: valMin, stock_ideal_ua: valIdeal 
+                    id_empresa: window.miEmpresaId, id_producto: idProdActual, id_sucursal: suc.id, stock_minimo_ua: valMin, stock_ideal_ua: valIdeal 
                 }]);
             }
         }
+    } else if (idProdActual && valorControlStock === false) {
+        // Si el usuario decidió que es un producto fantasma, borramos sus reglas de stock mínimo para no causar falsas alertas.
+        await clienteSupabase.from('reglas_stock_sucursal').delete().eq('id_producto', idProdActual);
     }
 
     window.cerrarModalProducto();
     
-    // VERIFICAR DESDE DÓNDE SE ABRIÓ EL MODAL PARA ACTUALIZAR LO CORRECTO
     const panelCSV = document.getElementById('panel-mapeo-csv');
-    
     if(window.productoActualParaReceta) {
         await window.actualizarSelectInsumos(); 
     } else if (panelCSV && !panelCSV.classList.contains('hidden') && typeof window.actualizarSelectsMapeoCSV === 'function') {
-        // SI ESTAMOS EN EL CSV, REFRESCAR LOS SELECTS SIN PERDER DATOS
         await window.actualizarSelectsMapeoCSV(idProdActual);
     } else {
         window.cargarProductos();
@@ -324,29 +350,25 @@ window.quitarIngrediente = async function(id) {
 // ==========================================
 
 window.exportarProductosCSV = function() {
-    // 1. Tomamos los datos limpios de la memoria global
     if (!window.productosERPGlobal || window.productosERPGlobal.length === 0) {
         return alert("No hay productos para exportar.");
     }
 
-    // 2. Armamos la cabecera (Esta será la plantilla)
-    let csvContent = "Nombre,Categoria_ID,Unidad_Compra_ID,Cant_UA_por_UC,Unidad_Almacen_ID,Tiene_Receta\n";
+    let csvContent = "Nombre,Categoria_ID,Unidad_Compra_ID,Cant_UA_por_UC,Unidad_Almacen_ID,Tiene_Receta,Control_Fisico\n";
 
-    // 3. Llenamos las filas
     window.productosERPGlobal.forEach(p => {
-        // Escapamos comillas por si un producto tiene una coma en su nombre
         let nombre = p.nombre ? `"${p.nombre.replace(/"/g, '""')}"` : "";
         let idCat = p.id_categoria || "";
         let idUC = p.id_unidad_compra?.id || "";
         let factor = p.cant_en_ua_de_uc || "1";
         let idUA = p.id_unidad_almacenamiento?.id || "";
         let tieneReceta = p.tiene_receta ? "TRUE" : "FALSE";
+        let controlFisico = p.control_stock !== false ? "TRUE" : "FALSE";
         
-        csvContent += `${nombre},${idCat},${idUC},${factor},${idUA},${tieneReceta}\n`;
+        csvContent += `${nombre},${idCat},${idUC},${factor},${idUA},${tieneReceta},${controlFisico}\n`;
     });
 
-    // 4. Forzamos la descarga del archivo en el navegador
-    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' }); // \uFEFF es para que Excel lea los acentos (UTF-8)
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' }); 
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
@@ -361,10 +383,8 @@ window.importarProductosCSV = function(inputElement) {
     const file = inputElement.files[0];
     if (!file) return;
 
-    // Reseteamos el input para que permita subir el mismo archivo dos veces si se equivocó
     inputElement.value = '';
 
-    // Usamos PapaParse para leer el CSV mágicamente
     Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
@@ -372,7 +392,6 @@ window.importarProductosCSV = function(inputElement) {
             const filas = results.data;
             if(filas.length === 0) return alert("El archivo está vacío.");
             
-            // Verificamos que tenga la columna principal de nuestra plantilla
             if(!filas[0].hasOwnProperty('Nombre')) {
                 return alert("❌ Formato incorrecto. Por favor descarga la plantilla con el botón Exportar primero.");
             }
@@ -380,7 +399,6 @@ window.importarProductosCSV = function(inputElement) {
             let insertados = 0;
             let omitidos = 0;
 
-            // Mostramos feedback al usuario
             const tbody = document.getElementById('lista-productos');
             tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-emerald-600 font-bold animate-pulse">⏳ Importando y validando ${filas.length} productos...</td></tr>`;
 
@@ -388,15 +406,13 @@ window.importarProductosCSV = function(inputElement) {
                 const nombre = fila['Nombre']?.trim();
                 if (!nombre) continue;
 
-                // PROTECCIÓN: Revisamos si ya existe un producto con ese nombre exacto
                 const existe = window.productosERPGlobal.some(p => p.nombre.toLowerCase() === nombre.toLowerCase());
                 
                 if (existe) {
                     omitidos++;
-                    continue; // Nos saltamos este para no sobreescribir ni duplicar
+                    continue; 
                 }
 
-                // Preparamos los datos con valores por defecto si dejaron la celda en blanco
                 const payload = {
                     id_empresa: window.miEmpresaId,
                     nombre: nombre,
@@ -404,17 +420,17 @@ window.importarProductosCSV = function(inputElement) {
                     id_unidad_compra: fila['Unidad_Compra_ID'] || null,
                     cant_en_ua_de_uc: fila['Cant_UA_por_UC'] ? parseFloat(fila['Cant_UA_por_UC']) : 1,
                     id_unidad_almacenamiento: fila['Unidad_Almacen_ID'] || null,
-                    tiene_receta: fila['Tiene_Receta'] === 'TRUE'
+                    tiene_receta: fila['Tiene_Receta'] === 'TRUE',
+                    control_stock: fila['Control_Fisico'] === 'FALSE' ? false : true
                 };
 
-                // Insertamos en Supabase
                 const { error } = await clienteSupabase.from('productos').insert([payload]);
                 if (!error) insertados++;
             }
 
             alert(`✅ Importación terminada.\n\nNuevos agregados: ${insertados}\nDuplicados omitidos: ${omitidos}`);
-            window.cargarProductos(); // Recargamos la tabla para ver los cambios
-            if(window.cargarDatosSelects) window.cargarDatosSelects(); // Actualizamos variables globales
+            window.cargarProductos(); 
+            if(window.cargarDatosSelects) window.cargarDatosSelects(); 
         },
         error: function(err) {
             alert("Error leyendo el archivo CSV: " + err.message);
