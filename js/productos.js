@@ -79,8 +79,21 @@ document.getElementById('prod-u-almacen')?.addEventListener('change', () => { pr
 document.getElementById('prod-u-menor')?.addEventListener('change', () => { procesarUnidadInteligente('prod-u-menor', [{select:'receta', cant:'ur'}]); });
 
 window.cargarProductos = async function() {
+    const lista = document.getElementById('lista-productos');
+    
+    // EL FRENO DE EMERGENCIA: Si la tabla no existe en esta vista, detenemos la función aquí mismo.
+    if (!lista) {
+        // Si estamos en la vista de inventario, recargamos el inventario visualmente
+        if(document.getElementById('cuerpo-inventario')) window.cargarInventario();
+        return; 
+    }
+    
+    // Mensaje de carga mientras busca en la base de datos
+    lista.innerHTML = '<tr><td colspan="3" class="text-center py-8 text-slate-400 font-bold">⏳ Cargando catálogo...</td></tr>';
+
     const { data } = await clienteSupabase.from('productos').select('*').eq('id_empresa', window.miEmpresaId).order('nombre');
-    document.getElementById('lista-productos').innerHTML = (data||[]).map(p => `
+    
+    lista.innerHTML = (data||[]).map(p => `
         <tr class="hover:bg-slate-50 border-b transition-colors cursor-pointer" onclick="toggleFilaProducto('acciones-${p.id}')">
             <td class="px-6 py-4 font-medium">${p.nombre}</td>
             <td class="px-6 py-4 text-center">${p.tiene_receta ? '<span class="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold border border-blue-200">Con Receta</span>' : '<span class="text-gray-400 text-xs">Simple</span>'}</td>
