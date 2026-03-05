@@ -4,30 +4,56 @@ window.unidadesMemoria = [];
 window.modoEdicion = { activo: false, id: null, form: null };
 window.usuarioActual = 'Equipo'; 
 
-// --- LOGIN Y SESIÓN ---
+// --- LOGIN Y SESIÓN MULTI-EMPRESA ---
 document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const { data, error } = await clienteSupabase.auth.signInWithPassword({ 
-        email: document.getElementById('email').value, 
-        password: document.getElementById('password').value 
-    });
-    if (error) return alert("❌ Credenciales incorrectas");
-    
-    const { data: perfil } = await clienteSupabase.from('perfiles').select('id_empresa, nombre').eq('id_usuario', data.user.id).single();
-    if (!perfil) return alert("Usuario sin empresa asignada");
-    
-    window.miEmpresaId = perfil.id_empresa;
-    window.usuarioActual = perfil.nombre || 'Equipo';
+    const emailInput = document.getElementById('email').value;
+    const passwordInput = document.getElementById('password').value;
 
-    document.getElementById('user-email-dropdown').innerText = data.user.email;
+    // 1. Autenticar en Supabase
+    const { data, error } = await clienteSupabase.auth.signInWithPassword({ email: emailInput, password: passwordInput });
+    if (error) return alert("❌ Credenciales incorrectas");
+
+    // 2. Buscar a cuántas empresas pertenece este usuario
+    const { data: empresasAsignadas } = await clienteSupabase.from('usuarios_empresas').select('id_empresa, nombre_empresa').eq('id_usuario', data.user.id);
+
+    if (!empresasAsignadas || empresasAsignadas.length === 0) {
+        return alert("❌ Usuario sin empresas asignadas. Contacta al soporte.");
+    }
+
+    // 3. Lógica de redirección
+    document.getElementById('login-container').classList.add('hidden');
+
+    if (empresasAsignadas.length === 1) {
+        // Si solo tiene una, entra directo (Flujo transparente)
+        window.iniciarSesionEmpresa(empresasAsignadas[0].id_empresa, empresasAsignadas[0].nombre_empresa, emailInput);
+    } else {
+        // Si tiene varias, mostramos el selector
+        document.getElementById('selector-empresa-container').classList.remove('hidden');
+        document.getElementById('lista-empresas-usuario').innerHTML = empresasAsignadas.map(emp => `
+            <button onclick="iniciarSesionEmpresa('${emp.id_empresa}', '${emp.nombre_empresa}', '${emailInput}')" class="w-full text-left px-6 py-4 border border-slate-200 rounded-xl hover:bg-emerald-50 hover:border-emerald-500 transition-all font-bold text-slate-700 shadow-sm flex items-center justify-between group">
+                <span>🏢 ${emp.nombre_empresa}</span>
+                <span class="text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity">Entrar →</span>
+            </button>
+        `).join('');
+    }
+});
+
+// 4. Función que arranca el sistema una vez elegida la empresa
+window.iniciarSesionEmpresa = function(idEmpresa, nombreEmpresa, emailUsuario) {
+    window.miEmpresaId = idEmpresa;
+    window.usuarioActual = emailUsuario.split('@')[0]; // Usamos la primera parte del correo como nombre
+
+    // Ocultamos el selector si estaba abierto y mostramos el dashboard
+    document.getElementById('selector-empresa-container')?.classList.add('hidden');
+    document.getElementById('dashboard-container').classList.remove('hidden');
+
+    document.getElementById('user-email-dropdown').innerText = emailUsuario;
     document.getElementById('user-name-display').innerText = window.usuarioActual;
 
-    document.getElementById('login-container').classList.add('hidden');
-    document.getElementById('dashboard-container').classList.remove('hidden');
-    
     window.actualizarBadgeCarrito(); // Revisa la memoria al entrar
     window.cambiarVista('dashboard');
-});
+};
 
 window.cerrarSesion = function() { location.reload(); }
 
