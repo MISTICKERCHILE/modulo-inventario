@@ -26,10 +26,21 @@
 
 <h3 class="text-slate-500 font-bold text-xs uppercase tracking-widest mb-4">Acciones Rápidas</h3>
 <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-    <button onclick="irASubirVentas()" class="flex flex-col items-center p-4 bg-white border rounded-xl hover:border-emerald-500 hover:shadow-md transition-all group">
-        <span class="text-3xl mb-2 group-hover:scale-110 transition-transform">💰</span>
-        <span class="text-[10px] font-black uppercase text-slate-500">Ingresar Ventas</span>
-    </button>
+    <div onclick="irASubirVentas()" class="bg-white rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md hover:border-purple-300 transition-all cursor-pointer group relative overflow-hidden">
+    <div class="absolute top-0 right-0 w-16 h-16 bg-purple-50 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-150"></div>
+    <div class="flex justify-between items-start mb-4 relative z-10">
+        <div class="p-3 bg-purple-100 text-purple-600 rounded-lg"><span class="text-2xl">📊</span></div>
+        <div class="text-right">
+            <span class="text-4xl font-black text-slate-800" id="widget-pos-num">-</span>
+            <p class="text-[10px] font-bold text-slate-400 uppercase">Días transcurridos</p>
+        </div>
+    </div>
+    <h3 class="font-bold text-slate-700 text-lg mb-1 relative z-10">Último Ingreso POS</h3>
+    <div class="relative z-10">
+        <p class="text-xs text-slate-500" id="widget-pos-fecha">Cargado el: --/--/--</p>
+        <p class="text-[10px] text-purple-600 font-bold truncate mt-1" id="widget-pos-periodo">Periodo: Sin datos</p>
+    </div>
+</div>
     <button onclick="cambiarVista('movimientos'); setTimeout(()=>cambiarTabMovimientos('compras'), 150)" class="flex flex-col items-center p-4 bg-white border rounded-xl hover:border-emerald-500 hover:shadow-md transition-all group">
         <span class="text-3xl mb-2 group-hover:scale-110 transition-transform">🛒</span>
         <span class="text-[10px] font-black uppercase text-slate-500">Ingresar Compra</span>
