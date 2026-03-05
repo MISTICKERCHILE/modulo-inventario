@@ -21,12 +21,18 @@
             </div>
             
             <div class="flex mb-6 border-b">
-                <button id="tab-login" onclick="toggleAuthMode('login')" class="flex-1 pb-2 border-b-2 border-emerald-600 font-bold text-emerald-600 outline-none">Entrar</button>
-                <button id="tab-register" onclick="toggleAuthMode('register')" class="flex-1 pb-2 font-bold text-slate-400 outline-none hover:text-emerald-500">Registrarse</button>
+                <button id="tab-login" onclick="toggleAuthMode('login')" class="flex-1 pb-2 border-b-2 border-emerald-600 font-bold text-emerald-600 outline-none transition-colors">Entrar</button>
+                <button id="tab-register" onclick="toggleAuthMode('register')" class="flex-1 pb-2 font-bold text-slate-400 outline-none hover:text-emerald-500 transition-colors">Registrarse</button>
             </div>
 
             <form id="auth-form" class="space-y-4">
                 <input type="hidden" id="auth-mode" value="login">
+                
+                <div id="register-fields" class="hidden space-y-4 mb-4">
+                    <input type="text" id="reg-nombre" placeholder="Nombre y Apellido" class="w-full px-3 py-3 border rounded-md outline-none focus:ring-2 focus:ring-emerald-500">
+                    <input type="tel" id="reg-telefono" placeholder="Teléfono (Opcional)" class="w-full px-3 py-3 border rounded-md outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+
                 <input type="email" id="email" placeholder="Correo electrónico" required class="w-full px-3 py-3 border rounded-md outline-none focus:ring-2 focus:ring-emerald-500">
                 <input type="password" id="password" placeholder="Contraseña" required class="w-full px-3 py-3 border rounded-md outline-none focus:ring-2 focus:ring-emerald-500">
                 <button type="submit" id="auth-btn" class="w-full py-3 bg-emerald-600 text-white rounded-md font-bold hover:bg-emerald-700 transition-colors shadow-sm">Entrar al Sistema</button>
