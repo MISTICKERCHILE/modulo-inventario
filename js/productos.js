@@ -337,6 +337,9 @@ document.getElementById('form-producto')?.addEventListener('submit', async (e) =
 });
 
 // --- RECETAS Y BUSCADOR ---
+// ==========================================
+// --- RECETAS Y BUSCADOR INTELIGENTE ---
+// ==========================================
 window.cargarBuscadorRecetas = async function() {
     const { data } = await clienteSupabase.from('productos').select('id, nombre').eq('id_empresa', window.miEmpresaId).eq('tiene_receta', true).order('nombre');
     const sel = document.getElementById('buscador-recetas');
@@ -346,10 +349,8 @@ window.cargarBuscadorRecetas = async function() {
     
     if(window.productoActualParaReceta) {
         sel.value = window.productoActualParaReceta;
-        document.getElementById('msj-receta-vacia').classList.add('hidden');
-        document.getElementById('panel-receta-activa').classList.remove('hidden');
-        document.getElementById('panel-estadisticas-receta').classList.remove('hidden');
-        document.getElementById('receta-unidad-base').classList.remove('hidden');
+        // Si ya hay una receta activa en memoria, la vuelve a cargar suavemente
+        window.abrirReceta(window.productoActualParaReceta, null, true);
     } else {
         document.getElementById('msj-receta-vacia').classList.remove('hidden');
         document.getElementById('panel-receta-activa').classList.add('hidden');
@@ -364,18 +365,190 @@ window.seleccionarRecetaDesdeBuscador = function(id) {
     window.abrirReceta(id, sel.options[sel.selectedIndex].text);
 };
 
-window.abrirReceta = async function(idProducto, nombre) {
+window.abrirReceta = async function(idProducto, nombre, esRecarga = false) {
     window.productoActualParaReceta = idProducto;
     const { data: prodFinal } = await clienteSupabase.from('productos').select('rendimiento_receta, id_unidad_receta(abreviatura)').eq('id', idProducto).single();
     
-    const abrev = prodFinal?.id_unidad_receta?.abreviatura || 'un';
-    document.getElementById('receta-unidad-base').innerText = `Unidad base: ${abrev}`;
-    document.getElementById('receta-label-rendimiento').innerText = abrev;
-    document.getElementById('receta-rendimiento').value = prodFinal?.rendimiento_receta || 1;
-    
     await window.actualizarSelectInsumos();
-    window.cambiarVista('recetas');
+    
+    // EVITAR EL ERROR DE CARGA: Solo cambia de vista si no estamos ya en la pantalla de recetas
+    const vistaRecetasActiva = document.getElementById('receta-titulo');
+    if(!vistaRecetasActiva && !esRecarga) {
+        await window.cambiarVista('recetas');
+    }
+    
+    // REVELAR LOS PANELES
+    const msjVacio = document.getElementById('msj-receta-vacia');
+    if(msjVacio) {
+        msjVacio.classList.add('hidden');
+        document.getElementById('panel-receta-activa').classList.remove('hidden');
+        document.getElementById('panel-estadisticas-receta').classList.remove('hidden');
+        document.getElementById('receta-unidad-base').classList.remove('hidden');
+    }
+
+    // INYECTAR DATOS
+    const abrev = prodFinal?.id_unidad_receta?.abreviatura || 'un';
+    const elUnidadBase = document.getElementById('receta-unidad-base');
+    const elLabelRendimiento = document.getElementById('receta-label-rendimiento');
+    const elInputRendimiento = document.getElementById('receta-rendimiento');
+
+    if(elUnidadBase) elUnidadBase.innerText = `Unidad base: ${abrev}`;
+    if(elLabelRendimiento) elLabelRendimiento.innerText = abrev;
+    if(elInputRendimiento) elInputRendimiento.value = prodFinal?.rendimiento_receta || 1;
+    
     window.cargarIngredientesReceta();
+}
+
+window.actualizarSelectInsumos = async function() {
+    const { data: prods } = await clienteSupabase.from('productos').select('id, nombre, id_unidad_receta(abreviatura)').eq('id_empresa', window.miEmpresaId).order('nombre');
+    window.productosParaRecetaMemoria = prods || [];
+}
+
+window.abrirDropdownIngrediente = function() {
+    const dropdown = document.getElementById('dropdown-ingrediente');
+    if(dropdown) dropdown.classList.remove('hidden');
+    
+    const inputBusqueda = document.getElementById('search-ingrediente');
+    window.filtrarDropdownIngrediente(inputBusqueda ? inputBusqueda.value : '');
+    
+    if(inputBusqueda) inputBusqueda.select();
+}
+
+window.filtrarDropdownIngrediente = function(texto) {
+    const term = (texto || '').toLowerCase().trim();
+    let filtrados = window.productosParaRecetaMemoria || [];
+    if(term) filtrados = filtrados.filter(p => (p.nombre || '').toLowerCase().includes(term));
+    
+    let html = filtrados.map(p => `<li class="px-3 py-2 hover:bg-emerald-50 cursor-pointer" onclick="seleccionarIngrediente('${p.id}', '${p.nombre.replace(/'/g, "\\'")}', '${p.id_unidad_receta?.abreviatura||'-'}')">${p.nombre}</li>`).join('');
+    html += `<li class="px-3 py-3 hover:bg-emerald-100 cursor-pointer font-bold text-emerald-700 bg-slate-50 border-t" onclick="crearNuevoProductoDesdeReceta()">➕ Crear Nuevo Insumo...</li>`;
+    
+    const ul = document.getElementById('ul-ingrediente');
+    if(ul) ul.innerHTML = html;
+}
+
+window.seleccionarIngrediente = function(id, nombre, abrev) {
+    document.getElementById('hidden-ingrediente').value = id;
+    document.getElementById('search-ingrediente').value = nombre;
+    document.getElementById('search-ingrediente').classList.remove('border-red-300');
+    document.getElementById('label-unidad-ingrediente').innerText = abrev;
+    document.getElementById('dropdown-ingrediente').classList.add('hidden');
+}
+
+window.crearNuevoProductoDesdeReceta = function() {
+    document.getElementById('dropdown-ingrediente').classList.add('hidden');
+    const nombreSugerido = document.getElementById('search-ingrediente').value;
+    window.abrirModalProducto(false, nombreSugerido);
+}
+
+window.guardarRendimiento = async function() {
+    await clienteSupabase.from('productos').update({ rendimiento_receta: parseFloat(document.getElementById('receta-rendimiento').value) }).eq('id', window.productoActualParaReceta);
+    window.cargarIngredientesReceta();
+}
+
+window.cargarIngredientesReceta = async function() {
+    const { data } = await clienteSupabase.from('recetas')
+        .select('id, id_ingrediente, cantidad_neta, id_ingrediente(id, nombre, ultimo_costo_uc, cant_en_ua_de_uc, cant_en_um_de_ua, cant_en_ur_de_um, id_unidad_receta(abreviatura))')
+        .eq('id_producto_padre', window.productoActualParaReceta);
+
+    let costoTotalReceta = 0;
+
+    const listaIngredientes = document.getElementById('lista-ingredientes-receta');
+    if(!listaIngredientes) return;
+
+    listaIngredientes.innerHTML = (data||[]).map(r => {
+        const ing = r.id_ingrediente;
+        const f_ua = ing.cant_en_ua_de_uc || 1;
+        const f_um = ing.cant_en_um_de_ua || 1;
+        const f_ur = ing.cant_en_ur_de_um || 1;
+
+        const costo_uc = ing.ultimo_costo_uc || 0;
+        const costo_ur = costo_uc / (f_ua * f_um * f_ur);
+        const costo_linea = costo_ur * r.cantidad_neta;
+
+        costoTotalReceta += costo_linea;
+
+        return `
+        <tr class="border-b hover:bg-slate-50 items-center transition-colors">
+            <td class="py-3 px-4 text-sm font-medium text-slate-700 w-1/2">${ing.nombre}</td>
+            <td class="py-3 px-4 text-center font-bold text-slate-600 bg-slate-50 border-x border-slate-100">${r.cantidad_neta} <span class="text-xs font-normal text-slate-400">${ing.id_unidad_receta?.abreviatura || ''}</span></td>
+            <td class="py-3 px-4 text-right font-mono text-emerald-700 font-bold">$${costo_linea.toFixed(2)}</td>
+            <td class="py-3 px-4 text-right flex justify-end gap-3">
+                <button type="button" onclick="editarIngredienteReceta('${r.id}', '${ing.id}', '${r.cantidad_neta}', '${ing.nombre.replace(/'/g, "\\'")}', '${ing.id_unidad_receta?.abreviatura || ''}')" class="text-blue-500 hover:text-blue-700 text-lg transition-transform hover:scale-110">✏️</button>
+                <button type="button" onclick="quitarIngrediente('${r.id}')" class="text-red-400 hover:text-red-600 text-lg transition-transform hover:scale-110">🗑️</button>
+            </td>
+        </tr>`;
+    }).join('');
+
+    const elRendimiento = document.getElementById('receta-rendimiento');
+    const rendimiento = elRendimiento ? (parseFloat(elRendimiento.value) || 1) : 1;
+    
+    const costoUnitarioNeto = costoTotalReceta / rendimiento;
+    const costoUnitarioConIva = costoUnitarioNeto * 1.19;
+
+    const elCostoUni = document.getElementById('receta-costo-unitario');
+    const elCostoIva = document.getElementById('receta-costo-iva');
+
+    if(elCostoUni) elCostoUni.innerText = `$${costoUnitarioNeto.toFixed(2)}`;
+    if(elCostoIva) elCostoIva.innerText = `$${costoUnitarioConIva.toFixed(2)}`;
+}
+
+window.editarIngredienteReceta = function(idReceta, idInsumo, cantidad, nombreInsumo, abrevInsumo) {
+    document.getElementById('hidden-ingrediente').value = idInsumo;
+    document.getElementById('search-ingrediente').value = nombreInsumo;
+    document.getElementById('label-unidad-ingrediente').innerText = abrevInsumo;
+    document.getElementById('ing-cantidad').value = cantidad;
+    
+    window.modoEdicion = { activo: true, id: idReceta, form: 'ingrediente' };
+    
+    const btnSubmit = document.querySelector(`#form-ingrediente button[type="submit"]`);
+    if(btnSubmit) {
+        btnSubmit.innerText = 'Actualizar';
+        btnSubmit.classList.replace('bg-emerald-600', 'bg-blue-600');
+    }
+    document.getElementById('btn-cancelar-ingrediente').classList.remove('hidden');
+}
+
+document.getElementById('form-ingrediente')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const idIngredienteSeleccionado = document.getElementById('hidden-ingrediente').value;
+    
+    if(!idIngredienteSeleccionado) {
+        document.getElementById('search-ingrediente').classList.add('border-red-300');
+        return alert("Debes seleccionar un insumo válido de la lista desplegable.");
+    }
+
+    const payload = { 
+        id_producto_padre: window.productoActualParaReceta, 
+        id_ingrediente: idIngredienteSeleccionado, 
+        cantidad_neta: document.getElementById('ing-cantidad').value 
+    };
+    
+    if(window.modoEdicion.activo && window.modoEdicion.form === 'ingrediente') {
+        await clienteSupabase.from('recetas').update(payload).eq('id', window.modoEdicion.id);
+    } else {
+        await clienteSupabase.from('recetas').insert([{...payload, id_empresa: window.miEmpresaId}]);
+    }
+    
+    document.getElementById('form-ingrediente').reset();
+    document.getElementById('hidden-ingrediente').value = '';
+    document.getElementById('label-unidad-ingrediente').innerText = '';
+    window.modoEdicion = { activo: false, id: null, form: null };
+    
+    const btnSubmit = document.querySelector(`#form-ingrediente button[type="submit"]`);
+    if(btnSubmit) {
+        btnSubmit.innerText = 'Añadir a la Receta';
+        btnSubmit.classList.replace('bg-blue-600', 'bg-emerald-600');
+    }
+    document.getElementById('btn-cancelar-ingrediente').classList.add('hidden');
+
+    window.cargarIngredientesReceta();
+});
+
+window.quitarIngrediente = async function(id) {
+    if(confirm("¿Seguro de quitar este ingrediente de la receta? 🗑️")) {
+        await clienteSupabase.from('recetas').delete().eq('id', id);
+        window.cargarIngredientesReceta();
+    }
 }
 
 window.actualizarSelectInsumos = async function() {
