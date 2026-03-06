@@ -13,13 +13,13 @@ window.cambiarSubTabPedidos = function(subtab) {
         if(divS) divS.classList.remove('hidden'); window.cargarPedidosPlanificados();
     } else if(subtab === 'transito') {
         if(btnT) btnT.className = 'px-6 py-3 font-medium border-b-2 border-blue-600 text-blue-600 bg-blue-50/50 whitespace-nowrap';
-        if(divT) divT.classList.remove('hidden'); 
+        if(divT) divT.classList.remove('hidden');
         const titulo = document.getElementById('transito-titulo-seccion');
         if(titulo) titulo.innerHTML = "🚚 Selecciona tu Sucursal para ver las <span class='text-blue-600'>Recepciones Pendientes</span>";
         window.cargarPedidosEnTransito('Externo');
     } else if(subtab === 'produccion') {
         if(btnP) btnP.className = 'px-6 py-3 font-medium border-b-2 border-purple-600 text-purple-600 bg-purple-50/50 whitespace-nowrap';
-        if(divT) divT.classList.remove('hidden'); 
+        if(divT) divT.classList.remove('hidden');
         const titulo = document.getElementById('transito-titulo-seccion');
         if(titulo) titulo.innerHTML = "🏭 Selecciona tu Sucursal para ver las <span class='text-purple-600'>Órdenes de Producción</span>";
         window.cargarPedidosEnTransito('Interno');
@@ -29,8 +29,8 @@ window.cambiarSubTabPedidos = function(subtab) {
 // ==========================================
 // --- SECCIÓN 1: PEDIDOS SUGERIDOS Y LOCALSTORAGE ---
 // ==========================================
-window.carritoPedidos = []; 
-window.proveedoresGlobal = []; 
+window.carritoPedidos = [];
+window.proveedoresGlobal = [];
 
 window.guardarCarritoEnMemoria = function() {
     localStorage.setItem('carrito_pedidos_' + window.miEmpresaId, JSON.stringify(window.carritoPedidos));
@@ -38,12 +38,18 @@ window.guardarCarritoEnMemoria = function() {
 }
 
 window.cargarPedidosPlanificados = async function() {
-    const guardado = localStorage.getItem('carrito_pedidos_' + window.miEmpresaId);
-    if(guardado) {
-        window.carritoPedidos = JSON.parse(guardado);
-        if(window.actualizarBadgeCarrito) window.actualizarBadgeCarrito();
-    } else {
+    try {
+        const guardado = localStorage.getItem('carrito_pedidos_' + window.miEmpresaId);
+        if(guardado) {
+            window.carritoPedidos = JSON.parse(guardado);
+            if(window.actualizarBadgeCarrito) window.actualizarBadgeCarrito();
+        } else {
+            window.carritoPedidos = [];
+        }
+    } catch(e) {
+        console.error("Error leyendo carrito de memoria:", e);
         window.carritoPedidos = [];
+        localStorage.removeItem('carrito_pedidos_' + window.miEmpresaId);
     }
 
     const [{ data: sucursales }, { data: prods }, { data: reglas }, { data: provs }, { data: saldos }, { data: transitoGlobal }] = await Promise.all([
@@ -62,19 +68,19 @@ window.cargarPedidosPlanificados = async function() {
 
     (sucursales||[]).forEach(suc => {
         let htmlFilasSucursal = '';
-        
+
         (prods||[]).forEach(p => {
             const regla = (reglas||[]).find(r => r.id_sucursal === suc.id && r.id_producto === p.id);
             if(!regla || regla.stock_minimo_ua <= 0) return;
 
-            const stockFisico = saldos.filter(s => s.id_sucursal === suc.id && s.id_producto === p.id).reduce((sum, s) => sum + Number(s.cantidad_actual_ua), 0);
+            const stockFisico = (saldos||[]).filter(s => s.id_sucursal === suc.id && s.id_producto === p.id).reduce((sum, s) => sum + Number(s.cantidad_actual_ua), 0);
             const incomingUA = (transitoGlobal||[]).filter(t => t.id_sucursal_destino === suc.id && t.id_producto === p.id)
                                 .reduce((sum, t) => sum + (t.cantidad_uc * (t.productos?.cant_en_ua_de_uc || 1)), 0);
 
             const stockVirtual = stockFisico + incomingUA;
 
             if (stockVirtual <= regla.stock_minimo_ua) {
-                const sugeridoUA = regla.stock_ideal_ua > 0 ? (regla.stock_ideal_ua - stockVirtual) : (regla.stock_minimo_ua - stockVirtual + 1); 
+                const sugeridoUA = regla.stock_ideal_ua > 0 ? (regla.stock_ideal_ua - stockVirtual) : (regla.stock_minimo_ua - stockVirtual + 1);
                 const sugeridoUC = p.cant_en_ua_de_uc > 0 ? (sugeridoUA / p.cant_en_ua_de_uc).toFixed(2) : sugeridoUA;
                 const abrevUA = p.id_unidad_almacenamiento?.abreviatura || 'UA';
                 const abrevUC = p.id_unidad_compra?.abreviatura || 'UC';
@@ -129,11 +135,11 @@ window.cargarPedidosPlanificados = async function() {
             </div>`;
         }
     });
-    
+
     const containerAlertas = document.getElementById('lista-alertas-compras');
     if(containerAlertas) containerAlertas.innerHTML = htmlGlobal || '<div class="p-8 text-center bg-emerald-50 rounded-xl border border-emerald-200 text-emerald-700 font-bold text-lg">🟢 Excelente. Todas las sucursales tienen stock (o pedidos en camino) suficientes.</div>';
 
-    window.renderizarBandejaPedidos(); 
+    window.renderizarBandejaPedidos();
 }
 
 window.abrirModalHistorialPrecios = async function(idProd, nombreProd) {
@@ -171,7 +177,7 @@ window.agregarPedidoAlCarrito = function(idSuc, nombreSuc, idProd, nombreProd, c
     const existente = window.carritoPedidos.find(item => item.idProd === idProd && item.idSuc === idSuc && item.idProv === idProv);
     if (existente) existente.cantUC += Number(cantUC);
     else window.carritoPedidos.push({ idSuc, nombreSuc, idProd, nombreProd, cantUC: Number(cantUC), abrevUC, precioRef, idProv, nombreProv });
-    
+
     window.guardarCarritoEnMemoria();
     window.renderizarBandejaPedidos();
     const fila = document.getElementById(`fila-sug-${idSuc}-${idProd}`);
@@ -201,6 +207,8 @@ window.actualizarCantCarrito = function(idSuc, idProd, idProv, nuevaCant) {
 window.renderizarBandejaPedidos = function() {
     const contenedor = document.getElementById('contenedor-bandeja');
     const lista = document.getElementById('lista-carritos-proveedor');
+    if (!contenedor || !lista) return;
+
     if (window.carritoPedidos.length === 0) { contenedor.classList.add('hidden'); lista.innerHTML = ''; return; }
     contenedor.classList.remove('hidden');
 
@@ -268,7 +276,7 @@ window.imprimirPedido = async function(idProv, nombreProv) {
     const nombreSuc = items[0].nombreSuc;
     const { data: sucData } = await clienteSupabase.from('sucursales').select('direccion').eq('id', idSuc).maybeSingle();
     const direccionStr = sucData?.direccion || 'No registrada';
-    
+
     const fechaHoy = new Date().toLocaleDateString('es-CL');
 
     let filasHtml = '';
@@ -298,7 +306,7 @@ window.imprimirPedido = async function(idProv, nombreProv) {
                 table { width: 100%; border-collapse: collapse; margin-top: 10px; }
                 th, td { border: 1px solid #000; padding: 12px 8px; text-align: left; }
                 th { background-color: #f1f5f9; font-weight: bold; text-transform: uppercase; font-size: 12px; }
-                thead { display: table-header-group; } 
+                thead { display: table-header-group; }
                 tr { page-break-inside: avoid; }
                 .prod-col { font-weight: bold; font-size: 14px; }
                 .text-center { text-align: center; }
@@ -319,7 +327,7 @@ window.imprimirPedido = async function(idProv, nombreProv) {
                 <thead><tr><th>Producto / Insumo</th><th style="width: 120px; text-align: center;">Cantidad</th><th style="width: 100px; text-align: center;">Unidad</th></tr></thead>
                 <tbody>${filasHtml}</tbody>
             </table>
-            <script>window.onload = function() { window.print(); setTimeout(function() { window.close(); }, 500); }</script>
+            <script>window.onload = function() { window.print(); setTimeout(function() { window.close(); }, 500); }<\/script>
         </body>
         </html>
     `);
@@ -331,7 +339,7 @@ window.whatsappPedido = async function(idProv, nombreProv) {
     if(items.length === 0) return alert("No hay productos en este pedido.");
 
     const { data: provData } = await clienteSupabase.from('proveedores').select('whatsapp').eq('id', idProv).maybeSingle();
-    let telf = provData?.whatsapp ? provData.whatsapp.replace(/\D/g,'') : ''; 
+    let telf = provData?.whatsapp ? provData.whatsapp.replace(/\D/g,'') : '';
 
     const nombreSuc = items[0].nombreSuc;
     const fechaHoy = new Date().toLocaleDateString('es-CL');
@@ -347,13 +355,14 @@ window.whatsappPedido = async function(idProv, nombreProv) {
 
     texto += `\nPor favor confirmar recepción. ¡Gracias!`;
 
-    const url = telf 
-        ? `https://wa.me/${telf}?text=${encodeURIComponent(texto)}` 
+    const url = telf
+        ? `https://wa.me/${telf}?text=${encodeURIComponent(texto)}`
         : `https://wa.me/?text=${encodeURIComponent(texto)}`;
-        
+
     window.open(url, '_blank');
 }
 
+// ==== LA FUNCIÓN BLINDADA CON TRY/CATCH ====
 window.generarPedidoTransitoMasivo = async function(idProv) {
     const itemsDelProveedor = window.carritoPedidos.filter(i => i.idProv === idProv);
     if(itemsDelProveedor.length === 0) return;
@@ -364,24 +373,39 @@ window.generarPedidoTransitoMasivo = async function(idProv) {
 
     const totalEstimado = itemsDelProveedor.reduce((sum, item) => sum + (item.cantUC * item.precioRef), 0);
 
-    const { data: cabecera } = await clienteSupabase.from('compras').insert([{ 
-        id_empresa: window.miEmpresaId, id_proveedor: idProv, total_compra: totalEstimado, estado: 'En Tránsito' 
-    }]).select('id').single();
+    try {
+        // Ponemos el cursor en espera para que el usuario sepa que está cargando
+        document.body.style.cursor = 'wait';
 
-    if(cabecera) {
-        const detallesAInsertar = itemsDelProveedor.map(item => ({
-            id_compra: cabecera.id, id_producto: item.idProd, id_sucursal_destino: item.idSuc, 
-            cantidad_uc: item.cantUC, precio_unitario_uc: item.precioRef, subtotal: item.cantUC * item.precioRef, estado: 'En Tránsito'
-        }));
-        await clienteSupabase.from('compras_detalles').insert(detallesAInsertar);
+        const { data: cabecera, error: errCabecera } = await clienteSupabase.from('compras').insert([{
+            id_empresa: window.miEmpresaId, id_proveedor: idProv, total_compra: totalEstimado, estado: 'En Tránsito'
+        }]).select('id').single();
+
+        if (errCabecera) throw errCabecera;
+
+        if(cabecera) {
+            const detallesAInsertar = itemsDelProveedor.map(item => ({
+                id_compra: cabecera.id, id_producto: item.idProd, id_sucursal_destino: item.idSuc,
+                cantidad_uc: item.cantUC, precio_unitario_uc: item.precioRef, subtotal: item.cantUC * item.precioRef, estado: 'En Tránsito'
+            }));
+            const { error: errDetalles } = await clienteSupabase.from('compras_detalles').insert(detallesAInsertar);
+            if (errDetalles) throw errDetalles;
+        }
+
+        // Limpiamos la memoria
+        window.carritoPedidos = window.carritoPedidos.filter(i => i.idProv !== idProv);
+        window.guardarCarritoEnMemoria();
+
+        window.renderizarBandejaPedidos();
+        window.cargarPedidosPlanificados();
+        alert("✅ Pedido/Orden generada exitosamente. Revisa las pestañas de Tránsito o Producción.");
+
+    } catch (error) {
+        console.error("Error al generar pedido:", error);
+        alert("❌ Ocurrió un error en la base de datos al guardar: " + error.message);
+    } finally {
+        document.body.style.cursor = 'default';
     }
-
-    window.carritoPedidos = window.carritoPedidos.filter(i => i.idProv !== idProv);
-    window.guardarCarritoEnMemoria();
-    
-    window.renderizarBandejaPedidos();
-    window.cargarPedidosPlanificados(); 
-    alert("✅ Pedido/Orden generada exitosamente. Revisa las pestañas de Tránsito o Producción.");
 }
 
 // ==========================================
@@ -389,7 +413,7 @@ window.generarPedidoTransitoMasivo = async function(idProv) {
 // ==========================================
 window.recepcionActivaSuc = null;
 window.recepcionActivaProv = null;
-window.tipoVistaTransitoActiva = 'Externo'; 
+window.tipoVistaTransitoActiva = 'Externo';
 
 window.cargarPedidosEnTransito = async function(tipoFiltro = 'Externo') {
     window.tipoVistaTransitoActiva = tipoFiltro;
@@ -398,7 +422,7 @@ window.cargarPedidosEnTransito = async function(tipoFiltro = 'Externo') {
 
     const { data: sucursales } = await clienteSupabase.from('sucursales').select('id, nombre').eq('id_empresa', window.miEmpresaId);
     const grid = document.getElementById('grid-sucursales-transito');
-    
+
     const isProd = tipoFiltro === 'Interno';
     const icon = isProd ? '🏭' : '🏢';
     const textDesc = isProd ? 'Ver tareas de producción →' : 'Ver camiones en camino →';
@@ -473,7 +497,7 @@ window.abrirModalRecepcionMasiva = async function(idSuc, nombreSuc, idProv, nomb
 
     document.getElementById('rm-titulo-modal').innerText = isProd ? "🏭 Registro de Trabajo / Producción" : "📦 Recepción de Pedido Externo";
     document.getElementById('rm-titulo-estado').innerText = isProd ? "Estado del Trabajo" : "Estado de Recepción";
-    
+
     const colorBorde = isProd ? 'border-purple-500' : 'border-blue-500';
     const modalBox = document.getElementById('rm-borde-modal');
     modalBox.classList.remove('border-blue-500', 'border-purple-500');
@@ -486,7 +510,7 @@ window.abrirModalRecepcionMasiva = async function(idSuc, nombreSuc, idProv, nomb
     const { data: provInfo } = await clienteSupabase.from('proveedores').select('whatsapp, correo').eq('id', idProv).single();
     let btnContactHTML = '';
     if(provInfo?.whatsapp) {
-        const telf = provInfo.whatsapp.replace(/\D/g,''); 
+        const telf = provInfo.whatsapp.replace(/\D/g,'');
         btnContactHTML = `<a href="https://wa.me/${telf}" target="_blank" class="text-[10px] bg-green-500 text-white px-2 py-1 rounded-full font-bold hover:bg-green-600 transition-colors flex items-center gap-1 shadow-sm">💬 Escribir</a>`;
     } else if (provInfo?.correo) {
         btnContactHTML = `<a href="mailto:${provInfo.correo}" target="_blank" class="text-[10px] bg-blue-500 text-white px-2 py-1 rounded-full font-bold hover:bg-blue-600 transition-colors flex items-center gap-1 shadow-sm">✉️ Correo</a>`;
@@ -515,7 +539,6 @@ window.abrirModalRecepcionMasiva = async function(idSuc, nombreSuc, idProv, nomb
         const labelPost = isPostpuesto ? `<span class="block mt-1 text-[10px] bg-yellow-100 text-yellow-800 px-2 py-1 rounded w-max">Estaba en espera</span>` : '';
         const colorInputCant = isProd ? 'text-purple-700' : 'text-emerald-700';
 
-        // INYECTAMOS EL ID DE LA COMPRA EN LA FILA (data-id-compra)
         return `
         <tr class="fila-recepcion border-b border-slate-100 hover:bg-slate-50 transition-colors" data-id-detalle="${d.id}" data-id-prod="${d.id_producto}" data-factor="${d.productos?.cant_en_ua_de_uc || 1}" data-precio-uc="${d.precio_unitario_uc}" data-id-compra="${d.compras.id}">
             <td class="px-4 py-3 font-bold text-slate-700 text-sm">${d.productos?.nombre} ${labelPost}</td>
@@ -554,9 +577,9 @@ window.abrirModalRecepcionMasiva = async function(idSuc, nombreSuc, idProv, nomb
 window.cambiarEstadoFilaRecepcion = function(selectTag, idFila, isProd) {
     const zonaRec = document.getElementById(`zona-recibido-${idFila}`);
     const zonaNoRec = document.getElementById(`zona-no-recibido-${idFila}`);
-    
+
     selectTag.className = "w-full px-2 py-2 border rounded text-sm font-bold outline-none focus:ring-2 select-estado-rec text-white shadow-inner";
-    
+
     if (selectTag.value === 'Recibido') {
         zonaRec.classList.remove('hidden'); zonaNoRec.classList.add('hidden');
         selectTag.classList.add(isProd ? 'bg-purple-600' : 'bg-emerald-600', isProd ? 'border-purple-600' : 'border-emerald-600');
@@ -572,7 +595,7 @@ window.cambiarEstadoFilaRecepcion = function(selectTag, idFila, isProd) {
 window.guardarRecepcionMasiva = async function() {
     const filas = document.querySelectorAll('.fila-recepcion');
     const isProd = window.tipoVistaTransitoActiva === 'Interno';
-    
+
     for (const fila of filas) {
         if(!fila.querySelector('.select-estado-rec').value) {
             return alert("❌ Debes seleccionar un estado para todos los productos de la lista.");
@@ -584,59 +607,62 @@ window.guardarRecepcionMasiva = async function() {
 
     const btn = document.getElementById('btn-guardar-recepcion');
     btn.innerText = "⏳ Guardando Inventario..."; btn.disabled = true;
-    
-    const comprasAfectadas = new Set(); // Guardará los ID de las órdenes que estamos cerrando
 
-    for (const fila of filas) {
-        const idDetalle = fila.getAttribute('data-id-detalle');
-        const idProd = fila.getAttribute('data-id-prod');
-        const idCompraPadre = fila.getAttribute('data-id-compra');
-        const factorConversion = parseFloat(fila.getAttribute('data-factor'));
-        const precioUC = parseFloat(fila.getAttribute('data-precio-uc'));
-        const estado = fila.querySelector('.select-estado-rec').value;
+    const comprasAfectadas = new Set();
 
-        if (estado === 'Recibido') {
-            const cantUC = parseFloat(fila.querySelector('.input-cant-real').value);
-            const idUbi = fila.querySelector('.select-ubi-rec').value || null;
-            const cantUA = cantUC * factorConversion;
+    try {
+        for (const fila of filas) {
+            const idDetalle = fila.getAttribute('data-id-detalle');
+            const idProd = fila.getAttribute('data-id-prod');
+            const idCompraPadre = fila.getAttribute('data-id-compra');
+            const factorConversion = parseFloat(fila.getAttribute('data-factor'));
+            const precioUC = parseFloat(fila.getAttribute('data-precio-uc'));
+            const estado = fila.querySelector('.select-estado-rec').value;
 
-            await clienteSupabase.from('compras_detalles').update({estado: 'Recibido'}).eq('id', idDetalle);
+            if (estado === 'Recibido') {
+                const cantUC = parseFloat(fila.querySelector('.input-cant-real').value);
+                const idUbi = fila.querySelector('.select-ubi-rec').value || null;
+                const cantUA = cantUC * factorConversion;
 
-            let query = clienteSupabase.from('inventario_saldos').select('id, cantidad_actual_ua').eq('id_producto', idProd).eq('id_sucursal', window.recepcionActivaSuc);
-            if(idUbi) query = query.eq('id_ubicacion', idUbi); else query = query.is('id_ubicacion', null);
-            
-            const { data: previo } = await query.maybeSingle();
-            if (previo) {
-                await clienteSupabase.from('inventario_saldos').update({ cantidad_actual_ua: previo.cantidad_actual_ua + cantUA, ultima_actualizacion: new Date() }).eq('id', previo.id);
+                await clienteSupabase.from('compras_detalles').update({estado: 'Recibido'}).eq('id', idDetalle);
+
+                let query = clienteSupabase.from('inventario_saldos').select('id, cantidad_actual_ua').eq('id_producto', idProd).eq('id_sucursal', window.recepcionActivaSuc);
+                if(idUbi) query = query.eq('id_ubicacion', idUbi); else query = query.is('id_ubicacion', null);
+
+                const { data: previo } = await query.maybeSingle();
+                if (previo) {
+                    await clienteSupabase.from('inventario_saldos').update({ cantidad_actual_ua: previo.cantidad_actual_ua + cantUA, ultima_actualizacion: new Date() }).eq('id', previo.id);
+                } else {
+                    await clienteSupabase.from('inventario_saldos').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_sucursal: window.recepcionActivaSuc, id_ubicacion: idUbi, cantidad_actual_ua: cantUA }]);
+                }
+
+                const refMov = isProd ? 'Producción Interna Terminada' : 'Recepción Masiva de Proveedor';
+                const tipoMov = isProd ? 'INGRESO_PRODUCCION' : 'INGRESO_COMPRA';
+
+                await clienteSupabase.from('movimientos_inventario').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_ubicacion: idUbi, tipo_movimiento: tipoMov, cantidad_movida: cantUA, costo_unitario_movimiento: precioUC, referencia: refMov }]);
+                if(!isProd) await clienteSupabase.from('productos').update({ ultimo_costo_uc: precioUC }).eq('id', idProd);
+
+                if(idCompraPadre) comprasAfectadas.add(idCompraPadre);
+
+            } else if (estado === 'No Recibido') {
+                const motivo = fila.querySelector('.input-motivo-rec').value;
+                await clienteSupabase.from('compras_detalles').update({estado: 'No Recibido', motivo_no_recepcion: motivo}).eq('id', idDetalle);
+
+                if(idCompraPadre) comprasAfectadas.add(idCompraPadre);
             } else {
-                await clienteSupabase.from('inventario_saldos').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_sucursal: window.recepcionActivaSuc, id_ubicacion: idUbi, cantidad_actual_ua: cantUA }]);
+                await clienteSupabase.from('compras_detalles').update({estado: 'Postpuesto'}).eq('id', idDetalle);
             }
-
-            const refMov = isProd ? 'Producción Interna Terminada' : 'Recepción Masiva de Proveedor';
-            const tipoMov = isProd ? 'INGRESO_PRODUCCION' : 'INGRESO_COMPRA';
-
-            await clienteSupabase.from('movimientos_inventario').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_ubicacion: idUbi, tipo_movimiento: tipoMov, cantidad_movida: cantUA, costo_unitario_movimiento: precioUC, referencia: refMov }]);
-            if(!isProd) await clienteSupabase.from('productos').update({ ultimo_costo_uc: precioUC }).eq('id', idProd);
-
-            // Si se recibió (o falló definitivamente), guardamos el ID para cerrarlo
-            if(idCompraPadre) comprasAfectadas.add(idCompraPadre);
-
-        } else if (estado === 'No Recibido') {
-            const motivo = fila.querySelector('.input-motivo-rec').value;
-            await clienteSupabase.from('compras_detalles').update({estado: 'No Recibido', motivo_no_recepcion: motivo}).eq('id', idDetalle);
-            
-            if(idCompraPadre) comprasAfectadas.add(idCompraPadre);
-        } else {
-            await clienteSupabase.from('compras_detalles').update({estado: 'Postpuesto'}).eq('id', idDetalle);
         }
-    }
 
-    // EL NUEVO CEREBRO: Actualiza el Estado Global a "Completada"
-    for(const idC of comprasAfectadas) {
-        await clienteSupabase.from('compras').update({estado: 'Completada'}).eq('id', idC);
-    }
+        for(const idC of comprasAfectadas) {
+            await clienteSupabase.from('compras').update({estado: 'Completada'}).eq('id', idC);
+        }
 
-    btn.innerText = "✅ Guardar Recepción"; btn.disabled = false;
-    document.getElementById('modal-recepcion-masiva').classList.add('hidden');
-    window.abrirTransitoSucursal(window.recepcionActivaSuc, document.getElementById('rm-sucursal').innerText.replace('🏭 En Producción para: ','').replace('🚚 En Camino a: ','')); 
+        btn.innerText = "✅ Guardar Recepción"; btn.disabled = false;
+        document.getElementById('modal-recepcion-masiva').classList.add('hidden');
+        window.abrirTransitoSucursal(window.recepcionActivaSuc, document.getElementById('rm-sucursal').innerText.replace('🏭 En Producción para: ','').replace('🚚 En Camino a: ',''));
+    } catch (error) {
+        alert("Error al recepcionar: " + error.message);
+        btn.innerText = "✅ Guardar Recepción"; btn.disabled = false;
+    }
 }
