@@ -1,13 +1,9 @@
 window.empresasDisponibles = [];
 
 window.cargarEmpresas = async function() {
-    // Buscamos el contenedor. Si el ID cambió en el HTML, lo buscamos de forma genérica
     const contenedor = document.getElementById('lista-mis-empresas') || document.querySelector('#seccion-mis-empresas div.bg-white') || document.querySelector('div:has(> p:contains("Cargando"))');
     
-    if (!contenedor) {
-        console.error("No se encontró el contenedor de empresas en el HTML.");
-        return;
-    }
+    if (!contenedor) return;
     
     contenedor.innerHTML = '<div class="flex justify-center py-8"><p class="text-slate-500 font-bold animate-pulse">⏳ Cargando tus entornos...</p></div>';
 
@@ -15,8 +11,9 @@ window.cargarEmpresas = async function() {
         const { data: { user }, error: authErr } = await clienteSupabase.auth.getUser();
         if (authErr || !user) throw new Error("No hay usuario activo.");
 
-        const { data, error } = await clienteSupabase.from('empresa_usuarios')
-            .select('id_empresa, rol, empresas(id, nombre)')
+        // ¡AQUÍ ESTABA EL BUG! La tabla correcta es "usuarios_empresas"
+        const { data, error } = await clienteSupabase.from('usuarios_empresas')
+            .select('id, id_empresa, nombre_empresa, rol')
             .eq('id_usuario', user.id);
 
         if (error) throw error;
@@ -27,9 +24,9 @@ window.cargarEmpresas = async function() {
         }
 
         contenedor.innerHTML = data.map(e => `
-            <div class="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-slate-200 hover:border-emerald-400 transition-colors cursor-pointer mb-3" onclick="seleccionarEmpresaPanel('${e.empresas.id}', '${e.empresas.nombre.replace(/'/g, "\\'")}')">
+            <div class="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-slate-200 hover:border-emerald-400 transition-colors cursor-pointer mb-3" onclick="cargarUsuariosDeEmpresa('${e.id_empresa}', '${(e.nombre_empresa || 'Empresa').replace(/'/g, "\\'")}')">
                 <div>
-                    <h4 class="font-bold text-slate-800 text-lg">🏢 ${e.empresas.nombre}</h4>
+                    <h4 class="font-bold text-slate-800 text-lg">🏢 ${e.nombre_empresa || 'Empresa'}</h4>
                     <span class="text-xs bg-emerald-50 text-emerald-700 font-bold px-2 py-1 rounded mt-1 inline-block">Rol: ${e.rol}</span>
                 </div>
                 <span class="text-slate-400 hover:text-emerald-600 text-xl font-bold">→</span>
@@ -42,11 +39,13 @@ window.cargarEmpresas = async function() {
     }
 }
 
+// Alias para evitar errores si el botón HTML llama a cargarMisEmpresas
+window.cargarMisEmpresas = window.cargarEmpresas;
+
 window.cargarUsuariosDeEmpresa = async function(idEmpresa, nombreEmpresa) {
     const lista = document.getElementById('lista-usuarios-empresa');
     lista.innerHTML = '<li class="p-8 text-center text-slate-400 font-bold">⏳ Buscando equipo...</li>';
 
-    // 1. Buscamos los accesos en usuarios_empresas (SIN EL JOIN QUE DA ERROR 400)
     const { data: accesos, error } = await clienteSupabase.from('usuarios_empresas')
         .select('id, id_usuario, rol')
         .eq('id_empresa', idEmpresa);
@@ -56,22 +55,17 @@ window.cargarUsuariosDeEmpresa = async function(idEmpresa, nombreEmpresa) {
         return;
     }
 
-    // 2. Extraemos los IDs de esos usuarios y buscamos sus nombres reales en la tabla perfiles
     const idsUsuarios = accesos.map(a => a.id_usuario);
     const { data: perfiles } = await clienteSupabase.from('perfiles')
         .select('id_usuario, nombre, apellido')
         .in('id_usuario', idsUsuarios);
 
-    // 3. Cruzamos la información manualmente (A prueba de errores)
     lista.innerHTML = `
         <li class="px-6 py-3 bg-slate-200/50 text-xs font-bold text-slate-500 uppercase tracking-wider">
             Equipo en: ${nombreEmpresa}
         </li>
     ` + accesos.map(acceso => {
-        // Encontramos el perfil que hace match con este acceso
         const perfil = (perfiles || []).find(p => p.id_usuario === acceso.id_usuario);
-        
-        // Armamos el nombre y las iniciales
         const nombreStr = perfil?.nombre || 'Usuario';
         const apellidoStr = perfil?.apellido || '';
         const nombreCompleto = `${nombreStr} ${apellidoStr}`.trim();
@@ -94,68 +88,68 @@ window.cargarUsuariosDeEmpresa = async function(idEmpresa, nombreEmpresa) {
     }).join('');
 }
 
-// FUNCIONES DE LOS FORMULARIOS
-document.addEventListener('submit', async (e) => {
-    if (e.target.id === 'form-nueva-empresa') {
-        e.preventDefault();
-        const { data: { user } } = await clienteSupabase.auth.getUser();
-        const nombre = document.getElementById('ne-nombre').value;
-        const nuevoIdEmpresa = crypto.randomUUID(); // Generamos un ID único
+// Delegador global de Formularios de Empresa (Evita recarga de página)
+if(!window.eventosEmpresasAtados) {
+    document.addEventListener('submit', async (e) => {
+        if (e.target.id === 'form-nueva-empresa') {
+            e.preventDefault();
+            const { data: { user } } = await clienteSupabase.auth.getUser();
+            const nombre = document.getElementById('ne-nombre').value;
+            const nuevoIdEmpresa = crypto.randomUUID(); 
 
-        const { error } = await clienteSupabase.from('usuarios_empresas').insert({
-            id_usuario: user.id,
-            id_empresa: nuevoIdEmpresa,
-            nombre_empresa: nombre,
-            rol: 'Admin'
-        });
+            const { error } = await clienteSupabase.from('usuarios_empresas').insert({
+                id_usuario: user.id,
+                id_empresa: nuevoIdEmpresa,
+                nombre_empresa: nombre,
+                rol: 'Admin'
+            });
 
-        if(error) return alert("❌ Error: " + error.message);
-        
-        alert(`✅ ¡Entorno "${nombre}" creado con éxito!`);
-        document.getElementById('modal-nueva-empresa').classList.add('hidden');
-        document.getElementById('form-nueva-empresa').reset();
-        window.cargarMisEmpresas();
+            if(error) return alert("❌ Error: " + error.message);
+            
+            alert(`✅ ¡Entorno "${nombre}" creado con éxito!`);
+            document.getElementById('modal-nueva-empresa').classList.add('hidden');
+            document.getElementById('form-nueva-empresa').reset();
+            window.cargarEmpresas();
 
-    } else if (e.target.id === 'form-vincular-usuario') {
-        e.preventDefault();
-        const seleccion = document.getElementById('vu-empresa').value.split('|');
-        const idEmpresa = seleccion[0];
-        const nombreEmpresa = seleccion[1];
-        const emailTarget = document.getElementById('vu-email').value.trim();
-        const rolAsignado = document.getElementById('vu-rol').value;
+        } else if (e.target.id === 'form-vincular-usuario') {
+            e.preventDefault();
+            const seleccion = document.getElementById('vu-empresa').value.split('|');
+            const idEmpresa = seleccion[0];
+            const nombreEmpresa = seleccion[1];
+            const emailTarget = document.getElementById('vu-email').value.trim();
+            const rolAsignado = document.getElementById('vu-rol').value;
 
-        // 1. Buscamos el ID del usuario usando su correo
-        const { data: perfilEncontrado } = await clienteSupabase.from('perfiles').select('id_usuario, nombre').eq('email', emailTarget).maybeSingle();
+            const { data: perfilEncontrado } = await clienteSupabase.from('perfiles').select('id_usuario, nombre').eq('email', emailTarget).maybeSingle();
 
-        if(!perfilEncontrado) {
-            return alert("❌ No encontramos ningún usuario con ese correo. Pídele que vaya a la página principal y se cree una cuenta primero.");
+            if(!perfilEncontrado) {
+                return alert("❌ No encontramos ningún usuario con ese correo. Pídele que vaya a la página principal y se cree una cuenta primero.");
+            }
+
+            const { data: yaExiste } = await clienteSupabase.from('usuarios_empresas').select('id').eq('id_usuario', perfilEncontrado.id_usuario).eq('id_empresa', idEmpresa).maybeSingle();
+            if(yaExiste) return alert("⚠️ Este usuario ya tiene acceso a esta empresa.");
+
+            const { error } = await clienteSupabase.from('usuarios_empresas').insert({
+                id_usuario: perfilEncontrado.id_usuario,
+                id_empresa: idEmpresa,
+                nombre_empresa: nombreEmpresa,
+                rol: rolAsignado
+            });
+
+            if(error) return alert("❌ Error al vincular.");
+            
+            alert(`✅ ${perfilEncontrado.nombre || emailTarget} ha sido vinculado a ${nombreEmpresa} como ${rolAsignado}.`);
+            document.getElementById('modal-vincular-usuario').classList.add('hidden');
+            document.getElementById('form-vincular-usuario').reset();
+            window.cargarUsuariosDeEmpresa(idEmpresa, nombreEmpresa);
         }
-
-        // 2. Revisamos que no esté vinculado ya a esta empresa
-        const { data: yaExiste } = await clienteSupabase.from('usuarios_empresas').select('id').eq('id_usuario', perfilEncontrado.id_usuario).eq('id_empresa', idEmpresa).maybeSingle();
-        if(yaExiste) return alert("⚠️ Este usuario ya tiene acceso a esta empresa.");
-
-        // 3. Lo vinculamos
-        const { error } = await clienteSupabase.from('usuarios_empresas').insert({
-            id_usuario: perfilEncontrado.id_usuario,
-            id_empresa: idEmpresa,
-            nombre_empresa: nombreEmpresa,
-            rol: rolAsignado
-        });
-
-        if(error) return alert("❌ Error al vincular.");
-        
-        alert(`✅ ${perfilEncontrado.nombre || emailTarget} ha sido vinculado a ${nombreEmpresa} como ${rolAsignado}.`);
-        document.getElementById('modal-vincular-usuario').classList.add('hidden');
-        document.getElementById('form-vincular-usuario').reset();
-        window.cargarUsuariosDeEmpresa(idEmpresa, nombreEmpresa);
-    }
-});
+    });
+    window.eventosEmpresasAtados = true;
+}
 
 window.eliminarAcceso = async function(idRegistro) {
     if(confirm("¿Seguro que deseas revocar el acceso a este usuario para esta empresa?")) {
         await clienteSupabase.from('usuarios_empresas').delete().eq('id', idRegistro);
         document.getElementById('lista-usuarios-empresa').innerHTML = '<li class="p-8 text-center text-slate-400 font-medium text-sm">👈 Selecciona una empresa a la izquierda para ver su equipo.</li>';
-        window.cargarMisEmpresas();
+        window.cargarEmpresas();
     }
 }
