@@ -333,66 +333,91 @@ window.editarProductoFull = async function(id) {
     document.getElementById('btn-guardar-producto').classList.replace('bg-emerald-600', 'bg-blue-600');
 }
 
-document.getElementById('form-producto')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const checkControl = document.getElementById('prod-control-stock');
-    const valorControlStock = checkControl ? checkControl.checked : true;
+// ==========================================
+// DELEGADOR GLOBAL DE FORMULARIO DE PRODUCTOS
+// ==========================================
+if (!window.eventosFormProductoAtados) {
+    document.addEventListener('submit', async (e) => {
+        if (e.target.id === 'form-producto') {
+            e.preventDefault(); // ¡Freno de mano al navegador!
+            
+            const btnSubmit = e.target.querySelector('button[type="submit"]');
+            const textoOriginal = btnSubmit ? btnSubmit.innerText : 'Guardar';
+            if(btnSubmit) { btnSubmit.innerText = '⏳ Guardando...'; btnSubmit.disabled = true; }
 
-    const payload = {
-        nombre: document.getElementById('prod-nombre').value, 
-        sku: document.getElementById('prod-sku').value, 
-        id_categoria: document.getElementById('prod-categoria').value,
-        id_unidad_compra: document.getElementById('prod-u-compra').value, 
-        cant_en_ua_de_uc: parseFloat(document.getElementById('prod-cant-ua').value),
-        id_unidad_almacenamiento: document.getElementById('prod-u-almacen').value, 
-        cant_en_um_de_ua: parseFloat(document.getElementById('prod-cant-um').value),
-        id_unidad_menor: document.getElementById('prod-u-menor').value, 
-        cant_en_ur_de_um: parseFloat(document.getElementById('prod-cant-ur').value),
-        id_unidad_receta: document.getElementById('prod-u-receta').value, 
-        tiene_receta: document.getElementById('prod-tiene-receta').checked,
-        control_stock: valorControlStock
-    };
-    
-    let idProdActual = null;
+            const checkControl = document.getElementById('prod-control-stock');
+            const valorControlStock = checkControl ? checkControl.checked : true;
+            const costoBorrador = document.getElementById('prod-costo-borrador') ? parseFloat(document.getElementById('prod-costo-borrador').value) : null;
 
-    if (window.modoEdicion.activo && window.modoEdicion.form === 'producto') {
-        idProdActual = window.modoEdicion.id;
-        await clienteSupabase.from('productos').update(payload).eq('id', idProdActual);
-    } else {
-        const { data: nuevoProd } = await clienteSupabase.from('productos').insert([{...payload, id_empresa: window.miEmpresaId}]).select('id').single();
-        if(nuevoProd) idProdActual = nuevoProd.id;
-    }
+            const payload = {
+                nombre: document.getElementById('prod-nombre').value, 
+                sku: document.getElementById('prod-sku').value, 
+                id_categoria: document.getElementById('prod-categoria').value || null,
+                id_unidad_compra: document.getElementById('prod-u-compra').value || null, 
+                cant_en_ua_de_uc: parseFloat(document.getElementById('prod-cant-ua').value) || 1,
+                id_unidad_almacenamiento: document.getElementById('prod-u-almacen').value || null, 
+                cant_en_um_de_ua: parseFloat(document.getElementById('prod-cant-um').value) || 1,
+                id_unidad_menor: document.getElementById('prod-u-menor').value || null, 
+                cant_en_ur_de_um: parseFloat(document.getElementById('prod-cant-ur').value) || 1,
+                id_unidad_receta: document.getElementById('prod-u-receta').value || null, 
+                tiene_receta: document.getElementById('prod-tiene-receta').checked,
+                control_stock: valorControlStock
+            };
+            
+            if(costoBorrador !== null && !isNaN(costoBorrador)) {
+                payload.ultimo_costo_uc = costoBorrador;
+            }
+            
+            let idProdActual = null;
 
-    if(idProdActual && valorControlStock === true) {
-        const { data: sucursales } = await clienteSupabase.from('sucursales').select('id').eq('id_empresa', window.miEmpresaId);
-        for (const suc of sucursales) {
-            const valMin = parseFloat(document.getElementById(`regla-min-${suc.id}`)?.value) || 0;
-            const valIdeal = parseFloat(document.getElementById(`regla-ideal-${suc.id}`)?.value) || 0;
-            const { data: existeRegla } = await clienteSupabase.from('reglas_stock_sucursal').select('id').eq('id_producto', idProdActual).eq('id_sucursal', suc.id).maybeSingle();
-            if(existeRegla) {
-                await clienteSupabase.from('reglas_stock_sucursal').update({ stock_minimo_ua: valMin, stock_ideal_ua: valIdeal }).eq('id', existeRegla.id);
-            } else {
-                await clienteSupabase.from('reglas_stock_sucursal').insert([{ 
-                    id_empresa: window.miEmpresaId, id_producto: idProdActual, id_sucursal: suc.id, stock_minimo_ua: valMin, stock_ideal_ua: valIdeal 
-                }]);
+            try {
+                if (window.modoEdicion.activo && window.modoEdicion.form === 'producto') {
+                    idProdActual = window.modoEdicion.id;
+                    await clienteSupabase.from('productos').update(payload).eq('id', idProdActual);
+                } else {
+                    const { data: nuevoProd, error } = await clienteSupabase.from('productos').insert([{...payload, id_empresa: window.miEmpresaId}]).select('id').single();
+                    if(error) throw error;
+                    if(nuevoProd) idProdActual = nuevoProd.id;
+                }
+
+                if(idProdActual && valorControlStock === true) {
+                    const { data: sucursales } = await clienteSupabase.from('sucursales').select('id').eq('id_empresa', window.miEmpresaId);
+                    for (const suc of sucursales) {
+                        const valMin = parseFloat(document.getElementById(`regla-min-${suc.id}`)?.value) || 0;
+                        const valIdeal = parseFloat(document.getElementById(`regla-ideal-${suc.id}`)?.value) || 0;
+                        const { data: existeRegla } = await clienteSupabase.from('reglas_stock_sucursal').select('id').eq('id_producto', idProdActual).eq('id_sucursal', suc.id).maybeSingle();
+                        
+                        if(existeRegla) {
+                            await clienteSupabase.from('reglas_stock_sucursal').update({ stock_minimo_ua: valMin, stock_ideal_ua: valIdeal }).eq('id', existeRegla.id);
+                        } else {
+                            await clienteSupabase.from('reglas_stock_sucursal').insert([{ 
+                                id_empresa: window.miEmpresaId, id_producto: idProdActual, id_sucursal: suc.id, stock_minimo_ua: valMin, stock_ideal_ua: valIdeal 
+                            }]);
+                        }
+                    }
+                } else if (idProdActual && valorControlStock === false) {
+                    await clienteSupabase.from('reglas_stock_sucursal').delete().eq('id_producto', idProdActual);
+                }
+
+                window.cerrarModalProducto();
+                
+                const panelCSV = document.getElementById('panel-mapeo-csv');
+                if(window.productoActualParaReceta) {
+                    await window.actualizarSelectInsumos(); 
+                } else if (panelCSV && !panelCSV.classList.contains('hidden') && typeof window.actualizarSelectsMapeoCSV === 'function') {
+                    await window.actualizarSelectsMapeoCSV(idProdActual);
+                } else {
+                    window.cargarProductos();
+                }
+            } catch(err) {
+                alert("Error al guardar: " + err.message);
+            } finally {
+                if(btnSubmit) { btnSubmit.innerText = textoOriginal; btnSubmit.disabled = false; }
             }
         }
-    } else if (idProdActual && valorControlStock === false) {
-        await clienteSupabase.from('reglas_stock_sucursal').delete().eq('id_producto', idProdActual);
-    }
-
-    window.cerrarModalProducto();
-    
-    const panelCSV = document.getElementById('panel-mapeo-csv');
-    if(window.productoActualParaReceta) {
-        await window.actualizarSelectInsumos(); 
-    } else if (panelCSV && !panelCSV.classList.contains('hidden') && typeof window.actualizarSelectsMapeoCSV === 'function') {
-        await window.actualizarSelectsMapeoCSV(idProdActual);
-    } else {
-        window.cargarProductos();
-    }
-});
+    });
+    window.eventosFormProductoAtados = true;
+}
 
 // ==========================================
 // --- RECETAS Y BUSCADOR INTELIGENTE ---
