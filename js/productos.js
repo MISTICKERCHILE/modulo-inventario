@@ -336,7 +336,6 @@ document.getElementById('form-producto')?.addEventListener('submit', async (e) =
     }
 });
 
-// --- RECETAS Y BUSCADOR ---
 // ==========================================
 // --- RECETAS Y BUSCADOR INTELIGENTE ---
 // ==========================================
