@@ -1,42 +1,44 @@
 window.empresasDisponibles = [];
 
-window.cargarVistaEmpresas = async function() {
-    await window.cargarMisEmpresas();
-}
-
-window.cargarMisEmpresas = async function() {
-    const { data: { user } } = await clienteSupabase.auth.getUser();
-    if(!user) return;
-
-    // Traemos las empresas a las que este usuario tiene acceso
-    const { data: misEmpresas } = await clienteSupabase.from('usuarios_empresas')
-        .select('id_empresa, nombre_empresa')
-        .eq('id_usuario', user.id)
-        .order('nombre_empresa');
-
-    window.empresasDisponibles = misEmpresas || [];
+window.cargarEmpresas = async function() {
+    // Buscamos el contenedor. Si el ID cambió en el HTML, lo buscamos de forma genérica
+    const contenedor = document.getElementById('lista-mis-empresas') || document.querySelector('#seccion-mis-empresas div.bg-white') || document.querySelector('div:has(> p:contains("Cargando"))');
     
-    // Llenar el panel izquierdo
-    const lista = document.getElementById('lista-mis-empresas');
-    if(window.empresasDisponibles.length === 0) {
-        lista.innerHTML = '<li class="p-8 text-center text-slate-400">No tienes empresas asignadas.</li>';
-    } else {
-        lista.innerHTML = window.empresasDisponibles.map(e => `
-            <li class="p-4 hover:bg-slate-50 transition-colors flex justify-between items-center cursor-pointer group" onclick="cargarUsuariosDeEmpresa('${e.id_empresa}', '${e.nombre_empresa}')">
-                <div class="flex items-center gap-3">
-                    <span class="text-2xl opacity-50 group-hover:opacity-100 transition-opacity">🏢</span>
-                    <span class="font-bold text-slate-700 text-lg">${e.nombre_empresa}</span>
-                </div>
-                <span class="text-sm font-bold text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-50 px-2 py-1 rounded">Ver Equipo →</span>
-            </li>
-        `).join('');
+    if (!contenedor) {
+        console.error("No se encontró el contenedor de empresas en el HTML.");
+        return;
     }
+    
+    contenedor.innerHTML = '<div class="flex justify-center py-8"><p class="text-slate-500 font-bold animate-pulse">⏳ Cargando tus entornos...</p></div>';
 
-    // Llenar el select del modal de vinculación
-    const select = document.getElementById('vu-empresa');
-    if(select) {
-        select.innerHTML = '<option value="" disabled selected>Selecciona un entorno...</option>' + 
-            window.empresasDisponibles.map(e => `<option value="${e.id_empresa}|${e.nombre_empresa}">${e.nombre_empresa}</option>`).join('');
+    try {
+        const { data: { user }, error: authErr } = await clienteSupabase.auth.getUser();
+        if (authErr || !user) throw new Error("No hay usuario activo.");
+
+        const { data, error } = await clienteSupabase.from('empresa_usuarios')
+            .select('id_empresa, rol, empresas(id, nombre)')
+            .eq('id_usuario', user.id);
+
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+            contenedor.innerHTML = '<p class="text-slate-500 text-center py-8">No tienes empresas asignadas aún.</p>';
+            return;
+        }
+
+        contenedor.innerHTML = data.map(e => `
+            <div class="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-slate-200 hover:border-emerald-400 transition-colors cursor-pointer mb-3" onclick="seleccionarEmpresaPanel('${e.empresas.id}', '${e.empresas.nombre.replace(/'/g, "\\'")}')">
+                <div>
+                    <h4 class="font-bold text-slate-800 text-lg">🏢 ${e.empresas.nombre}</h4>
+                    <span class="text-xs bg-emerald-50 text-emerald-700 font-bold px-2 py-1 rounded mt-1 inline-block">Rol: ${e.rol}</span>
+                </div>
+                <span class="text-slate-400 hover:text-emerald-600 text-xl font-bold">→</span>
+            </div>
+        `).join('');
+        
+    } catch (err) {
+        console.error("Error al cargar empresas:", err);
+        contenedor.innerHTML = `<p class="text-red-500 text-center py-8 font-bold">❌ Error: ${err.message}</p>`;
     }
 }
 

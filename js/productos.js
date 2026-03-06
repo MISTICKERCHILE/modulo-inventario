@@ -76,19 +76,36 @@ window.toggleFilaProducto = function(idFila) {
     document.getElementById(idFila).classList.toggle('hidden'); 
 }
 
-window.cargarDatosSelects = async function() {
-    const { data: cat } = await clienteSupabase.from('categorias').select('*').eq('id_empresa', window.miEmpresaId).order('nombre');
-    // FIX: Agregamos una opción por defecto "Sin Categoría" por si los masivos no la traen.
-    document.getElementById('prod-categoria').innerHTML = '<option value="">Sin Categoría asignada...</option>' + (cat||[]).map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+// --- CONVERSIÓN INTELIGENTE DE UNIDADES (Global y a prueba de recargas) ---
+window.procesarUnidadInteligente = function(origenId, arrDestinos) {
+    const idUnidad = document.getElementById(origenId).value;
+    if(!idUnidad) return;
+    const unidad = window.unidadesMemoria.find(u => u.id === idUnidad);
+    if(!unidad) return;
     
-    const { data: uni } = await clienteSupabase.from('unidades').select('*').eq('id_empresa', window.miEmpresaId).order('nombre');
-    window.unidadesMemoria = uni || []; 
-    const opcionesUni = '<option value="">Seleccione Unidad...</option>' + window.unidadesMemoria.map(u => `<option value="${u.id}">${u.nombre} (${u.abreviatura})</option>`).join('');
-    
-    ['prod-u-compra', 'prod-u-almacen', 'prod-u-menor', 'prod-u-receta'].forEach(id => {
-        const el = document.getElementById(id);
-        if(el) el.innerHTML = opcionesUni;
+    // Si es unidad 1 a 1, rellena hacia abajo
+    if(['gr', 'g', 'ml', 'cc', 'un', 'u', 'und'].includes(unidad.abreviatura.toLowerCase())) {
+        arrDestinos.forEach(dest => { 
+            const selDest = document.getElementById(`prod-u-${dest.select}`);
+            const cantDest = document.getElementById(`prod-cant-${dest.cant}`);
+            if(selDest) selDest.value = idUnidad; 
+            if(cantDest) cantDest.value = 1; 
+        });
+    }
+}
+
+// Delegador global: Siempre estará escuchando sin importar si cambias de pestaña
+if (!window.eventosUnidadesAtados) {
+    document.addEventListener('change', (e) => {
+        if (e.target.id === 'prod-u-compra') {
+            window.procesarUnidadInteligente('prod-u-compra', [{select:'almacen', cant:'ua'}, {select:'menor', cant:'um'}, {select:'receta', cant:'ur'}]);
+        } else if (e.target.id === 'prod-u-almacen') {
+            window.procesarUnidadInteligente('prod-u-almacen', [{select:'menor', cant:'um'}, {select:'receta', cant:'ur'}]);
+        } else if (e.target.id === 'prod-u-menor') {
+            window.procesarUnidadInteligente('prod-u-menor', [{select:'receta', cant:'ur'}]);
+        }
     });
+    window.eventosUnidadesAtados = true;
 }
 
 function procesarUnidadInteligente(origenId, arrDestinos) {
