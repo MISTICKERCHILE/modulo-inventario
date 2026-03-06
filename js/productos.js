@@ -12,7 +12,11 @@ window.prodSearchText = '';
 // --- CREACIÓN / EDICIÓN ---
 window.abrirModalProducto = async function(esEdicion = false, nombreSugerido = '') {
     document.getElementById('modal-producto').classList.remove('hidden');
-    if(window.unidadesMemoria.length === 0) window.cargarDatosSelects();
+    
+    // AQUÍ ESTÁ LA MAGIA: El "await" obliga al sistema a esperar que las listas carguen
+    if(!window.unidadesMemoria || window.unidadesMemoria.length === 0) {
+        await window.cargarDatosSelects();
+    }
     
     const { data: sucursales } = await clienteSupabase.from('sucursales').select('id, nombre').eq('id_empresa', window.miEmpresaId);
     
@@ -244,18 +248,26 @@ window.editarProductoFull = async function(id) {
     
     await window.abrirModalProducto(true); 
 
-    document.getElementById('prod-nombre').value = data.nombre;
-    document.getElementById('prod-sku').value = data.sku;
-    document.getElementById('prod-categoria').value = data.id_categoria;
-    document.getElementById('prod-u-compra').value = data.id_unidad_compra;
-    document.getElementById('prod-cant-ua').value = data.cant_en_ua_de_uc;
-    document.getElementById('prod-u-almacen').value = data.id_unidad_almacenamiento;
-    document.getElementById('prod-cant-um').value = data.cant_en_um_de_ua;
-    document.getElementById('prod-u-menor').value = data.id_unidad_menor;
-    document.getElementById('prod-cant-ur').value = data.cant_en_ur_de_um;
-    document.getElementById('prod-u-receta').value = data.id_unidad_receta;
-    document.getElementById('prod-tiene-receta').checked = data.tiene_receta;
+    document.getElementById('prod-nombre').value = data.nombre || '';
     
+    // Si vino del Excel sin SKU, le generamos uno en el acto
+    const finalSku = data.sku || ('PRD-' + Math.random().toString(36).substring(2, 8).toUpperCase());
+    document.getElementById('prod-sku').value = finalSku;
+    
+    document.getElementById('prod-categoria').value = data.id_categoria || '';
+    document.getElementById('prod-u-compra').value = data.id_unidad_compra || '';
+    document.getElementById('prod-cant-ua').value = data.cant_en_ua_de_uc || 1;
+    document.getElementById('prod-u-almacen').value = data.id_unidad_almacenamiento || '';
+    document.getElementById('prod-cant-um').value = data.cant_en_um_de_ua || 1;
+    document.getElementById('prod-u-menor').value = data.id_unidad_menor || '';
+    document.getElementById('prod-cant-ur').value = data.cant_en_ur_de_um || 1;
+    document.getElementById('prod-u-receta').value = data.id_unidad_receta || '';
+    document.getElementById('prod-tiene-receta').checked = data.tiene_receta || false;
+    
+    if(document.getElementById('prod-costo-borrador')) {
+        document.getElementById('prod-costo-borrador').value = data.ultimo_costo_uc || '';
+    }
+
     const checkControl = document.getElementById('prod-control-stock');
     if(checkControl) {
         checkControl.checked = data.control_stock !== false; 
