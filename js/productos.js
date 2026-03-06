@@ -529,30 +529,44 @@ window.resetearFormularioIngrediente = function() {
     if(searchInput) searchInput.classList.remove('border-red-300');
 }
 
-document.getElementById('form-ingrediente')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const idIngredienteSeleccionado = document.getElementById('hidden-ingrediente').value;
-    
-    if(!idIngredienteSeleccionado) {
-        document.getElementById('search-ingrediente').classList.add('border-red-300');
-        return alert("Debes seleccionar un insumo válido de la lista desplegable.");
-    }
+// Delegador Global para el formulario de Recetas (Evita recarga de página)
+if (!window.eventosRecetasAtados) {
+    document.addEventListener('submit', async (e) => {
+        if (e.target.id === 'form-ingrediente') {
+            e.preventDefault();
+            const idIngredienteSeleccionado = document.getElementById('hidden-ingrediente').value;
+            
+            if(!idIngredienteSeleccionado) {
+                document.getElementById('search-ingrediente').classList.add('border-red-300');
+                return alert("Debes seleccionar un insumo válido de la lista desplegable.");
+            }
 
-    const payload = { 
-        id_producto_padre: window.productoActualParaReceta, 
-        id_ingrediente: idIngredienteSeleccionado, 
-        cantidad_neta: document.getElementById('ing-cantidad').value 
-    };
-    
-    if(window.modoEdicion.activo && window.modoEdicion.form === 'ingrediente') {
-        await clienteSupabase.from('recetas').update(payload).eq('id', window.modoEdicion.id);
-    } else {
-        await clienteSupabase.from('recetas').insert([{...payload, id_empresa: window.miEmpresaId}]);
-    }
-    
-    window.resetearFormularioIngrediente();
-    window.cargarIngredientesReceta();
-});
+            const payload = { 
+                id_producto_padre: window.productoActualParaReceta, 
+                id_ingrediente: idIngredienteSeleccionado, 
+                cantidad_neta: document.getElementById('ing-cantidad').value 
+            };
+            
+            const btnSubmit = document.querySelector(`#form-ingrediente button[type="submit"]`);
+            const textoOriginal = btnSubmit.innerText;
+            btnSubmit.innerText = '⏳ Guardando...';
+            btnSubmit.disabled = true;
+
+            if(window.modoEdicion.activo && window.modoEdicion.form === 'ingrediente') {
+                await clienteSupabase.from('recetas').update(payload).eq('id', window.modoEdicion.id);
+            } else {
+                await clienteSupabase.from('recetas').insert([{...payload, id_empresa: window.miEmpresaId}]);
+            }
+            
+            btnSubmit.innerText = textoOriginal;
+            btnSubmit.disabled = false;
+            
+            window.resetearFormularioIngrediente();
+            window.cargarIngredientesReceta();
+        }
+    });
+    window.eventosRecetasAtados = true;
+}
 
 window.quitarIngrediente = async function(id) {
     if(confirm("¿Seguro de quitar este ingrediente de la receta? 🗑️")) {
