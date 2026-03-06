@@ -1,4 +1,4 @@
-// --- VARIABLES GLOBALES PARA PAGINACIÓN Y FILTROS ---
+// --- VARIABLES GLOBALES ---
 window.productosListMemoria = [];
 window.catListMemoria = [];
 window.prodCurrentPage = 1;
@@ -9,11 +9,45 @@ window.prodFilterCat = 'TODOS';
 window.prodSortMode = 'A-Z'; 
 window.prodSearchText = ''; 
 
-// --- CREACIÓN / EDICIÓN DE PRODUCTOS ---
+// Cierra el buscador de ingredientes si haces click afuera
+document.addEventListener('click', (e) => {
+    const contenedorDrop = document.getElementById('contenedor-dropdown-receta');
+    if (contenedorDrop && !contenedorDrop.contains(e.target)) {
+        const drop = document.getElementById('dropdown-ingrediente');
+        if(drop) drop.classList.add('hidden');
+    }
+});
+
+// ==========================================
+// 1. PRIMERO DEFINIMOS LA FUNCIÓN DE CARGA
+// ==========================================
+window.cargarDatosSelects = async function() {
+    const { data: cat } = await clienteSupabase.from('categorias').select('*').eq('id_empresa', window.miEmpresaId).order('nombre');
+    const selCat = document.getElementById('prod-categoria');
+    if(selCat) selCat.innerHTML = '<option value="">Sin Categoría asignada...</option>' + (cat||[]).map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+    
+    const { data: uni } = await clienteSupabase.from('unidades').select('*').eq('id_empresa', window.miEmpresaId).order('nombre');
+    window.unidadesMemoria = uni || []; 
+    const opcionesUni = '<option value="">Seleccione Unidad...</option>' + window.unidadesMemoria.map(u => `<option value="${u.id}">${u.nombre} (${u.abreviatura})</option>`).join('');
+    
+    ['prod-u-compra', 'prod-u-almacen', 'prod-u-menor', 'prod-u-receta'].forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.innerHTML = opcionesUni;
+    });
+
+    // Amarramos los eventos inmediatamente después de dibujarlos.
+    if(typeof window.atarEventosUnidades === 'function') {
+        window.atarEventosUnidades();
+    }
+}
+
+// ==========================================
+// 2. LUEGO DEFINIMOS LA FUNCIÓN DEL MODAL
+// ==========================================
 window.abrirModalProducto = async function(esEdicion = false, nombreSugerido = '') {
     document.getElementById('modal-producto').classList.remove('hidden');
     
-    // EL FIX: Ahora revisa si el HTML está vacío, sin importar la memoria.
+    // Revisamos si el HTML está vacío
     const catSelect = document.getElementById('prod-categoria');
     if(!catSelect || catSelect.options.length <= 1) {
         await window.cargarDatosSelects();
@@ -21,6 +55,7 @@ window.abrirModalProducto = async function(esEdicion = false, nombreSugerido = '
     
     const { data: sucursales } = await clienteSupabase.from('sucursales').select('id, nombre').eq('id_empresa', window.miEmpresaId);
     
+    // ESTO DIBUJA LAS REGLAS DE STOCK (Mínimo / Ideal)
     let htmlReglas = '';
     (sucursales || []).forEach(suc => {
         htmlReglas += `
@@ -40,6 +75,7 @@ window.abrirModalProducto = async function(esEdicion = false, nombreSugerido = '
     });
     document.getElementById('contenedor-reglas-stock').innerHTML = htmlReglas;
 
+    // ESTO DIBUJA EL CHECKBOX DE CONTROL DE STOCK
     if(!document.getElementById('contenedor-control-stock')) {
         const contenedorTipoReceta = document.getElementById('prod-tiene-receta').parentElement;
         const htmlInterruptor = `
@@ -76,14 +112,17 @@ window.toggleFilaProducto = function(idFila) {
     document.getElementById(idFila).classList.toggle('hidden'); 
 }
 
-// --- CONVERSIÓN INTELIGENTE DE UNIDADES (Global y a prueba de recargas) ---
+// ==========================================
+// 3. UNIDADES INTELIGENTES
+// ==========================================
 window.procesarUnidadInteligente = function(origenId, arrDestinos) {
-    const idUnidad = document.getElementById(origenId).value;
+    const selOrigen = document.getElementById(origenId);
+    if(!selOrigen) return;
+    const idUnidad = selOrigen.value;
     if(!idUnidad) return;
     const unidad = window.unidadesMemoria.find(u => u.id === idUnidad);
     if(!unidad) return;
     
-    // Si es unidad 1 a 1, rellena hacia abajo
     if(['gr', 'g', 'ml', 'cc', 'un', 'u', 'und'].includes(unidad.abreviatura.toLowerCase())) {
         arrDestinos.forEach(dest => { 
             const selDest = document.getElementById(`prod-u-${dest.select}`);
@@ -94,36 +133,24 @@ window.procesarUnidadInteligente = function(origenId, arrDestinos) {
     }
 }
 
-// Delegador global: Siempre estará escuchando sin importar si cambias de pestaña
-if (!window.eventosUnidadesAtados) {
-    document.addEventListener('change', (e) => {
-        if (e.target.id === 'prod-u-compra') {
-            window.procesarUnidadInteligente('prod-u-compra', [{select:'almacen', cant:'ua'}, {select:'menor', cant:'um'}, {select:'receta', cant:'ur'}]);
-        } else if (e.target.id === 'prod-u-almacen') {
-            window.procesarUnidadInteligente('prod-u-almacen', [{select:'menor', cant:'um'}, {select:'receta', cant:'ur'}]);
-        } else if (e.target.id === 'prod-u-menor') {
-            window.procesarUnidadInteligente('prod-u-menor', [{select:'receta', cant:'ur'}]);
-        }
-    });
-    window.eventosUnidadesAtados = true;
-}
+window.atarEventosUnidades = function() {
+    const uCompra = document.getElementById('prod-u-compra');
+    const uAlmacen = document.getElementById('prod-u-almacen');
+    const uMenor = document.getElementById('prod-u-menor');
 
-function procesarUnidadInteligente(origenId, arrDestinos) {
-    const idUnidad = document.getElementById(origenId).value;
-    if(!idUnidad) return;
-    const unidad = window.unidadesMemoria.find(u => u.id === idUnidad);
-    if(!unidad) return;
-    if(['gr', 'g', 'ml', 'cc', 'un', 'u', 'und'].includes(unidad.abreviatura.toLowerCase())) {
-        arrDestinos.forEach(dest => { 
-            document.getElementById(`prod-u-${dest.select}`).value = idUnidad; 
-            document.getElementById(`prod-cant-${dest.cant}`).value = 1; 
-        });
+    if(uCompra) {
+        const newUCompra = uCompra.cloneNode(true); uCompra.parentNode.replaceChild(newUCompra, uCompra);
+        document.getElementById('prod-u-compra').addEventListener('change', () => window.procesarUnidadInteligente('prod-u-compra', [{select:'almacen', cant:'ua'}, {select:'menor', cant:'um'}, {select:'receta', cant:'ur'}]));
+    }
+    if(uAlmacen) {
+        const newUAlmacen = uAlmacen.cloneNode(true); uAlmacen.parentNode.replaceChild(newUAlmacen, uAlmacen);
+        document.getElementById('prod-u-almacen').addEventListener('change', () => window.procesarUnidadInteligente('prod-u-almacen', [{select:'menor', cant:'um'}, {select:'receta', cant:'ur'}]));
+    }
+    if(uMenor) {
+        const newUMenor = uMenor.cloneNode(true); uMenor.parentNode.replaceChild(newUMenor, uMenor);
+        document.getElementById('prod-u-menor').addEventListener('change', () => window.procesarUnidadInteligente('prod-u-menor', [{select:'receta', cant:'ur'}]));
     }
 }
-
-document.getElementById('prod-u-compra')?.addEventListener('change', () => { procesarUnidadInteligente('prod-u-compra', [{select:'almacen', cant:'ua'}, {select:'menor', cant:'um'}, {select:'receta', cant:'ur'}]); });
-document.getElementById('prod-u-almacen')?.addEventListener('change', () => { procesarUnidadInteligente('prod-u-almacen', [{select:'menor', cant:'um'}, {select:'receta', cant:'ur'}]); });
-document.getElementById('prod-u-menor')?.addEventListener('change', () => { procesarUnidadInteligente('prod-u-menor', [{select:'receta', cant:'ur'}]); });
 
 // --- CARGA, FILTROS Y PAGINACIÓN ---
 window.cargarProductos = async function() {
