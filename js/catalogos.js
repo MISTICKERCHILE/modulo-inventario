@@ -1,3 +1,123 @@
+// ==========================================
+// DELEGADOR GLOBAL DE EVENTOS (Evita que la página se recargue)
+// ==========================================
+if (!window.eventosCatalogosAtados) {
+    document.addEventListener('submit', async (e) => {
+        
+        // --- GUARDAR CATEGORÍA ---
+        if (e.target.id === 'form-categoria') {
+            e.preventDefault();
+            const nombre = document.getElementById('nombre-categoria').value;
+            let res;
+            if(window.modoEdicion.activo && window.modoEdicion.form === 'categoria') {
+                res = await clienteSupabase.from('categorias').update({nombre}).eq('id', window.modoEdicion.id);
+            } else {
+                res = await clienteSupabase.from('categorias').insert([{id_empresa: window.miEmpresaId, nombre}]);
+            }
+            if (res.error) return alert("❌ Error BD: " + res.error.message);
+            window.cancelarEdicion('categoria'); window.cargarCategorias();
+        }
+        
+        // --- GUARDAR UNIDAD ---
+        else if (e.target.id === 'form-unidad') {
+            e.preventDefault();
+            const nombre = document.getElementById('nombre-unidad').value;
+            const abrev = document.getElementById('abrev-unidad').value;
+            let res;
+            if(window.modoEdicion.activo && window.modoEdicion.form === 'unidad') {
+                res = await clienteSupabase.from('unidades').update({nombre, abreviatura: abrev}).eq('id', window.modoEdicion.id);
+            } else {
+                res = await clienteSupabase.from('unidades').insert([{id_empresa: window.miEmpresaId, nombre, abreviatura: abrev}]);
+            }
+            if (res.error) return alert("❌ Error BD: " + res.error.message);
+            window.cancelarEdicion('unidad'); window.cargarUnidades();
+        }
+
+        // --- GUARDAR PROVEEDOR ---
+        else if (e.target.id === 'form-proveedor') {
+            e.preventDefault();
+            const tiempoInput = document.getElementById('tiempo-entrega').value;
+            const payload = {
+                nombre: document.getElementById('nombre-proveedor').value,
+                tipo: document.getElementById('tipo-proveedor').value,
+                whatsapp: document.getElementById('whatsapp-proveedor').value,
+                correo: document.getElementById('correo-proveedor').value,
+                lapso_entrega_dias: tiempoInput ? parseInt(tiempoInput) : null
+            };
+            let res;
+            if(window.modoEdicion.activo && window.modoEdicion.form === 'proveedor') {
+                res = await clienteSupabase.from('proveedores').update(payload).eq('id', window.modoEdicion.id);
+            } else {
+                res = await clienteSupabase.from('proveedores').insert([{...payload, id_empresa: window.miEmpresaId}]);
+            }
+            if (res.error) return alert("❌ Error BD: " + res.error.message);
+            window.cancelarEdicion('proveedor'); window.cargarProveedores();
+        }
+
+        // --- GUARDAR LISTA DE PRECIOS ---
+        else if (e.target.id === 'form-precio-prov') {
+            e.preventDefault();
+            const idProd = document.getElementById('pp-producto').value;
+            const precio = parseFloat(document.getElementById('pp-precio').value);
+            const { data: previo } = await clienteSupabase.from('proveedor_precios').select('id').eq('id_proveedor', window.proveedorActivoPrecio).eq('id_producto', idProd).maybeSingle();
+            let res;
+            if(previo) {
+                res = await clienteSupabase.from('proveedor_precios').update({precio_referencia: precio, fecha_actualizacion: new Date()}).eq('id', previo.id);
+            } else {
+                res = await clienteSupabase.from('proveedor_precios').insert([{id_empresa: window.miEmpresaId, id_proveedor: window.proveedorActivoPrecio, id_producto: idProd, precio_referencia: precio}]);
+            }
+            if (res && res.error) return alert("❌ Error BD: " + res.error.message);
+            document.getElementById('pp-precio').value = ''; window.cargarTablaPreciosProv();
+        }
+
+        // --- GUARDAR SUCURSAL ---
+        else if (e.target.id === 'form-sucursal') {
+            e.preventDefault();
+            const payload = {
+                nombre: document.getElementById('nombre-sucursal').value,
+                nombre_comercial: document.getElementById('comercial-sucursal').value,
+                empresa_asociada: document.getElementById('empresa-sucursal').value,
+                horarios_atencion: document.getElementById('horario-sucursal').value,
+                direccion: document.getElementById('dir-sucursal').value
+            };
+            let res;
+            if(window.modoEdicion.activo && window.modoEdicion.form === 'sucursal') {
+                res = await clienteSupabase.from('sucursales').update(payload).eq('id', window.modoEdicion.id);
+            } else {
+                res = await clienteSupabase.from('sucursales').insert([{...payload, id_empresa: window.miEmpresaId}]);
+            }
+            if (res.error) return alert("❌ Error BD: " + res.error.message);
+            window.cancelarEdicion('sucursal'); window.cargarSucursales();
+        }
+
+        // --- GUARDAR UBICACIÓN ---
+        else if (e.target.id === 'form-ubicacion') {
+            e.preventDefault();
+            const nombre = document.getElementById('nombre-ubicacion').value;
+            const id_sucursal = document.getElementById('sel-sucursal-ubi').value;
+            const res = await clienteSupabase.from('ubicaciones_internas').insert([{id_empresa: window.miEmpresaId, id_sucursal, nombre}]);
+            if (res.error) return alert("❌ Error BD: " + res.error.message);
+            window.cancelarEdicion('ubicacion'); window.cargarUbicaciones();
+        }
+
+        // --- GUARDAR TIPO DE MOVIMIENTO ---
+        else if (e.target.id === 'form-tipo-movimiento') {
+            e.preventDefault();
+            const nombre = document.getElementById('nombre-tipo-mov').value;
+            const operacion = document.getElementById('operacion-tipo-mov').value;
+            let res;
+            if(window.modoEdicion.activo && window.modoEdicion.form === 'tipo-movimiento') {
+                res = await clienteSupabase.from('tipos_movimiento').update({nombre, operacion}).eq('id', window.modoEdicion.id);
+            } else {
+                res = await clienteSupabase.from('tipos_movimiento').insert([{id_empresa: window.miEmpresaId, nombre, operacion}]);
+            }
+            if (res.error) return alert("❌ Error BD: " + res.error.message);
+            window.cancelarEdicion('tipo-movimiento'); window.cargarTiposMovimiento();
+        }
+    });
+    window.eventosCatalogosAtados = true;
+}
+
 window.cambiarTab = function(tab) {
     ['categorias', 'unidades', 'proveedores', 'sucursales', 'ubicaciones', 'tipos_movimiento'].forEach(t => {
         const sec = document.getElementById(`seccion-${t}`);
@@ -19,7 +139,6 @@ window.cambiarTab = function(tab) {
     if(tab === 'tipos_movimiento') window.cargarTiposMovimiento();
 }
 
-// ================= CATEGORÍAS =================
 window.cargarCategorias = async function() {
     const { data } = await clienteSupabase.from('categorias').select('*').eq('id_empresa', window.miEmpresaId).order('nombre');
     document.getElementById('lista-categorias').innerHTML = (data||[]).map(c => `
@@ -32,20 +151,7 @@ window.cargarCategorias = async function() {
         </li>
     `).join('');
 }
-document.getElementById('form-categoria')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const nombre = document.getElementById('nombre-categoria').value;
-    let res;
-    if(window.modoEdicion.activo && window.modoEdicion.form === 'categoria') {
-        res = await clienteSupabase.from('categorias').update({nombre}).eq('id', window.modoEdicion.id);
-    } else {
-        res = await clienteSupabase.from('categorias').insert([{id_empresa: window.miEmpresaId, nombre}]);
-    }
-    if (res.error) return alert("❌ Error BD: " + res.error.message);
-    window.cancelarEdicion('categoria'); window.cargarCategorias();
-});
 
-// ================= UNIDADES =================
 window.cargarUnidades = async function() {
     const { data } = await clienteSupabase.from('unidades').select('*').eq('id_empresa', window.miEmpresaId).order('nombre');
     document.getElementById('lista-unidades').innerHTML = (data||[]).map(u => `
@@ -61,21 +167,7 @@ window.cargarUnidades = async function() {
         </li>
     `).join('');
 }
-document.getElementById('form-unidad')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const nombre = document.getElementById('nombre-unidad').value;
-    const abrev = document.getElementById('abrev-unidad').value;
-    let res;
-    if(window.modoEdicion.activo && window.modoEdicion.form === 'unidad') {
-        res = await clienteSupabase.from('unidades').update({nombre, abreviatura: abrev}).eq('id', window.modoEdicion.id);
-    } else {
-        res = await clienteSupabase.from('unidades').insert([{id_empresa: window.miEmpresaId, nombre, abreviatura: abrev}]);
-    }
-    if (res.error) return alert("❌ Error BD: " + res.error.message);
-    window.cancelarEdicion('unidad'); window.cargarUnidades();
-});
 
-// ================= PROVEEDORES =================
 window.cargarProveedores = async function() {
     const { data } = await clienteSupabase.from('proveedores').select('*').eq('id_empresa', window.miEmpresaId).order('nombre');
     document.getElementById('lista-proveedores').innerHTML = (data||[]).map(p => {
@@ -102,35 +194,6 @@ window.cargarProveedores = async function() {
     `}).join('');
 }
 
-document.getElementById('form-proveedor')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const tiempoInput = document.getElementById('tiempo-entrega').value;
-    const tiempoParsed = tiempoInput ? parseInt(tiempoInput) : null;
-
-    // Cambiamos tiempo_entrega por lapso_entrega_dias para que coincida con tu BD
-    const payload = {
-        nombre: document.getElementById('nombre-proveedor').value,
-        tipo: document.getElementById('tipo-proveedor').value,
-        whatsapp: document.getElementById('whatsapp-proveedor').value,
-        correo: document.getElementById('correo-proveedor').value,
-        lapso_entrega_dias: tiempoParsed
-    };
-    
-    let res;
-    if(window.modoEdicion.activo && window.modoEdicion.form === 'proveedor') {
-        res = await clienteSupabase.from('proveedores').update(payload).eq('id', window.modoEdicion.id);
-    } else {
-        res = await clienteSupabase.from('proveedores').insert([{...payload, id_empresa: window.miEmpresaId}]);
-    }
-    
-    if (res.error) return alert("❌ Error BD: " + res.error.message);
-    
-    window.cancelarEdicion('proveedor'); 
-    window.cargarProveedores();
-});
-
-// LOGICA MODAL LISTA PRECIOS PROVEEDORES
 window.proveedorActivoPrecio = null;
 window.abrirPreciosProveedor = async function(idProv, nombreProv) {
     window.proveedorActivoPrecio = idProv;
@@ -167,30 +230,6 @@ window.cargarTablaPreciosProv = async function() {
     `).join('');
 }
 
-document.getElementById('form-precio-prov')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const idProd = document.getElementById('pp-producto').value;
-    const precio = parseFloat(document.getElementById('pp-precio').value);
-
-    const { data: previo } = await clienteSupabase.from('proveedor_precios').select('id').eq('id_proveedor', window.proveedorActivoPrecio).eq('id_producto', idProd).maybeSingle();
-    
-    let res;
-    if(previo) {
-        res = await clienteSupabase.from('proveedor_precios').update({precio_referencia: precio, fecha_actualizacion: new Date()}).eq('id', previo.id);
-    } else {
-        res = await clienteSupabase.from('proveedor_precios').insert([{
-            id_empresa: window.miEmpresaId, id_proveedor: window.proveedorActivoPrecio, id_producto: idProd, precio_referencia: precio
-        }]);
-    }
-    
-    if (res && res.error) return alert("❌ Error BD: " + res.error.message);
-    
-    document.getElementById('pp-precio').value = '';
-    window.cargarTablaPreciosProv();
-});
-
-
-// ================= SUCURSALES =================
 window.cargarSucursales = async function() {
     const { data } = await clienteSupabase.from('sucursales').select('*').eq('id_empresa', window.miEmpresaId).order('nombre');
     document.getElementById('lista-sucursales').innerHTML = (data||[]).map(s => `
@@ -220,28 +259,7 @@ window.cargarSucursales = async function() {
         selectUbi.innerHTML = '<option value="" disabled selected>Elige sucursal padre...</option>' + (data||[]).map(s => `<option value="${s.id}">${s.nombre}</option>`).join('');
     }
 }
-document.getElementById('form-sucursal')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const payload = {
-        nombre: document.getElementById('nombre-sucursal').value,
-        nombre_comercial: document.getElementById('comercial-sucursal').value,
-        empresa_asociada: document.getElementById('empresa-sucursal').value,
-        horarios_atencion: document.getElementById('horario-sucursal').value,
-        direccion: document.getElementById('dir-sucursal').value
-    };
-    
-    let res;
-    if(window.modoEdicion.activo && window.modoEdicion.form === 'sucursal') {
-        res = await clienteSupabase.from('sucursales').update(payload).eq('id', window.modoEdicion.id);
-    } else {
-        res = await clienteSupabase.from('sucursales').insert([{...payload, id_empresa: window.miEmpresaId}]);
-    }
-    
-    if (res.error) return alert("❌ Error BD: " + res.error.message);
-    window.cancelarEdicion('sucursal'); window.cargarSucursales();
-});
 
-// ================= UBICACIONES INTERNAS =================
 window.cargarUbicaciones = async function() {
     const { data } = await clienteSupabase.from('ubicaciones_internas').select('id, nombre, sucursales(nombre)').eq('id_empresa', window.miEmpresaId).order('nombre');
     document.getElementById('lista-ubicaciones').innerHTML = (data||[]).map(u => `
@@ -256,17 +274,7 @@ window.cargarUbicaciones = async function() {
         </li>
     `).join('');
 }
-document.getElementById('form-ubicacion')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const nombre = document.getElementById('nombre-ubicacion').value;
-    const id_sucursal = document.getElementById('sel-sucursal-ubi').value;
-    const res = await clienteSupabase.from('ubicaciones_internas').insert([{id_empresa: window.miEmpresaId, id_sucursal, nombre}]);
-    
-    if (res.error) return alert("❌ Error BD: " + res.error.message);
-    window.cancelarEdicion('ubicacion'); window.cargarUbicaciones();
-});
 
-// ================= TIPOS DE MOVIMIENTO =================
 window.cargarTiposMovimiento = async function() {
     const { data } = await clienteSupabase.from('tipos_movimiento').select('*').eq('id_empresa', window.miEmpresaId).order('nombre');
     document.getElementById('lista-tipos-movimiento').innerHTML = (data||[]).map(t => {
@@ -284,17 +292,3 @@ window.cargarTiposMovimiento = async function() {
         </li>
     `}).join('');
 }
-document.getElementById('form-tipo-movimiento')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const nombre = document.getElementById('nombre-tipo-mov').value;
-    const operacion = document.getElementById('operacion-tipo-mov').value;
-    let res;
-    if(window.modoEdicion.activo && window.modoEdicion.form === 'tipo-movimiento') {
-        res = await clienteSupabase.from('tipos_movimiento').update({nombre, operacion}).eq('id', window.modoEdicion.id);
-    } else {
-        res = await clienteSupabase.from('tipos_movimiento').insert([{id_empresa: window.miEmpresaId, nombre, operacion}]);
-    }
-    
-    if (res.error) return alert("❌ Error BD: " + res.error.message);
-    window.cancelarEdicion('tipo-movimiento'); window.cargarTiposMovimiento();
-});
