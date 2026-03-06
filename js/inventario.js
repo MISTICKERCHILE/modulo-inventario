@@ -149,22 +149,54 @@ window.cargarFilasConteoMasivo = async function(idUbicacion) {
     const tbody = document.getElementById('cm-filas');
     if(!idUbicacion) { tbody.innerHTML = '<tr><td colspan="4" class="text-center text-slate-400 py-8">Selecciona una ubicación.</td></tr>'; return; }
     
-    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-slate-400 py-8">Buscando productos...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-emerald-600 py-8 font-bold animate-pulse">⏳ Cargando todo el catálogo para inicialización...</td></tr>';
 
+    // 1. Buscamos TODOS los productos que lleven control de stock
+    const { data: prodsFisicos } = await clienteSupabase.from('productos')
+        .select('id, nombre, id_unidad_almacenamiento(abreviatura)')
+        .eq('id_empresa', window.miEmpresaId)
+        .is('control_stock', true)
+        .order('nombre');
+
+    // 2. Buscamos el stock existente en esa ubicación
     let query = clienteSupabase.from('inventario_saldos').select('id_producto, cantidad_actual_ua').eq('id_sucursal', window.sucursalActivaID);
     if(idUbicacion === 'GENERAL') query = query.is('id_ubicacion', null);
     else query = query.eq('id_ubicacion', idUbicacion);
 
     const { data: saldosActuales } = await query;
+
+    // Mapeamos los saldos existentes para cruzarlos rápido
+    const mapSaldos = {};
+    (saldosActuales || []).forEach(s => mapSaldos[s.id_producto] = s.cantidad_actual_ua);
+
     tbody.innerHTML = '';
     
-    if(saldosActuales && saldosActuales.length > 0) {
-        saldosActuales.forEach(s => {
-            const prod = window.productosGlobalConteo.find(p => p.id === s.id_producto);
-            if(prod) window.agregarFilaConteoFija(prod.id, prod.nombre, prod.id_unidad_almacenamiento?.abreviatura || 'UA', s.cantidad_actual_ua);
+    if(prodsFisicos && prodsFisicos.length > 0) {
+        let html = '';
+        prodsFisicos.forEach(p => {
+            const cantActual = mapSaldos[p.id] || 0;
+            const abrev = p.id_unidad_almacenamiento?.abreviatura || 'UA';
+
+            html += `
+            <tr class="border-b border-slate-100 fila-conteo-item hover:bg-slate-50 transition-colors">
+                <td class="py-3 px-4 font-medium text-sm text-slate-700">
+                    ${p.nombre}
+                    <input type="hidden" class="cm-select-prod" value="${p.id}">
+                    <input type="hidden" class="cm-cant-anterior" value="${cantActual}">
+                </td>
+                <td class="py-3 px-4 text-center">
+                    <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-100 cm-label-abrev">${abrev}</span>
+                </td>
+                <td class="py-3 px-4 relative flex justify-center flex-col items-center">
+                    <span class="text-[10px] text-slate-400 font-bold mb-1">Stock Sistema: ${cantActual}</span>
+                    <input type="number" step="0.01" value="${cantActual}" class="w-24 px-2 py-1 border border-slate-300 rounded text-center cm-input-cant font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner">
+                </td>
+                <td class="py-3 px-4 text-right"><button onclick="this.closest('tr').remove()" class="text-slate-300 hover:text-red-500 text-lg transition-transform hover:scale-110" title="Quitar de la lista">🗑️</button></td>
+            </tr>`;
         });
+        tbody.innerHTML = html;
     } else {
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-slate-400 py-8">No hay productos registrados en esta ubicación aún. Usa el botón de abajo para agregar uno.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-slate-400 py-8">No tienes productos marcados con "Control de Stock Físico" en tu catálogo.</td></tr>';
     }
 }
 

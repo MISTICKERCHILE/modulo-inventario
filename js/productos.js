@@ -9,12 +9,13 @@ window.prodFilterCat = 'TODOS';
 window.prodSortMode = 'A-Z'; 
 window.prodSearchText = ''; 
 
-// --- CREACIÓN / EDICIÓN ---
+// --- CREACIÓN / EDICIÓN DE PRODUCTOS ---
 window.abrirModalProducto = async function(esEdicion = false, nombreSugerido = '') {
     document.getElementById('modal-producto').classList.remove('hidden');
     
-    // AQUÍ ESTÁ LA MAGIA: El "await" obliga al sistema a esperar que las listas carguen
-    if(!window.unidadesMemoria || window.unidadesMemoria.length === 0) {
+    // EL FIX: Ahora revisa si el HTML está vacío, sin importar la memoria.
+    const catSelect = document.getElementById('prod-categoria');
+    if(!catSelect || catSelect.options.length <= 1) {
         await window.cargarDatosSelects();
     }
     
@@ -76,12 +77,13 @@ window.toggleFilaProducto = function(idFila) {
 }
 
 window.cargarDatosSelects = async function() {
-    const { data: cat } = await clienteSupabase.from('categorias').select('*').eq('id_empresa', window.miEmpresaId);
-    document.getElementById('prod-categoria').innerHTML = (cat||[]).map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+    const { data: cat } = await clienteSupabase.from('categorias').select('*').eq('id_empresa', window.miEmpresaId).order('nombre');
+    // FIX: Agregamos una opción por defecto "Sin Categoría" por si los masivos no la traen.
+    document.getElementById('prod-categoria').innerHTML = '<option value="">Sin Categoría asignada...</option>' + (cat||[]).map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
     
-    const { data: uni } = await clienteSupabase.from('unidades').select('*').eq('id_empresa', window.miEmpresaId);
+    const { data: uni } = await clienteSupabase.from('unidades').select('*').eq('id_empresa', window.miEmpresaId).order('nombre');
     window.unidadesMemoria = uni || []; 
-    const opcionesUni = '<option value="">Seleccione...</option>' + window.unidadesMemoria.map(u => `<option value="${u.id}">${u.nombre} (${u.abreviatura})</option>`).join('');
+    const opcionesUni = '<option value="">Seleccione Unidad...</option>' + window.unidadesMemoria.map(u => `<option value="${u.id}">${u.nombre} (${u.abreviatura})</option>`).join('');
     
     ['prod-u-compra', 'prod-u-almacen', 'prod-u-menor', 'prod-u-receta'].forEach(id => {
         const el = document.getElementById(id);
