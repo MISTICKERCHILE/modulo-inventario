@@ -149,12 +149,15 @@ window.actualizarBadgeCarrito = function() {
 window.toggleMenu = function() {
     const menu = document.getElementById('sidebar-menu');
     const backdrop = document.getElementById('sidebar-backdrop');
-    if (menu.classList.contains('-translate-x-full')) {
-        menu.classList.remove('-translate-x-full');
-        backdrop.classList.remove('hidden');
+    
+    // El menú ahora es inteligente y sabe en qué dispositivo está
+    if (window.innerWidth < 768) {
+        // En Celulares: Desliza el menú de izquierda a derecha
+        menu.classList.toggle('-translate-x-full');
+        backdrop.classList.toggle('hidden');
     } else {
-        menu.classList.add('-translate-x-full');
-        backdrop.classList.add('hidden');
+        // En Computadoras: Oculta o muestra la barra lateral
+        menu.classList.toggle('md:hidden');
     }
 }
 
@@ -166,17 +169,17 @@ window.toggleNotificaciones = function() {
     document.getElementById('panel-notificaciones').classList.toggle('hidden');
 }
 
-// Cierra menús al hacer clic fuera
+// Cierra menús desplegables al hacer clic fuera de ellos (A prueba de errores)
 document.addEventListener('click', (e) => {
     const userDropdown = document.getElementById('user-dropdown');
-    const userBtn = userDropdown.previousElementSibling;
-    if (!userDropdown.contains(e.target) && !userBtn.contains(e.target)) {
+    const userBtn = userDropdown?.previousElementSibling;
+    if (userDropdown && userBtn && !userDropdown.contains(e.target) && !userBtn.contains(e.target)) {
         userDropdown.classList.add('hidden');
     }
 
     const notifPanel = document.getElementById('panel-notificaciones');
-    const notifBtn = notifPanel.previousElementSibling;
-    if (!notifPanel.contains(e.target) && !notifBtn.contains(e.target)) {
+    const notifBtn = notifPanel?.previousElementSibling;
+    if (notifPanel && notifBtn && !notifPanel.contains(e.target) && !notifBtn.contains(e.target)) {
         notifPanel.classList.add('hidden');
     }
 });
@@ -197,7 +200,11 @@ window.cambiarVista = async function(vista) {
         btnActivo.classList.add('bg-emerald-600', 'text-white', 'shadow-md');
     }
     
-    if (window.innerWidth < 768) { window.toggleMenu(); }
+    // ¡AQUÍ ESTABA EL BUG! Ahora forzamos a que en el celular se CIERRE al cambiar de pantalla
+    if (window.innerWidth < 768) { 
+        document.getElementById('sidebar-menu').classList.add('-translate-x-full');
+        document.getElementById('sidebar-backdrop').classList.add('hidden');
+    }
 
     try {
         const response = await fetch(`vistas/${vista}.html`);
@@ -215,7 +222,6 @@ window.cambiarVista = async function(vista) {
         if(vista === 'inventario' && typeof window.cargarInventario === 'function') window.cargarInventario();
         if(vista === 'recetas' && typeof window.cargarBuscadorRecetas === 'function') window.cargarBuscadorRecetas();
         
-        // LOS NUEVOS AUTO-ARRANQUES
         if(vista === 'pedidos' && typeof window.cambiarSubTabPedidos === 'function') window.cambiarSubTabPedidos('sugerencias');
         if(vista === 'movimientos' && typeof window.cambiarTabMovimientos === 'function') window.cambiarTabMovimientos('compras');
         if(vista === 'reportes' && typeof window.cargarReportes === 'function') window.cargarReportes();
