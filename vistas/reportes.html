@@ -1,8 +1,11 @@
-<div class="flex justify-between items-center mb-6">
+<div class="flex justify-between items-center mb-6 gap-4">
     <h2 class="text-2xl font-bold text-slate-800">📊 Reportes y Auditoría</h2>
-    <button onclick="window.print()" class="px-4 py-2 bg-slate-800 text-white rounded-md font-bold shadow hover:bg-slate-700 transition-colors flex items-center gap-2">
-        <span>🖨️</span> Imprimir Reporte
-    </button>
+    
+    <div class="flex bg-white border border-slate-200 rounded-md shadow-sm overflow-hidden">
+        <button onclick="imprimirReporteActual()" title="Imprimir Reporte Actual (PDF)" class="px-3 py-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors">
+            🖨️
+        </button>
+    </div>
 </div>
 
 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8" id="rep-kpis-container">
@@ -11,13 +14,11 @@
         <p class="text-4xl font-black text-emerald-600 mt-2" id="rep-kpi-valor">$0</p>
         <p class="text-xs text-slate-400 mt-2">Costo calculado sobre stock físico real</p>
     </div>
-    
     <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm border-t-4 border-t-blue-500">
         <p class="text-xs font-bold text-slate-500 uppercase tracking-wide">Catálogo Activo</p>
         <p class="text-4xl font-black text-blue-600 mt-2" id="rep-kpi-prods">0</p>
         <p class="text-xs text-slate-400 mt-2">Productos registrados en el sistema</p>
     </div>
-
     <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm border-t-4 border-t-orange-500">
         <p class="text-xs font-bold text-slate-500 uppercase tracking-wide">Ítems con Stock (En Bodega)</p>
         <p class="text-4xl font-black text-orange-600 mt-2" id="rep-kpi-stock">0</p>
@@ -28,81 +29,157 @@
 <div class="flex border-b border-slate-200 mb-6 overflow-x-auto bg-white rounded-t-lg shadow-sm">
     <button onclick="cambiarTabReportes('valorizacion')" id="tab-rep-valorizacion" class="px-6 py-3 font-medium border-b-2 border-emerald-600 text-emerald-600 bg-emerald-50/50 transition-colors whitespace-nowrap">Valorización de Inventario</button>
     <button onclick="cambiarTabReportes('kardex')" id="tab-rep-kardex" class="px-6 py-3 font-medium text-slate-500 hover:text-slate-700 transition-colors whitespace-nowrap">Movimientos Globales (Kardex)</button>
-    <button onclick="cambiarTabReportes('compras')" id="tab-rep-compras" class="px-6 py-3 font-medium text-slate-500 hover:text-slate-700 transition-colors whitespace-nowrap">Historial Movimientos</button>
+    <button onclick="cambiarTabReportes('compras')" id="tab-rep-compras" class="px-6 py-3 font-medium text-slate-500 hover:text-slate-700 transition-colors whitespace-nowrap">Historial Compras y Producción</button>
 </div>
 
 <div id="seccion-rep-valorizacion" class="block">
-    <div class="bg-white rounded-xl shadow-sm border overflow-x-auto">
+    <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <div class="w-full md:w-1/3 relative">
+            <span class="absolute left-3 top-2 text-slate-400">🔍</span>
+            <input type="text" id="busqueda-rep-val" oninput="acc_filtrarRepVal()" placeholder="Buscar producto..." class="w-full pl-9 pr-3 py-1.5 border border-slate-300 rounded-md text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none bg-slate-50">
+        </div>
+        <div class="flex items-center gap-3 w-full md:w-auto">
+            <select id="filtro-cat-rep-val" onchange="acc_filtrarRepVal()" class="border border-slate-300 rounded-md px-3 py-1.5 text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none w-full md:w-48 bg-slate-50 cursor-pointer">
+                <option value="TODOS">Todas las Categorías</option>
+            </select>
+        </div>
+        <div class="flex items-center gap-2 w-full md:w-auto justify-end">
+            <span class="text-sm font-bold text-slate-500">Mostrar:</span>
+            <select id="pag-size-rep-val" onchange="acc_pagRepVal()" class="border border-slate-300 rounded-md px-3 py-1.5 text-sm font-bold text-emerald-700 bg-emerald-50 focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer">
+                <option value="20">20</option>
+                <option value="50" selected>50</option>
+                <option value="100">100</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border overflow-x-auto w-full">
         <table class="min-w-full divide-y divide-slate-200">
             <thead class="bg-slate-50">
                 <tr>
-                    <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Producto</th>
-                    <th class="px-6 py-3 text-center text-xs font-bold text-slate-500 uppercase">Stock Físico (Consolidado)</th>
-                    <th class="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase" title="Costo Unitario por Unidad de Almacenamiento">Costo Promedio (UA)</th>
-                    <th class="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase">Valor Total ($)</th>
+                    <th onclick="acc_sortRepVal('nombre')" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase cursor-pointer hover:bg-slate-200 group select-none">Producto <span class="text-slate-300 group-hover:text-emerald-500">↕</span></th>
+                    <th onclick="acc_sortRepVal('stock')" class="px-6 py-3 text-center text-xs font-bold text-slate-500 uppercase cursor-pointer hover:bg-slate-200 group select-none">Stock Físico <span class="text-slate-300 group-hover:text-emerald-500">↕</span></th>
+                    <th onclick="acc_sortRepVal('costo')" class="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase cursor-pointer hover:bg-slate-200 group select-none">Costo Promedio (UA) <span class="text-slate-300 group-hover:text-emerald-500">↕</span></th>
+                    <th onclick="acc_sortRepVal('valorTotal')" class="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase cursor-pointer hover:bg-slate-200 group select-none">Valor Total ($) <span class="text-slate-300 group-hover:text-emerald-500">↕</span></th>
                 </tr>
             </thead>
-            <tbody id="lista-rep-valorizacion" class="divide-y divide-slate-100">
-                <tr><td colspan="4" class="text-center py-8 text-slate-500 font-bold">Calculando valorización... 🧮</td></tr>
-            </tbody>
+            <tbody id="lista-rep-valorizacion" class="divide-y divide-slate-100"></tbody>
         </table>
+    </div>
+    <div class="flex justify-between items-center mt-4 px-2 mb-8">
+        <p class="text-sm text-slate-500 font-medium" id="info-pag-rep-val"></p>
+        <div class="flex gap-2">
+            <button onclick="acc_cambiarPagVal(-1)" id="btn-prev-rep-val" class="px-4 py-2 bg-white border border-slate-300 shadow-sm rounded-md text-slate-600 hover:bg-slate-50 font-bold disabled:opacity-50 transition-colors">Anterior</button>
+            <button onclick="acc_cambiarPagVal(1)" id="btn-next-rep-val" class="px-4 py-2 bg-white border border-slate-300 shadow-sm rounded-md text-slate-600 hover:bg-slate-50 font-bold disabled:opacity-50 transition-colors">Siguiente</button>
+        </div>
     </div>
 </div>
 
 <div id="seccion-rep-kardex" class="hidden">
-    <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
-        
-        <div class="p-4 border-b bg-slate-50 flex gap-4 items-center">
-            <label class="font-bold text-sm text-slate-600">🔍 Rastrear Vida de un Producto:</label>
-            <select id="filtro-kardex-prod" onchange="filtrarKardexGlobal(this.value)" class="px-3 py-2 border border-slate-300 rounded bg-white text-sm w-72 outline-none focus:ring-2 focus:ring-emerald-500 font-medium">
-                <option value="TODOS">-- Mostrar todo el historial mezclado --</option>
-                </select>
+    <div class="flex flex-col md:flex-row justify-between items-end md:items-center gap-4 mb-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <div class="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+            <div class="relative w-full md:w-64">
+                <span class="absolute left-3 top-2 text-slate-400">🔍</span>
+                <input type="text" id="busqueda-rep-kar" oninput="acc_filtrarRepKar()" placeholder="Buscar producto o ref..." class="w-full pl-9 pr-3 py-1.5 border border-slate-300 rounded-md text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none bg-slate-50">
+            </div>
+            <div class="flex items-center gap-2">
+                <label class="text-xs font-bold text-slate-500">Del:</label>
+                <input type="date" id="fecha-inicio-kar" onchange="acc_filtrarRepKar()" class="border border-slate-300 rounded-md px-2 py-1 text-sm bg-white outline-none focus:ring-2 focus:ring-emerald-500">
+            </div>
+            <div class="flex items-center gap-2">
+                <label class="text-xs font-bold text-slate-500">Al:</label>
+                <input type="date" id="fecha-fin-kar" onchange="acc_filtrarRepKar()" class="border border-slate-300 rounded-md px-2 py-1 text-sm bg-white outline-none focus:ring-2 focus:ring-emerald-500">
+            </div>
         </div>
+        <div class="flex items-center gap-2 w-full md:w-auto justify-end">
+            <span class="text-sm font-bold text-slate-500">Mostrar:</span>
+            <select id="pag-size-rep-kar" onchange="acc_pagRepKar()" class="border border-slate-300 rounded-md px-3 py-1.5 text-sm font-bold text-emerald-700 bg-emerald-50 focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer">
+                <option value="20">20</option>
+                <option value="50" selected>50</option>
+                <option value="100">100</option>
+            </select>
+        </div>
+    </div>
 
-        <div class="max-h-[65vh] overflow-y-auto relative">
-            <table class="min-w-full divide-y divide-slate-200">
-                <thead class="bg-slate-100 sticky top-0 z-10 shadow-sm border-b">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-bold text-slate-600 uppercase w-40">Fecha y Hora</th>
-                        <th class="px-6 py-3 text-left text-xs font-bold text-slate-600 uppercase">Producto</th>
-                        <th class="px-6 py-3 text-left text-xs font-bold text-slate-600 uppercase">Acción</th>
-                        <th class="px-6 py-3 text-right text-xs font-bold text-slate-600 uppercase">Cant. Modificada</th>
-                        <th class="px-6 py-3 text-left text-xs font-bold text-slate-600 uppercase">Ubicación</th>
-                        <th class="px-6 py-3 text-left text-xs font-bold text-slate-600 uppercase w-1/4">Referencia / Motivo</th>
-                    </tr>
-                </thead>
-                <tbody id="lista-rep-kardex" class="divide-y divide-slate-100 text-sm bg-white">
-                    </tbody>
-            </table>
+    <div class="bg-white rounded-xl shadow-sm border overflow-x-auto w-full">
+        <table class="min-w-full divide-y divide-slate-200">
+            <thead class="bg-slate-50">
+                <tr>
+                    <th onclick="acc_sortRepKar('fechaObj')" class="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase cursor-pointer hover:bg-slate-200 group select-none whitespace-nowrap">Fecha <span class="text-slate-300 group-hover:text-emerald-500">↕</span></th>
+                    <th onclick="acc_sortRepKar('nombreProd')" class="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase cursor-pointer hover:bg-slate-200 group select-none">Producto <span class="text-slate-300 group-hover:text-emerald-500">↕</span></th>
+                    <th onclick="acc_sortRepKar('accion')" class="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase cursor-pointer hover:bg-slate-200 group select-none">Acción <span class="text-slate-300 group-hover:text-emerald-500">↕</span></th>
+                    <th onclick="acc_sortRepKar('cantidad')" class="px-4 py-3 text-right text-xs font-bold text-slate-600 uppercase cursor-pointer hover:bg-slate-200 group select-none">Cant. <span class="text-slate-300 group-hover:text-emerald-500">↕</span></th>
+                    <th onclick="acc_sortRepKar('ubicacion')" class="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase cursor-pointer hover:bg-slate-200 group select-none">Ubicación <span class="text-slate-300 group-hover:text-emerald-500">↕</span></th>
+                    <th class="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Responsable</th>
+                    <th class="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Referencia</th>
+                </tr>
+            </thead>
+            <tbody id="lista-rep-kardex" class="divide-y divide-slate-100 text-sm bg-white"></tbody>
+        </table>
+    </div>
+    <div class="flex justify-between items-center mt-4 px-2 mb-8">
+        <p class="text-sm text-slate-500 font-medium" id="info-pag-rep-kar"></p>
+        <div class="flex gap-2">
+            <button onclick="acc_cambiarPagKar(-1)" id="btn-prev-rep-kar" class="px-4 py-2 bg-white border border-slate-300 shadow-sm rounded-md text-slate-600 hover:bg-slate-50 font-bold disabled:opacity-50 transition-colors">Anterior</button>
+            <button onclick="acc_cambiarPagKar(1)" id="btn-next-rep-kar" class="px-4 py-2 bg-white border border-slate-300 shadow-sm rounded-md text-slate-600 hover:bg-slate-50 font-bold disabled:opacity-50 transition-colors">Siguiente</button>
         </div>
     </div>
 </div>
 
 <div id="seccion-rep-compras" class="hidden">
-    <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
-        <div class="max-h-[65vh] overflow-y-auto relative">
-            <table class="min-w-full divide-y divide-slate-200">
-                <thead class="bg-slate-200 sticky top-0 z-10 shadow-sm">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-bold text-slate-600 uppercase whitespace-nowrap">Fecha de Ingreso</th>
-                        <th class="px-6 py-3 text-left text-xs font-bold text-slate-600 uppercase">Tipo</th>
-                        <th class="px-6 py-3 text-left text-xs font-bold text-slate-600 uppercase">Origen / Proveedor</th>
-                        <th class="px-6 py-3 text-right text-xs font-bold text-slate-600 uppercase whitespace-nowrap">Total Estimado</th>
-                        <th class="px-6 py-3 text-center text-xs font-bold text-slate-600 uppercase">Estado</th>
-                        <th class="px-6 py-3 text-center text-xs font-bold text-slate-600 uppercase">Desglose</th>
-                    </tr>
-                </thead>
-                <tbody id="lista-historial-compras" class="divide-y divide-slate-100 bg-white text-sm">
-                    <tr><td colspan="6" class="text-center py-8 text-slate-500 font-bold">Buscando órdenes...</td></tr>
-                </tbody>
-            </table>
+    <div class="flex flex-col md:flex-row justify-between items-end md:items-center gap-4 mb-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <div class="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+            <div class="relative w-full md:w-64">
+                <span class="absolute left-3 top-2 text-slate-400">🔍</span>
+                <input type="text" id="busqueda-rep-com" oninput="acc_filtrarRepCom()" placeholder="Buscar proveedor..." class="w-full pl-9 pr-3 py-1.5 border border-slate-300 rounded-md text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none bg-slate-50">
+            </div>
+            <div class="flex items-center gap-2">
+                <label class="text-xs font-bold text-slate-500">Del:</label>
+                <input type="date" id="fecha-inicio-com" onchange="acc_filtrarRepCom()" class="border border-slate-300 rounded-md px-2 py-1 text-sm bg-white outline-none focus:ring-2 focus:ring-emerald-500">
+            </div>
+            <div class="flex items-center gap-2">
+                <label class="text-xs font-bold text-slate-500">Al:</label>
+                <input type="date" id="fecha-fin-com" onchange="acc_filtrarRepCom()" class="border border-slate-300 rounded-md px-2 py-1 text-sm bg-white outline-none focus:ring-2 focus:ring-emerald-500">
+            </div>
+        </div>
+        <div class="flex items-center gap-2 w-full md:w-auto justify-end">
+            <span class="text-sm font-bold text-slate-500">Mostrar:</span>
+            <select id="pag-size-rep-com" onchange="acc_pagRepCom()" class="border border-slate-300 rounded-md px-3 py-1.5 text-sm font-bold text-emerald-700 bg-emerald-50 focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer">
+                <option value="20">20</option>
+                <option value="50" selected>50</option>
+                <option value="100">100</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border overflow-x-auto w-full">
+        <table class="min-w-full divide-y divide-slate-200">
+            <thead class="bg-slate-50">
+                <tr>
+                    <th onclick="acc_sortRepCom('fechaObj')" class="px-6 py-3 text-left text-xs font-bold text-slate-600 uppercase cursor-pointer hover:bg-slate-200 group select-none whitespace-nowrap">Fecha Ingreso <span class="text-slate-300 group-hover:text-emerald-500">↕</span></th>
+                    <th onclick="acc_sortRepCom('tipoStr')" class="px-6 py-3 text-left text-xs font-bold text-slate-600 uppercase cursor-pointer hover:bg-slate-200 group select-none">Tipo <span class="text-slate-300 group-hover:text-emerald-500">↕</span></th>
+                    <th onclick="acc_sortRepCom('proveedor')" class="px-6 py-3 text-left text-xs font-bold text-slate-600 uppercase cursor-pointer hover:bg-slate-200 group select-none">Origen / Proveedor <span class="text-slate-300 group-hover:text-emerald-500">↕</span></th>
+                    <th class="px-6 py-3 text-left text-xs font-bold text-slate-600 uppercase">Responsable</th>
+                    <th onclick="acc_sortRepCom('total')" class="px-6 py-3 text-right text-xs font-bold text-slate-600 uppercase cursor-pointer hover:bg-slate-200 group select-none whitespace-nowrap">Total Estimado <span class="text-slate-300 group-hover:text-emerald-500">↕</span></th>
+                    <th onclick="acc_sortRepCom('estado')" class="px-6 py-3 text-center text-xs font-bold text-slate-600 uppercase cursor-pointer hover:bg-slate-200 group select-none">Estado <span class="text-slate-300 group-hover:text-emerald-500">↕</span></th>
+                    <th class="px-6 py-3 text-center text-xs font-bold text-slate-600 uppercase">Desglose</th>
+                </tr>
+            </thead>
+            <tbody id="lista-historial-compras" class="divide-y divide-slate-100 bg-white text-sm"></tbody>
+        </table>
+    </div>
+    <div class="flex justify-between items-center mt-4 px-2 mb-8">
+        <p class="text-sm text-slate-500 font-medium" id="info-pag-rep-com"></p>
+        <div class="flex gap-2">
+            <button onclick="acc_cambiarPagCom(-1)" id="btn-prev-rep-com" class="px-4 py-2 bg-white border border-slate-300 shadow-sm rounded-md text-slate-600 hover:bg-slate-50 font-bold disabled:opacity-50 transition-colors">Anterior</button>
+            <button onclick="acc_cambiarPagCom(1)" id="btn-next-rep-com" class="px-4 py-2 bg-white border border-slate-300 shadow-sm rounded-md text-slate-600 hover:bg-slate-50 font-bold disabled:opacity-50 transition-colors">Siguiente</button>
         </div>
     </div>
 </div>
 
 <style>
     @media print {
-        #sidebar-menu, header, .flex.border-b.overflow-x-auto, #filtro-kardex-prod, label[for="filtro-kardex-prod"] { display: none !important; }
+        #sidebar-menu, header, .flex.border-b, .bg-white.p-4.rounded-xl { display: none !important; }
         #main-content { padding: 0 !important; width: 100% !important; }
         .max-h-\[65vh\] { max-height: none !important; overflow: visible !important; }
         body { background-color: white !important; }
