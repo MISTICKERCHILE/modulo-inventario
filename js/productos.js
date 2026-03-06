@@ -354,6 +354,8 @@ window.cargarBuscadorRecetas = async function() {
         document.getElementById('panel-receta-activa').classList.add('hidden');
         document.getElementById('panel-estadisticas-receta').classList.add('hidden');
         document.getElementById('receta-unidad-base').classList.add('hidden');
+        const btnImp = document.getElementById('btn-imprimir-receta');
+        if(btnImp) btnImp.classList.add('hidden');
     }
 }
 
@@ -369,13 +371,19 @@ window.abrirReceta = async function(idProducto, nombre, esRecarga = false) {
     
     await window.actualizarSelectInsumos();
     
-    // Revelar los paneles
+    const vistaRecetasActiva = document.getElementById('receta-titulo');
+    if(!vistaRecetasActiva && !esRecarga) {
+        await window.cambiarVista('recetas');
+    }
+    
     const msjVacio = document.getElementById('msj-receta-vacia');
     if(msjVacio) {
         msjVacio.classList.add('hidden');
         document.getElementById('panel-receta-activa').classList.remove('hidden');
         document.getElementById('panel-estadisticas-receta').classList.remove('hidden');
         document.getElementById('receta-unidad-base').classList.remove('hidden');
+        const btnImp = document.getElementById('btn-imprimir-receta');
+        if(btnImp) btnImp.classList.remove('hidden');
     }
 
     const abrev = prodFinal?.id_unidad_receta?.abreviatura || 'un';
@@ -387,18 +395,147 @@ window.abrirReceta = async function(idProducto, nombre, esRecarga = false) {
     if(elLabelRendimiento) elLabelRendimiento.innerText = abrev;
     if(elInputRendimiento) elInputRendimiento.value = prodFinal?.rendimiento_receta || 1;
     
-    // Cambiamos vista a recetas solo si no estamos recargando
-    const tituloReceta = document.getElementById('receta-titulo');
-    if(!tituloReceta && !esRecarga) window.cambiarVista('recetas');
-    
     window.cargarIngredientesReceta();
 }
 
-// AQUI SE CORRIGIÓ EL ERROR DE CARGA DEL NULL
 window.actualizarSelectInsumos = async function() {
     const { data: prods } = await clienteSupabase.from('productos').select('id, nombre, id_unidad_receta(abreviatura)').eq('id_empresa', window.miEmpresaId).order('nombre');
     window.productosParaRecetaMemoria = prods || [];
-    // Ya no intentamos meter HTML aquí, el buscador inteligente hace el trabajo.
+}
+
+// NUEVA FUNCIÓN: IMPRIMIR RECETAS (COCINA Y ADMIN)
+window.imprimirReceta = async function(tipo) {
+    if(!window.productoActualParaReceta) return alert("Selecciona una receta primero.");
+
+    const sel = document.getElementById('buscador-recetas');
+    const nombreReceta = sel.options[sel.selectedIndex].text;
+    const rendimiento = parseFloat(document.getElementById('receta-rendimiento').value) || 1;
+    const unidadBase = document.getElementById('receta-label-rendimiento').innerText;
+    
+    const fechaHoy = new Date().toLocaleDateString('es-CL');
+    const empresaActual = document.getElementById('lista-empresas-usuario')?.innerText.split('\n')[0].replace('🏢 ', '') || 'Empresa Global';
+
+    // Buscamos los datos exactos desde la BD para imprimir
+    const { data } = await clienteSupabase.from('recetas')
+        .select('cantidad_neta, id_ingrediente(nombre, ultimo_costo_uc, cant_en_ua_de_uc, cant_en_um_de_ua, cant_en_ur_de_um, id_unidad_receta(abreviatura))')
+        .eq('id_producto_padre', window.productoActualParaReceta);
+
+    let costoTotalReceta = 0;
+    let filasHtml = '';
+
+    (data||[]).forEach(r => {
+        const ing = r.id_ingrediente;
+        const abrev = ing.id_unidad_receta?.abreviatura || '';
+        const f_ua = ing.cant_en_ua_de_uc || 1;
+        const f_um = ing.cant_en_um_de_ua || 1;
+        const f_ur = ing.cant_en_ur_de_um || 1;
+        const costo_uc = ing.ultimo_costo_uc || 0;
+        const costo_ur = costo_uc / (f_ua * f_um * f_ur);
+        
+        // Costo Total de esa línea de ingrediente
+        const costo_linea = costo_ur * r.cantidad_neta;
+        const costo_linea_iva = costo_linea * 1.19;
+
+        costoTotalReceta += costo_linea;
+
+        if (tipo === 'cocina') {
+            filasHtml += `
+                <tr>
+                    <td class="prod-col">${ing.nombre}</td>
+                    <td class="center-col font-mono">${r.cantidad_neta}</td>
+                    <td class="center-col text-gray-500">${abrev}</td>
+                </tr>
+            `;
+        } else {
+            filasHtml += `
+                <tr>
+                    <td class="prod-col">${ing.nombre}</td>
+                    <td class="center-col font-mono">${r.cantidad_neta}</td>
+                    <td class="center-col text-gray-500">${abrev}</td>
+                    <td class="right-col font-mono text-emerald-700">$${costo_linea.toFixed(2)}</td>
+                    <td class="right-col font-mono text-blue-700">$${costo_linea_iva.toFixed(2)}</td>
+                </tr>
+            `;
+        }
+    });
+
+    const costoTotalRecetaIva = costoTotalReceta * 1.19;
+
+    let tableHeaders = '';
+    if (tipo === 'cocina') {
+        tableHeaders = `
+            <tr>
+                <th>Ingrediente / Insumo</th>
+                <th style="width: 120px; text-align: center;">Cantidad</th>
+                <th style="width: 100px; text-align: center;">Unidad</th>
+            </tr>
+        `;
+    } else {
+        tableHeaders = `
+            <tr>
+                <th>Ingrediente / Insumo</th>
+                <th style="width: 100px; text-align: center;">Cant.</th>
+                <th style="width: 80px; text-align: center;">Unid.</th>
+                <th style="width: 120px; text-align: right;">Costo Neto</th>
+                <th style="width: 120px; text-align: right;">Costo (+19% IVA)</th>
+            </tr>
+        `;
+    }
+
+    let extraAdminInfo = '';
+    if(tipo === 'admin') {
+        extraAdminInfo = `
+            <div class="info-item"><strong>Costo Total Receta (Neto):</strong><div style="font-size: 16px; margin-top: 4px; color: #047857; font-weight: bold;">$${costoTotalReceta.toFixed(2)}</div></div>
+            <div class="info-item"><strong>Costo Total Receta (+19% IVA):</strong><div style="font-size: 16px; margin-top: 4px; color: #1d4ed8; font-weight: bold;">$${costoTotalRecetaIva.toFixed(2)}</div></div>
+        `;
+    }
+
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    printWindow.document.write(`
+        <html>
+        <head>
+            <title>Ficha Técnica - ${nombreReceta}</title>
+            <style>
+                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+                body { font-family: 'Inter', sans-serif; margin: 0; padding: 20px; color: #333; }
+                .header-box { border: 2px solid #000; padding: 15px; border-radius: 8px; margin-bottom: 20px; background-color: #fff; }
+                .header-title { font-size: 24px; font-weight: 900; text-transform: uppercase; margin: 0 0 15px 0; text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; }
+                .info-grid { display: flex; flex-wrap: wrap; gap: 15px; }
+                .info-item { flex: 1 1 30%; font-size: 14px; }
+                .info-item strong { text-transform: uppercase; font-size: 12px; color: #555; display: block; }
+                table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                th, td { border: 1px solid #000; padding: 10px 8px; text-align: left; }
+                th { background-color: #f1f5f9; font-weight: bold; text-transform: uppercase; font-size: 12px; }
+                thead { display: table-header-group; } 
+                tr { page-break-inside: avoid; }
+                .prod-col { font-weight: bold; font-size: 13px; }
+                .center-col { text-align: center; font-size: 13px; }
+                .right-col { text-align: right; font-size: 13px; }
+                @media print { body { padding: 0; } @page { margin: 15mm; } .header-box { background-color: white !important; -webkit-print-color-adjust: exact; } th { background-color: #f1f5f9 !important; -webkit-print-color-adjust: exact; } }
+            </style>
+        </head>
+        <body>
+            <div class="header-box">
+                <h1 class="header-title">Ficha Técnica ${tipo === 'admin' ? '(Costos y Rentabilidad)' : '(Producción en Cocina)'}</h1>
+                <div class="info-grid">
+                    <div class="info-item"><strong>Empresa:</strong><div style="font-size: 16px; font-weight: bold; margin-top: 4px;">${empresaActual}</div></div>
+                    <div class="info-item"><strong>Fecha de Emisión:</strong><div style="font-size: 16px; margin-top: 4px;">${fechaHoy}</div></div>
+                    <div class="info-item"><strong>Receta / Producto:</strong><div style="font-size: 16px; font-weight: bold; margin-top: 4px; color: #b45309;">${nombreReceta}</div></div>
+                    <div class="info-item"><strong>Rendimiento:</strong><div style="font-size: 16px; margin-top: 4px;">${rendimiento} ${unidadBase}</div></div>
+                    ${extraAdminInfo}
+                </div>
+            </div>
+            <table>
+                <thead>
+                    ${tableHeaders}
+                </thead>
+                <tbody>${filasHtml}</tbody>
+            </table>
+            <script>window.onload = function() { window.print(); setTimeout(function() { window.close(); }, 500); }<\/script>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
 }
 
 window.abrirDropdownIngrediente = function() {
