@@ -2,7 +2,8 @@ window.miEmpresaId = null;
 window.productoActualParaReceta = null;
 window.unidadesMemoria = []; 
 window.modoEdicion = { activo: false, id: null, form: null };
-window.usuarioActual = 'Equipo'; 
+window.usuarioActual = 'Equipo';
+window.actualizarTopBar(nombreDeTuVariableEmpresa, window.miRol);
 
 // --- LOGIN Y SESIÓN MULTI-EMPRESA ---
 window.toggleAuthMode = function(mode) {
@@ -251,5 +252,28 @@ window.cancelarEdicion = function(formId) {
 window.eliminarReg = async function(tabla, id) {
     if(confirm('¿Estás seguro de eliminar este registro? Esta acción no se puede deshacer.')) {
         await clienteSupabase.from(tabla).delete().eq('id', id);
+    }
+}
+
+// ==========================================
+// CONTROL DEL HEADER Y ROLES
+// ==========================================
+window.actualizarTopBar = function(nombreEmpresa, rolUsuario) {
+    // 1. Ponemos el nombre de la empresa arriba
+    const spanEmpresa = document.getElementById('header-nombre-empresa');
+    if(spanEmpresa && nombreEmpresa) {
+        spanEmpresa.innerHTML = `🏢 ${nombreEmpresa}`;
+    }
+
+    // 2. Mostramos u ocultamos el botón de Parámetros según el rol
+    const btnParametros = document.getElementById('btn-menu-parametros');
+    if(btnParametros) {
+        if(rolUsuario === 'Dueño') {
+            btnParametros.classList.remove('hidden');
+            btnParametros.classList.add('block'); // Lo mostramos
+        } else {
+            btnParametros.classList.add('hidden'); // Lo escondemos para Operadores y Admins
+            btnParametros.classList.remove('block');
+        }
     }
 }
