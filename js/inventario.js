@@ -6,7 +6,9 @@ window.sucursalActivaID = null;
 window.sucursalActivaNombre = null;
 window.productosGlobalConteo = [];
 window.ubicacionesGlobalSucursal = []; 
-window.selectConteoActivoIndex = null; 
+window.selectConteoActivoIndex = null;
+window.saldosGlobalMemoria = [];
+window.ordenActualInv = { col: 'nombre', dir: 'asc' };
 
 window.cargarInventario = async function() {
     document.getElementById('inv-vista-sucursales').classList.remove('hidden');
@@ -46,7 +48,7 @@ window.abrirInventarioSucursal = async function(idSuc, nombreSuc) {
     document.getElementById('inv-vista-detalle').classList.remove('hidden');
 
     const tbody = document.getElementById('lista-inventario');
-    tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-8 text-center text-slate-500 font-bold">⏳ Cargando inventario...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-8 text-center text-slate-500 font-bold">⏳ Cargando datos...</td></tr>';
 
     const [{ data: saldos }, { data: ubicaciones }, { data: reglas }] = await Promise.all([
         clienteSupabase.from('inventario_saldos').select(`id, id_producto, cantidad_actual_ua, id_ubicacion, productos (nombre, id_unidad_almacenamiento(abreviatura)), ubicaciones_internas (nombre)`).eq('id_empresa', window.miEmpresaId).eq('id_sucursal', idSuc),
@@ -55,68 +57,118 @@ window.abrirInventarioSucursal = async function(idSuc, nombreSuc) {
     ]);
 
     window.ubicacionesGlobalSucursal = ubicaciones || [];
-    
-    const optsUbicacionesEdit = `<option value="NULL_UBI">General / Sin Ubicación Específica</option>` + 
-                                window.ubicacionesGlobalSucursal.map(u => `<option value="${u.id}">${u.nombre}</option>`).join('');
-
     const reglasMap = {};
     (reglas||[]).forEach(r => reglasMap[r.id_producto] = r.stock_minimo_ua);
 
-    const agrupado = {};
-    (saldos||[]).forEach(s => {
-        const ubiNombre = s.ubicaciones_internas?.nombre || 'General / Sin Ubicación Específica';
-        if(!agrupado[ubiNombre]) agrupado[ubiNombre] = [];
-        agrupado[ubiNombre].push(s);
+    // Guardamos en memoria para el buscador
+    window.saldosGlobalMemoria = (saldos || []).map(s => ({
+        ...s,
+        nombreProducto: s.productos?.nombre || '',
+        nombreUbicacion: s.ubicaciones_internas?.nombre || 'General / Sin Ubicación',
+        stockMinimo: reglasMap[s.id_producto] || 0,
+        abreviatura: s.productos?.id_unidad_almacenamiento?.abreviatura || 'UA'
+    }));
+
+    renderizarTablaInventario(window.saldosGlobalMemoria);
+}
+
+// FUNCIÓN DE RENDERIZADO (El motor visual)
+window.renderizarTablaInventario = function(datos) {
+    const tbody = document.getElementById('lista-inventario');
+    if(datos.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-8 text-center text-slate-400 italic">No se encontraron productos con ese criterio.</td></tr>';
+        return;
+    }
+
+    const optsUbicacionesEdit = `<option value="NULL_UBI">General / Sin Ubicación</option>` + 
+                                window.ubicacionesGlobalSucursal.map(u => `<option value="${u.id}">${u.nombre}</option>`).join('');
+
+    tbody.innerHTML = datos.map(inv => {
+        const estaBajo = inv.cantidad_actual_ua <= inv.stockMinimo;
+        const iconoEstado = estaBajo 
+            ? `<span class="flex items-center gap-1 text-red-600 font-bold text-[10px] bg-red-50 px-2 py-1 rounded-full border border-red-200">🔴 Bajo Mínimo</span>` 
+            : '<span class="flex items-center gap-1 text-emerald-600 font-bold text-[10px] bg-emerald-50 px-2 py-1 rounded-full border border-emerald-200">🟢 OK</span>';
+
+        return `
+        <tr class="hover:bg-slate-50 border-b border-slate-100 transition-colors">
+            <td class="px-6 py-3">${iconoEstado}</td>
+            <td class="px-6 py-3">
+                <select class="w-full max-w-[160px] px-2 py-1 text-xs text-slate-600 border border-slate-200 rounded-lg outline-none focus:ring-1 focus:ring-emerald-500 bg-white" onchange="cambiarUbicacionSaldo('${inv.id}', this.value)">
+                    ${optsUbicacionesEdit.replace(`value="${inv.id_ubicacion || 'NULL_UBI'}"`, `value="${inv.id_ubicacion || 'NULL_UBI'}" selected`)}
+                </select>
+            </td>
+            <td class="px-6 py-3 font-bold text-slate-700">${inv.nombreProducto}</td>
+            <td class="px-6 py-3 text-right">
+                <span class="font-mono text-lg ${estaBajo ? 'text-red-600 font-bold' : 'text-slate-700'}">${inv.cantidad_actual_ua.toFixed(2)}</span>
+                <span class="text-xs text-slate-400 ml-1 font-bold">${inv.abreviatura}</span>
+            </td>
+            <td class="px-6 py-3 text-center">
+                <div class="flex justify-center gap-3">
+                    <button onclick="agregarASugerenciaDirecto('${inv.id_producto}', '${inv.nombreProducto.replace(/'/g, "\\'")}')" title="Agregar a Pedido" class="bg-emerald-50 text-emerald-600 p-2 rounded-lg hover:bg-emerald-600 hover:text-white transition-all text-xs font-bold border border-emerald-200">🛒 +Pedido</button>
+                    <button onclick="abrirAjusteRapido('${inv.id}', '${inv.id_producto}', '${inv.nombreProducto.replace(/'/g, "\\'")}', '${inv.nombreUbicacion}', ${inv.cantidad_actual_ua}, '${inv.abreviatura}')" title="Ajustar Stock" class="text-orange-500 hover:scale-110 transition-transform">🎯</button>
+                    <button onclick="abrirHistorialKardex('${inv.id_producto}', '${inv.nombreProducto.replace(/'/g, "\\'")}')" title="Ver Historial" class="text-indigo-500 hover:scale-110 transition-transform">📜</button>
+                </div>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+// FILTRO INTELIGENTE (Sin recargar página)
+window.filtrarInventarioLocal = function(texto) {
+    const term = texto.toLowerCase().trim();
+    const filtrados = window.saldosGlobalMemoria.filter(s => 
+        s.nombreProducto.toLowerCase().includes(term) || 
+        s.nombreUbicacion.toLowerCase().includes(term)
+    );
+    renderizarTablaInventario(filtrados);
+}
+
+// ORDENAMIENTO (Igual que en productos)
+window.ordenarInventario = function(columna) {
+    const dir = (window.ordenActualInv.col === columna && window.ordenActualInv.dir === 'asc') ? 'desc' : 'asc';
+    window.ordenActualInv = { col: columna, dir: dir };
+
+    const datosOrdenados = [...window.saldosGlobalMemoria].sort((a, b) => {
+        let valA, valB;
+        if(columna === 'nombre') { valA = a.nombreProducto; valB = b.nombreProducto; }
+        else if(columna === 'ubicacion') { valA = a.nombreUbicacion; valB = b.nombreUbicacion; }
+        else if(columna === 'stock') { valA = a.cantidad_actual_ua; valB = b.cantidad_actual_ua; }
+        else if(columna === 'estado') { valA = a.cantidad_actual_ua <= a.stockMinimo; valB = b.cantidad_actual_ua <= b.stockMinimo; }
+        
+        if (valA < valB) return dir === 'asc' ? -1 : 1;
+        if (valA > valB) return dir === 'asc' ? 1 : -1;
+        return 0;
     });
 
-    if(Object.keys(agrupado).length === 0) {
-         tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-8 text-center text-slate-500 italic">No hay productos registrados en esta sucursal.</td></tr>';
-         return;
-    }
+    renderizarTablaInventario(datosOrdenados);
+}
 
-    let html = '';
-    const ubicacionesOrdenadas = Object.keys(agrupado).sort();
-    
-    for(const ubi of ubicacionesOrdenadas) {
-        html += `<tr class="border-b-2 border-slate-300 bg-slate-100/50"><td colspan="5" class="px-6 py-3 font-bold text-slate-800 text-sm uppercase tracking-wider">📍 ${ubi}</td></tr>`;
+// ACCIÓN: AGREGAR A PEDIDO (La joya de la corona 💎)
+window.agregarASugerenciaDirecto = async function(idProd, nombre) {
+    if(!confirm(`¿Deseas agregar "${nombre}" a la lista de sugerencias de pedidos ahora mismo?`)) return;
+
+    try {
+        // Buscamos si ya hay una regla para este producto y sucursal
+        const { data: regla } = await clienteSupabase.from('reglas_stock_sucursal')
+            .select('id')
+            .eq('id_sucursal', window.sucursalActivaID)
+            .eq('id_producto', idProd)
+            .maybeSingle();
+
+        if(!regla) {
+            // Si no hay regla, creamos una "temporal" o básica para que el sistema de pedidos lo vea
+            await clienteSupabase.from('reglas_stock_sucursal').insert({
+                id_empresa: window.miEmpresaId,
+                id_sucursal: window.sucursalActivaID,
+                id_producto: idProd,
+                stock_minimo_ua: 0.01 // Algo mínimo para que aparezca en sugerencias
+            });
+        }
         
-        const items = agrupado[ubi].sort((a,b) => a.productos.nombre.localeCompare(b.productos.nombre));
-        
-        items.forEach(inv => {
-            const stockMinimo = reglasMap[inv.id_producto] || 0;
-            const estaBajo = inv.cantidad_actual_ua <= stockMinimo;
-            const abrev = inv.productos?.id_unidad_almacenamiento?.abreviatura || 'UA';
-
-            const iconoEstado = estaBajo 
-                ? `<span class="flex items-center gap-1 text-red-600 font-bold text-[10px] bg-red-50 px-2 py-1 rounded-full w-max border border-red-200">🔴 Bajo Mínimo (${stockMinimo})</span>` 
-                : '<span class="flex items-center gap-1 text-emerald-600 font-bold text-[10px] bg-emerald-50 px-2 py-1 rounded-full w-max border border-emerald-200">🟢 OK</span>';
-
-            const ubiActualValue = inv.id_ubicacion || 'NULL_UBI';
-
-            html += `
-            <tr class="hover:bg-slate-50 border-b border-slate-100 transition-colors">
-                <td class="px-6 py-3">${iconoEstado}</td>
-                <td class="px-6 py-3">
-                    <select class="w-full max-w-[180px] px-2 py-1 text-xs text-slate-600 border border-slate-200 rounded outline-none focus:ring-1 focus:ring-emerald-500 bg-white" onchange="cambiarUbicacionSaldo('${inv.id}', this.value)">
-                        ${optsUbicacionesEdit.replace(`value="${ubiActualValue}"`, `value="${ubiActualValue}" selected`)}
-                    </select>
-                </td>
-                <td class="px-6 py-3 font-bold text-slate-700">${inv.productos?.nombre}</td>
-                <td class="px-6 py-3 text-right">
-                    <span class="font-mono text-lg ${estaBajo ? 'text-red-600 font-bold' : 'text-slate-700'}">${inv.cantidad_actual_ua.toFixed(2)}</span>
-                    <span class="text-xs text-slate-400 ml-1 font-bold">${abrev}</span>
-                </td>
-                <td class="px-6 py-3 text-center">
-                    <div class="flex justify-center gap-4 text-lg">
-                        <button onclick="editarProductoFull('${inv.id_producto}')" title="Editar Detalles del Producto" class="text-blue-500 hover:text-blue-700 transition-transform hover:scale-110">✏️</button>
-                        <button onclick="abrirAjusteRapido('${inv.id}', '${inv.id_producto}', '${inv.productos.nombre.replace(/'/g, "\\'")}', '${ubi}', ${inv.cantidad_actual_ua}, '${abrev}')" title="Ajustar Stock Rápido" class="text-orange-500 hover:text-orange-700 transition-transform hover:scale-110">🎯</button>
-                        <button onclick="abrirHistorialKardex('${inv.id_producto}', '${inv.productos.nombre.replace(/'/g, "\\'")}')" title="Ver Historial de Movimientos" class="text-indigo-500 hover:text-indigo-700 transition-transform hover:scale-110">📜</button>
-                    </div>
-                </td>
-            </tr>`;
-        });
+        alert(`✅ "${nombre}" se ha marcado para sugerencia. Ve a Pedidos > Sugerencias para procesarlo.`);
+    } catch (err) {
+        alert("Error: " + err.message);
     }
-    tbody.innerHTML = html;
 }
 
 window.cambiarUbicacionSaldo = async function(idSaldo, nuevoIdUbicacionStr) {
@@ -147,57 +199,71 @@ window.abrirModalConteoMasivo = async function() {
 
 window.cargarFilasConteoMasivo = async function(idUbicacion) {
     const tbody = document.getElementById('cm-filas');
-    if(!idUbicacion) { tbody.innerHTML = '<tr><td colspan="4" class="text-center text-slate-400 py-8">Selecciona una ubicación.</td></tr>'; return; }
-    
-    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-emerald-600 py-8 font-bold animate-pulse">⏳ Cargando todo el catálogo para inicialización...</td></tr>';
-
-    // 1. Buscamos TODOS los productos que lleven control de stock
-    const { data: prodsFisicos } = await clienteSupabase.from('productos')
-        .select('id, nombre, id_unidad_almacenamiento(abreviatura)')
-        .eq('id_empresa', window.miEmpresaId)
-        .is('control_stock', true)
-        .order('nombre');
-
-    // 2. Buscamos el stock existente en esa ubicación
-    let query = clienteSupabase.from('inventario_saldos').select('id_producto, cantidad_actual_ua').eq('id_sucursal', window.sucursalActivaID);
-    if(idUbicacion === 'GENERAL') query = query.is('id_ubicacion', null);
-    else query = query.eq('id_ubicacion', idUbicacion);
-
-    const { data: saldosActuales } = await query;
-
-    // Mapeamos los saldos existentes para cruzarlos rápido
-    const mapSaldos = {};
-    (saldosActuales || []).forEach(s => mapSaldos[s.id_producto] = s.cantidad_actual_ua);
-
-    tbody.innerHTML = '';
-    
-    if(prodsFisicos && prodsFisicos.length > 0) {
-        let html = '';
-        prodsFisicos.forEach(p => {
-            const cantActual = mapSaldos[p.id] || 0;
-            const abrev = p.id_unidad_almacenamiento?.abreviatura || 'UA';
-
-            html += `
-            <tr class="border-b border-slate-100 fila-conteo-item hover:bg-slate-50 transition-colors">
-                <td class="py-3 px-4 font-medium text-sm text-slate-700">
-                    ${p.nombre}
-                    <input type="hidden" class="cm-select-prod" value="${p.id}">
-                    <input type="hidden" class="cm-cant-anterior" value="${cantActual}">
-                </td>
-                <td class="py-3 px-4 text-center">
-                    <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-100 cm-label-abrev">${abrev}</span>
-                </td>
-                <td class="py-3 px-4 relative flex justify-center flex-col items-center">
-                    <span class="text-[10px] text-slate-400 font-bold mb-1">Stock Sistema: ${cantActual}</span>
-                    <input type="number" step="0.01" value="${cantActual}" class="w-24 px-2 py-1 border border-slate-300 rounded text-center cm-input-cant font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner">
-                </td>
-                <td class="py-3 px-4 text-right"><button onclick="this.closest('tr').remove()" class="text-slate-300 hover:text-red-500 text-lg transition-transform hover:scale-110" title="Quitar de la lista">🗑️</button></td>
-            </tr>`;
-        });
-        tbody.innerHTML = html;
-    } else {
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-slate-400 py-8">No tienes productos marcados con "Control de Stock Físico" en tu catálogo.</td></tr>';
+    if(!idUbicacion) { 
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-slate-400 py-8">Selecciona una ubicación para comenzar.</td></tr>'; 
+        return; 
     }
+    
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-emerald-600 py-8 font-bold animate-pulse">🔍 Filtrando productos en esta ubicación...</td></tr>';
+
+    // 1. Buscamos el stock existente ESPECÍFICAMENTE en esa ubicación
+    let query = clienteSupabase.from('inventario_saldos')
+        .select(`
+            id_producto, 
+            cantidad_actual_ua, 
+            productos (nombre, id_unidad_almacenamiento(abreviatura), control_stock)
+        `)
+        .eq('id_sucursal', window.sucursalActivaID);
+
+    if(idUbicacion === 'GENERAL') {
+        query = query.is('id_ubicacion', null);
+    } else {
+        query = query.eq('id_ubicacion', idUbicacion);
+    }
+
+    const { data: saldosUbicacion, error } = await query;
+
+    if(error) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-red-500 py-8">Error al cargar.</td></tr>';
+        return;
+    }
+
+    // 2. Renderizamos SOLO lo que hay en esa ubicación
+    if(!saldosUbicacion || saldosUbicacion.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="4" class="text-center text-slate-400 py-12">
+                    <p class="text-lg">📭 Ubicación Vacía</p>
+                    <p class="text-xs mt-1">No hay productos registrados aquí. Usa el botón "+ Producto" para agregar uno nuevo a esta ubicación.</p>
+                </td>
+            </tr>`;
+        return;
+    }
+
+    tbody.innerHTML = saldosUbicacion.map(s => {
+        const p = s.productos;
+        const cantActual = s.cantidad_actual_ua;
+        const abrev = p.id_unidad_almacenamiento?.abreviatura || 'UA';
+
+        return `
+        <tr class="border-b border-slate-100 fila-conteo-item hover:bg-slate-50 transition-colors">
+            <td class="py-3 px-4 font-medium text-sm text-slate-700">
+                ${p.nombre}
+                <input type="hidden" class="cm-select-prod" value="${s.id_producto}">
+                <input type="hidden" class="cm-cant-anterior" value="${cantActual}">
+            </td>
+            <td class="py-3 px-4 text-center">
+                <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-100">${abrev}</span>
+            </td>
+            <td class="py-3 px-4 relative flex justify-center flex-col items-center">
+                <span class="text-[10px] text-slate-400 font-bold mb-1">Stock Sistema: ${cantActual}</span>
+                <input type="number" step="0.01" value="${cantActual}" class="w-24 px-2 py-1 border border-slate-300 rounded text-center cm-input-cant font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner">
+            </td>
+            <td class="py-3 px-4 text-right">
+                <button onclick="this.closest('tr').remove()" class="text-slate-300 hover:text-red-500 text-lg transition-transform hover:scale-110">🗑️</button>
+            </td>
+        </tr>`;
+    }).join('');
 }
 
 window.agregarFilaConteoFija = function(idProd, nombre, abrev, cantActual) {
