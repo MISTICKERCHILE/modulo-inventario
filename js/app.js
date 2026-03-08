@@ -5,7 +5,7 @@ window.modoEdicion = { activo: false, id: null, form: null };
 window.usuarioActual = 'Equipo';
 window.miRol = null;
 
-// --- LOGIN Y SESIÓN MULTI-EMPRESA ---
+// --- LOGIN Y SESIÓN MULTI-EMPRESA --- Bienvenido Pepe---
 window.toggleAuthMode = function(mode) {
     document.getElementById('auth-mode').value = mode;
     const regFields = document.getElementById('register-fields');
