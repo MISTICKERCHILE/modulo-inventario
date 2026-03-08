@@ -23,6 +23,12 @@ window.cargarEmpresas = async function() {
             return;
         }
 
+        // LLENAR EL SELECTOR DEL MODAL "DAR ACCESO"
+        const selectModal = document.getElementById('vu-empresa');
+        if(selectModal) {
+            selectModal.innerHTML = data.map(e => `<option value="${e.id_empresa}|${e.nombre_empresa}">${e.nombre_empresa}</option>`).join('');
+        }
+
         contenedor.innerHTML = data.map(e => `
             <div class="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-slate-200 hover:border-emerald-400 transition-colors cursor-pointer mb-3" onclick="cargarUsuariosDeEmpresa('${e.id_empresa}', '${(e.nombre_empresa || 'Empresa').replace(/'/g, "\\'")}')">
                 <div>
