@@ -91,22 +91,31 @@ window.renderizarTablaInventario = function(datos) {
 
         return `
         <tr class="hover:bg-slate-50 border-b border-slate-100 transition-colors">
-            <td class="px-6 py-3">${iconoEstado}</td>
-            <td class="px-6 py-3">
-                <select class="w-full max-w-[160px] px-2 py-1 text-xs text-slate-600 border border-slate-200 rounded-lg outline-none focus:ring-1 focus:ring-emerald-500 bg-white" onchange="cambiarUbicacionSaldo('${inv.id}', this.value)">
-                    ${optsUbicacionesEdit.replace(`value="${inv.id_ubicacion || 'NULL_UBI'}"`, `value="${inv.id_ubicacion || 'NULL_UBI'}" selected`)}
-                </select>
-            </td>
-            <td class="px-6 py-3 font-bold text-slate-700">${inv.nombreProducto}</td>
-            <td class="px-6 py-3 text-right">
-                <span class="font-mono text-lg ${estaBajo ? 'text-red-600 font-bold' : 'text-slate-700'}">${inv.cantidad_actual_ua.toFixed(2)}</span>
-                <span class="text-xs text-slate-400 ml-1 font-bold">${inv.abreviatura}</span>
-            </td>
             <td class="px-6 py-3 text-center">
-                <div class="flex justify-center gap-3">
-                    <button onclick="agregarASugerenciaDirecto('${inv.id_producto}', '${inv.nombreProducto.replace(/'/g, "\\'")}')" title="Agregar a Pedido" class="bg-emerald-50 text-emerald-600 p-2 rounded-lg hover:bg-emerald-600 hover:text-white transition-all text-xs font-bold border border-emerald-200">🛒 +Pedido</button>
-                    <button onclick="abrirAjusteRapido('${inv.id}', '${inv.id_producto}', '${inv.nombreProducto.replace(/'/g, "\\'")}', '${inv.nombreUbicacion}', ${inv.cantidad_actual_ua}, '${inv.abreviatura}')" title="Ajustar Stock" class="text-orange-500 hover:scale-110 transition-transform">🎯</button>
-                    <button onclick="abrirHistorialKardex('${inv.id_producto}', '${inv.nombreProducto.replace(/'/g, "\\'")}')" title="Ver Historial" class="text-indigo-500 hover:scale-110 transition-transform">📜</button>
+                <div class="flex justify-center items-center gap-3">
+                    <button onclick="agregarASugerenciaDirecto('${inv.id_producto}', '${inv.nombreProducto.replace(/'/g, "\\'")}')" 
+                            title="Agregar a Pedido" 
+                            class="bg-emerald-50 text-emerald-600 p-2.5 rounded-xl hover:bg-emerald-600 hover:text-white transition-all border border-emerald-200 shadow-sm">
+                        <span class="text-lg">🛒</span>
+                    </button>
+
+                    <button onclick="editarProductoFull('${inv.id_producto}')" 
+                            title="Editar Detalles del Producto" 
+                            class="text-blue-500 hover:text-blue-700 transition-transform hover:scale-110 p-1">
+                        <span class="text-xl">✏️</span>
+                    </button>
+
+                    <button onclick="abrirAjusteRapido('${inv.id}', '${inv.id_producto}', '${inv.nombreProducto.replace(/'/g, "\\'")}', '${inv.nombreUbicacion}', ${inv.cantidad_actual_ua}, '${inv.abreviatura}')" 
+                            title="Ajustar Stock" 
+                            class="text-orange-500 hover:scale-110 transition-transform p-1">
+                        <span class="text-xl">🎯</span>
+                    </button>
+
+                    <button onclick="abrirHistorialKardex('${inv.id_producto}', '${inv.nombreProducto.replace(/'/g, "\\'")}')" 
+                            title="Ver Historial" 
+                            class="text-indigo-500 hover:scale-110 transition-transform p-1">
+                        <span class="text-xl">📜</span>
+                    </button>
                 </div>
             </td>
         </tr>`;
