@@ -3,7 +3,7 @@ window.productoActualParaReceta = null;
 window.unidadesMemoria = []; 
 window.modoEdicion = { activo: false, id: null, form: null };
 window.usuarioActual = 'Equipo';
-window.actualizarTopBar(nombreDeTuVariableEmpresa, window.miRol);
+window.miRol = null;
 
 // --- LOGIN Y SESIÓN MULTI-EMPRESA ---
 window.toggleAuthMode = function(mode) {
@@ -66,7 +66,8 @@ document.getElementById('auth-form').addEventListener('submit', async (e) => {
     const { data: perfil } = await clienteSupabase.from('perfiles').select('nombre, apellido').eq('id_usuario', data.user.id).maybeSingle();
     const nombreReal = perfil?.nombre || emailInput.split('@')[0];
 
-    const { data: empresasAsignadas } = await clienteSupabase.from('usuarios_empresas').select('id_empresa, nombre_empresa').eq('id_usuario', data.user.id);
+    // FIX 1: Ahora pedimos el "rol" a la base de datos
+    const { data: empresasAsignadas } = await clienteSupabase.from('usuarios_empresas').select('id_empresa, nombre_empresa, rol').eq('id_usuario', data.user.id);
 
     if (!empresasAsignadas || empresasAsignadas.length === 0) {
         return alert("🛑 Tu cuenta existe, pero aún no tienes empresas asignadas. Contacta a tu administrador.");
@@ -75,11 +76,11 @@ document.getElementById('auth-form').addEventListener('submit', async (e) => {
     document.getElementById('login-container').classList.add('hidden');
 
     if (empresasAsignadas.length === 1) {
-        window.iniciarSesionEmpresa(empresasAsignadas[0].id_empresa, empresasAsignadas[0].nombre_empresa, emailInput, nombreReal);
+        window.iniciarSesionEmpresa(empresasAsignadas[0].id_empresa, empresasAsignadas[0].nombre_empresa, emailInput, nombreReal, empresasAsignadas[0].rol);
     } else {
         document.getElementById('selector-empresa-container').classList.remove('hidden');
         document.getElementById('lista-empresas-usuario').innerHTML = empresasAsignadas.map(emp => `
-            <button onclick="iniciarSesionEmpresa('${emp.id_empresa}', '${emp.nombre_empresa}', '${emailInput}', '${nombreReal}')" class="w-full text-left px-6 py-4 border border-slate-200 rounded-xl hover:bg-emerald-50 hover:border-emerald-500 transition-all font-bold text-slate-700 shadow-sm flex items-center justify-between group">
+            <button onclick="iniciarSesionEmpresa('${emp.id_empresa}', '${emp.nombre_empresa}', '${emailInput}', '${nombreReal}', '${emp.rol}')" class="w-full text-left px-6 py-4 border border-slate-200 rounded-xl hover:bg-emerald-50 hover:border-emerald-500 transition-all font-bold text-slate-700 shadow-sm flex items-center justify-between group">
                 <span>🏢 ${emp.nombre_empresa}</span>
                 <span class="text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity">Entrar →</span>
             </button>
@@ -87,14 +88,20 @@ document.getElementById('auth-form').addEventListener('submit', async (e) => {
     }
 });
 
-window.iniciarSesionEmpresa = function(id, nombre, email, nombreUsuario) {
+// FIX 2: Recibimos el rol al iniciar sesión
+window.iniciarSesionEmpresa = function(id, nombre, email, nombreUsuario, rol) {
     window.miEmpresaId = id;
     window.usuarioActual = nombreUsuario;
+    window.miRol = rol; // Lo guardamos en memoria
+    
     document.getElementById('selector-empresa-container').classList.add('hidden');
     document.getElementById('dashboard-container').classList.remove('hidden');
     document.getElementById('user-email-dropdown').innerText = email;
     document.getElementById('user-name-display').innerText = nombreUsuario;
     
+    // EL ÚLTIMO TOQUE MÁGICO ✨ (Ahora en el lugar correcto)
+    window.actualizarTopBar(nombre, rol);
+
     const urlParams = new URLSearchParams(window.location.search);
     const vistaDirecta = urlParams.get('v');
     if(vistaDirecta) {
@@ -112,7 +119,7 @@ window.volverASelectorEmpresa = async function() {
     if(!user) return window.cerrarSesion();
 
     const { data: empresasAsignadas } = await clienteSupabase.from('usuarios_empresas')
-        .select('id_empresa, nombre_empresa')
+        .select('id_empresa, nombre_empresa, rol')
         .eq('id_usuario', user.id);
 
     const emailUsuario = document.getElementById('user-email-dropdown').innerText;
@@ -122,7 +129,7 @@ window.volverASelectorEmpresa = async function() {
     document.getElementById('selector-empresa-container').classList.remove('hidden');
 
     document.getElementById('lista-empresas-usuario').innerHTML = empresasAsignadas.map(emp => `
-        <button onclick="iniciarSesionEmpresa('${emp.id_empresa}', '${emp.nombre_empresa}', '${emailUsuario}', '${nombreReal}')" class="w-full text-left px-6 py-4 border border-slate-200 rounded-xl hover:bg-emerald-50 hover:border-emerald-500 transition-all font-bold text-slate-700 shadow-sm flex items-center justify-between group">
+        <button onclick="iniciarSesionEmpresa('${emp.id_empresa}', '${emp.nombre_empresa}', '${emailUsuario}', '${nombreReal}', '${emp.rol}')" class="w-full text-left px-6 py-4 border border-slate-200 rounded-xl hover:bg-emerald-50 hover:border-emerald-500 transition-all font-bold text-slate-700 shadow-sm flex items-center justify-between group">
             <span>🏢 ${emp.nombre_empresa}</span>
             <span class="text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity">Entrar →</span>
         </button>
@@ -151,13 +158,10 @@ window.toggleMenu = function() {
     const menu = document.getElementById('sidebar-menu');
     const backdrop = document.getElementById('sidebar-backdrop');
     
-    // El menú ahora es inteligente y sabe en qué dispositivo está
     if (window.innerWidth < 768) {
-        // En Celulares: Desliza el menú de izquierda a derecha
         menu.classList.toggle('-translate-x-full');
         backdrop.classList.toggle('hidden');
     } else {
-        // En Computadoras: Oculta o muestra la barra lateral
         menu.classList.toggle('md:hidden');
     }
 }
@@ -170,7 +174,6 @@ window.toggleNotificaciones = function() {
     document.getElementById('panel-notificaciones').classList.toggle('hidden');
 }
 
-// Cierra menús desplegables al hacer clic fuera de ellos (A prueba de errores)
 document.addEventListener('click', (e) => {
     const userDropdown = document.getElementById('user-dropdown');
     const userBtn = userDropdown?.previousElementSibling;
@@ -201,7 +204,6 @@ window.cambiarVista = async function(vista) {
         btnActivo.classList.add('bg-emerald-600', 'text-white', 'shadow-md');
     }
     
-    // ¡AQUÍ ESTABA EL BUG! Ahora forzamos a que en el celular se CIERRE al cambiar de pantalla
     if (window.innerWidth < 768) { 
         document.getElementById('sidebar-menu').classList.add('-translate-x-full');
         document.getElementById('sidebar-backdrop').classList.add('hidden');
