@@ -92,15 +92,17 @@ document.getElementById('auth-form').addEventListener('submit', async (e) => {
 window.iniciarSesionEmpresa = function(id, nombre, email, nombreUsuario, rol) {
     window.miEmpresaId = id;
     window.usuarioActual = nombreUsuario;
-    window.miRol = rol; // Lo guardamos en memoria
+    window.miRol = rol; 
     
     document.getElementById('selector-empresa-container').classList.add('hidden');
     document.getElementById('dashboard-container').classList.remove('hidden');
     document.getElementById('user-email-dropdown').innerText = email;
     document.getElementById('user-name-display').innerText = nombreUsuario;
     
-    // EL ÚLTIMO TOQUE MÁGICO ✨ (Ahora en el lugar correcto)
     window.actualizarTopBar(nombre, rol);
+
+    // NUEVO: Al entrar, el sistema revisa qué puede ver este usuario
+    window.aplicarPermisosVisuales();
 
     const urlParams = new URLSearchParams(window.location.search);
     const vistaDirecta = urlParams.get('v');
@@ -224,10 +226,12 @@ window.cambiarVista = async function(vista) {
         if(vista === 'productos' && typeof window.cargarProductos === 'function') window.cargarProductos();
         if(vista === 'inventario' && typeof window.cargarInventario === 'function') window.cargarInventario();
         if(vista === 'recetas' && typeof window.cargarBuscadorRecetas === 'function') window.cargarBuscadorRecetas();
-        
         if(vista === 'pedidos' && typeof window.cambiarSubTabPedidos === 'function') window.cambiarSubTabPedidos('sugerencias');
         if(vista === 'movimientos' && typeof window.cambiarTabMovimientos === 'function') window.cambiarTabMovimientos('compras');
         if(vista === 'reportes' && typeof window.cargarReportes === 'function') window.cargarReportes();
+        
+        // NUEVO: Si la vista es Parámetros, cargar los switches desde la Base de Datos
+        if(vista === 'parametros') window.cargarParametros();
 
     } catch (error) {
         main.innerHTML = `<div class="p-8 text-center text-red-500"><p class="text-4xl mb-4">❌</p><h2 class="text-xl font-bold">Error cargando la vista: ${vista}.html</h2></div>`;
@@ -279,3 +283,67 @@ window.actualizarTopBar = function(nombreEmpresa, rolUsuario) {
         }
     }
 }
+
+// ==========================================
+// MÓDULO DE PARÁMETROS Y PERMISOS (JSON)
+// ==========================================
+
+window.cargarParametros = async function() {
+    if (!window.miEmpresaId) return;
+    try {
+        const { data, error } = await clienteSupabase.from('empresas').select('configuracion').eq('id', window.miEmpresaId).single();
+        if (error) throw error;
+        
+        const config = data.configuracion || {};
+        const opPermisos = config.operador || { catalogos: true, recetas: true, reportes: true }; 
+        
+        document.getElementById('toggle-op-catalogos').checked = opPermisos.catalogos !== false;
+        document.getElementById('toggle-op-recetas').checked = opPermisos.recetas !== false;
+        document.getElementById('toggle-op-reportes').checked = opPermisos.reportes !== false;
+    } catch (err) {
+        console.error("Error al cargar parámetros:", err);
+    }
+};
+
+window.guardarParametros = async function() {
+    const configNueva = {
+        operador: {
+            catalogos: document.getElementById('toggle-op-catalogos').checked,
+            recetas: document.getElementById('toggle-op-recetas').checked,
+            reportes: document.getElementById('toggle-op-reportes').checked
+        }
+    };
+    
+    try {
+        await clienteSupabase.from('empresas').update({ configuracion: configNueva }).eq('id', window.miEmpresaId);
+        // Opcional: Mostrar que se guardó
+        console.log("Parámetros guardados automáticamente");
+    } catch (err) {
+        alert("Error al guardar: " + err.message);
+    }
+};
+
+window.aplicarPermisosVisuales = async function() {
+    // Dueños y Admins ven todo siempre
+    if (window.miRol === 'Dueño' || window.miRol === 'Admin' || window.miRol === 'Administrador') {
+        ['catalogos', 'recetas', 'reportes'].forEach(modulo => {
+            document.getElementById(`btn-menu-${modulo}`)?.classList.remove('hidden');
+        });
+        return;
+    }
+    
+    // Si es Operador, leemos qué le dejaron ver
+    if (window.miRol === 'Operador') {
+        const { data } = await clienteSupabase.from('empresas').select('configuracion').eq('id', window.miEmpresaId).single();
+        const config = data?.configuracion || {};
+        const opPermisos = config.operador || { catalogos: true, recetas: true, reportes: true };
+        
+        const btnCat = document.getElementById('btn-menu-catalogos');
+        const btnRec = document.getElementById('btn-menu-recetas');
+        const btnRep = document.getElementById('btn-menu-reportes');
+        
+        if (btnCat) opPermisos.catalogos === false ? btnCat.classList.add('hidden') : btnCat.classList.remove('hidden');
+        if (btnRec) opPermisos.recetas === false ? btnRec.classList.add('hidden') : btnRec.classList.remove('hidden');
+        if (btnRep) opPermisos.reportes === false ? btnRep.classList.add('hidden') : btnRep.classList.remove('hidden');
+    }
+};
