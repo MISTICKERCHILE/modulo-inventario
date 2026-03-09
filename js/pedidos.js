@@ -556,7 +556,7 @@ window.abrirModalRecepcionMasiva = async function(idSuc, nombreSuc, idProv, nomb
         const colorInputCant = isProd ? 'text-purple-700' : 'text-emerald-700';
 
         return `
-        <tr class="fila-recepcion border-b border-slate-100 hover:bg-slate-50 transition-colors" data-id-detalle="${d.id}" data-id-prod="${d.id_producto}" data-factor="${d.productos?.cant_en_ua_de_uc || 1}" data-precio-uc="${d.precio_unitario_uc}" data-id-compra="${d.compras.id}">
+        <tr class="fila-recepcion border-b border-slate-100 hover:bg-slate-50 transition-colors" data-id-detalle="${d.id}" data-id-prod="${d.id_producto}" data-factor="${d.productos?.cant_en_ua_de_uc || 1}" data-id-compra="${d.compras.id}">
             <td class="px-4 py-3 font-bold text-slate-700 text-sm">${d.productos?.nombre} ${labelPost}</td>
             <td class="px-4 py-3 text-center font-mono font-bold text-slate-700 bg-slate-100/50">${d.cantidad_uc} <span class="text-xs text-slate-400">${abrev}</span></td>
             <td class="px-4 py-3">
@@ -573,6 +573,13 @@ window.abrirModalRecepcionMasiva = async function(idSuc, nombreSuc, idProv, nomb
                         <span class="text-xs text-slate-500 font-bold w-24">${txtCantReal}</span>
                         <input type="number" step="0.01" value="${d.cantidad_uc}" class="w-24 px-2 py-1 border rounded text-sm font-bold text-center ${colorInputCant} outline-none focus:ring-1 focus:ring-emerald-500 input-cant-real">
                         <span class="text-xs font-bold text-slate-400">${abrev}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-slate-500 font-bold w-24">Costo Neto (x ${abrev}):</span>
+                        <div class="relative w-24">
+                            <span class="absolute inset-y-0 left-0 pl-2 flex items-center text-slate-500 text-xs">$</span>
+                            <input type="number" step="0.01" value="${d.precio_unitario_uc || 0}" class="w-full pl-5 pr-2 py-1 border border-slate-300 rounded text-sm font-bold text-center text-slate-700 outline-none focus:ring-1 focus:ring-emerald-500 input-precio-real">
+                        </div>
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="text-xs text-slate-500 font-bold w-24">Guardar en:</span>
@@ -637,10 +644,19 @@ window.guardarRecepcionMasiva = async function() {
 
             if (estado === 'Recibido') {
                 const cantUC = parseFloat(fila.querySelector('.input-cant-real').value);
+                const precioRealUC = parseFloat(fila.querySelector('.input-precio-real').value) || 0; // Leemos el precio nuevo
                 const idUbi = fila.querySelector('.select-ubi-rec').value || null;
                 const cantUA = cantUC * factorConversion;
 
-                await clienteSupabase.from('compras_detalles').update({estado: 'Recibido'}).eq('id', idDetalle);
+                // Actualizamos que se recibió, ajustamos la cantidad real que llegó y el PRECIO REAL pagado
+                await clienteSupabase.from('compras_detalles')
+                    .update({
+                        estado: 'Recibido', 
+                        cantidad_uc: cantUC, 
+                        precio_unitario_uc: precioRealUC, 
+                        subtotal: cantUC * precioRealUC
+                    })
+                    .eq('id', idDetalle);
 
                 let query = clienteSupabase.from('inventario_saldos').select('id, cantidad_actual_ua').eq('id_producto', idProd).eq('id_sucursal', window.recepcionActivaSuc);
                 if(idUbi) query = query.eq('id_ubicacion', idUbi); else query = query.is('id_ubicacion', null);
@@ -655,8 +671,11 @@ window.guardarRecepcionMasiva = async function() {
                 const refMov = isProd ? 'Producción Interna Terminada' : 'Recepción Masiva de Proveedor';
                 const tipoMov = isProd ? 'INGRESO_PRODUCCION' : 'INGRESO_COMPRA';
 
-                await clienteSupabase.from('movimientos_inventario').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_ubicacion: idUbi, tipo_movimiento: tipoMov, cantidad_movida: cantUA, costo_unitario_movimiento: precioUC, referencia: refMov }]);
-                if(!isProd) await clienteSupabase.from('productos').update({ ultimo_costo_uc: precioUC }).eq('id', idProd);
+                // Guardamos el movimiento en el historial con el nuevo costo unitario
+                await clienteSupabase.from('movimientos_inventario').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_ubicacion: idUbi, tipo_movimiento: tipoMov, cantidad_movida: cantUA, costo_unitario_movimiento: precioRealUC, referencia: refMov }]);
+                
+                // Actualizamos el "último costo" en el maestro de productos para futuras sugerencias
+                if(!isProd) await clienteSupabase.from('productos').update({ ultimo_costo_uc: precioRealUC }).eq('id', idProd);
 
                 if(idCompraPadre) comprasAfectadas.add(idCompraPadre);
 
