@@ -364,20 +364,28 @@ window.aplicarPermisosVisuales = async function() {
 };
 
 // ==========================================
-// RESTAURACIÓN AUTOMÁTICA DE SESIÓN
+// RESTAURACIÓN AUTOMÁTICA DE SESIÓN (Anti-Parpadeo ⚡)
 // ==========================================
-window.addEventListener('load', () => {
-    setTimeout(() => {
-        const sesion = localStorage.getItem('sesion_activa_olympia');
-        if (sesion) {
-            try {
-                const s = JSON.parse(sesion);
-                console.log("Sesión restaurada con éxito para:", s.nombreUsuario);
-                window.iniciarSesionEmpresa(s.id, s.nombre, s.email, s.nombreUsuario, s.rol);
-            } catch (e) {
-                console.error("Error leyendo la sesión:", e);
-                localStorage.removeItem('sesion_activa_olympia');
-            }
+document.addEventListener('DOMContentLoaded', () => {
+    const sesion = localStorage.getItem('sesion_activa_olympia');
+    
+    if (sesion) {
+        // 1. APAGAMOS EL LOGIN INMEDIATAMENTE (Antes de que el usuario lo vea)
+        const login = document.getElementById('login-container');
+        if (login) login.classList.add('hidden');
+
+        // 2. Cargamos la sesión
+        try {
+            const s = JSON.parse(sesion);
+            console.log("Sesión restaurada con éxito para:", s.nombreUsuario);
+            
+            // Hacemos el inicio de sesión
+            window.iniciarSesionEmpresa(s.id, s.nombre, s.email, s.nombreUsuario, s.rol);
+        } catch (e) {
+            console.error("Error leyendo la sesión:", e);
+            localStorage.removeItem('sesion_activa_olympia');
+            // Si algo falla, volvemos a mostrar el login
+            if (login) login.classList.remove('hidden'); 
         }
-    }, 150); // Esperamos 150ms para asegurar que el HTML y las funciones globales existan
+    }
 });
