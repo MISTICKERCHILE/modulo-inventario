@@ -106,15 +106,15 @@ window.iniciarSesionEmpresa = function(id, nombre, email, nombreUsuario, rol) {
     if (selector) selector.classList.add('hidden');
     if (dashboard) dashboard.classList.remove('hidden');
     
-    // 4. ACTUALIZAMOS LOS NOMBRES EN LA BARRA SUPERIOR (¡Blindado!)
+    // 4. ACTUALIZAMOS LOS NOMBRES EN LA BARRA SUPERIOR
     const btnUsuario = document.getElementById('user-menu-button');
-    if (btnUsuario) btnUsuario.innerText = nombreUsuario; // Devuelve tu nombre "Bea" arriba
+    if (btnUsuario) btnUsuario.innerText = nombreUsuario; // Devuelve tu nombre arriba
     
     const dropEmail = document.getElementById('user-email-dropdown');
     if (dropEmail) dropEmail.innerText = email;
 
-    const headerEmpresa = document.getElementById('header-nombre-empresa');
-    if (headerEmpresa) headerEmpresa.innerHTML = `🏢 ${nombre}`;
+    // Ejecutamos tu función original que actualiza el header y el botón de parámetros
+    if(window.actualizarTopBar) window.actualizarTopBar(nombre, rol);
 
     // 5. Aplicamos permisos y cargamos vistas
     if (window.aplicarPermisosVisuales) window.aplicarPermisosVisuales();
@@ -376,10 +376,5 @@ window.addEventListener('load', () => {
                 localStorage.removeItem('sesion_activa_olympia');
             }
         }
-    }, 100); // Esperamos 100ms para asegurar que el HTML existe
-});
-
-// Disparamos la revisión cuando el HTML termine de cargar
-document.addEventListener('DOMContentLoaded', () => {
-    window.revisarSesionGuardada();
+    }, 150); // Esperamos 150ms para asegurar que el HTML y las funciones globales existan
 });
