@@ -110,8 +110,8 @@ window.iniciarSesionEmpresa = function(id, nombre, email, nombreUsuario, rol) {
     if (dashboard) dashboard.classList.remove('hidden'); // Mostramos la app
     
     // 4. ACTUALIZAMOS LOS NOMBRES EN LA BARRA SUPERIOR
-    const btnUsuario = document.getElementById('user-menu-button');
-    if (btnUsuario) btnUsuario.innerText = nombreUsuario; 
+    const spanUsuario = document.getElementById('user-name-display'); // ¡EL ID CORRECTO!
+    if (spanUsuario) spanUsuario.innerText = nombreUsuario; 
     
     const dropEmail = document.getElementById('user-email-dropdown');
     if (dropEmail) dropEmail.innerText = email;
