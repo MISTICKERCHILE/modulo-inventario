@@ -288,70 +288,93 @@ window.abrirModalConteoMasivo = async function() {
 window.cargarFilasConteoMasivo = async function(idUbicacion) {
     const tbody = document.getElementById('cm-filas');
     if(!idUbicacion) { 
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-slate-400 py-8">Selecciona una ubicación para comenzar.</td></tr>'; 
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-slate-400 py-8">Selecciona una ubicación.</td></tr>'; 
         return; 
     }
     
-    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-emerald-600 py-8 font-bold animate-pulse">🔍 Filtrando productos en esta ubicación...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-emerald-600 py-8 font-bold animate-pulse">⏳ Cargando catálogo y saldos...</td></tr>';
 
-    // 1. Buscamos el stock existente ESPECÍFICAMENTE en esa ubicación
-    let query = clienteSupabase.from('inventario_saldos')
-        .select(`
-            id_producto, 
-            cantidad_actual_ua, 
-            productos (nombre, id_unidad_almacenamiento(abreviatura), control_stock)
-        `)
-        .eq('id_sucursal', window.sucursalActivaID);
+    try {
+        // 1. Traemos TODOS los productos físicos del catálogo
+        const { data: prodsFisicos } = await clienteSupabase.from('productos')
+            .select('id, nombre, id_unidad_almacenamiento(abreviatura)')
+            .eq('id_empresa', window.miEmpresaId)
+            .is('control_stock', true)
+            .order('nombre');
 
-    if(idUbicacion === 'GENERAL') {
-        query = query.is('id_ubicacion', null);
-    } else {
-        query = query.eq('id_ubicacion', idUbicacion);
-    }
+        // 2. Traemos TODOS los saldos actuales de esta sucursal
+        const { data: saldosActuales } = await clienteSupabase.from('inventario_saldos')
+            .select('id_producto, cantidad_actual_ua, id_ubicacion')
+            .eq('id_sucursal', window.sucursalActivaID);
 
-    const { data: saldosUbicacion, error } = await query;
+        let html = '';
+        let contadorFilas = 0;
 
-    if(error) {
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-red-500 py-8">Error al cargar.</td></tr>';
-        return;
-    }
+        // 3. Cruzamos los datos según la regla de negocio
+        (prodsFisicos || []).forEach(p => {
+            const saldosDelProducto = (saldosActuales || []).filter(s => s.id_producto === p.id);
+            let mostrar = false;
+            let cantActual = 0;
 
-    // 2. Renderizamos SOLO lo que hay en esa ubicación
-    if(!saldosUbicacion || saldosUbicacion.length === 0) {
-        tbody.innerHTML = `
+            if (idUbicacion === 'GENERAL') {
+                // REGLA GENERAL: Mostrar si tiene saldo en 'General' (NULL) o si es un producto totalmente NUEVO
+                const saldoGeneral = saldosDelProducto.find(s => s.id_ubicacion === null);
+                const sinNingunSaldo = saldosDelProducto.length === 0;
+
+                if (saldoGeneral || sinNingunSaldo) {
+                    mostrar = true;
+                    cantActual = saldoGeneral ? saldoGeneral.cantidad_actual_ua : 0;
+                }
+            } else {
+                // REGLA BODEGA ESPECÍFICA: Solo mostrar si YA existe físicamente en esa ubicación
+                const saldoEspecifico = saldosDelProducto.find(s => s.id_ubicacion === idUbicacion);
+                if (saldoEspecifico) {
+                    mostrar = true;
+                    cantActual = saldoEspecifico.cantidad_actual_ua;
+                }
+            }
+
+            // Si cumple la regla, dibujamos la fila
+            if (mostrar) {
+                contadorFilas++;
+                const abrev = p.id_unidad_almacenamiento?.abreviatura || 'UA';
+                html += `
+                <tr class="border-b border-slate-100 fila-conteo-item hover:bg-slate-50 transition-colors">
+                    <td class="py-3 px-4 font-medium text-sm text-slate-700">
+                        ${p.nombre}
+                        <input type="hidden" class="cm-select-prod" value="${p.id}">
+                        <input type="hidden" class="cm-cant-anterior" value="${cantActual}">
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                        <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-100">${abrev}</span>
+                    </td>
+                    <td class="py-3 px-4 relative flex justify-center flex-col items-center">
+                        <span class="text-[10px] text-slate-400 font-bold mb-1">Stock Sistema: ${cantActual}</span>
+                        <input type="number" step="0.01" value="${cantActual}" class="w-24 px-2 py-1 border border-slate-300 rounded text-center cm-input-cant font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner">
+                    </td>
+                    <td class="py-3 px-4 text-right">
+                        <button onclick="this.closest('tr').remove()" class="text-slate-300 hover:text-red-500 text-lg transition-transform hover:scale-110">🗑️</button>
+                    </td>
+                </tr>`;
+            }
+        });
+
+        // 4. Si la bodega está realmente vacía, mostramos el mensaje
+        if (contadorFilas === 0) {
+            tbody.innerHTML = `
             <tr>
                 <td colspan="4" class="text-center text-slate-400 py-12">
                     <p class="text-lg">📭 Ubicación Vacía</p>
-                    <p class="text-xs mt-1">No hay productos registrados aquí. Usa el botón "+ Producto" para agregar uno nuevo a esta ubicación.</p>
+                    <p class="text-xs mt-1">No hay productos registrados aquí. Usa el botón "+ Agregar Fila" para sumar un producto a esta ubicación.</p>
                 </td>
             </tr>`;
-        return;
+        } else {
+            tbody.innerHTML = html;
+        }
+
+    } catch (error) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-red-500 py-8">❌ Error al cargar los datos.</td></tr>';
     }
-
-    tbody.innerHTML = saldosUbicacion.map(s => {
-        const p = s.productos;
-        const cantActual = s.cantidad_actual_ua;
-        const abrev = p.id_unidad_almacenamiento?.abreviatura || 'UA';
-
-        return `
-        <tr class="border-b border-slate-100 fila-conteo-item hover:bg-slate-50 transition-colors">
-            <td class="py-3 px-4 font-medium text-sm text-slate-700">
-                ${p.nombre}
-                <input type="hidden" class="cm-select-prod" value="${s.id_producto}">
-                <input type="hidden" class="cm-cant-anterior" value="${cantActual}">
-            </td>
-            <td class="py-3 px-4 text-center">
-                <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-100">${abrev}</span>
-            </td>
-            <td class="py-3 px-4 relative flex justify-center flex-col items-center">
-                <span class="text-[10px] text-slate-400 font-bold mb-1">Stock Sistema: ${cantActual}</span>
-                <input type="number" step="0.01" value="${cantActual}" class="w-24 px-2 py-1 border border-slate-300 rounded text-center cm-input-cant font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner">
-            </td>
-            <td class="py-3 px-4 text-right">
-                <button onclick="this.closest('tr').remove()" class="text-slate-300 hover:text-red-500 text-lg transition-transform hover:scale-110">🗑️</button>
-            </td>
-        </tr>`;
-    }).join('');
 }
 
 window.agregarFilaConteoFija = function(idProd, nombre, abrev, cantActual) {
