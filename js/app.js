@@ -90,33 +90,46 @@ document.getElementById('auth-form').addEventListener('submit', async (e) => {
 
 // FIX 2: Recibimos el rol al iniciar sesión
 window.iniciarSesionEmpresa = function(id, nombre, email, nombreUsuario, rol) {
+    // 1. Cargamos las variables en la memoria temporal
     window.miEmpresaId = id;
     window.usuarioActual = nombreUsuario;
     window.miRol = rol; 
     
-    // NUEVO: Guardamos la credencial en la bóveda del navegador
+    // 2. Guardamos la credencial en la bóveda (Persistencia)
     localStorage.setItem('sesion_activa_olympia', JSON.stringify({
         id: id, nombre: nombre, email: email, nombreUsuario: nombreUsuario, rol: rol
     }));
 
-    document.getElementById('selector-empresa-container').classList.add('hidden');
-    document.getElementById('dashboard-container').classList.remove('hidden');
-    document.getElementById('user-email-dropdown').innerText = email;
-    document.getElementById('user-name-display').innerText = nombreUsuario;
+    // 3. Mostramos el panel principal
+    const selector = document.getElementById('selector-empresa-container');
+    const dashboard = document.getElementById('dashboard-container');
+    if (selector) selector.classList.add('hidden');
+    if (dashboard) dashboard.classList.remove('hidden');
     
-    if(window.actualizarTopBar) window.actualizarTopBar(nombre, rol);
-    if(window.aplicarPermisosVisuales) window.aplicarPermisosVisuales();
+    // 4. ACTUALIZAMOS LOS NOMBRES EN LA BARRA SUPERIOR (¡Blindado!)
+    const btnUsuario = document.getElementById('user-menu-button');
+    if (btnUsuario) btnUsuario.innerText = nombreUsuario; // Devuelve tu nombre "Bea" arriba
+    
+    const dropEmail = document.getElementById('user-email-dropdown');
+    if (dropEmail) dropEmail.innerText = email;
+
+    const headerEmpresa = document.getElementById('header-nombre-empresa');
+    if (headerEmpresa) headerEmpresa.innerHTML = `🏢 ${nombre}`;
+
+    // 5. Aplicamos permisos y cargamos vistas
+    if (window.aplicarPermisosVisuales) window.aplicarPermisosVisuales();
 
     const urlParams = new URLSearchParams(window.location.search);
     const vistaDirecta = urlParams.get('v');
-    if(vistaDirecta) {
+    
+    if (vistaDirecta) {
         window.cambiarVista(vistaDirecta);
     } else {
         window.cambiarVista('dashboard');
     }
     
-    if(window.cargarDatosSelects) window.cargarDatosSelects();
-    if(window.cargarDashboard) window.cargarDashboard();
+    if (window.cargarDatosSelects) window.cargarDatosSelects();
+    if (window.cargarDashboard) window.cargarDashboard();
 }
 
 window.volverASelectorEmpresa = async function() {
@@ -350,20 +363,21 @@ window.aplicarPermisosVisuales = async function() {
 // ==========================================
 // RESTAURACIÓN AUTOMÁTICA DE SESIÓN
 // ==========================================
-window.revisarSesionGuardada = function() {
-    const sesion = localStorage.getItem('sesion_activa_olympia');
-    if (sesion) {
-        try {
-            const s = JSON.parse(sesion);
-            // Si hay datos, disparamos el inicio de sesión automáticamente
-            console.log("Sesión restaurada para:", s.nombreUsuario);
-            window.iniciarSesionEmpresa(s.id, s.nombre, s.email, s.nombreUsuario, s.rol);
-        } catch (e) {
-            console.error("Error leyendo la sesión:", e);
-            localStorage.removeItem('sesion_activa_olympia');
+window.addEventListener('load', () => {
+    setTimeout(() => {
+        const sesion = localStorage.getItem('sesion_activa_olympia');
+        if (sesion) {
+            try {
+                const s = JSON.parse(sesion);
+                console.log("Sesión restaurada con éxito para:", s.nombreUsuario);
+                window.iniciarSesionEmpresa(s.id, s.nombre, s.email, s.nombreUsuario, s.rol);
+            } catch (e) {
+                console.error("Error leyendo la sesión:", e);
+                localStorage.removeItem('sesion_activa_olympia');
+            }
         }
-    }
-};
+    }, 100); // Esperamos 100ms para asegurar que el HTML existe
+});
 
 // Disparamos la revisión cuando el HTML termine de cargar
 document.addEventListener('DOMContentLoaded', () => {
