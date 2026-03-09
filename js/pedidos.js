@@ -554,6 +554,16 @@ window.abrirModalRecepcionMasiva = async function(idSuc, nombreSuc, idProv, nomb
         const isPostpuesto = d.estado === 'Postpuesto';
         const labelPost = isPostpuesto ? `<span class="block mt-1 text-[10px] bg-yellow-100 text-yellow-800 px-2 py-1 rounded w-max">Estaba en espera</span>` : '';
         const colorInputCant = isProd ? 'text-purple-700' : 'text-emerald-700';
+// Condición clave: Si es Producción (isProd), el bloque de costo queda vacío. Si no, dibuja el input.
+        const bloqueCostoNeto = isProd ? '' : `
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-slate-500 font-bold w-24">Costo Neto (x ${abrev}):</span>
+                <div class="relative w-24">
+                    <span class="absolute inset-y-0 left-0 pl-2 flex items-center text-slate-500 text-xs">$</span>
+                    <input type="number" step="0.01" value="${d.precio_unitario_uc || 0}" class="w-full pl-5 pr-2 py-1 border border-slate-300 rounded text-sm font-bold text-center text-slate-700 outline-none focus:ring-1 focus:ring-emerald-500 input-precio-real">
+                </div>
+            </div>
+        `;
 
         return `
         <tr class="fila-recepcion border-b border-slate-100 hover:bg-slate-50 transition-colors" data-id-detalle="${d.id}" data-id-prod="${d.id_producto}" data-factor="${d.productos?.cant_en_ua_de_uc || 1}" data-id-compra="${d.compras.id}">
@@ -574,13 +584,9 @@ window.abrirModalRecepcionMasiva = async function(idSuc, nombreSuc, idProv, nomb
                         <input type="number" step="0.01" value="${d.cantidad_uc}" class="w-24 px-2 py-1 border rounded text-sm font-bold text-center ${colorInputCant} outline-none focus:ring-1 focus:ring-emerald-500 input-cant-real">
                         <span class="text-xs font-bold text-slate-400">${abrev}</span>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <span class="text-xs text-slate-500 font-bold w-24">Costo Neto (x ${abrev}):</span>
-                        <div class="relative w-24">
-                            <span class="absolute inset-y-0 left-0 pl-2 flex items-center text-slate-500 text-xs">$</span>
-                            <input type="number" step="0.01" value="${d.precio_unitario_uc || 0}" class="w-full pl-5 pr-2 py-1 border border-slate-300 rounded text-sm font-bold text-center text-slate-700 outline-none focus:ring-1 focus:ring-emerald-500 input-precio-real">
-                        </div>
-                    </div>
+                    
+                    ${bloqueCostoNeto}
+                    
                     <div class="flex items-center gap-2">
                         <span class="text-xs text-slate-500 font-bold w-24">Guardar en:</span>
                         <select class="flex-1 px-2 py-1 border rounded text-xs select-ubi-rec bg-white outline-none focus:ring-1 focus:ring-emerald-500">${optsUbi}</select>
@@ -644,7 +650,10 @@ window.guardarRecepcionMasiva = async function() {
 
             if (estado === 'Recibido') {
                 const cantUC = parseFloat(fila.querySelector('.input-cant-real').value);
-                const precioRealUC = parseFloat(fila.querySelector('.input-precio-real').value) || 0; // Leemos el precio nuevo
+                
+                // 👉 EL CAMBIO: Si es producción el precio es 0, si no, lo lee del input
+                const precioRealUC = isProd ? 0 : (parseFloat(fila.querySelector('.input-precio-real').value) || 0);
+                
                 const idUbi = fila.querySelector('.select-ubi-rec').value || null;
                 const cantUA = cantUC * factorConversion;
 
