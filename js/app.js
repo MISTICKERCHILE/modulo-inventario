@@ -94,15 +94,18 @@ window.iniciarSesionEmpresa = function(id, nombre, email, nombreUsuario, rol) {
     window.usuarioActual = nombreUsuario;
     window.miRol = rol; 
     
+    // NUEVO: Guardamos la credencial en la bóveda del navegador
+    localStorage.setItem('sesion_activa_olympia', JSON.stringify({
+        id: id, nombre: nombre, email: email, nombreUsuario: nombreUsuario, rol: rol
+    }));
+
     document.getElementById('selector-empresa-container').classList.add('hidden');
     document.getElementById('dashboard-container').classList.remove('hidden');
     document.getElementById('user-email-dropdown').innerText = email;
     document.getElementById('user-name-display').innerText = nombreUsuario;
     
-    window.actualizarTopBar(nombre, rol);
-
-    // NUEVO: Al entrar, el sistema revisa qué puede ver este usuario
-    window.aplicarPermisosVisuales();
+    if(window.actualizarTopBar) window.actualizarTopBar(nombre, rol);
+    if(window.aplicarPermisosVisuales) window.aplicarPermisosVisuales();
 
     const urlParams = new URLSearchParams(window.location.search);
     const vistaDirecta = urlParams.get('v');
@@ -139,20 +142,16 @@ window.volverASelectorEmpresa = async function() {
 }
 
 window.cerrarSesion = async function() {
-    await clienteSupabase.auth.signOut();
-    location.reload();
-}
-
-window.actualizarBadgeCarrito = function() {
-    const badge = document.getElementById('badge-cart');
-    if(badge) {
-        if(window.carritoPedidos && window.carritoPedidos.length > 0) {
-            badge.innerText = window.carritoPedidos.length;
-            badge.classList.remove('hidden');
-        } else {
-            badge.classList.add('hidden');
-        }
+    // 1. Borramos la credencial de la bóveda
+    localStorage.removeItem('sesion_activa_olympia');
+    
+    // 2. Si usamos Supabase Auth, le decimos que cierre la sesión en el servidor
+    if (clienteSupabase && clienteSupabase.auth) {
+        await clienteSupabase.auth.signOut();
     }
+    
+    // 3. Recargamos la página limpia
+    window.location.href = 'index.html'; 
 }
 
 // --- NAVEGACIÓN Y UI ---
@@ -347,3 +346,26 @@ window.aplicarPermisosVisuales = async function() {
         if (btnRep) opPermisos.reportes === false ? btnRep.classList.add('hidden') : btnRep.classList.remove('hidden');
     }
 };
+
+// ==========================================
+// RESTAURACIÓN AUTOMÁTICA DE SESIÓN
+// ==========================================
+window.revisarSesionGuardada = function() {
+    const sesion = localStorage.getItem('sesion_activa_olympia');
+    if (sesion) {
+        try {
+            const s = JSON.parse(sesion);
+            // Si hay datos, disparamos el inicio de sesión automáticamente
+            console.log("Sesión restaurada para:", s.nombreUsuario);
+            window.iniciarSesionEmpresa(s.id, s.nombre, s.email, s.nombreUsuario, s.rol);
+        } catch (e) {
+            console.error("Error leyendo la sesión:", e);
+            localStorage.removeItem('sesion_activa_olympia');
+        }
+    }
+};
+
+// Disparamos la revisión cuando el HTML termine de cargar
+document.addEventListener('DOMContentLoaded', () => {
+    window.revisarSesionGuardada();
+});
