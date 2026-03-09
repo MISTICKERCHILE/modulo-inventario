@@ -79,8 +79,19 @@ window.cargarPedidosPlanificados = async function() {
 
             const stockVirtual = stockFisico + incomingUA;
 
+            // ESTA ES LA LÓGICA PRINCIPAL: Si el stock real está por debajo de la regla, se muestra
             if (stockVirtual <= regla.stock_minimo_ua) {
-                const sugeridoUA = regla.stock_ideal_ua > 0 ? (regla.stock_ideal_ua - stockVirtual) : (regla.stock_minimo_ua - stockVirtual + 1);
+                
+                // DETECCIÓN INTELIGENTE: Si el stock mínimo es exactamente 0.01, es porque lo enviaste manualmente desde el Inventario
+                const esSugerenciaManual = regla.stock_minimo_ua === 0.01;
+                
+                let sugeridoUA = 0;
+                if (esSugerenciaManual) {
+                    sugeridoUA = regla.stock_ideal_ua > 0 ? regla.stock_ideal_ua : 1; // Si es manual y no hay ideal, sugerimos pedir al menos 1
+                } else {
+                    sugeridoUA = regla.stock_ideal_ua > 0 ? (regla.stock_ideal_ua - stockVirtual) : (regla.stock_minimo_ua - stockVirtual + 1);
+                }
+
                 const sugeridoUC = p.cant_en_ua_de_uc > 0 ? (sugeridoUA / p.cant_en_ua_de_uc).toFixed(2) : sugeridoUA;
                 const abrevUA = p.id_unidad_almacenamiento?.abreviatura || 'UA';
                 const abrevUC = p.id_unidad_compra?.abreviatura || 'UC';
@@ -90,16 +101,22 @@ window.cargarPedidosPlanificados = async function() {
                 const displayStyle = estaEnCarrito ? 'style="display: none;"' : '';
                 const txtEnCamino = incomingUA > 0 ? `<br><span class="text-[9px] text-blue-500 font-bold uppercase">+ ${incomingUA.toFixed(2)} en camino</span>` : '';
 
+                // Banderín visual si viene del inventario
+                const badgeManual = esSugerenciaManual ? `<span class="bg-indigo-100 text-indigo-700 text-[9px] px-1.5 py-0.5 rounded ml-2 uppercase font-bold">Añadido Manual</span>` : '';
+
                 const paramsParaBoton = `'${suc.id}', '${suc.nombre}', '${p.id}', '${p.nombre.replace(/'/g, "\\'")}', ${sugeridoUC}, '${abrevUC}', ${precioRef}`;
 
                 htmlFilasSucursal += `
                 <tr id="fila-sug-${suc.id}-${p.id}" ${displayStyle} class="hover:bg-orange-50 transition-colors border-b border-orange-100">
-                    <td class="px-4 py-3 font-bold text-slate-700 text-sm">${p.nombre}</td>
+                    <td class="px-4 py-3 font-bold text-slate-700 text-sm flex items-center">${p.nombre} ${badgeManual}</td>
                     <td class="px-4 py-3 text-center leading-tight">
                         <span class="bg-red-100 text-red-700 px-2 py-1 rounded font-bold text-xs">${stockFisico.toFixed(2)} ${abrevUA}</span>
                         ${txtEnCamino}
                     </td>
-                    <td class="px-4 py-3 text-center text-orange-800 font-bold text-sm">${sugeridoUA.toFixed(2)} ${abrevUA} <br><span class="text-[10px] text-orange-500 font-normal uppercase">Pedir sugerido: ${sugeridoUC} ${abrevUC}</span></td>
+                    <td class="px-4 py-3 text-center text-orange-800 font-bold text-sm">
+                        ${esSugerenciaManual ? '--' : `${sugeridoUA.toFixed(2)} ${abrevUA}`} 
+                        <br><span class="text-[10px] text-orange-500 font-normal uppercase">Pedir sugerido: ${sugeridoUC} ${abrevUC}</span>
+                    </td>
                     <td class="px-4 py-3">
                         <select id="prov-select-${suc.id}-${p.id}" class="w-full px-2 py-1 border border-orange-200 rounded text-xs outline-none focus:ring-1 focus:ring-orange-400 bg-white">
                             ${optsProvs}
@@ -122,7 +139,7 @@ window.cargarPedidosPlanificados = async function() {
             htmlGlobal += `
             <div class="bg-white rounded-xl shadow-sm border border-orange-200 overflow-hidden mb-6">
                 <div class="bg-orange-100 px-4 py-3 border-b border-orange-200">
-                    <h4 class="font-bold text-orange-900 text-lg flex items-center gap-2"><span>🏢</span> Falta Stock en: ${suc.nombre}</h4>
+                    <h4 class="font-bold text-orange-900 text-lg flex items-center gap-2"><span>🏢</span> Productos a Solicitar para: ${suc.nombre}</h4>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-orange-100">
@@ -137,7 +154,7 @@ window.cargarPedidosPlanificados = async function() {
     });
 
     const containerAlertas = document.getElementById('lista-alertas-compras');
-    if(containerAlertas) containerAlertas.innerHTML = htmlGlobal || '<div class="p-8 text-center bg-emerald-50 rounded-xl border border-emerald-200 text-emerald-700 font-bold text-lg">🟢 Excelente. Todas las sucursales tienen stock (o pedidos en camino) suficientes.</div>';
+    if(containerAlertas) containerAlertas.innerHTML = htmlGlobal || '<div class="p-8 text-center bg-emerald-50 rounded-xl border border-emerald-200 text-emerald-700 font-bold text-lg">🟢 Excelente. No hay productos que necesiten ser pedidos actualmente.</div>';
 
     window.renderizarBandejaPedidos();
 }
