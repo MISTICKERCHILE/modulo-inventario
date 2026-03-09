@@ -78,9 +78,20 @@ window.cargarPedidosPlanificados = async function() {
                                 .reduce((sum, t) => sum + (t.cantidad_uc * (t.productos?.cant_en_ua_de_uc || 1)), 0);
 
             const stockVirtual = stockFisico + incomingUA;
+            const esSugerenciaManual = regla.stock_minimo_ua === 0.01;
 
-            if (stockVirtual <= regla.stock_minimo_ua) {
-                const sugeridoUA = regla.stock_ideal_ua > 0 ? (regla.stock_ideal_ua - stockVirtual) : (regla.stock_minimo_ua - stockVirtual + 1);
+            // 👉 EL GRAN CAMBIO: Mostrar si está bajo el mínimo normal O SI es sugerencia manual
+            if (stockVirtual <= regla.stock_minimo_ua || esSugerenciaManual) {
+                
+                let sugeridoUA = 0;
+                if (esSugerenciaManual) {
+                    // Si es manual, no importa el stock, sugerimos lo que falte para el ideal o mínimo 1 (para no sugerir pedir negativos)
+                    sugeridoUA = regla.stock_ideal_ua > 0 ? (regla.stock_ideal_ua - stockVirtual) : 1;
+                    if (sugeridoUA <= 0) sugeridoUA = 1; 
+                } else {
+                    sugeridoUA = regla.stock_ideal_ua > 0 ? (regla.stock_ideal_ua - stockVirtual) : (regla.stock_minimo_ua - stockVirtual + 1);
+                }
+
                 const sugeridoUC = p.cant_en_ua_de_uc > 0 ? (sugeridoUA / p.cant_en_ua_de_uc).toFixed(2) : sugeridoUA;
                 const abrevUA = p.id_unidad_almacenamiento?.abreviatura || 'UA';
                 const abrevUC = p.id_unidad_compra?.abreviatura || 'UC';
@@ -90,16 +101,21 @@ window.cargarPedidosPlanificados = async function() {
                 const displayStyle = estaEnCarrito ? 'style="display: none;"' : '';
                 const txtEnCamino = incomingUA > 0 ? `<br><span class="text-[9px] text-blue-500 font-bold uppercase">+ ${incomingUA.toFixed(2)} en camino</span>` : '';
 
+                const badgeManual = esSugerenciaManual ? `<span class="bg-indigo-100 text-indigo-700 text-[9px] px-1.5 py-0.5 rounded ml-2 uppercase font-bold">Añadido Manual</span>` : '';
+
                 const paramsParaBoton = `'${suc.id}', '${suc.nombre}', '${p.id}', '${p.nombre.replace(/'/g, "\\'")}', ${sugeridoUC}, '${abrevUC}', ${precioRef}`;
 
                 htmlFilasSucursal += `
                 <tr id="fila-sug-${suc.id}-${p.id}" ${displayStyle} class="hover:bg-orange-50 transition-colors border-b border-orange-100">
-                    <td class="px-4 py-3 font-bold text-slate-700 text-sm">${p.nombre}</td>
+                    <td class="px-4 py-3 font-bold text-slate-700 text-sm flex items-center">${p.nombre} ${badgeManual}</td>
                     <td class="px-4 py-3 text-center leading-tight">
                         <span class="bg-red-100 text-red-700 px-2 py-1 rounded font-bold text-xs">${stockFisico.toFixed(2)} ${abrevUA}</span>
                         ${txtEnCamino}
                     </td>
-                    <td class="px-4 py-3 text-center text-orange-800 font-bold text-sm">${sugeridoUA.toFixed(2)} ${abrevUA} <br><span class="text-[10px] text-orange-500 font-normal uppercase">Pedir sugerido: ${sugeridoUC} ${abrevUC}</span></td>
+                    <td class="px-4 py-3 text-center text-orange-800 font-bold text-sm">
+                        ${sugeridoUA.toFixed(2)} ${abrevUA} 
+                        <br><span class="text-[10px] text-orange-500 font-normal uppercase">Pedir sugerido: ${sugeridoUC} ${abrevUC}</span>
+                    </td>
                     <td class="px-4 py-3">
                         <select id="prov-select-${suc.id}-${p.id}" class="w-full px-2 py-1 border border-orange-200 rounded text-xs outline-none focus:ring-1 focus:ring-orange-400 bg-white">
                             ${optsProvs}
@@ -122,7 +138,7 @@ window.cargarPedidosPlanificados = async function() {
             htmlGlobal += `
             <div class="bg-white rounded-xl shadow-sm border border-orange-200 overflow-hidden mb-6">
                 <div class="bg-orange-100 px-4 py-3 border-b border-orange-200">
-                    <h4 class="font-bold text-orange-900 text-lg flex items-center gap-2"><span>🏢</span> Falta Stock en: ${suc.nombre}</h4>
+                    <h4 class="font-bold text-orange-900 text-lg flex items-center gap-2"><span>🏢</span> Productos a Solicitar para: ${suc.nombre}</h4>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-orange-100">
@@ -137,7 +153,7 @@ window.cargarPedidosPlanificados = async function() {
     });
 
     const containerAlertas = document.getElementById('lista-alertas-compras');
-    if(containerAlertas) containerAlertas.innerHTML = htmlGlobal || '<div class="p-8 text-center bg-emerald-50 rounded-xl border border-emerald-200 text-emerald-700 font-bold text-lg">🟢 Excelente. Todas las sucursales tienen stock (o pedidos en camino) suficientes.</div>';
+    if(containerAlertas) containerAlertas.innerHTML = htmlGlobal || '<div class="p-8 text-center bg-emerald-50 rounded-xl border border-emerald-200 text-emerald-700 font-bold text-lg">🟢 Excelente. No hay productos que necesiten ser pedidos actualmente.</div>';
 
     window.renderizarBandejaPedidos();
 }
@@ -538,9 +554,19 @@ window.abrirModalRecepcionMasiva = async function(idSuc, nombreSuc, idProv, nomb
         const isPostpuesto = d.estado === 'Postpuesto';
         const labelPost = isPostpuesto ? `<span class="block mt-1 text-[10px] bg-yellow-100 text-yellow-800 px-2 py-1 rounded w-max">Estaba en espera</span>` : '';
         const colorInputCant = isProd ? 'text-purple-700' : 'text-emerald-700';
+// Condición clave: Si es Producción (isProd), el bloque de costo queda vacío. Si no, dibuja el input.
+        const bloqueCostoNeto = isProd ? '' : `
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-slate-500 font-bold w-24">Costo Neto (x ${abrev}):</span>
+                <div class="relative w-24">
+                    <span class="absolute inset-y-0 left-0 pl-2 flex items-center text-slate-500 text-xs">$</span>
+                    <input type="number" step="0.01" value="${d.precio_unitario_uc || 0}" class="w-full pl-5 pr-2 py-1 border border-slate-300 rounded text-sm font-bold text-center text-slate-700 outline-none focus:ring-1 focus:ring-emerald-500 input-precio-real">
+                </div>
+            </div>
+        `;
 
         return `
-        <tr class="fila-recepcion border-b border-slate-100 hover:bg-slate-50 transition-colors" data-id-detalle="${d.id}" data-id-prod="${d.id_producto}" data-factor="${d.productos?.cant_en_ua_de_uc || 1}" data-precio-uc="${d.precio_unitario_uc}" data-id-compra="${d.compras.id}">
+        <tr class="fila-recepcion border-b border-slate-100 hover:bg-slate-50 transition-colors" data-id-detalle="${d.id}" data-id-prod="${d.id_producto}" data-factor="${d.productos?.cant_en_ua_de_uc || 1}" data-id-compra="${d.compras.id}">
             <td class="px-4 py-3 font-bold text-slate-700 text-sm">${d.productos?.nombre} ${labelPost}</td>
             <td class="px-4 py-3 text-center font-mono font-bold text-slate-700 bg-slate-100/50">${d.cantidad_uc} <span class="text-xs text-slate-400">${abrev}</span></td>
             <td class="px-4 py-3">
@@ -558,6 +584,9 @@ window.abrirModalRecepcionMasiva = async function(idSuc, nombreSuc, idProv, nomb
                         <input type="number" step="0.01" value="${d.cantidad_uc}" class="w-24 px-2 py-1 border rounded text-sm font-bold text-center ${colorInputCant} outline-none focus:ring-1 focus:ring-emerald-500 input-cant-real">
                         <span class="text-xs font-bold text-slate-400">${abrev}</span>
                     </div>
+                    
+                    ${bloqueCostoNeto}
+                    
                     <div class="flex items-center gap-2">
                         <span class="text-xs text-slate-500 font-bold w-24">Guardar en:</span>
                         <select class="flex-1 px-2 py-1 border rounded text-xs select-ubi-rec bg-white outline-none focus:ring-1 focus:ring-emerald-500">${optsUbi}</select>
@@ -621,10 +650,22 @@ window.guardarRecepcionMasiva = async function() {
 
             if (estado === 'Recibido') {
                 const cantUC = parseFloat(fila.querySelector('.input-cant-real').value);
+                
+                // 👉 EL CAMBIO: Si es producción el precio es 0, si no, lo lee del input
+                const precioRealUC = isProd ? 0 : (parseFloat(fila.querySelector('.input-precio-real').value) || 0);
+                
                 const idUbi = fila.querySelector('.select-ubi-rec').value || null;
                 const cantUA = cantUC * factorConversion;
 
-                await clienteSupabase.from('compras_detalles').update({estado: 'Recibido'}).eq('id', idDetalle);
+                // Actualizamos que se recibió, ajustamos la cantidad real que llegó y el PRECIO REAL pagado
+                await clienteSupabase.from('compras_detalles')
+                    .update({
+                        estado: 'Recibido', 
+                        cantidad_uc: cantUC, 
+                        precio_unitario_uc: precioRealUC, 
+                        subtotal: cantUC * precioRealUC
+                    })
+                    .eq('id', idDetalle);
 
                 let query = clienteSupabase.from('inventario_saldos').select('id, cantidad_actual_ua').eq('id_producto', idProd).eq('id_sucursal', window.recepcionActivaSuc);
                 if(idUbi) query = query.eq('id_ubicacion', idUbi); else query = query.is('id_ubicacion', null);
@@ -639,8 +680,11 @@ window.guardarRecepcionMasiva = async function() {
                 const refMov = isProd ? 'Producción Interna Terminada' : 'Recepción Masiva de Proveedor';
                 const tipoMov = isProd ? 'INGRESO_PRODUCCION' : 'INGRESO_COMPRA';
 
-                await clienteSupabase.from('movimientos_inventario').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_ubicacion: idUbi, tipo_movimiento: tipoMov, cantidad_movida: cantUA, costo_unitario_movimiento: precioUC, referencia: refMov }]);
-                if(!isProd) await clienteSupabase.from('productos').update({ ultimo_costo_uc: precioUC }).eq('id', idProd);
+                // Guardamos el movimiento en el historial con el nuevo costo unitario
+                await clienteSupabase.from('movimientos_inventario').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_ubicacion: idUbi, tipo_movimiento: tipoMov, cantidad_movida: cantUA, costo_unitario_movimiento: precioRealUC, referencia: refMov }]);
+                
+                // Actualizamos el "último costo" en el maestro de productos para futuras sugerencias
+                if(!isProd) await clienteSupabase.from('productos').update({ ultimo_costo_uc: precioRealUC }).eq('id', idProd);
 
                 if(idCompraPadre) comprasAfectadas.add(idCompraPadre);
 

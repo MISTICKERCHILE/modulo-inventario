@@ -6,7 +6,9 @@ window.sucursalActivaID = null;
 window.sucursalActivaNombre = null;
 window.productosGlobalConteo = [];
 window.ubicacionesGlobalSucursal = []; 
-window.selectConteoActivoIndex = null; 
+window.selectConteoActivoIndex = null;
+window.saldosGlobalMemoria = [];
+window.ordenActualInv = { col: 'nombre', dir: 'asc' };
 
 window.cargarInventario = async function() {
     document.getElementById('inv-vista-sucursales').classList.remove('hidden');
@@ -48,6 +50,7 @@ window.abrirInventarioSucursal = async function(idSuc, nombreSuc) {
     const tbody = document.getElementById('lista-inventario');
     tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-8 text-center text-slate-500 font-bold">⏳ Cargando inventario...</td></tr>';
 
+    // 1. Traemos los datos de la base de datos
     const [{ data: saldos }, { data: ubicaciones }, { data: reglas }] = await Promise.all([
         clienteSupabase.from('inventario_saldos').select(`id, id_producto, cantidad_actual_ua, id_ubicacion, productos (nombre, id_unidad_almacenamiento(abreviatura)), ubicaciones_internas (nombre)`).eq('id_empresa', window.miEmpresaId).eq('id_sucursal', idSuc),
         clienteSupabase.from('ubicaciones_internas').select('id, nombre').eq('id_sucursal', idSuc),
@@ -56,67 +59,204 @@ window.abrirInventarioSucursal = async function(idSuc, nombreSuc) {
 
     window.ubicacionesGlobalSucursal = ubicaciones || [];
     
-    const optsUbicacionesEdit = `<option value="NULL_UBI">General / Sin Ubicación Específica</option>` + 
-                                window.ubicacionesGlobalSucursal.map(u => `<option value="${u.id}">${u.nombre}</option>`).join('');
-
     const reglasMap = {};
     (reglas||[]).forEach(r => reglasMap[r.id_producto] = r.stock_minimo_ua);
 
-    const agrupado = {};
-    (saldos||[]).forEach(s => {
-        const ubiNombre = s.ubicaciones_internas?.nombre || 'General / Sin Ubicación Específica';
-        if(!agrupado[ubiNombre]) agrupado[ubiNombre] = [];
-        agrupado[ubiNombre].push(s);
-    });
+    // 2. Preparamos los datos en memoria para que no se borren
+    window.saldosGlobalMemoria = (saldos || []).map(s => ({
+        id: s.id,
+        id_producto: s.id_producto,
+        id_ubicacion: s.id_ubicacion,
+        cantidad_actual_ua: s.cantidad_actual_ua,
+        nombreProducto: s.productos?.nombre || 'Producto sin nombre',
+        nombreUbicacion: s.ubicaciones_internas?.nombre || 'General / Sin Ubicación Específica',
+        stockMinimo: reglasMap[s.id_producto] || 0,
+        abreviatura: s.productos?.id_unidad_almacenamiento?.abreviatura || 'UA'
+    }));
 
-    if(Object.keys(agrupado).length === 0) {
-         tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-8 text-center text-slate-500 italic">No hay productos registrados en esta sucursal.</td></tr>';
-         return;
+    // 3. Mandamos a pintar la tabla
+    renderizarTablaInventario(window.saldosGlobalMemoria);
+}
+
+// FUNCION QUE PINTA LA TABLA CON LOS DATOS REALES
+window.renderizarTablaInventario = function(datos) {
+    const tbody = document.getElementById('lista-inventario');
+    
+    if(!datos || datos.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-8 text-center text-slate-500 italic">No hay productos registrados o no coinciden con la búsqueda.</td></tr>';
+        return;
     }
+
+    const optsUbicacionesEdit = `<option value="NULL_UBI">General / Sin Ubicación Específica</option>` + 
+                                window.ubicacionesGlobalSucursal.map(u => `<option value="${u.id}">${u.nombre}</option>`).join('');
 
     let html = '';
-    const ubicacionesOrdenadas = Object.keys(agrupado).sort();
     
-    for(const ubi of ubicacionesOrdenadas) {
-        html += `<tr class="border-b-2 border-slate-300 bg-slate-100/50"><td colspan="5" class="px-6 py-3 font-bold text-slate-800 text-sm uppercase tracking-wider">📍 ${ubi}</td></tr>`;
-        
-        const items = agrupado[ubi].sort((a,b) => a.productos.nombre.localeCompare(b.productos.nombre));
-        
-        items.forEach(inv => {
-            const stockMinimo = reglasMap[inv.id_producto] || 0;
-            const estaBajo = inv.cantidad_actual_ua <= stockMinimo;
-            const abrev = inv.productos?.id_unidad_almacenamiento?.abreviatura || 'UA';
+    datos.forEach(inv => {
+        const estaBajo = inv.cantidad_actual_ua <= inv.stockMinimo;
+        const iconoEstado = estaBajo 
+            ? `<span class="flex items-center gap-1 text-red-600 font-bold text-[10px] bg-red-50 px-2 py-1 rounded-full w-max border border-red-200">🔴 Bajo Mínimo (${inv.stockMinimo})</span>` 
+            : '<span class="flex items-center gap-1 text-emerald-600 font-bold text-[10px] bg-emerald-50 px-2 py-1 rounded-full w-max border border-emerald-200">🟢 OK</span>';
 
-            const iconoEstado = estaBajo 
-                ? `<span class="flex items-center gap-1 text-red-600 font-bold text-[10px] bg-red-50 px-2 py-1 rounded-full w-max border border-red-200">🔴 Bajo Mínimo (${stockMinimo})</span>` 
-                : '<span class="flex items-center gap-1 text-emerald-600 font-bold text-[10px] bg-emerald-50 px-2 py-1 rounded-full w-max border border-emerald-200">🟢 OK</span>';
+        const ubiActualValue = inv.id_ubicacion || 'NULL_UBI';
 
-            const ubiActualValue = inv.id_ubicacion || 'NULL_UBI';
-
-            html += `
-            <tr class="hover:bg-slate-50 border-b border-slate-100 transition-colors">
-                <td class="px-6 py-3">${iconoEstado}</td>
-                <td class="px-6 py-3">
-                    <select class="w-full max-w-[180px] px-2 py-1 text-xs text-slate-600 border border-slate-200 rounded outline-none focus:ring-1 focus:ring-emerald-500 bg-white" onchange="cambiarUbicacionSaldo('${inv.id}', this.value)">
-                        ${optsUbicacionesEdit.replace(`value="${ubiActualValue}"`, `value="${ubiActualValue}" selected`)}
-                    </select>
-                </td>
-                <td class="px-6 py-3 font-bold text-slate-700">${inv.productos?.nombre}</td>
-                <td class="px-6 py-3 text-right">
-                    <span class="font-mono text-lg ${estaBajo ? 'text-red-600 font-bold' : 'text-slate-700'}">${inv.cantidad_actual_ua.toFixed(2)}</span>
-                    <span class="text-xs text-slate-400 ml-1 font-bold">${abrev}</span>
-                </td>
-                <td class="px-6 py-3 text-center">
-                    <div class="flex justify-center gap-4 text-lg">
-                        <button onclick="editarProductoFull('${inv.id_producto}')" title="Editar Detalles del Producto" class="text-blue-500 hover:text-blue-700 transition-transform hover:scale-110">✏️</button>
-                        <button onclick="abrirAjusteRapido('${inv.id}', '${inv.id_producto}', '${inv.productos.nombre.replace(/'/g, "\\'")}', '${ubi}', ${inv.cantidad_actual_ua}, '${abrev}')" title="Ajustar Stock Rápido" class="text-orange-500 hover:text-orange-700 transition-transform hover:scale-110">🎯</button>
-                        <button onclick="abrirHistorialKardex('${inv.id_producto}', '${inv.productos.nombre.replace(/'/g, "\\'")}')" title="Ver Historial de Movimientos" class="text-indigo-500 hover:text-indigo-700 transition-transform hover:scale-110">📜</button>
-                    </div>
-                </td>
-            </tr>`;
-        });
-    }
+        html += `
+        <tr class="hover:bg-slate-50 border-b border-slate-100 transition-colors">
+            <td class="px-6 py-3">${iconoEstado}</td>
+            <td class="px-6 py-3">
+                <select class="w-full max-w-[180px] px-2 py-1 text-xs text-slate-600 border border-slate-200 rounded outline-none focus:ring-1 focus:ring-emerald-500 bg-white" onchange="cambiarUbicacionSaldo('${inv.id}', this.value)">
+                    ${optsUbicacionesEdit.replace(`value="${ubiActualValue}"`, `value="${ubiActualValue}" selected`)}
+                </select>
+            </td>
+            <td class="px-6 py-3 font-bold text-slate-700">${inv.nombreProducto}</td>
+            <td class="px-6 py-3 text-right">
+                <span class="font-mono text-lg ${estaBajo ? 'text-red-600 font-bold' : 'text-slate-700'}">${inv.cantidad_actual_ua.toFixed(2)}</span>
+                <span class="text-xs text-slate-400 ml-1 font-bold">${inv.abreviatura}</span>
+            </td>
+            <td class="px-6 py-3 text-center">
+                <div class="flex justify-center items-center gap-4 text-lg">
+                    <button onclick="agregarASugerenciaInteligente('${inv.id_producto}', '${inv.nombreProducto.replace(/'/g, "\\'")}')" title="Agregar a Pedido" class="text-emerald-600 hover:text-emerald-800 transition-transform hover:scale-110">🛒</button>
+                    <button onclick="editarProductoFull('${inv.id_producto}')" title="Editar Detalles del Producto" class="text-blue-500 hover:text-blue-700 transition-transform hover:scale-110">✏️</button>
+                    <button onclick="abrirAjusteRapido('${inv.id}', '${inv.id_producto}', '${inv.nombreProducto.replace(/'/g, "\\'")}', '${inv.nombreUbicacion}', ${inv.cantidad_actual_ua}, '${inv.abreviatura}')" title="Ajustar Stock Rápido" class="text-orange-500 hover:text-orange-700 transition-transform hover:scale-110">🎯</button>
+                    <button onclick="abrirHistorialKardex('${inv.id_producto}', '${inv.nombreProducto.replace(/'/g, "\\'")}')" title="Ver Historial de Movimientos" class="text-indigo-500 hover:text-indigo-700 transition-transform hover:scale-110">📜</button>
+                </div>
+            </td>
+        </tr>`;
+    });
+    
     tbody.innerHTML = html;
+}
+
+// LOGICA INTELIGENTE DEL CARRITO (Verifica Tránsito y Producción)
+window.agregarASugerenciaInteligente = async function(idProd, nombre) {
+    if(!confirm(`¿Deseas agregar "${nombre}" a la lista de pedidos por stock?`)) return;
+
+    try {
+        // 1. Verificamos si el producto ya está en una orden activa
+        const { data: enCurso, error } = await clienteSupabase
+            .from('compras_detalles')
+            .select('estado, compras!inner(id_empresa)')
+            .eq('compras.id_empresa', window.miEmpresaId)
+            .eq('id_producto', idProd)
+            .in('estado', ['En Tránsito', 'En Producción', 'Orden de Producción'])
+            .limit(1);
+
+        if (error) throw error;
+
+        // Si ya está en camino o en producción, bloqueamos y avisamos
+        if (enCurso && enCurso.length > 0) {
+            alert(`⚠️ El producto "${nombre}" ya se encuentra en estado: "${enCurso[0].estado}". No es necesario sugerirlo de nuevo.`);
+            return;
+        }
+
+        // 2. Si no está, lo agregamos a Sugerencias ajustando la regla de stock mínimo
+        const { data: regla } = await clienteSupabase.from('reglas_stock_sucursal')
+            .select('id, stock_minimo_ua')
+            .eq('id_sucursal', window.sucursalActivaID)
+            .eq('id_producto', idProd)
+            .maybeSingle();
+
+        if(!regla) {
+            await clienteSupabase.from('reglas_stock_sucursal').insert({
+                id_empresa: window.miEmpresaId,
+                id_sucursal: window.sucursalActivaID,
+                id_producto: idProd,
+                stock_minimo_ua: 0.01 
+            });
+        } else if (regla.stock_minimo_ua <= 0) {
+            await clienteSupabase.from('reglas_stock_sucursal')
+                .update({ stock_minimo_ua: 0.01 })
+                .eq('id', regla.id);
+        }
+        
+        alert(`✅ "${nombre}" fue agregado con éxito a sugerencias de pedidos.`);
+
+    } catch (err) {
+        alert("❌ Error de sistema: " + err.message);
+    }
+}
+
+// FILTRO INTELIGENTE (Sin recargar página)
+window.filtrarInventarioLocal = function(texto) {
+    const term = texto.toLowerCase().trim();
+    const filtrados = window.saldosGlobalMemoria.filter(s => 
+        s.nombreProducto.toLowerCase().includes(term) || 
+        s.nombreUbicacion.toLowerCase().includes(term)
+    );
+    renderizarTablaInventario(filtrados);
+}
+
+// ORDENAMIENTO (Igual que en productos)
+window.ordenarInventario = function(columna) {
+    const dir = (window.ordenActualInv.col === columna && window.ordenActualInv.dir === 'asc') ? 'desc' : 'asc';
+    window.ordenActualInv = { col: columna, dir: dir };
+
+    const datosOrdenados = [...window.saldosGlobalMemoria].sort((a, b) => {
+        let valA, valB;
+        if(columna === 'nombre') { valA = a.nombreProducto; valB = b.nombreProducto; }
+        else if(columna === 'ubicacion') { valA = a.nombreUbicacion; valB = b.nombreUbicacion; }
+        else if(columna === 'stock') { valA = a.cantidad_actual_ua; valB = b.cantidad_actual_ua; }
+        else if(columna === 'estado') { valA = a.cantidad_actual_ua <= a.stockMinimo; valB = b.cantidad_actual_ua <= b.stockMinimo; }
+        
+        if (valA < valB) return dir === 'asc' ? -1 : 1;
+        if (valA > valB) return dir === 'asc' ? 1 : -1;
+        return 0;
+    });
+
+    renderizarTablaInventario(datosOrdenados);
+}
+
+// ACCIÓN: AGREGAR A PEDIDO (La joya de la corona 💎)
+window.agregarASugerenciaInteligente = async function(idProd, nombre) {
+    if(!confirm(`¿Deseas agregar "${nombre}" a la lista de pedidos?`)) return;
+
+    try {
+        // 1. Verificar si ya está en una orden en curso (Tránsito o Producción)
+        const { data: enCurso, error: errCurso } = await clienteSupabase
+            .from('compras_detalles')
+            .select('id, estado, compras!inner(id_empresa)')
+            .eq('compras.id_empresa', window.miEmpresaId)
+            .eq('id_producto', idProd)
+            .in('estado', ['En Tránsito', 'En Producción'])
+            .limit(1);
+
+        if (errCurso) throw errCurso;
+
+        if (enCurso && enCurso.length > 0) {
+            alert(`⚠️ "${nombre}" ya se encuentra en estado "${enCurso[0].estado}". Por favor, revisa tus órdenes en curso.`);
+            return; // Detenemos la ejecución
+        }
+
+        // 2. Si no está en curso, lo agregamos a sugerencias creando/actualizando la regla
+        const { data: regla } = await clienteSupabase.from('reglas_stock_sucursal')
+            .select('id, stock_minimo_ua')
+            .eq('id_sucursal', window.sucursalActivaID)
+            .eq('id_producto', idProd)
+            .maybeSingle();
+
+        if(!regla) {
+            // Creamos una regla mínima para que salte la alerta
+            await clienteSupabase.from('reglas_stock_sucursal').insert({
+                id_empresa: window.miEmpresaId,
+                id_sucursal: window.sucursalActivaID,
+                id_producto: idProd,
+                stock_minimo_ua: 0.01 
+            });
+        } else if (regla.stock_minimo_ua <= 0) {
+            // Si la regla existe pero es 0, la subimos un poco para forzar la sugerencia
+            await clienteSupabase.from('reglas_stock_sucursal')
+                .update({ stock_minimo_ua: 0.01 })
+                .eq('id', regla.id);
+        }
+        
+        alert(`✅ "${nombre}" se ha agregado a sugerencias de pedidos.`);
+        // Opcional: Recargar el inventario para actualizar la UI si tienes un indicador visual
+        // window.abrirInventarioSucursal(window.sucursalActivaID, window.sucursalActivaNombre);
+
+    } catch (err) {
+        alert("Error al procesar el pedido: " + err.message);
+        console.error(err);
+    }
 }
 
 window.cambiarUbicacionSaldo = async function(idSaldo, nuevoIdUbicacionStr) {
@@ -147,56 +287,93 @@ window.abrirModalConteoMasivo = async function() {
 
 window.cargarFilasConteoMasivo = async function(idUbicacion) {
     const tbody = document.getElementById('cm-filas');
-    if(!idUbicacion) { tbody.innerHTML = '<tr><td colspan="4" class="text-center text-slate-400 py-8">Selecciona una ubicación.</td></tr>'; return; }
+    if(!idUbicacion) { 
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-slate-400 py-8">Selecciona una ubicación.</td></tr>'; 
+        return; 
+    }
     
-    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-emerald-600 py-8 font-bold animate-pulse">⏳ Cargando todo el catálogo para inicialización...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-emerald-600 py-8 font-bold animate-pulse">⏳ Cargando catálogo y saldos...</td></tr>';
 
-    // 1. Buscamos TODOS los productos que lleven control de stock
-    const { data: prodsFisicos } = await clienteSupabase.from('productos')
-        .select('id, nombre, id_unidad_almacenamiento(abreviatura)')
-        .eq('id_empresa', window.miEmpresaId)
-        .is('control_stock', true)
-        .order('nombre');
+    try {
+        // 1. Traemos TODOS los productos físicos del catálogo
+        const { data: prodsFisicos } = await clienteSupabase.from('productos')
+            .select('id, nombre, id_unidad_almacenamiento(abreviatura)')
+            .eq('id_empresa', window.miEmpresaId)
+            .is('control_stock', true)
+            .order('nombre');
 
-    // 2. Buscamos el stock existente en esa ubicación
-    let query = clienteSupabase.from('inventario_saldos').select('id_producto, cantidad_actual_ua').eq('id_sucursal', window.sucursalActivaID);
-    if(idUbicacion === 'GENERAL') query = query.is('id_ubicacion', null);
-    else query = query.eq('id_ubicacion', idUbicacion);
+        // 2. Traemos TODOS los saldos actuales de esta sucursal
+        const { data: saldosActuales } = await clienteSupabase.from('inventario_saldos')
+            .select('id_producto, cantidad_actual_ua, id_ubicacion')
+            .eq('id_sucursal', window.sucursalActivaID);
 
-    const { data: saldosActuales } = await query;
-
-    // Mapeamos los saldos existentes para cruzarlos rápido
-    const mapSaldos = {};
-    (saldosActuales || []).forEach(s => mapSaldos[s.id_producto] = s.cantidad_actual_ua);
-
-    tbody.innerHTML = '';
-    
-    if(prodsFisicos && prodsFisicos.length > 0) {
         let html = '';
-        prodsFisicos.forEach(p => {
-            const cantActual = mapSaldos[p.id] || 0;
-            const abrev = p.id_unidad_almacenamiento?.abreviatura || 'UA';
+        let contadorFilas = 0;
 
-            html += `
-            <tr class="border-b border-slate-100 fila-conteo-item hover:bg-slate-50 transition-colors">
-                <td class="py-3 px-4 font-medium text-sm text-slate-700">
-                    ${p.nombre}
-                    <input type="hidden" class="cm-select-prod" value="${p.id}">
-                    <input type="hidden" class="cm-cant-anterior" value="${cantActual}">
-                </td>
-                <td class="py-3 px-4 text-center">
-                    <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-100 cm-label-abrev">${abrev}</span>
-                </td>
-                <td class="py-3 px-4 relative flex justify-center flex-col items-center">
-                    <span class="text-[10px] text-slate-400 font-bold mb-1">Stock Sistema: ${cantActual}</span>
-                    <input type="number" step="0.01" value="${cantActual}" class="w-24 px-2 py-1 border border-slate-300 rounded text-center cm-input-cant font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner">
-                </td>
-                <td class="py-3 px-4 text-right"><button onclick="this.closest('tr').remove()" class="text-slate-300 hover:text-red-500 text-lg transition-transform hover:scale-110" title="Quitar de la lista">🗑️</button></td>
-            </tr>`;
+        // 3. Cruzamos los datos según la regla de negocio
+        (prodsFisicos || []).forEach(p => {
+            const saldosDelProducto = (saldosActuales || []).filter(s => s.id_producto === p.id);
+            let mostrar = false;
+            let cantActual = 0;
+
+            if (idUbicacion === 'GENERAL') {
+                // REGLA GENERAL: Mostrar si tiene saldo en 'General' (NULL) o si es un producto totalmente NUEVO
+                const saldoGeneral = saldosDelProducto.find(s => s.id_ubicacion === null);
+                const sinNingunSaldo = saldosDelProducto.length === 0;
+
+                if (saldoGeneral || sinNingunSaldo) {
+                    mostrar = true;
+                    cantActual = saldoGeneral ? saldoGeneral.cantidad_actual_ua : 0;
+                }
+            } else {
+                // REGLA BODEGA ESPECÍFICA: Solo mostrar si YA existe físicamente en esa ubicación
+                const saldoEspecifico = saldosDelProducto.find(s => s.id_ubicacion === idUbicacion);
+                if (saldoEspecifico) {
+                    mostrar = true;
+                    cantActual = saldoEspecifico.cantidad_actual_ua;
+                }
+            }
+
+            // Si cumple la regla, dibujamos la fila
+            if (mostrar) {
+                contadorFilas++;
+                const abrev = p.id_unidad_almacenamiento?.abreviatura || 'UA';
+                html += `
+                <tr class="border-b border-slate-100 fila-conteo-item hover:bg-slate-50 transition-colors">
+                    <td class="py-3 px-4 font-medium text-sm text-slate-700">
+                        ${p.nombre}
+                        <input type="hidden" class="cm-select-prod" value="${p.id}">
+                        <input type="hidden" class="cm-cant-anterior" value="${cantActual}">
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                        <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-100">${abrev}</span>
+                    </td>
+                    <td class="py-3 px-4 relative flex justify-center flex-col items-center">
+                        <span class="text-[10px] text-slate-400 font-bold mb-1">Stock Sistema: ${cantActual}</span>
+                        <input type="number" step="0.01" value="${cantActual}" class="w-24 px-2 py-1 border border-slate-300 rounded text-center cm-input-cant font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner">
+                    </td>
+                    <td class="py-3 px-4 text-right">
+                        <button onclick="this.closest('tr').remove()" class="text-slate-300 hover:text-red-500 text-lg transition-transform hover:scale-110">🗑️</button>
+                    </td>
+                </tr>`;
+            }
         });
-        tbody.innerHTML = html;
-    } else {
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-slate-400 py-8">No tienes productos marcados con "Control de Stock Físico" en tu catálogo.</td></tr>';
+
+        // 4. Si la bodega está realmente vacía, mostramos el mensaje
+        if (contadorFilas === 0) {
+            tbody.innerHTML = `
+            <tr>
+                <td colspan="4" class="text-center text-slate-400 py-12">
+                    <p class="text-lg">📭 Ubicación Vacía</p>
+                    <p class="text-xs mt-1">No hay productos registrados aquí. Usa el botón "+ Agregar Fila" para sumar un producto a esta ubicación.</p>
+                </td>
+            </tr>`;
+        } else {
+            tbody.innerHTML = html;
+        }
+
+    } catch (error) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-red-500 py-8">❌ Error al cargar los datos.</td></tr>';
     }
 }
 
