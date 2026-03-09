@@ -78,16 +78,16 @@ window.cargarPedidosPlanificados = async function() {
                                 .reduce((sum, t) => sum + (t.cantidad_uc * (t.productos?.cant_en_ua_de_uc || 1)), 0);
 
             const stockVirtual = stockFisico + incomingUA;
+            const esSugerenciaManual = regla.stock_minimo_ua === 0.01;
 
-            // ESTA ES LA LÓGICA PRINCIPAL: Si el stock real está por debajo de la regla, se muestra
-            if (stockVirtual <= regla.stock_minimo_ua) {
-                
-                // DETECCIÓN INTELIGENTE: Si el stock mínimo es exactamente 0.01, es porque lo enviaste manualmente desde el Inventario
-                const esSugerenciaManual = regla.stock_minimo_ua === 0.01;
+            // 👉 EL GRAN CAMBIO: Mostrar si está bajo el mínimo normal O SI es sugerencia manual
+            if (stockVirtual <= regla.stock_minimo_ua || esSugerenciaManual) {
                 
                 let sugeridoUA = 0;
                 if (esSugerenciaManual) {
-                    sugeridoUA = regla.stock_ideal_ua > 0 ? regla.stock_ideal_ua : 1; // Si es manual y no hay ideal, sugerimos pedir al menos 1
+                    // Si es manual, no importa el stock, sugerimos lo que falte para el ideal o mínimo 1 (para no sugerir pedir negativos)
+                    sugeridoUA = regla.stock_ideal_ua > 0 ? (regla.stock_ideal_ua - stockVirtual) : 1;
+                    if (sugeridoUA <= 0) sugeridoUA = 1; 
                 } else {
                     sugeridoUA = regla.stock_ideal_ua > 0 ? (regla.stock_ideal_ua - stockVirtual) : (regla.stock_minimo_ua - stockVirtual + 1);
                 }
@@ -101,7 +101,6 @@ window.cargarPedidosPlanificados = async function() {
                 const displayStyle = estaEnCarrito ? 'style="display: none;"' : '';
                 const txtEnCamino = incomingUA > 0 ? `<br><span class="text-[9px] text-blue-500 font-bold uppercase">+ ${incomingUA.toFixed(2)} en camino</span>` : '';
 
-                // Banderín visual si viene del inventario
                 const badgeManual = esSugerenciaManual ? `<span class="bg-indigo-100 text-indigo-700 text-[9px] px-1.5 py-0.5 rounded ml-2 uppercase font-bold">Añadido Manual</span>` : '';
 
                 const paramsParaBoton = `'${suc.id}', '${suc.nombre}', '${p.id}', '${p.nombre.replace(/'/g, "\\'")}', ${sugeridoUC}, '${abrevUC}', ${precioRef}`;
@@ -114,7 +113,7 @@ window.cargarPedidosPlanificados = async function() {
                         ${txtEnCamino}
                     </td>
                     <td class="px-4 py-3 text-center text-orange-800 font-bold text-sm">
-                        ${esSugerenciaManual ? '--' : `${sugeridoUA.toFixed(2)} ${abrevUA}`} 
+                        ${sugeridoUA.toFixed(2)} ${abrevUA} 
                         <br><span class="text-[10px] text-orange-500 font-normal uppercase">Pedir sugerido: ${sugeridoUC} ${abrevUC}</span>
                     </td>
                     <td class="px-4 py-3">
