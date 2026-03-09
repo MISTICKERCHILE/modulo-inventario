@@ -100,15 +100,18 @@ window.iniciarSesionEmpresa = function(id, nombre, email, nombreUsuario, rol) {
         id: id, nombre: nombre, email: email, nombreUsuario: nombreUsuario, rol: rol
     }));
 
-    // 3. Mostramos el panel principal
+    // 3. Mostramos el panel principal (¡AHORA SÍ APAGAMOS EL LOGIN!)
+    const login = document.getElementById('login-container');
     const selector = document.getElementById('selector-empresa-container');
     const dashboard = document.getElementById('dashboard-container');
-    if (selector) selector.classList.add('hidden');
-    if (dashboard) dashboard.classList.remove('hidden');
+    
+    if (login) login.classList.add('hidden'); // Ocultamos la caja de login
+    if (selector) selector.classList.add('hidden'); // Ocultamos el selector
+    if (dashboard) dashboard.classList.remove('hidden'); // Mostramos la app
     
     // 4. ACTUALIZAMOS LOS NOMBRES EN LA BARRA SUPERIOR
     const btnUsuario = document.getElementById('user-menu-button');
-    if (btnUsuario) btnUsuario.innerText = nombreUsuario; // Devuelve tu nombre arriba
+    if (btnUsuario) btnUsuario.innerText = nombreUsuario; 
     
     const dropEmail = document.getElementById('user-email-dropdown');
     if (dropEmail) dropEmail.innerText = email;
