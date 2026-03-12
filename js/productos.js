@@ -855,7 +855,7 @@ window.exportarProductosCSV = function() {
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
-    link.setAttribute("download", `Plantilla_Inventario_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute("download", `Catalogo_Productos_${new Date().toISOString().split('T')[0]}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
