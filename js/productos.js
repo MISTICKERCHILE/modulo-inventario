@@ -1147,3 +1147,144 @@ window.imprimirCatalogoProductos = function() {
     `);
     printWindow.document.close();
 }
+
+// ==========================================
+// IMPORTADOR / EXPORTADOR MASIVO DE RECETAS
+// ==========================================
+
+window.exportarPlantillaRecetasCSV = function() {
+    let csvContent = "PRODUCTO A PREPARAR,INGREDIENTE,CANTIDAD NETA\n";
+    csvContent += "Ejemplo: Completo Italiano,Pan de Completo,1\n";
+    csvContent += "Ejemplo: Completo Italiano,Vienesa,1\n";
+    csvContent += "Ejemplo: Completo Italiano,Palta Molida,60\n";
+    
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' }); 
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Plantilla_Recetas_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+window.importarRecetasCSV = async function(inputElement) {
+    const file = inputElement.files[0];
+    if (!file) return;
+
+    // 1. Traemos TODOS los productos a la memoria para poder emparejar nombres
+    const { data: todosLosProductos } = await clienteSupabase.from('productos')
+        .select('id, nombre, tiene_receta')
+        .eq('id_empresa', window.miEmpresaId);
+    
+    const catalogo = todosLosProductos || [];
+    inputElement.value = '';
+
+    Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: async function(results) {
+            const filas = results.data;
+            if(filas.length === 0) return alert("El archivo está vacío.");
+            
+            if(!filas[0].hasOwnProperty('PRODUCTO A PREPARAR') || !filas[0].hasOwnProperty('INGREDIENTE')) {
+                return alert("❌ Formato incorrecto. Por favor descarga la plantilla de Recetas primero.");
+            }
+
+            let insertados = 0;
+            let productosFaltantes = new Set();
+            let ingredientesFaltantes = new Set();
+            let listosParaInsertar = [];
+            let padresAActualizar = new Set(); // Para encenderles el "tiene_receta = true"
+
+            const container = document.getElementById('reporte-importacion-recetas');
+            if(container) container.innerHTML = `<div class="p-6 text-center text-blue-600 font-bold animate-pulse bg-white rounded-xl border border-blue-100 shadow-sm">⏳ Construyendo recetas... No cierres esta ventana.</div>`;
+
+            // 2. Procesamos el Excel
+            for (const fila of filas) {
+                const nombrePadre = fila['PRODUCTO A PREPARAR']?.trim();
+                const nombreIngrediente = fila['INGREDIENTE']?.trim();
+                const cant = parseFloat(fila['CANTIDAD NETA']) || 0;
+
+                // Saltamos las filas de ejemplo
+                if (!nombrePadre || nombrePadre.includes("Ejemplo:")) continue;
+
+                // Buscamos los IDs correspondientes
+                const padreObj = catalogo.find(p => p.nombre.toLowerCase() === nombrePadre.toLowerCase());
+                const ingreObj = catalogo.find(p => p.nombre.toLowerCase() === nombreIngrediente.toLowerCase());
+
+                if (!padreObj) productosFaltantes.add(nombrePadre);
+                if (!ingreObj) ingredientesFaltantes.add(nombreIngrediente);
+
+                if (padreObj && ingreObj && cant > 0) {
+                    listosParaInsertar.push({
+                        id_empresa: window.miEmpresaId,
+                        id_producto_padre: padreObj.id,
+                        id_ingrediente: ingreObj.id,
+                        cantidad_neta: cant
+                    });
+                    
+                    if (!padreObj.tiene_receta) padresAActualizar.add(padreObj.id);
+                }
+            }
+
+            // 3. Guardamos en la base de datos
+            for (const item of listosParaInsertar) {
+                // Verificamos si ya existe ese ingrediente en esa receta para no duplicarlo
+                const { data: existe } = await clienteSupabase.from('recetas')
+                    .select('id')
+                    .eq('id_producto_padre', item.id_producto_padre)
+                    .eq('id_ingrediente', item.id_ingrediente)
+                    .maybeSingle();
+
+                if (!existe) {
+                    const { error } = await clienteSupabase.from('recetas').insert([item]);
+                    if (!error) insertados++;
+                }
+            }
+
+            // 4. Encendemos el check de "Tiene Receta" a los productos que no lo tenían
+            for (const idPadre of padresAActualizar) {
+                await clienteSupabase.from('productos').update({ tiene_receta: true }).eq('id', idPadre);
+            }
+
+            // 5. Mostramos el Reporte
+            let htmlReporte = `
+            <div class="bg-white border-2 border-blue-200 rounded-xl p-6 mt-4 shadow-sm relative">
+                <button onclick="document.getElementById('reporte-importacion-recetas').innerHTML=''" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold text-2xl">&times;</button>
+                <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2"><span>🥣</span> Reporte de Recetas</h3>`;
+
+            if (insertados > 0) {
+                htmlReporte += `<div class="mb-4 p-4 bg-emerald-50 text-emerald-800 rounded-lg border border-emerald-200">
+                    <p class="font-bold">✅ Se conectaron ${insertados} ingredientes nuevos a sus recetas.</p>
+                </div>`;
+            } else {
+                 htmlReporte += `<div class="mb-4 p-4 bg-yellow-50 text-yellow-800 rounded-lg border border-yellow-200">
+                    <p class="font-bold">⚠️ No se agregaron nuevos ingredientes (Puede que ya existieran o el archivo estaba vacío).</p>
+                </div>`;
+            }
+
+            if (productosFaltantes.size > 0 || ingredientesFaltantes.size > 0) {
+                htmlReporte += `<div class="mb-2 p-4 bg-red-50 text-red-800 rounded-lg border border-red-200">
+                    <p class="font-bold mb-2">🛑 Nombres no encontrados en el Catálogo de Productos:</p>
+                    <p class="text-sm mb-2">Las recetas de estos ítems fueron omitidas porque no existen en el sistema. Debes crearlos en 'Productos' primero:</p>
+                    <ul class="list-disc pl-5 text-sm font-medium space-y-1">
+                        ${productosFaltantes.size > 0 ? `<li><b class="text-red-900">Productos a Preparar faltantes:</b> ${Array.from(productosFaltantes).join(', ')}</li>` : ''}
+                        ${ingredientesFaltantes.size > 0 ? `<li><b class="text-red-900">Ingredientes faltantes:</b> ${Array.from(ingredientesFaltantes).join(', ')}</li>` : ''}
+                    </ul>
+                </div>`;
+            }
+            htmlReporte += `</div>`;
+            
+            if(container) container.innerHTML = htmlReporte;
+            
+            // Recargamos el buscador para que aparezcan las nuevas recetas creadas
+            if(window.cargarBuscadorRecetas) window.cargarBuscadorRecetas();
+            if(window.productoActualParaReceta) window.cargarIngredientesReceta();
+        },
+        error: function(err) {
+            alert("Error leyendo el archivo CSV: " + err.message);
+        }
+    });
+}
