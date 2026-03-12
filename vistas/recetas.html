@@ -13,6 +13,24 @@
         <p class="text-emerald-200 text-sm mt-2 hidden" id="receta-unidad-base">Unidad base: -</p>
     </div>
     
+    <div class="flex flex-wrap gap-3 mt-4 mb-6 p-4 bg-blue-50 border border-blue-100 rounded-xl">
+        <div class="flex-1">
+            <h3 class="font-bold text-blue-900 mb-1">Carga Masiva de Recetas</h3>
+            <p class="text-xs text-blue-700">Descarga la plantilla, llénala con tus ingredientes y súbela para armar todas tus recetas de golpe.</p>
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="exportarPlantillaRecetasCSV()" class="px-4 py-2 bg-white text-blue-700 border border-blue-200 rounded-lg font-bold shadow-sm hover:bg-blue-50 transition-colors flex items-center gap-2 text-sm">
+                <span>📥</span> Descargar Plantilla
+            </button>
+            <label class="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold shadow-sm hover:bg-blue-700 transition-colors flex items-center gap-2 text-sm cursor-pointer">
+                <span>📤</span> Subir Excel
+                <input type="file" accept=".csv" class="hidden" onchange="importarRecetasCSV(this)">
+            </label>
+        </div>
+    </div>
+
+    <div id="reporte-importacion-recetas"></div>
+
     <div id="panel-estadisticas-receta" class="hidden bg-emerald-800 p-4 rounded-lg flex gap-6 items-center border border-emerald-600 overflow-x-auto w-full md:w-auto">
         <div class="shrink-0">
             <label class="block text-xs text-emerald-300 font-bold mb-1 uppercase tracking-wide">Rendimiento Real</label>
