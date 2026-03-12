@@ -817,40 +817,41 @@ window.quitarIngrediente = async function(id) {
 // ==========================================
 // --- IMPORTAR, EXPORTAR Y PDF ---
 // ==========================================
-
 window.exportarProductosCSV = function() {
-    if (!window.productosListMemoria || window.productosListMemoria.length === 0) {
-        return alert("No hay productos para exportar.");
-    }
-
     // Funciones mágicas para traducir IDs a Nombres reales
     const getU = (id) => window.unidadesMemoria?.find(u => u.id === id)?.nombre || "";
     const getC = (id) => window.catListMemoria?.find(c => c.id === id)?.nombre || "";
 
-    // Las nuevas columnas exactas que pediste
     let csvContent = "NOMBRE,CATEGORIA,COSTO NETO REF.,UNIDAD COMPRA,CONTIENE CANT. UC-UA,UNIDAD ALMACENAMIENTO,CONTIENE CANT. UA-UM,UNIDAD MENOR,CONTIENE CANT. UM-UR,UNIDAD RECETA,CANTIDAD MINIMA (UA),CANTIDAD IDEAL (UA),RECETA,RECETA CONFIDENCIAL,CONTROL STOCK\n";
 
-    window.productosListMemoria.forEach(p => {
-        let nombre = p.nombre ? `"${p.nombre.replace(/"/g, '""')}"` : "";
-        let cat = `"${getC(p.id_categoria)}"`;
-        let costo = p.ultimo_costo_uc || 0;
-        let uCompra = `"${getU(p.id_unidad_compra)}"`;
-        let cant_ua_uc = p.cant_en_ua_de_uc || 1;
-        let uAlmacen = `"${getU(p.id_unidad_almacenamiento)}"`;
-        let cant_um_ua = p.cant_en_um_de_ua || 1;
-        let uMenor = `"${getU(p.id_unidad_menor)}"`;
-        let cant_ur_um = p.cant_en_ur_de_um || 1;
-        let uReceta = `"${getU(p.id_unidad_receta)}"`;
-        let min = 0; // Default a 0 para que el cliente lo llene en el Excel
-        let ideal = 0; 
-        let receta = p.tiene_receta ? "TRUE" : "FALSE";
-        let confidencial = "FALSE"; // Listo para el futuro
-        let control = p.control_stock !== false ? "TRUE" : "FALSE";
-        
-        csvContent += `${nombre},${cat},${costo},${uCompra},${cant_ua_uc},${uAlmacen},${cant_um_ua},${uMenor},${cant_ur_um},${uReceta},${min},${ideal},${receta},${confidencial},${control}\n`;
-    });
+    // ¿Está vacío? ¡Damos una plantilla de ejemplo!
+    if (!window.productosListMemoria || window.productosListMemoria.length === 0) {
+        csvContent += "Ejemplo: Pan de Hamburguesa,Panaderia,2000,Bolsa,10,Unidad,1,Unidad,1,Unidad,50,100,FALSE,FALSE,TRUE\n";
+        csvContent += "Ejemplo: Tomate Rey,Verduras,1500,Cajon,15,Kilo,1000,Gramo,1,Gramo,10,30,FALSE,FALSE,TRUE\n";
+        csvContent += "Ejemplo: Hamburguesa Completa,Preparaciones,0,Unidad,1,Unidad,1,Unidad,1,Unidad,0,0,TRUE,FALSE,FALSE\n";
+    } else {
+        // Si hay productos, los exporta normalmente
+        window.productosListMemoria.forEach(p => {
+            let nombre = p.nombre ? `"${p.nombre.replace(/"/g, '""')}"` : "";
+            let cat = `"${getC(p.id_categoria)}"`;
+            let costo = p.ultimo_costo_uc || 0;
+            let uCompra = `"${getU(p.id_unidad_compra)}"`;
+            let cant_ua_uc = p.cant_en_ua_de_uc || 1;
+            let uAlmacen = `"${getU(p.id_unidad_almacenamiento)}"`;
+            let cant_um_ua = p.cant_en_um_de_ua || 1;
+            let uMenor = `"${getU(p.id_unidad_menor)}"`;
+            let cant_ur_um = p.cant_en_ur_de_um || 1;
+            let uReceta = `"${getU(p.id_unidad_receta)}"`;
+            let min = 0; 
+            let ideal = 0; 
+            let receta = p.tiene_receta ? "TRUE" : "FALSE";
+            let confidencial = "FALSE"; 
+            let control = p.control_stock !== false ? "TRUE" : "FALSE";
+            
+            csvContent += `${nombre},${cat},${costo},${uCompra},${cant_ua_uc},${uAlmacen},${cant_um_ua},${uMenor},${cant_ur_um},${uReceta},${min},${ideal},${receta},${confidencial},${control}\n`;
+        });
+    }
 
-    // Inyectamos un código (\uFEFF) para que Excel lea los tildes y las "ñ" sin romperse
     const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' }); 
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
@@ -918,6 +919,7 @@ window.importarProductosCSV = async function(inputElement) {
             for (const fila of filas) {
                 const nombre = fila['NOMBRE']?.trim();
                 if (!nombre) continue;
+                if (nombre.toLowerCase().startsWith('ejemplo:')) continue;
 
                 const existe = window.productosListMemoria.some(p => p.nombre.toLowerCase() === nombre.toLowerCase());
                 if (existe) {
