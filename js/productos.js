@@ -819,39 +819,60 @@ window.quitarIngrediente = async function(id) {
 // ==========================================
 
 window.exportarProductosCSV = function() {
-    // 1. Ahora lee desde la variable de memoria correcta de esta vista
     if (!window.productosListMemoria || window.productosListMemoria.length === 0) {
         return alert("No hay productos para exportar.");
     }
 
-    let csvContent = "Nombre,Categoria_ID,Unidad_Compra_ID,Cant_UA_por_UC,Unidad_Almacen_ID,Tiene_Receta,Control_Fisico\n";
+    // Funciones mágicas para traducir IDs a Nombres reales
+    const getU = (id) => window.unidadesMemoria?.find(u => u.id === id)?.nombre || "";
+    const getC = (id) => window.catListMemoria?.find(c => c.id === id)?.nombre || "";
+
+    // Las nuevas columnas exactas que pediste
+    let csvContent = "NOMBRE,CATEGORIA,COSTO NETO REF.,UNIDAD COMPRA,CONTIENE CANT. UC-UA,UNIDAD ALMACENAMIENTO,CONTIENE CANT. UA-UM,UNIDAD MENOR,CONTIENE CANT. UM-UR,UNIDAD RECETA,CANTIDAD MINIMA (UA),CANTIDAD IDEAL (UA),RECETA,RECETA CONFIDENCIAL,CONTROL STOCK\n";
 
     window.productosListMemoria.forEach(p => {
         let nombre = p.nombre ? `"${p.nombre.replace(/"/g, '""')}"` : "";
-        let idCat = p.id_categoria || "";
-        let idUC = p.id_unidad_compra || "";
-        let factor = p.cant_en_ua_de_uc || "1";
-        let idUA = p.id_unidad_almacenamiento || "";
-        let tieneReceta = p.tiene_receta ? "TRUE" : "FALSE";
-        let controlFisico = p.control_stock !== false ? "TRUE" : "FALSE";
+        let cat = `"${getC(p.id_categoria)}"`;
+        let costo = p.ultimo_costo_uc || 0;
+        let uCompra = `"${getU(p.id_unidad_compra)}"`;
+        let cant_ua_uc = p.cant_en_ua_de_uc || 1;
+        let uAlmacen = `"${getU(p.id_unidad_almacenamiento)}"`;
+        let cant_um_ua = p.cant_en_um_de_ua || 1;
+        let uMenor = `"${getU(p.id_unidad_menor)}"`;
+        let cant_ur_um = p.cant_en_ur_de_um || 1;
+        let uReceta = `"${getU(p.id_unidad_receta)}"`;
+        let min = 0; // Default a 0 para que el cliente lo llene en el Excel
+        let ideal = 0; 
+        let receta = p.tiene_receta ? "TRUE" : "FALSE";
+        let confidencial = "FALSE"; // Listo para el futuro
+        let control = p.control_stock !== false ? "TRUE" : "FALSE";
         
-        csvContent += `${nombre},${idCat},${idUC},${factor},${idUA},${tieneReceta},${controlFisico}\n`;
+        csvContent += `${nombre},${cat},${costo},${uCompra},${cant_ua_uc},${uAlmacen},${cant_um_ua},${uMenor},${cant_ur_um},${uReceta},${min},${ideal},${receta},${confidencial},${control}\n`;
     });
 
+    // Inyectamos un código (\uFEFF) para que Excel lea los tildes y las "ñ" sin romperse
     const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' }); 
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
-    link.setAttribute("download", `Catalogo_Productos_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute("download", `Plantilla_Inventario_${new Date().toISOString().split('T')[0]}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 }
 
-window.importarProductosCSV = function(inputElement) {
+window.importarProductosCSV = async function(inputElement) {
     const file = inputElement.files[0];
     if (!file) return;
+
+    // 1. Cargamos de la BD los catálogos más frescos para evitar errores
+    const [{ data: cats }, { data: unis }] = await Promise.all([
+        clienteSupabase.from('categorias').select('id, nombre').eq('id_empresa', window.miEmpresaId),
+        clienteSupabase.from('unidades').select('id, nombre').eq('id_empresa', window.miEmpresaId)
+    ]);
+    window.catListMemoria = cats || [];
+    window.unidadesMemoria = unis || [];
 
     inputElement.value = '';
 
@@ -862,51 +883,179 @@ window.importarProductosCSV = function(inputElement) {
             const filas = results.data;
             if(filas.length === 0) return alert("El archivo está vacío.");
             
-            if(!filas[0].hasOwnProperty('Nombre')) {
+            // Validar que es la plantilla nueva
+            if(!filas[0].hasOwnProperty('NOMBRE') || !filas[0].hasOwnProperty('CATEGORIA')) {
                 return alert("❌ Formato incorrecto. Por favor descarga la plantilla con el botón Exportar primero.");
             }
 
             let insertados = 0;
-            let omitidos = 0;
-
+            let omitidosDuplicados = [];
+            let categoriasFaltantes = new Set();
+            let unidadesFaltantes = new Set();
+            let listosParaInsertar = [];
+            
             const tbody = document.getElementById('lista-productos');
-            if(tbody) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-emerald-600 font-bold animate-pulse">⏳ Importando y validando ${filas.length} productos...</td></tr>`;
+            if(tbody) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-emerald-600 font-bold animate-pulse">⏳ Leyendo y validando el archivo... No cierres esta ventana.</td></tr>`;
 
+            // Buscadores inteligentes de texto a ID
+            const getCatId = (name) => {
+                if (!name || name.trim() === '') return null;
+                const found = window.catListMemoria.find(c => c.nombre.toLowerCase() === name.toLowerCase().trim());
+                if (found) return found.id;
+                categoriasFaltantes.add(name.trim());
+                return null;
+            };
+
+            const getUniId = (name) => {
+                if (!name || name.trim() === '') return null;
+                const found = window.unidadesMemoria.find(u => u.nombre.toLowerCase() === name.toLowerCase().trim());
+                if (found) return found.id;
+                unidadesFaltantes.add(name.trim());
+                return null;
+            };
+
+            // 2. Filtramos la data
             for (const fila of filas) {
-                const nombre = fila['Nombre']?.trim();
+                const nombre = fila['NOMBRE']?.trim();
                 if (!nombre) continue;
 
-                // 2. Usa la variable correcta para verificar duplicados
                 const existe = window.productosListMemoria.some(p => p.nombre.toLowerCase() === nombre.toLowerCase());
-                
                 if (existe) {
-                    omitidos++;
-                    continue; 
+                    omitidosDuplicados.push(nombre);
+                    continue; // Se salta este producto para no sobreescribir
                 }
 
-                const payload = {
-                    id_empresa: window.miEmpresaId,
-                    nombre: nombre,
-                    id_categoria: fila['Categoria_ID'] || null,
-                    id_unidad_compra: fila['Unidad_Compra_ID'] || null,
-                    cant_en_ua_de_uc: fila['Cant_UA_por_UC'] ? parseFloat(fila['Cant_UA_por_UC']) : 1,
-                    id_unidad_almacenamiento: fila['Unidad_Almacen_ID'] || null,
-                    tiene_receta: fila['Tiene_Receta'] === 'TRUE',
-                    control_stock: fila['Control_Fisico'] === 'FALSE' ? false : true
-                };
+                let catRaw = fila['CATEGORIA'];
+                let ucRaw = fila['UNIDAD COMPRA'];
+                let uaRaw = fila['UNIDAD ALMACENAMIENTO'];
+                let umRaw = fila['UNIDAD MENOR'];
+                let urRaw = fila['UNIDAD RECETA'];
 
-                const { error } = await clienteSupabase.from('productos').insert([payload]);
-                if (!error) insertados++;
+                let idCat = getCatId(catRaw);
+                let idUC = getUniId(ucRaw);
+                let idUA = getUniId(uaRaw);
+                let idUM = getUniId(umRaw);
+                let idUR = getUniId(urRaw);
+
+                // Si se escribió una categoría/unidad pero no se encontró el ID, la fila es defectuosa
+                let tieneErrorCatalogo = false;
+                if (catRaw && !idCat) tieneErrorCatalogo = true;
+                if (ucRaw && !idUC) tieneErrorCatalogo = true;
+                if (uaRaw && !idUA) tieneErrorCatalogo = true;
+                if (umRaw && !idUM) tieneErrorCatalogo = true;
+                if (urRaw && !idUR) tieneErrorCatalogo = true;
+
+                if (!tieneErrorCatalogo) {
+                    listosParaInsertar.push({
+                        fila: fila,
+                        payload: {
+                            id_empresa: window.miEmpresaId,
+                            nombre: nombre,
+                            id_categoria: idCat,
+                            ultimo_costo_uc: parseFloat(fila['COSTO NETO REF.']) || 0,
+                            id_unidad_compra: idUC,
+                            cant_en_ua_de_uc: parseFloat(fila['CONTIENE CANT. UC-UA']) || 1,
+                            id_unidad_almacenamiento: idUA,
+                            cant_en_um_de_ua: parseFloat(fila['CONTIENE CANT. UA-UM']) || 1,
+                            id_unidad_menor: idUM,
+                            cant_en_ur_de_um: parseFloat(fila['CONTIENE CANT. UM-UR']) || 1,
+                            id_unidad_receta: idUR,
+                            tiene_receta: fila['RECETA']?.toUpperCase() === 'TRUE',
+                            control_stock: fila['CONTROL STOCK']?.toUpperCase() !== 'FALSE'
+                        }
+                    });
+                }
             }
 
-            alert(`✅ Importación terminada.\n\nNuevos agregados: ${insertados}\nDuplicados omitidos: ${omitidos}`);
+            // 3. Insertamos a la base de datos los que están correctos
+            const { data: sucursales } = await clienteSupabase.from('sucursales').select('id').eq('id_empresa', window.miEmpresaId);
+
+            for (const item of listosParaInsertar) {
+                const { data: newProd, error } = await clienteSupabase.from('productos').insert([item.payload]).select('id').single();
+                if (!error && newProd) {
+                    insertados++;
+                    
+                    if (item.payload.control_stock !== false) {
+                        let min = parseFloat(item.fila['CANTIDAD MINIMA (UA)']) || 0;
+                        let ideal = parseFloat(item.fila['CANTIDAD IDEAL (UA)']) || 0;
+                        
+                        if ((min > 0 || ideal > 0) && sucursales) {
+                            for (const suc of sucursales) {
+                                await clienteSupabase.from('reglas_stock_sucursal').insert([{ 
+                                    id_empresa: window.miEmpresaId, id_producto: newProd.id, id_sucursal: suc.id, stock_minimo_ua: min, stock_ideal_ua: ideal 
+                                }]);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 4. Mostramos el reporte visual y recargamos la tabla
+            window.mostrarReporteImportacion(insertados, omitidosDuplicados, Array.from(categoriasFaltantes), Array.from(unidadesFaltantes));
             window.cargarProductos(); 
-            if(window.cargarDatosSelects) window.cargarDatosSelects(); 
         },
         error: function(err) {
             alert("Error leyendo el archivo CSV: " + err.message);
         }
     });
+}
+
+// ==========================================
+// NUEVO: PANEL VISUAL FIJO DE REPORTES DE IMPORTACIÓN
+// ==========================================
+window.mostrarReporteImportacion = function(insertados, duplicados, catFaltantes, uniFaltantes) {
+    let container = document.getElementById('reporte-importacion-container');
+    
+    // Si no existe, lo creamos justo antes de la tabla blanca de productos
+    if (!container) {
+        const tableWrap = document.querySelector('#lista-productos')?.closest('.bg-white');
+        if (tableWrap) {
+            container = document.createElement('div');
+            container.id = 'reporte-importacion-container';
+            tableWrap.parentNode.insertBefore(container, tableWrap);
+        } else {
+            return alert(`Importación terminada. ${insertados} registrados. ${duplicados.length} duplicados.`); 
+        }
+    }
+
+    let html = `
+    <div class="bg-white border-2 border-slate-200 rounded-xl p-6 mb-6 shadow-sm relative">
+        <button onclick="document.getElementById('reporte-importacion-container').innerHTML=''" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold text-2xl" title="Cerrar Reporte">&times;</button>
+        <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2"><span>📊</span> Reporte de Importación</h3>`;
+
+    if (insertados > 0) {
+        html += `<div class="mb-4 p-4 bg-emerald-50 text-emerald-800 rounded-lg border border-emerald-200">
+            <p class="font-bold text-lg">✅ ¡Éxito! Se importaron ${insertados} productos correctamente.</p>
+        </div>`;
+    } else {
+         html += `<div class="mb-4 p-4 bg-yellow-50 text-yellow-800 rounded-lg border border-yellow-200">
+            <p class="font-bold text-lg">⚠️ Ningún producto nuevo fue importado a la base de datos.</p>
+        </div>`;
+    }
+
+    if (catFaltantes.length > 0 || uniFaltantes.length > 0) {
+        html += `<div class="mb-4 p-4 bg-red-50 text-red-800 rounded-lg border border-red-200">
+            <p class="font-bold mb-2">🛑 ¡Atención! Los siguientes nombres no existen en tu sistema. Se omitieron esos productos:</p>
+            <p class="text-sm mb-3">Debes crear estos catálogos en el menú "Catálogos" antes de subir el Excel:</p>
+            <ul class="list-disc pl-5 text-sm font-medium space-y-1">
+                ${catFaltantes.length > 0 ? `<li><b class="text-red-900">Categorías Faltantes:</b> ${catFaltantes.join(', ')}</li>` : ''}
+                ${uniFaltantes.length > 0 ? `<li><b class="text-red-900">Unidades Faltantes:</b> ${uniFaltantes.join(', ')}</li>` : ''}
+            </ul>
+        </div>`;
+    }
+
+    if (duplicados.length > 0) {
+        html += `<div class="mb-2 p-4 bg-orange-50 text-orange-800 rounded-lg border border-orange-200">
+            <p class="font-bold mb-1">⚠️ Productos Duplicados (Ya existen, no se sobreescribieron):</p>
+            <p class="text-sm text-orange-700 mb-2">${duplicados.length} productos omitidos porque su nombre coincidió de forma exacta.</p>
+            <div class="mt-2 text-xs text-orange-700 font-medium max-h-32 overflow-y-auto bg-orange-100/50 p-3 rounded">
+                ${duplicados.join(' <span class="mx-2 text-orange-300">•</span> ')}
+            </div>
+        </div>`;
+    }
+
+    html += `</div>`;
+    container.innerHTML = html;
 }
 
 // NUEVA FUNCIÓN: IMPRIMIR CATÁLOGO CON FORMATO
