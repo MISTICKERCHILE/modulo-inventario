@@ -90,33 +90,49 @@ document.getElementById('auth-form').addEventListener('submit', async (e) => {
 
 // FIX 2: Recibimos el rol al iniciar sesión
 window.iniciarSesionEmpresa = function(id, nombre, email, nombreUsuario, rol) {
+    // 1. Cargamos las variables en la memoria temporal
     window.miEmpresaId = id;
     window.usuarioActual = nombreUsuario;
     window.miRol = rol; 
     
-    // NUEVO: Guardamos la credencial en la bóveda del navegador
+    // 2. Guardamos la credencial en la bóveda (Persistencia)
     localStorage.setItem('sesion_activa_olympia', JSON.stringify({
         id: id, nombre: nombre, email: email, nombreUsuario: nombreUsuario, rol: rol
     }));
 
-    document.getElementById('selector-empresa-container').classList.add('hidden');
-    document.getElementById('dashboard-container').classList.remove('hidden');
-    document.getElementById('user-email-dropdown').innerText = email;
-    document.getElementById('user-name-display').innerText = nombreUsuario;
+    // 3. Mostramos el panel principal (¡AHORA SÍ APAGAMOS EL LOGIN!)
+    const login = document.getElementById('login-container');
+    const selector = document.getElementById('selector-empresa-container');
+    const dashboard = document.getElementById('dashboard-container');
     
+    if (login) login.classList.add('hidden'); // Ocultamos la caja de login
+    if (selector) selector.classList.add('hidden'); // Ocultamos el selector
+    if (dashboard) dashboard.classList.remove('hidden'); // Mostramos la app
+    
+    // 4. ACTUALIZAMOS LOS NOMBRES EN LA BARRA SUPERIOR
+    const spanUsuario = document.getElementById('user-name-display'); // ¡EL ID CORRECTO!
+    if (spanUsuario) spanUsuario.innerText = nombreUsuario; 
+    
+    const dropEmail = document.getElementById('user-email-dropdown');
+    if (dropEmail) dropEmail.innerText = email;
+
+    // Ejecutamos tu función original que actualiza el header y el botón de parámetros
     if(window.actualizarTopBar) window.actualizarTopBar(nombre, rol);
-    if(window.aplicarPermisosVisuales) window.aplicarPermisosVisuales();
+
+    // 5. Aplicamos permisos y cargamos vistas
+    if (window.aplicarPermisosVisuales) window.aplicarPermisosVisuales();
 
     const urlParams = new URLSearchParams(window.location.search);
     const vistaDirecta = urlParams.get('v');
-    if(vistaDirecta) {
+    
+    if (vistaDirecta) {
         window.cambiarVista(vistaDirecta);
     } else {
         window.cambiarVista('dashboard');
     }
     
-    if(window.cargarDatosSelects) window.cargarDatosSelects();
-    if(window.cargarDashboard) window.cargarDashboard();
+    if (window.cargarDatosSelects) window.cargarDatosSelects();
+    if (window.cargarDashboard) window.cargarDashboard();
 }
 
 window.volverASelectorEmpresa = async function() {
@@ -348,24 +364,28 @@ window.aplicarPermisosVisuales = async function() {
 };
 
 // ==========================================
-// RESTAURACIÓN AUTOMÁTICA DE SESIÓN
+// RESTAURACIÓN AUTOMÁTICA DE SESIÓN (Anti-Parpadeo ⚡)
 // ==========================================
-window.revisarSesionGuardada = function() {
+document.addEventListener('DOMContentLoaded', () => {
     const sesion = localStorage.getItem('sesion_activa_olympia');
+    
     if (sesion) {
+        // 1. APAGAMOS EL LOGIN INMEDIATAMENTE (Antes de que el usuario lo vea)
+        const login = document.getElementById('login-container');
+        if (login) login.classList.add('hidden');
+
+        // 2. Cargamos la sesión
         try {
             const s = JSON.parse(sesion);
-            // Si hay datos, disparamos el inicio de sesión automáticamente
-            console.log("Sesión restaurada para:", s.nombreUsuario);
+            console.log("Sesión restaurada con éxito para:", s.nombreUsuario);
+            
+            // Hacemos el inicio de sesión
             window.iniciarSesionEmpresa(s.id, s.nombre, s.email, s.nombreUsuario, s.rol);
         } catch (e) {
             console.error("Error leyendo la sesión:", e);
             localStorage.removeItem('sesion_activa_olympia');
+            // Si algo falla, volvemos a mostrar el login
+            if (login) login.classList.remove('hidden'); 
         }
     }
-};
-
-// Disparamos la revisión cuando el HTML termine de cargar
-document.addEventListener('DOMContentLoaded', () => {
-    window.revisarSesionGuardada();
 });

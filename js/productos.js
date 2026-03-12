@@ -687,9 +687,28 @@ window.cargarIngredientesReceta = async function() {
             <td class="py-3 px-4 text-sm font-medium text-slate-700 w-1/2">${ing.nombre}</td>
             <td class="py-3 px-4 text-center font-bold text-slate-600 bg-slate-50 border-x border-slate-100">${r.cantidad_neta} <span class="text-xs font-normal text-slate-400">${ing.id_unidad_receta?.abreviatura || ''}</span></td>
             <td class="py-3 px-4 text-right font-mono text-emerald-700 font-bold">$${costo_linea.toFixed(2)}</td>
-            <td class="py-3 px-4 text-right flex justify-end gap-3">
-                <button type="button" onclick="editarIngredienteReceta('${r.id}', '${ing.id}', '${r.cantidad_neta}', '${ing.nombre.replace(/'/g, "\\'")}', '${ing.id_unidad_receta?.abreviatura || ''}')" class="text-blue-500 hover:text-blue-700 text-lg transition-transform hover:scale-110">✏️</button>
-                <button type="button" onclick="quitarIngrediente('${r.id}')" class="text-red-400 hover:text-red-600 text-lg transition-transform hover:scale-110">🗑️</button>
+            <td class="py-3 px-4 text-right flex justify-end gap-3 items-center relative">
+                <div class="relative group">
+                    <button type="button" class="text-blue-500 hover:text-blue-700 text-lg transition-transform hover:scale-110 focus:outline-none flex items-center gap-1">
+                        ✏️
+                        <span class="text-[10px] text-slate-400">▼</span>
+                    </button>
+                    <div class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-slate-200 z-50 hidden group-hover:block group-focus-within:block">
+                        <ul class="py-1 text-sm text-slate-700 text-left">
+                            <li>
+                                <button type="button" onclick="editarIngredienteReceta('${r.id}', '${ing.id}', '${r.cantidad_neta}', '${ing.nombre.replace(/'/g, "\\'")}', '${ing.id_unidad_receta?.abreviatura || ''}')" class="block w-full px-4 py-2 hover:bg-slate-50 hover:text-blue-600 font-medium text-left">
+                                    📝 Editar Línea (Cant.)
+                                </button>
+                            </li>
+                            <li>
+                                <button type="button" onclick="editarProductoFull('${ing.id}')" class="block w-full px-4 py-2 hover:bg-slate-50 hover:text-blue-600 font-medium text-left">
+                                    📦 Editar Insumo Maestro
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <button type="button" onclick="quitarIngrediente('${r.id}')" class="text-red-400 hover:text-red-600 text-lg transition-transform hover:scale-110 ml-2">🗑️</button>
             </td>
         </tr>`;
     }).join('');
