@@ -898,10 +898,21 @@ window.importarProductosCSV = async function(inputElement) {
             const tbody = document.getElementById('lista-productos');
             if(tbody) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-emerald-600 font-bold animate-pulse">⏳ Leyendo y validando el archivo... No cierres esta ventana.</td></tr>`;
 
-            // Buscadores inteligentes de texto a ID
+            // Súper normalizador: quita tildes, mayúsculas, espacios extra y plurales (s, es)
+            const normalizarTexto = (str) => {
+                if (!str) return '';
+                let s = str.toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+                s = s.replace(/\s+/g, ' '); // Borra espacios dobles accidentales
+                if (s.endsWith('es') && s.length > 3) s = s.substring(0, s.length - 2); // Unidades -> Unidad
+                else if (s.endsWith('s') && s.length > 2) s = s.substring(0, s.length - 1); // Kilos -> Kilo
+                return s;
+            };
+
+            // Buscadores súper inteligentes de texto a ID
             const getCatId = (name) => {
                 if (!name || name.trim() === '') return null;
-                const found = window.catListMemoria.find(c => c.nombre.toLowerCase() === name.toLowerCase().trim());
+                const normName = normalizarTexto(name);
+                const found = window.catListMemoria.find(c => normalizarTexto(c.nombre) === normName);
                 if (found) return found.id;
                 categoriasFaltantes.add(name.trim());
                 return null;
@@ -909,7 +920,11 @@ window.importarProductosCSV = async function(inputElement) {
 
             const getUniId = (name) => {
                 if (!name || name.trim() === '') return null;
-                const found = window.unidadesMemoria.find(u => u.nombre.toLowerCase() === name.toLowerCase().trim());
+                const normName = normalizarTexto(name);
+                // Ahora busca tanto por Nombre como por Abreviatura (ej: "kg" o "kilo")
+                const found = window.unidadesMemoria.find(u => 
+                    normalizarTexto(u.nombre) === normName || normalizarTexto(u.abreviatura) === normName
+                );
                 if (found) return found.id;
                 unidadesFaltantes.add(name.trim());
                 return null;
