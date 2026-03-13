@@ -1201,12 +1201,17 @@ window.importarRecetasCSV = async function(inputElement) {
     Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
+        // 👉 LÍNEA NUEVA: Limpiamos los títulos de cualquier carácter invisible o espacio
+        transformHeader: function(header) {
+            return header.replace(/^\uFEFF/g, '').trim().toUpperCase();
+        },
         complete: async function(results) {
             const filas = results.data;
             if(filas.length === 0) return alert("El archivo está vacío.");
             
-            if(!filas[0].hasOwnProperty('PRODUCTO A PREPARAR') || !filas[0].hasOwnProperty('INGREDIENTE')) {
-                return alert("❌ Formato incorrecto. Por favor descarga la plantilla de Recetas primero.");
+            // Validar que es la plantilla nueva (ahora sí leerá "NOMBRE" limpio)
+            if(!filas[0].hasOwnProperty('NOMBRE') || !filas[0].hasOwnProperty('CATEGORIA')) {
+                return alert("❌ Formato incorrecto. Asegúrate de usar la plantilla descargada sin cambiar los títulos.");
             }
 
             let insertados = 0;
