@@ -1,4 +1,46 @@
 // ==========================================
+// CEREBRO DE EDICIÓN GLOBAL (Previene recargas y errores)
+// ==========================================
+window.modoEdicion = { activo: false, id: null, form: null };
+
+window.activarEdicionGlobal = function(formId, recordId, camposObj) {
+    window.modoEdicion = { activo: true, id: recordId, form: formId };
+    
+    // Llenamos los campos del formulario con los datos del ítem
+    for (const [idElemento, valor] of Object.entries(camposObj)) {
+        const el = document.getElementById(idElemento);
+        if (el) el.value = valor;
+    }
+    
+    // Cambiamos el color y texto del botón para que el usuario sepa que está editando
+    const form = document.getElementById(`form-${formId}`);
+    if(form) {
+        const btnSubmit = form.querySelector('button[type="submit"]');
+        if(btnSubmit) {
+            btnSubmit.innerText = 'Actualizar ✏️';
+            btnSubmit.classList.replace('bg-slate-800', 'bg-blue-600');
+        }
+        const btnCancelar = document.getElementById(`btn-cancelar-${formId}`);
+        if(btnCancelar) btnCancelar.classList.remove('hidden');
+    }
+};
+
+window.cancelarEdicion = function(formId) {
+    window.modoEdicion = { activo: false, id: null, form: null };
+    const form = document.getElementById(`form-${formId}`);
+    if(form) {
+        form.reset();
+        const btnSubmit = form.querySelector('button[type="submit"]');
+        if(btnSubmit) {
+            btnSubmit.innerText = formId === 'proveedor' ? 'Guardar Proveedor' : (formId === 'sucursal' ? 'Guardar Sucursal' : (formId === 'ubicacion' ? 'Guardar Ubicación' : 'Guardar'));
+            btnSubmit.classList.replace('bg-blue-600', 'bg-slate-800');
+        }
+        const btnCancelar = document.getElementById(`btn-cancelar-${formId}`);
+        if(btnCancelar) btnCancelar.classList.add('hidden');
+    }
+};
+
+// ==========================================
 // DELEGADOR GLOBAL DE EVENTOS (Evita que la página se recargue)
 // ==========================================
 if (!window.eventosCatalogosAtados) {
