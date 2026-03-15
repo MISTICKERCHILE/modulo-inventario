@@ -1183,10 +1183,11 @@ window.imprimirCatalogoProductos = function() {
 // ==========================================
 
 window.exportarPlantillaRecetasCSV = function() {
-    let csvContent = "PRODUCTO A PREPARAR,INGREDIENTE,CANTIDAD NETA\n";
-    csvContent += "Ejemplo: Completo Italiano,Pan de Completo,1\n";
-    csvContent += "Ejemplo: Completo Italiano,Vienesa,1\n";
-    csvContent += "Ejemplo: Completo Italiano,Palta Molida,60\n";
+    // Cambiamos las comas por punto y coma (;)
+    let csvContent = "PRODUCTO A PREPARAR;INGREDIENTE;CANTIDAD NETA\n";
+    csvContent += "Ejemplo: Completo Italiano;Pan de Completo;1\n";
+    csvContent += "Ejemplo: Completo Italiano;Vienesa;1\n";
+    csvContent += "Ejemplo: Completo Italiano;Palta Molida;60\n";
     
     const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' }); 
     const link = document.createElement("a");
@@ -1214,7 +1215,7 @@ window.importarRecetasCSV = async function(inputElement) {
     Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
-        // 👉 LÍNEA NUEVA: Limpiamos los títulos de cualquier carácter invisible o espacio
+        // 👉 AQUÍ ESTÁ LA MAGIA: Limpiamos el título de caracteres invisibles
         transformHeader: function(header) {
             return header.replace(/^\uFEFF/g, '').trim().toUpperCase();
         },
@@ -1222,9 +1223,9 @@ window.importarRecetasCSV = async function(inputElement) {
             const filas = results.data;
             if(filas.length === 0) return alert("El archivo está vacío.");
             
-            // Validar que es la plantilla nueva (ahora sí leerá "NOMBRE" limpio)
-            if(!filas[0].hasOwnProperty('NOMBRE') || !filas[0].hasOwnProperty('CATEGORIA')) {
-                return alert("❌ Formato incorrecto. Asegúrate de usar la plantilla descargada sin cambiar los títulos.");
+            // Ahora sí podrá leer los títulos perfectamente limpios
+            if(!filas[0].hasOwnProperty('PRODUCTO A PREPARAR') || !filas[0].hasOwnProperty('INGREDIENTE')) {
+                return alert("❌ Formato incorrecto. Por favor descarga la plantilla de Recetas primero.");
             }
 
             let insertados = 0;
