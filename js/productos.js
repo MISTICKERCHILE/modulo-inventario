@@ -1179,20 +1179,20 @@ window.imprimirCatalogoProductos = function() {
 }
 
 // ==========================================
-// IMPORTADOR / EXPORTADOR MASIVO DE RECETAS
+// IMPORTADOR / EXPORTADOR MASIVO DE RECETAS (VERSIÓN ESTABLE)
 // ==========================================
 
 window.exportarPlantillaRecetasCSV = function() {
-    let csvRecetas = "PRODUCTO A PREPARAR;INGREDIENTE;CANTIDAD NETA\n";
-    csvRecetas += "Ejemplo: Completo Italiano;Pan de Completo;1\n";
-    csvRecetas += "Ejemplo: Completo Italiano;Vienesa;1\n";
-    csvRecetas += "Ejemplo: Completo Italiano;Palta Molida;60\n";
+    let contenido = "PRODUCTO A PREPARAR,INGREDIENTE,CANTIDAD NETA\n";
+    contenido += "Ejemplo: Completo Italiano,Pan de Completo,1\n";
+    contenido += "Ejemplo: Completo Italiano,Vienesa,1\n";
+    contenido += "Ejemplo: Completo Italiano,Palta Molida,60\n";
     
-    const blob = new Blob(["\uFEFF" + csvRecetas], { type: 'text/csv;charset=utf-8;' }); 
+    const blob = new Blob(["\uFEFF" + contenido], { type: 'text/csv;charset=utf-8;' }); 
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
-    link.setAttribute("download", `Plantilla_Recetas_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute("download", `Plantilla_Recetas.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -1203,7 +1203,7 @@ window.importarRecetasCSV = async function(inputElement) {
     const file = inputElement.files[0];
     if (!file) return;
 
-    // Traemos TODOS los productos a la memoria para poder emparejar nombres
+    // Traemos el catálogo de productos
     const { data: todosLosProductos } = await clienteSupabase.from('productos')
         .select('id, nombre, tiene_receta')
         .eq('id_empresa', window.miEmpresaId);
@@ -1214,17 +1214,17 @@ window.importarRecetasCSV = async function(inputElement) {
     Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
-        // Limpiamos los títulos de caracteres invisibles
-        transformHeader: function(header) {
-            return header.replace(/^\uFEFF/g, '').trim().toUpperCase();
+        // Limpia cualquier carácter invisible de los títulos
+        transformHeader: function(h) {
+            return h.replace(/^\uFEFF/g, '').trim().toUpperCase();
         },
         complete: async function(results) {
             const filas = results.data;
             if(filas.length === 0) return alert("El archivo está vacío.");
             
-            // Validamos que sea la plantilla correcta
+            // Validamos títulos
             if(!filas[0].hasOwnProperty('PRODUCTO A PREPARAR') || !filas[0].hasOwnProperty('INGREDIENTE')) {
-                return alert("❌ Formato incorrecto. Por favor descarga la plantilla de Recetas primero.");
+                return alert("❌ Formato incorrecto. Por favor usa la plantilla original sin cambiar los títulos.");
             }
 
             let insertados = 0;
@@ -1233,20 +1233,20 @@ window.importarRecetasCSV = async function(inputElement) {
             let listosParaInsertar = [];
             let padresAActualizar = new Set(); 
 
+            // Mostrar estado de carga
             const container = document.getElementById('reporte-importacion-recetas');
-            if(container) container.innerHTML = `<div class="p-6 text-center text-blue-600 font-bold animate-pulse bg-white rounded-xl border border-blue-100 shadow-sm">⏳ Construyendo recetas... No cierres esta ventana.</div>`;
+            if(container) container.innerHTML = `<div class="p-6 text-center text-blue-600 font-bold bg-white rounded-xl shadow-sm">⏳ Construyendo recetas...</div>`;
 
-            // Procesamos el Excel
+            // Procesar datos
             for (const fila of filas) {
                 const nombrePadre = fila['PRODUCTO A PREPARAR']?.trim();
                 const nombreIngrediente = fila['INGREDIENTE']?.trim();
                 const cant = parseFloat(fila['CANTIDAD NETA']) || 0;
 
-                // Saltamos filas de ejemplo, vacías o títulos duplicados
+                // Ignorar ejemplos y encabezados repetidos
                 if (!nombrePadre || nombrePadre.toLowerCase().includes("ejemplo:")) continue;
                 if (nombrePadre.toUpperCase() === 'PRODUCTO A PREPARAR') continue;
 
-                // Buscamos los IDs correspondientes
                 const padreObj = catalogo.find(p => p.nombre.toLowerCase() === nombrePadre.toLowerCase());
                 const ingreObj = catalogo.find(p => p.nombre.toLowerCase() === nombreIngrediente.toLowerCase());
 
@@ -1260,18 +1260,14 @@ window.importarRecetasCSV = async function(inputElement) {
                         id_ingrediente: ingreObj.id,
                         cantidad_neta: cant
                     });
-                    
                     if (!padreObj.tiene_receta) padresAActualizar.add(padreObj.id);
                 }
             }
 
-            // Guardamos en la base de datos
+            // Insertar en BD
             for (const item of listosParaInsertar) {
                 const { data: existe } = await clienteSupabase.from('recetas')
-                    .select('id')
-                    .eq('id_producto_padre', item.id_producto_padre)
-                    .eq('id_ingrediente', item.id_ingrediente)
-                    .maybeSingle();
+                    .select('id').eq('id_producto_padre', item.id_producto_padre).eq('id_ingrediente', item.id_ingrediente).maybeSingle();
 
                 if (!existe) {
                     const { error } = await clienteSupabase.from('recetas').insert([item]);
@@ -1279,46 +1275,30 @@ window.importarRecetasCSV = async function(inputElement) {
                 }
             }
 
-            // Encendemos el check de "Tiene Receta" a los productos
+            // Actualizar check de "tiene_receta"
             for (const idPadre of padresAActualizar) {
                 await clienteSupabase.from('productos').update({ tiene_receta: true }).eq('id', idPadre);
             }
 
-            // Mostramos el Reporte
-            let htmlReporte = `
-            <div class="bg-white border-2 border-blue-200 rounded-xl p-6 mt-4 shadow-sm relative">
-                <button onclick="document.getElementById('reporte-importacion-recetas').innerHTML=''" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold text-2xl">&times;</button>
-                <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2"><span>🥣</span> Reporte de Recetas</h3>`;
-
-            if (insertados > 0) {
-                htmlReporte += `<div class="mb-4 p-4 bg-emerald-50 text-emerald-800 rounded-lg border border-emerald-200">
-                    <p class="font-bold">✅ Se conectaron ${insertados} ingredientes nuevos a sus recetas.</p>
-                </div>`;
-            } else {
-                 htmlReporte += `<div class="mb-4 p-4 bg-yellow-50 text-yellow-800 rounded-lg border border-yellow-200">
-                    <p class="font-bold">⚠️ No se agregaron nuevos ingredientes (Puede que ya existieran o el archivo estaba vacío).</p>
-                </div>`;
-            }
-
+            // Imprimir Reporte
+            let htmlReporte = `<div class="bg-white border-2 border-blue-200 rounded-xl p-6 mt-4 relative">
+                <button onclick="document.getElementById('reporte-importacion-recetas').innerHTML=''" class="absolute top-4 right-4 font-bold text-2xl">&times;</button>
+                <h3 class="text-xl font-bold mb-4">🥣 Reporte de Recetas</h3>
+                <p><b>✅ Insertados:</b> ${insertados}</p>`;
+            
             if (productosFaltantes.size > 0 || ingredientesFaltantes.size > 0) {
-                htmlReporte += `<div class="mb-2 p-4 bg-red-50 text-red-800 rounded-lg border border-red-200">
-                    <p class="font-bold mb-2">🛑 Nombres no encontrados en el Catálogo de Productos:</p>
-                    <p class="text-sm mb-2">Las recetas de estos ítems fueron omitidas porque no existen en el sistema. Debes crearlos en 'Productos' primero:</p>
-                    <ul class="list-disc pl-5 text-sm font-medium space-y-1">
-                        ${productosFaltantes.size > 0 ? `<li><b class="text-red-900">Productos a Preparar faltantes:</b> ${Array.from(productosFaltantes).join(', ')}</li>` : ''}
-                        ${ingredientesFaltantes.size > 0 ? `<li><b class="text-red-900">Ingredientes faltantes:</b> ${Array.from(ingredientesFaltantes).join(', ')}</li>` : ''}
-                    </ul>
+                htmlReporte += `<div class="mt-4 p-4 bg-red-50 text-red-800 rounded">
+                    <p><b>🛑 Faltantes en catálogo (Omitidos):</b></p>
+                    <p class="text-sm">Productos: ${Array.from(productosFaltantes).join(', ')}</p>
+                    <p class="text-sm">Ingredientes: ${Array.from(ingredientesFaltantes).join(', ')}</p>
                 </div>`;
             }
             htmlReporte += `</div>`;
             
             if(container) container.innerHTML = htmlReporte;
-            
             if(window.cargarBuscadorRecetas) window.cargarBuscadorRecetas();
             if(window.productoActualParaReceta) window.cargarIngredientesReceta();
         },
-        error: function(err) {
-            alert("Error leyendo el archivo CSV: " + err.message);
-        }
+        error: function(err) { alert("Error: " + err.message); }
     });
 }
