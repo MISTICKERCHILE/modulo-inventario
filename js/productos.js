@@ -1183,13 +1183,13 @@ window.imprimirCatalogoProductos = function() {
 // ==========================================
 
 window.exportarPlantillaRecetasCSV = function() {
-    // Cambiamos las comas por punto y coma (;)
-    let csvContent = "PRODUCTO A PREPARAR;INGREDIENTE;CANTIDAD NETA\n";
-    csvContent += "Ejemplo: Completo Italiano;Pan de Completo;1\n";
-    csvContent += "Ejemplo: Completo Italiano;Vienesa;1\n";
-    csvContent += "Ejemplo: Completo Italiano;Palta Molida;60\n";
+    // Le cambiamos el nombre a "csvRecetas" para que jamás choque con la de productos
+    let csvRecetas = "PRODUCTO A PREPARAR;INGREDIENTE;CANTIDAD NETA\n";
+    csvRecetas += "Ejemplo: Completo Italiano;Pan de Completo;1\n";
+    csvRecetas += "Ejemplo: Completo Italiano;Vienesa;1\n";
+    csvRecetas += "Ejemplo: Completo Italiano;Palta Molida;60\n";
     
-    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' }); 
+    const blob = new Blob(["\uFEFF" + csvRecetas], { type: 'text/csv;charset=utf-8;' }); 
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
