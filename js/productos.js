@@ -822,15 +822,16 @@ window.exportarProductosCSV = function() {
     const getU = (id) => window.unidadesMemoria?.find(u => u.id === id)?.nombre || "";
     const getC = (id) => window.catListMemoria?.find(c => c.id === id)?.nombre || "";
 
-    let csvContent = "NOMBRE,CATEGORIA,COSTO NETO REF.,UNIDAD COMPRA,CONTIENE CANT. UC-UA,UNIDAD ALMACENAMIENTO,CONTIENE CANT. UA-UM,UNIDAD MENOR,CONTIENE CANT. UM-UR,UNIDAD RECETA,CANTIDAD MINIMA (UA),CANTIDAD IDEAL (UA),RECETA,RECETA CONFIDENCIAL,CONTROL STOCK\n";
+    // 👉 CAMBIO 1: Títulos separados por punto y coma (;)
+    let csvContent = "NOMBRE;CATEGORIA;COSTO NETO REF.;UNIDAD COMPRA;CONTIENE CANT. UC-UA;UNIDAD ALMACENAMIENTO;CONTIENE CANT. UA-UM;UNIDAD MENOR;CONTIENE CANT. UM-UR;UNIDAD RECETA;CANTIDAD MINIMA (UA);CANTIDAD IDEAL (UA);RECETA;RECETA CONFIDENCIAL;CONTROL STOCK\n";
 
-    // ¿Está vacío? ¡Damos una plantilla de ejemplo!
+    // ¿Está vacío? ¡Damos una plantilla de ejemplo con punto y coma!
     if (!window.productosListMemoria || window.productosListMemoria.length === 0) {
-        csvContent += "Ejemplo: Pan de Hamburguesa,Panaderia,2000,Bolsa,10,Unidad,1,Unidad,1,Unidad,50,100,FALSE,FALSE,TRUE\n";
-        csvContent += "Ejemplo: Tomate Rey,Verduras,1500,Cajon,15,Kilo,1000,Gramo,1,Gramo,10,30,FALSE,FALSE,TRUE\n";
-        csvContent += "Ejemplo: Hamburguesa Completa,Preparaciones,0,Unidad,1,Unidad,1,Unidad,1,Unidad,0,0,TRUE,FALSE,FALSE\n";
+        csvContent += "Ejemplo: Pan de Hamburguesa;Panaderia;2000;Bolsa;10;Unidad;1;Unidad;1;Unidad;50;100;FALSE;FALSE;TRUE\n";
+        csvContent += "Ejemplo: Tomate Rey;Verduras;1500;Cajon;15;Kilo;1000;Gramo;1;Gramo;10;30;FALSE;FALSE;TRUE\n";
+        csvContent += "Ejemplo: Hamburguesa Completa;Preparaciones;0;Unidad;1;Unidad;1;Unidad;1;Unidad;0;0;TRUE;FALSE;FALSE\n";
     } else {
-        // Si hay productos, los exporta normalmente
+        // Si hay productos, los exporta normalmente (separados por ;)
         window.productosListMemoria.forEach(p => {
             let nombre = p.nombre ? `"${p.nombre.replace(/"/g, '""')}"` : "";
             let cat = `"${getC(p.id_categoria)}"`;
@@ -848,9 +849,21 @@ window.exportarProductosCSV = function() {
             let confidencial = "FALSE"; 
             let control = p.control_stock !== false ? "TRUE" : "FALSE";
             
-            csvContent += `${nombre},${cat},${costo},${uCompra},${cant_ua_uc},${uAlmacen},${cant_um_ua},${uMenor},${cant_ur_um},${uReceta},${min},${ideal},${receta},${confidencial},${control}\n`;
+            // 👉 CAMBIO 2: Variables separadas por punto y coma (;)
+            csvContent += `${nombre};${cat};${costo};${uCompra};${cant_ua_uc};${uAlmacen};${cant_um_ua};${uMenor};${cant_ur_um};${uReceta};${min};${ideal};${receta};${confidencial};${control}\n`;
         });
     }
+
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' }); 
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Catalogo_Productos_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
 
     const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' }); 
     const link = document.createElement("a");
