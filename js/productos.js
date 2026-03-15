@@ -26,7 +26,7 @@ window.cargarDatosSelects = async function() {
     const selCat = document.getElementById('prod-categoria');
     if(selCat) selCat.innerHTML = '<option value="">Sin Categoría asignada...</option>' + (cat||[]).map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
     
-    const { data: uni } = await clienteSupabase.from('unidades').select('*').eq('id_empresa', window.miEmpresaId).order('nombre');
+    const { data: uni } = await clienteSupabase.from('unidades').select('*').or(`id_empresa.eq.${window.miEmpresaId},id_empresa.is.null`).order('nombre');
     window.unidadesMemoria = uni || []; 
     const opcionesUni = '<option value="">Seleccione Unidad...</option>' + window.unidadesMemoria.map(u => `<option value="${u.id}">${u.nombre} (${u.abreviatura})</option>`).join('');
     
@@ -870,7 +870,7 @@ window.importarProductosCSV = async function(inputElement) {
     // 1. Cargamos de la BD los catálogos más frescos para evitar errores
     const [{ data: cats }, { data: unis }] = await Promise.all([
         clienteSupabase.from('categorias').select('id, nombre').eq('id_empresa', window.miEmpresaId),
-        clienteSupabase.from('unidades').select('id, nombre').eq('id_empresa', window.miEmpresaId)
+        clienteSupabase.from('unidades').select('id, nombre, abreviatura').or(`id_empresa.eq.${window.miEmpresaId},id_empresa.is.null`)
     ]);
     window.catListMemoria = cats || [];
     window.unidadesMemoria = unis || [];
