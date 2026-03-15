@@ -1183,7 +1183,6 @@ window.imprimirCatalogoProductos = function() {
 // ==========================================
 
 window.exportarPlantillaRecetasCSV = function() {
-    // Le cambiamos el nombre a "csvRecetas" para que jamás choque con la de productos
     let csvRecetas = "PRODUCTO A PREPARAR;INGREDIENTE;CANTIDAD NETA\n";
     csvRecetas += "Ejemplo: Completo Italiano;Pan de Completo;1\n";
     csvRecetas += "Ejemplo: Completo Italiano;Vienesa;1\n";
@@ -1204,7 +1203,7 @@ window.importarRecetasCSV = async function(inputElement) {
     const file = inputElement.files[0];
     if (!file) return;
 
-    // 1. Traemos TODOS los productos a la memoria para poder emparejar nombres
+    // Traemos TODOS los productos a la memoria para poder emparejar nombres
     const { data: todosLosProductos } = await clienteSupabase.from('productos')
         .select('id, nombre, tiene_receta')
         .eq('id_empresa', window.miEmpresaId);
@@ -1215,7 +1214,7 @@ window.importarRecetasCSV = async function(inputElement) {
     Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
-        // 👉 AQUÍ ESTÁ LA MAGIA: Limpiamos el título de caracteres invisibles
+        // Limpiamos los títulos de caracteres invisibles
         transformHeader: function(header) {
             return header.replace(/^\uFEFF/g, '').trim().toUpperCase();
         },
@@ -1223,7 +1222,7 @@ window.importarRecetasCSV = async function(inputElement) {
             const filas = results.data;
             if(filas.length === 0) return alert("El archivo está vacío.");
             
-            // Ahora sí podrá leer los títulos perfectamente limpios
+            // Validamos que sea la plantilla correcta
             if(!filas[0].hasOwnProperty('PRODUCTO A PREPARAR') || !filas[0].hasOwnProperty('INGREDIENTE')) {
                 return alert("❌ Formato incorrecto. Por favor descarga la plantilla de Recetas primero.");
             }
@@ -1232,19 +1231,20 @@ window.importarRecetasCSV = async function(inputElement) {
             let productosFaltantes = new Set();
             let ingredientesFaltantes = new Set();
             let listosParaInsertar = [];
-            let padresAActualizar = new Set(); // Para encenderles el "tiene_receta = true"
+            let padresAActualizar = new Set(); 
 
             const container = document.getElementById('reporte-importacion-recetas');
             if(container) container.innerHTML = `<div class="p-6 text-center text-blue-600 font-bold animate-pulse bg-white rounded-xl border border-blue-100 shadow-sm">⏳ Construyendo recetas... No cierres esta ventana.</div>`;
 
-            // 2. Procesamos el Excel
+            // Procesamos el Excel
             for (const fila of filas) {
                 const nombrePadre = fila['PRODUCTO A PREPARAR']?.trim();
                 const nombreIngrediente = fila['INGREDIENTE']?.trim();
                 const cant = parseFloat(fila['CANTIDAD NETA']) || 0;
 
-                // Saltamos las filas de ejemplo
-                if (!nombrePadre || nombrePadre.includes("Ejemplo:")) continue;
+                // Saltamos filas de ejemplo, vacías o títulos duplicados
+                if (!nombrePadre || nombrePadre.toLowerCase().includes("ejemplo:")) continue;
+                if (nombrePadre.toUpperCase() === 'PRODUCTO A PREPARAR') continue;
 
                 // Buscamos los IDs correspondientes
                 const padreObj = catalogo.find(p => p.nombre.toLowerCase() === nombrePadre.toLowerCase());
@@ -1265,9 +1265,8 @@ window.importarRecetasCSV = async function(inputElement) {
                 }
             }
 
-            // 3. Guardamos en la base de datos
+            // Guardamos en la base de datos
             for (const item of listosParaInsertar) {
-                // Verificamos si ya existe ese ingrediente en esa receta para no duplicarlo
                 const { data: existe } = await clienteSupabase.from('recetas')
                     .select('id')
                     .eq('id_producto_padre', item.id_producto_padre)
@@ -1280,12 +1279,12 @@ window.importarRecetasCSV = async function(inputElement) {
                 }
             }
 
-            // 4. Encendemos el check de "Tiene Receta" a los productos que no lo tenían
+            // Encendemos el check de "Tiene Receta" a los productos
             for (const idPadre of padresAActualizar) {
                 await clienteSupabase.from('productos').update({ tiene_receta: true }).eq('id', idPadre);
             }
 
-            // 5. Mostramos el Reporte
+            // Mostramos el Reporte
             let htmlReporte = `
             <div class="bg-white border-2 border-blue-200 rounded-xl p-6 mt-4 shadow-sm relative">
                 <button onclick="document.getElementById('reporte-importacion-recetas').innerHTML=''" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold text-2xl">&times;</button>
@@ -1315,7 +1314,6 @@ window.importarRecetasCSV = async function(inputElement) {
             
             if(container) container.innerHTML = htmlReporte;
             
-            // Recargamos el buscador para que aparezcan las nuevas recetas creadas
             if(window.cargarBuscadorRecetas) window.cargarBuscadorRecetas();
             if(window.productoActualParaReceta) window.cargarIngredientesReceta();
         },
