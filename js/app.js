@@ -128,7 +128,8 @@ window.iniciarSesionEmpresa = function(id, nombre, email, nombreUsuario, rol) {
     if (vistaDirecta) {
         window.cambiarVista(vistaDirecta);
     } else {
-        window.cambiarVista('dashboard');
+        window.cconst pantallaGuardada = localStorage.getItem('pantalla_actual') || 'dashboard';
+    window.cambiarVista(pantallaGuardada);ambiarVista('dashboard');
     }
     
     if (window.cargarDatosSelects) window.cargarDatosSelects();
