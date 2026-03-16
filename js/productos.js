@@ -418,7 +418,6 @@ if (!window.eventosFormProductoAtados) {
     });
     window.eventosFormProductoAtados = true;
 }
-
 // ==========================================
 // --- RECETAS Y BUSCADOR INTELIGENTE ---
 // ==========================================
@@ -815,23 +814,19 @@ window.quitarIngrediente = async function(id) {
 }
 
 // ==========================================
-// --- IMPORTAR, EXPORTAR Y PDF ---
+// --- IMPORTAR, EXPORTAR Y PDF DE PRODUCTOS ---
 // ==========================================
 window.exportarProductosCSV = function() {
-    // Funciones mágicas para traducir IDs a Nombres reales
     const getU = (id) => window.unidadesMemoria?.find(u => u.id === id)?.nombre || "";
     const getC = (id) => window.catListMemoria?.find(c => c.id === id)?.nombre || "";
 
-    // 👉 CAMBIO 1: Títulos separados por punto y coma (;)
     let csvContent = "NOMBRE;CATEGORIA;COSTO NETO REF.;UNIDAD COMPRA;CONTIENE CANT. UC-UA;UNIDAD ALMACENAMIENTO;CONTIENE CANT. UA-UM;UNIDAD MENOR;CONTIENE CANT. UM-UR;UNIDAD RECETA;CANTIDAD MINIMA (UA);CANTIDAD IDEAL (UA);RECETA;RECETA CONFIDENCIAL;CONTROL STOCK\n";
 
-    // ¿Está vacío? ¡Damos una plantilla de ejemplo con punto y coma!
     if (!window.productosListMemoria || window.productosListMemoria.length === 0) {
         csvContent += "Ejemplo: Pan de Hamburguesa;Panaderia;2000;Bolsa;10;Unidad;1;Unidad;1;Unidad;50;100;FALSE;FALSE;TRUE\n";
         csvContent += "Ejemplo: Tomate Rey;Verduras;1500;Cajon;15;Kilo;1000;Gramo;1;Gramo;10;30;FALSE;FALSE;TRUE\n";
         csvContent += "Ejemplo: Hamburguesa Completa;Preparaciones;0;Unidad;1;Unidad;1;Unidad;1;Unidad;0;0;TRUE;FALSE;FALSE\n";
     } else {
-        // Si hay productos, los exporta normalmente (separados por ;)
         window.productosListMemoria.forEach(p => {
             let nombre = p.nombre ? `"${p.nombre.replace(/"/g, '""')}"` : "";
             let cat = `"${getC(p.id_categoria)}"`;
@@ -849,21 +844,9 @@ window.exportarProductosCSV = function() {
             let confidencial = "FALSE"; 
             let control = p.control_stock !== false ? "TRUE" : "FALSE";
             
-            // 👉 CAMBIO 2: Variables separadas por punto y coma (;)
             csvContent += `${nombre};${cat};${costo};${uCompra};${cant_ua_uc};${uAlmacen};${cant_um_ua};${uMenor};${cant_ur_um};${uReceta};${min};${ideal};${receta};${confidencial};${control}\n`;
         });
     }
-
-    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' }); 
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", `Catalogo_Productos_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-}
 
     const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' }); 
     const link = document.createElement("a");
@@ -880,7 +863,6 @@ window.importarProductosCSV = async function(inputElement) {
     const file = inputElement.files[0];
     if (!file) return;
 
-    // 1. Cargamos de la BD los catálogos más frescos para evitar errores
     const [{ data: cats }, { data: unis }] = await Promise.all([
         clienteSupabase.from('categorias').select('id, nombre').eq('id_empresa', window.miEmpresaId),
         clienteSupabase.from('unidades').select('id, nombre, abreviatura').or(`id_empresa.eq.${window.miEmpresaId},id_empresa.is.null`)
@@ -897,7 +879,6 @@ window.importarProductosCSV = async function(inputElement) {
             const filas = results.data;
             if(filas.length === 0) return alert("El archivo está vacío.");
             
-            // Validar que es la plantilla nueva
             if(!filas[0].hasOwnProperty('NOMBRE') || !filas[0].hasOwnProperty('CATEGORIA')) {
                 return alert("❌ Formato incorrecto. Por favor descarga la plantilla con el botón Exportar primero.");
             }
@@ -911,17 +892,15 @@ window.importarProductosCSV = async function(inputElement) {
             const tbody = document.getElementById('lista-productos');
             if(tbody) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-emerald-600 font-bold animate-pulse">⏳ Leyendo y validando el archivo... No cierres esta ventana.</td></tr>`;
 
-            // Súper normalizador: quita tildes, mayúsculas, espacios extra y plurales (s, es)
             const normalizarTexto = (str) => {
                 if (!str) return '';
                 let s = str.toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
-                s = s.replace(/\s+/g, ' '); // Borra espacios dobles accidentales
-                if (s.endsWith('es') && s.length > 3) s = s.substring(0, s.length - 2); // Unidades -> Unidad
-                else if (s.endsWith('s') && s.length > 2) s = s.substring(0, s.length - 1); // Kilos -> Kilo
+                s = s.replace(/\s+/g, ' '); 
+                if (s.endsWith('es') && s.length > 3) s = s.substring(0, s.length - 2); 
+                else if (s.endsWith('s') && s.length > 2) s = s.substring(0, s.length - 1); 
                 return s;
             };
 
-            // Buscadores súper inteligentes de texto a ID
             const getCatId = (name) => {
                 if (!name || name.trim() === '') return null;
                 const normName = normalizarTexto(name);
@@ -934,7 +913,6 @@ window.importarProductosCSV = async function(inputElement) {
             const getUniId = (name) => {
                 if (!name || name.trim() === '') return null;
                 const normName = normalizarTexto(name);
-                // Ahora busca tanto por Nombre como por Abreviatura (ej: "kg" o "kilo")
                 const found = window.unidadesMemoria.find(u => 
                     normalizarTexto(u.nombre) === normName || normalizarTexto(u.abreviatura) === normName
                 );
@@ -943,7 +921,6 @@ window.importarProductosCSV = async function(inputElement) {
                 return null;
             };
 
-            // 2. Filtramos la data
             for (const fila of filas) {
                 const nombre = fila['NOMBRE']?.trim();
                 if (!nombre) continue;
@@ -952,7 +929,7 @@ window.importarProductosCSV = async function(inputElement) {
                 const existe = window.productosListMemoria.some(p => p.nombre.toLowerCase() === nombre.toLowerCase());
                 if (existe) {
                     omitidosDuplicados.push(nombre);
-                    continue; // Se salta este producto para no sobreescribir
+                    continue; 
                 }
 
                 let catRaw = fila['CATEGORIA'];
@@ -967,7 +944,6 @@ window.importarProductosCSV = async function(inputElement) {
                 let idUM = getUniId(umRaw);
                 let idUR = getUniId(urRaw);
 
-                // Si se escribió una categoría/unidad pero no se encontró el ID, la fila es defectuosa
                 let tieneErrorCatalogo = false;
                 if (catRaw && !idCat) tieneErrorCatalogo = true;
                 if (ucRaw && !idUC) tieneErrorCatalogo = true;
@@ -997,7 +973,6 @@ window.importarProductosCSV = async function(inputElement) {
                 }
             }
 
-            // 3. Insertamos a la base de datos los que están correctos
             const { data: sucursales } = await clienteSupabase.from('sucursales').select('id').eq('id_empresa', window.miEmpresaId);
 
             for (const item of listosParaInsertar) {
@@ -1020,7 +995,6 @@ window.importarProductosCSV = async function(inputElement) {
                 }
             }
 
-            // 4. Mostramos el reporte visual y recargamos la tabla
             window.mostrarReporteImportacion(insertados, omitidosDuplicados, Array.from(categoriasFaltantes), Array.from(unidadesFaltantes));
             window.cargarProductos(); 
         },
@@ -1030,13 +1004,9 @@ window.importarProductosCSV = async function(inputElement) {
     });
 }
 
-// ==========================================
-// NUEVO: PANEL VISUAL FIJO DE REPORTES DE IMPORTACIÓN
-// ==========================================
 window.mostrarReporteImportacion = function(insertados, duplicados, catFaltantes, uniFaltantes) {
     let container = document.getElementById('reporte-importacion-container');
     
-    // Si no existe, lo creamos justo antes de la tabla blanca de productos
     if (!container) {
         const tableWrap = document.querySelector('#lista-productos')?.closest('.bg-white');
         if (tableWrap) {
@@ -1088,7 +1058,6 @@ window.mostrarReporteImportacion = function(insertados, duplicados, catFaltantes
     container.innerHTML = html;
 }
 
-// NUEVA FUNCIÓN: IMPRIMIR CATÁLOGO CON FORMATO
 window.imprimirCatalogoProductos = function() {
     let filtrados = [...window.productosListMemoria];
 
@@ -1179,9 +1148,8 @@ window.imprimirCatalogoProductos = function() {
 }
 
 // ==========================================
-// IMPORTADOR / EXPORTADOR MASIVO DE RECETAS (ESTABLE)
+// IMPORTADOR / EXPORTADOR MASIVO DE RECETAS
 // ==========================================
-
 window.exportarPlantillaRecetasCSV = function() {
     var textoRecetas = "PRODUCTO A PREPARAR,INGREDIENTE,CANTIDAD NETA\n";
     textoRecetas += "Ejemplo: Completo Italiano,Pan de Completo,1\n";
@@ -1203,7 +1171,6 @@ window.importarRecetasCSV = async function(inputElement) {
     var file = inputElement.files[0];
     if (!file) return;
 
-    // Traemos el catálogo de productos
     const { data: todosLosProductos } = await clienteSupabase.from('productos')
         .select('id, nombre, tiene_receta')
         .eq('id_empresa', window.miEmpresaId);
