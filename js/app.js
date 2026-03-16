@@ -5,7 +5,7 @@ window.modoEdicion = { activo: false, id: null, form: null };
 window.usuarioActual = 'Equipo';
 window.miRol = null;
 
-// --- LOGIN Y SESIÓN MULTI-EMPRESA --- Bienvenido Pepe ---
+// --- LOGIN Y SESIÓN MULTI-EMPRESA ---
 window.toggleAuthMode = function(mode) {
     document.getElementById('auth-mode').value = mode;
     const regFields = document.getElementById('register-fields');
@@ -66,7 +66,6 @@ document.getElementById('auth-form').addEventListener('submit', async (e) => {
     const { data: perfil } = await clienteSupabase.from('perfiles').select('nombre, apellido').eq('id_usuario', data.user.id).maybeSingle();
     const nombreReal = perfil?.nombre || emailInput.split('@')[0];
 
-    // FIX 1: Ahora pedimos el "rol" a la base de datos
     const { data: empresasAsignadas } = await clienteSupabase.from('usuarios_empresas').select('id_empresa, nombre_empresa, rol').eq('id_usuario', data.user.id);
 
     if (!empresasAsignadas || empresasAsignadas.length === 0) {
@@ -88,48 +87,42 @@ document.getElementById('auth-form').addEventListener('submit', async (e) => {
     }
 });
 
-// FIX 2: Recibimos el rol al iniciar sesión
 window.iniciarSesionEmpresa = function(id, nombre, email, nombreUsuario, rol) {
-    // 1. Cargamos las variables en la memoria temporal
     window.miEmpresaId = id;
     window.usuarioActual = nombreUsuario;
     window.miRol = rol; 
     
-    // 2. Guardamos la credencial en la bóveda (Persistencia)
     localStorage.setItem('sesion_activa_olympia', JSON.stringify({
         id: id, nombre: nombre, email: email, nombreUsuario: nombreUsuario, rol: rol
     }));
 
-    // 3. Mostramos el panel principal (¡AHORA SÍ APAGAMOS EL LOGIN!)
     const login = document.getElementById('login-container');
     const selector = document.getElementById('selector-empresa-container');
     const dashboard = document.getElementById('dashboard-container');
     
-    if (login) login.classList.add('hidden'); // Ocultamos la caja de login
-    if (selector) selector.classList.add('hidden'); // Ocultamos el selector
-    if (dashboard) dashboard.classList.remove('hidden'); // Mostramos la app
+    if (login) login.classList.add('hidden');
+    if (selector) selector.classList.add('hidden');
+    if (dashboard) dashboard.classList.remove('hidden');
     
-    // 4. ACTUALIZAMOS LOS NOMBRES EN LA BARRA SUPERIOR
-    const spanUsuario = document.getElementById('user-name-display'); // ¡EL ID CORRECTO!
+    const spanUsuario = document.getElementById('user-name-display');
     if (spanUsuario) spanUsuario.innerText = nombreUsuario; 
     
     const dropEmail = document.getElementById('user-email-dropdown');
     if (dropEmail) dropEmail.innerText = email;
 
-    // Ejecutamos tu función original que actualiza el header y el botón de parámetros
     if(window.actualizarTopBar) window.actualizarTopBar(nombre, rol);
-
-    // 5. Aplicamos permisos y cargamos vistas
     if (window.aplicarPermisosVisuales) window.aplicarPermisosVisuales();
 
     const urlParams = new URLSearchParams(window.location.search);
     const vistaDirecta = urlParams.get('v');
     
+    // 👉 AQUÍ ESTÁ LA MAGIA DEL INICIO INTELIGENTE
     if (vistaDirecta) {
         window.cambiarVista(vistaDirecta);
     } else {
-        window.cconst pantallaGuardada = localStorage.getItem('pantalla_actual') || 'dashboard';
-    window.cambiarVista(pantallaGuardada);ambiarVista('dashboard');
+        // Leemos dónde estaba el usuario. Si no hay nada, lo mandamos al dashboard.
+        const pantallaGuardada = localStorage.getItem('pantalla_actual') || 'dashboard';
+        window.cambiarVista(pantallaGuardada);
     }
     
     if (window.cargarDatosSelects) window.cargarDatosSelects();
@@ -159,15 +152,13 @@ window.volverASelectorEmpresa = async function() {
 }
 
 window.cerrarSesion = async function() {
-    // 1. Borramos la credencial de la bóveda
     localStorage.removeItem('sesion_activa_olympia');
+    localStorage.removeItem('pantalla_actual'); // Al salir, borramos la memoria de pantalla para empezar limpios
     
-    // 2. Si usamos Supabase Auth, le decimos que cierre la sesión en el servidor
     if (clienteSupabase && clienteSupabase.auth) {
         await clienteSupabase.auth.signOut();
     }
     
-    // 3. Recargamos la página limpia
     window.location.href = 'index.html'; 
 }
 
@@ -208,7 +199,9 @@ document.addEventListener('click', (e) => {
 
 // CARGA DINÁMICA DE VISTAS
 window.cambiarVista = async function(vista) {
+    // 👉 AQUÍ ANOTAMOS EN LA LIBRETA CADA VEZ QUE CAMBIA DE PANTALLA
     localStorage.setItem('pantalla_actual', vista);
+    
     const main = document.getElementById('main-content');
     main.innerHTML = '<div class="flex h-full items-center justify-center"><p class="text-slate-400 font-bold text-lg animate-pulse">Cargando...</p></div>';
     
@@ -246,8 +239,6 @@ window.cambiarVista = async function(vista) {
         if(vista === 'pedidos' && typeof window.cambiarSubTabPedidos === 'function') window.cambiarSubTabPedidos('sugerencias');
         if(vista === 'movimientos' && typeof window.cambiarTabMovimientos === 'function') window.cambiarTabMovimientos('compras');
         if(vista === 'reportes' && typeof window.cargarReportes === 'function') window.cargarReportes();
-        
-        // NUEVO: Si la vista es Parámetros, cargar los switches desde la Base de Datos
         if(vista === 'parametros') window.cargarParametros();
 
     } catch (error) {
@@ -282,20 +273,18 @@ window.eliminarReg = async function(tabla, id) {
 // CONTROL DEL HEADER Y ROLES
 // ==========================================
 window.actualizarTopBar = function(nombreEmpresa, rolUsuario) {
-    // 1. Ponemos el nombre de la empresa arriba
     const spanEmpresa = document.getElementById('header-nombre-empresa');
     if(spanEmpresa && nombreEmpresa) {
         spanEmpresa.innerHTML = `🏢 ${nombreEmpresa}`;
     }
 
-    // 2. Mostramos u ocultamos el botón de Parámetros según el rol
     const btnParametros = document.getElementById('btn-menu-parametros');
     if(btnParametros) {
         if(rolUsuario === 'Dueño') {
             btnParametros.classList.remove('hidden');
-            btnParametros.classList.add('block'); // Lo mostramos
+            btnParametros.classList.add('block');
         } else {
-            btnParametros.classList.add('hidden'); // Lo escondemos para Operadores y Admins
+            btnParametros.classList.add('hidden');
             btnParametros.classList.remove('block');
         }
     }
@@ -333,7 +322,6 @@ window.guardarParametros = async function() {
     
     try {
         await clienteSupabase.from('empresas').update({ configuracion: configNueva }).eq('id', window.miEmpresaId);
-        // Opcional: Mostrar que se guardó
         console.log("Parámetros guardados automáticamente");
     } catch (err) {
         alert("Error al guardar: " + err.message);
@@ -341,7 +329,6 @@ window.guardarParametros = async function() {
 };
 
 window.aplicarPermisosVisuales = async function() {
-    // Dueños y Admins ven todo siempre
     if (window.miRol === 'Dueño' || window.miRol === 'Admin' || window.miRol === 'Administrador') {
         ['catalogos', 'recetas', 'reportes'].forEach(modulo => {
             document.getElementById(`btn-menu-${modulo}`)?.classList.remove('hidden');
@@ -349,7 +336,6 @@ window.aplicarPermisosVisuales = async function() {
         return;
     }
     
-    // Si es Operador, leemos qué le dejaron ver
     if (window.miRol === 'Operador') {
         const { data } = await clienteSupabase.from('empresas').select('configuracion').eq('id', window.miEmpresaId).single();
         const config = data?.configuracion || {};
@@ -366,27 +352,21 @@ window.aplicarPermisosVisuales = async function() {
 };
 
 // ==========================================
-// RESTAURACIÓN AUTOMÁTICA DE SESIÓN (Anti-Parpadeo ⚡)
+// RESTAURACIÓN AUTOMÁTICA DE SESIÓN
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
     const sesion = localStorage.getItem('sesion_activa_olympia');
     
     if (sesion) {
-        // 1. APAGAMOS EL LOGIN INMEDIATAMENTE (Antes de que el usuario lo vea)
         const login = document.getElementById('login-container');
         if (login) login.classList.add('hidden');
 
-        // 2. Cargamos la sesión
         try {
             const s = JSON.parse(sesion);
-            console.log("Sesión restaurada con éxito para:", s.nombreUsuario);
-            
-            // Hacemos el inicio de sesión
             window.iniciarSesionEmpresa(s.id, s.nombre, s.email, s.nombreUsuario, s.rol);
         } catch (e) {
             console.error("Error leyendo la sesión:", e);
             localStorage.removeItem('sesion_activa_olympia');
-            // Si algo falla, volvemos a mostrar el login
             if (login) login.classList.remove('hidden'); 
         }
     }
