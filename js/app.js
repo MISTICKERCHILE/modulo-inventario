@@ -283,6 +283,13 @@ window.eliminarReg = async function(tabla, id) {
 // CONTROL DEL HEADER Y ROLES
 // ==========================================
 window.actualizarTopBar = function(nombreEmpresa, rolUsuario) {
+    // 1. Actualiza el título superior izquierdo
+    const mainTitle = document.getElementById('main-app-title');
+    if(mainTitle && nombreEmpresa) {
+        mainTitle.innerText = `Simple - ${nombreEmpresa}`;
+    }
+
+    // 2. Actualiza el nombre de la empresa al lado de la campanita
     const spanEmpresa = document.getElementById('header-nombre-empresa');
     if(spanEmpresa && nombreEmpresa) {
         spanEmpresa.innerHTML = `🏢 ${nombreEmpresa}`;

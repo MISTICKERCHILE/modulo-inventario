@@ -16,24 +16,24 @@ window.cargarHome = async function() {
 
 async function cargarMetricasHome() {
     try {
-        // Traemos las compras en tránsito como ejemplo de métrica
-        const { count: countCompras } = await clienteSupabase
+        // Conteo seguro de compras en tránsito (Igual que en tu dashboard original)
+        const { data: transitoData, error } = await clienteSupabase
             .from('compras_detalles')
-            .select('*', { count: 'exact', head: true })
-            .eq('estado', 'En Tránsito')
-            .eq('compras.id_empresa', window.miEmpresaId); 
-            // Nota: Este .eq requiere un inner join real si tus RLS no lo cubren, 
-            // pero para arrancar pondremos un valor por defecto si falla.
+            .select('id, compras!inner(id_empresa)')
+            .eq('compras.id_empresa', window.miEmpresaId)
+            .eq('estado', 'En Tránsito');
+        
+        if (error) throw error;
         
         const mCompras = document.getElementById('hm-metrica-compras');
-        if(mCompras) mCompras.innerText = countCompras || 0;
+        if(mCompras) mCompras.innerText = transitoData ? transitoData.length : 0;
 
-        // Por ahora dejamos estas simuladas hasta definir tus reglas de ventas/personas
+        // Simuladas por ahora
         document.getElementById('hm-metrica-ventas').innerText = "Próx.";
         document.getElementById('hm-metrica-inventario').innerText = "Activo";
 
     } catch (error) {
-        console.error("Error métricas:", error);
+        console.error("Error cargando métricas home:", error.message);
     }
 }
 
