@@ -1151,10 +1151,11 @@ window.imprimirCatalogoProductos = function() {
 // IMPORTADOR / EXPORTADOR MASIVO DE RECETAS
 // ==========================================
 window.exportarPlantillaRecetasCSV = function() {
-    var textoRecetas = "PRODUCTO A PREPARAR,INGREDIENTE,CANTIDAD NETA\n";
-    textoRecetas += "Ejemplo: Completo Italiano,Pan de Completo,1\n";
-    textoRecetas += "Ejemplo: Completo Italiano,Vienesa,1\n";
-    textoRecetas += "Ejemplo: Completo Italiano,Palta Molida,60\n";
+    // Cambiamos las comas por puntos y comas (;) para que el Excel latino lo ame
+    var textoRecetas = "PRODUCTO A PREPARAR;INGREDIENTE;CANTIDAD NETA\n";
+    textoRecetas += "Ejemplo: Completo Italiano;Pan de Completo;1\n";
+    textoRecetas += "Ejemplo: Completo Italiano;Vienesa;1\n";
+    textoRecetas += "Ejemplo: Completo Italiano;Palta Molida;60\n";
     
     var blob = new Blob(["\uFEFF" + textoRecetas], { type: 'text/csv;charset=utf-8;' }); 
     var link = document.createElement("a");
