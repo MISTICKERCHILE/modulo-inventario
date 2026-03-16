@@ -248,7 +248,6 @@ window.actualizarCantCarrito = async function(idSuc, idProd, idProv, nuevaCant) 
     window.cargarPedidosPlanificados();
 }
 
-// ... EL RESTO SE MANTIENE IGUAL HASTA LLEGAR A generarPedidoTransitoMasivo ...
 
 window.renderizarBandejaPedidos = function() {
     const contenedor = document.getElementById('contenedor-bandeja');
@@ -300,12 +299,109 @@ window.renderizarBandejaPedidos = function() {
                 <div class="flex justify-end gap-3 mt-2 flex-wrap">
                     <button onclick="imprimirPedido('${idProv}', '${data.nombreProv.replace(/'/g, "\\'")}')" class="px-4 py-2 bg-white text-slate-700 border border-slate-300 rounded font-bold shadow-sm hover:bg-slate-100 transition-colors">🖨️ Imprimir PDF</button>
                     <button onclick="whatsappPedido('${idProv}', '${data.nombreProv.replace(/'/g, "\\'")}')" class="px-4 py-2 bg-[#25D366] text-white rounded font-bold shadow-sm hover:bg-[#1ebe5d] transition-colors">💬 WhatsApp</button>
-                    <button onclick="generarPedidoTransitoMasivo('${idProv}')" class="px-6 py-2 bg-blue-600 text-white rounded font-bold shadow hover:bg-blue-700 transition-transform hover:scale-105">🚀 Ingresar al Sistema</button>
+                    <button onclick="generarPedidoTransitoMasivo('${idProv}')" class="px-6 py-2 bg-blue-600 text-white rounded font-bold shadow hover:bg-blue-700 transition-transform hover:scale-105">🚀 Pedido Generado</button>
                 </div>
             </div>
         </div>`;
     }
     lista.innerHTML = html;
+}
+
+// ==========================================
+// --- FUNCIONES DE IMPRESIÓN Y WHATSAPP ---
+// ==========================================
+window.imprimirPedido = async function(idProv, nombreProv) {
+    const items = window.carritoPedidos.filter(i => i.idProv === idProv);
+    if(items.length === 0) return alert("No hay productos en este pedido.");
+
+    const idSuc = items[0].idSuc;
+    const nombreSuc = items[0].nombreSuc;
+    const { data: sucData } = await clienteSupabase.from('sucursales').select('direccion').eq('id', idSuc).maybeSingle();
+    const direccionStr = sucData?.direccion || 'No registrada';
+
+    const fechaHoy = new Date().toLocaleDateString('es-CL');
+
+    let filasHtml = '';
+    items.forEach(item => {
+        filasHtml += `
+            <tr>
+                <td class="prod-col">${item.nombreProd}</td>
+                <td class="unit-col text-center font-mono font-bold">${item.cantUC}</td>
+                <td class="unit-col text-center font-bold text-gray-500">${item.abrevUC}</td>
+            </tr>
+        `;
+    });
+
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    printWindow.document.write(`
+        <html>
+        <head>
+            <title>Pedido ${fechaHoy} - ${nombreSuc}</title>
+            <style>
+                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+                body { font-family: 'Inter', sans-serif; margin: 0; padding: 20px; color: #333; }
+                .header-box { border: 2px solid #000; padding: 15px; border-radius: 8px; margin-bottom: 20px; background-color: #fff; }
+                .header-title { font-size: 24px; font-weight: 900; text-transform: uppercase; margin: 0 0 15px 0; text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; }
+                .info-grid { display: flex; flex-wrap: wrap; gap: 15px; }
+                .info-item { flex: 1 1 45%; font-size: 14px; }
+                .info-item strong { text-transform: uppercase; font-size: 12px; color: #555; display: block; }
+                table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                th, td { border: 1px solid #000; padding: 12px 8px; text-align: left; }
+                th { background-color: #f1f5f9; font-weight: bold; text-transform: uppercase; font-size: 12px; }
+                thead { display: table-header-group; }
+                tr { page-break-inside: avoid; }
+                .prod-col { font-weight: bold; font-size: 14px; }
+                .text-center { text-align: center; }
+                @media print { body { padding: 0; } @page { margin: 15mm; } .header-box { background-color: white !important; -webkit-print-color-adjust: exact; } th { background-color: #f1f5f9 !important; -webkit-print-color-adjust: exact; } }
+            </style>
+        </head>
+        <body>
+            <div class="header-box">
+                <h1 class="header-title">Orden de Pedido</h1>
+                <div class="info-grid">
+                    <div class="info-item"><strong>Proveedor:</strong><div style="font-size: 16px; font-weight: bold; margin-top: 4px;">${nombreProv}</div></div>
+                    <div class="info-item"><strong>Fecha:</strong><div style="font-size: 16px; margin-top: 4px;">${fechaHoy}</div></div>
+                    <div class="info-item"><strong>Sucursal Destino:</strong><div style="font-size: 16px; margin-top: 4px;">${nombreSuc}</div></div>
+                    <div class="info-item"><strong>Dirección de Entrega:</strong><div style="font-size: 14px; margin-top: 4px;">${direccionStr}</div></div>
+                </div>
+            </div>
+            <table>
+                <thead><tr><th>Producto / Insumo</th><th style="width: 120px; text-align: center;">Cantidad</th><th style="width: 100px; text-align: center;">Unidad</th></tr></thead>
+                <tbody>${filasHtml}</tbody>
+            </table>
+            <script>window.onload = function() { window.print(); setTimeout(function() { window.close(); }, 500); }<\/script>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+}
+
+window.whatsappPedido = async function(idProv, nombreProv) {
+    const items = window.carritoPedidos.filter(i => i.idProv === idProv);
+    if(items.length === 0) return alert("No hay productos en este pedido.");
+
+    const { data: provData } = await clienteSupabase.from('proveedores').select('whatsapp').eq('id', idProv).maybeSingle();
+    let telf = provData?.whatsapp ? provData.whatsapp.replace(/\D/g,'') : '';
+
+    const nombreSuc = items[0].nombreSuc;
+    const fechaHoy = new Date().toLocaleDateString('es-CL');
+
+    let texto = `Hola, este es nuestro pedido para el ${fechaHoy}:\n\n`;
+    texto += `*Destino:* Sucursal ${nombreSuc}\n`;
+    texto += `*Proveedor:* ${nombreProv}\n\n`;
+    texto += `*LISTA DE PRODUCTOS:*\n`;
+
+    items.forEach(item => {
+        texto += `- ${item.cantUC} ${item.abrevUC} de ${item.nombreProd}\n`;
+    });
+
+    texto += `\nPor favor confirmar recepción. ¡Gracias!`;
+
+    const url = telf
+        ? `https://wa.me/${telf}?text=${encodeURIComponent(texto)}`
+        : `https://wa.me/?text=${encodeURIComponent(texto)}`;
+
+    window.open(url, '_blank');
 }
 
 window.generarPedidoTransitoMasivo = async function(idProv) {
@@ -635,7 +731,7 @@ window.guardarRecepcionMasiva = async function() {
                     id_empresa: window.miEmpresaId, id_producto: idProd, id_ubicacion: idUbi, 
                     tipo_movimiento: tipoMov, cantidad_movida: cantUA, costo_unitario_movimiento: precioRealUC, referencia: refMov 
                 }]);
-                
+
                 // Guardamos el movimiento en el historial con el nuevo costo unitario
                 await clienteSupabase.from('movimientos_inventario').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_ubicacion: idUbi, tipo_movimiento: tipoMov, cantidad_movida: cantUA, costo_unitario_movimiento: precioRealUC, referencia: refMov }]);
                 
