@@ -379,6 +379,7 @@ window.whatsappPedido = async function(idProv, nombreProv) {
 }
 
 // ==== LA FUNCIÓN BLINDADA CON TRY/CATCH ====
+// ==== LA FUNCIÓN BLINDADA CON TRY/CATCH ====
 window.generarPedidoTransitoMasivo = async function(idProv) {
     const itemsDelProveedor = window.carritoPedidos.filter(i => i.idProv === idProv);
     if(itemsDelProveedor.length === 0) return;
@@ -393,6 +394,7 @@ window.generarPedidoTransitoMasivo = async function(idProv) {
         // Ponemos el cursor en espera para que el usuario sepa que está cargando
         document.body.style.cursor = 'wait';
 
+        // 1. Guardamos la cabecera del pedido (El "Camión")
         const { data: cabecera, error: errCabecera } = await clienteSupabase.from('compras').insert([{
             id_empresa: window.miEmpresaId, id_proveedor: idProv, total_compra: totalEstimado, estado: 'En Tránsito'
         }]).select('id').single();
@@ -400,18 +402,39 @@ window.generarPedidoTransitoMasivo = async function(idProv) {
         if (errCabecera) throw errCabecera;
 
         if(cabecera) {
+            // 2. Metemos las cajas al camión (Los detalles)
             const detallesAInsertar = itemsDelProveedor.map(item => ({
                 id_compra: cabecera.id, id_producto: item.idProd, id_sucursal_destino: item.idSuc,
                 cantidad_uc: item.cantUC, precio_unitario_uc: item.precioRef, subtotal: item.cantUC * item.precioRef, estado: 'En Tránsito'
             }));
             const { error: errDetalles } = await clienteSupabase.from('compras_detalles').insert(detallesAInsertar);
             if (errDetalles) throw errDetalles;
+            
+            // 👉 EL BISTURÍ (PASO 3): Borrar la "Sugerencia Manual" (el 0.01) para que no vuelva a aparecer
+            // Recorremos los productos de este pedido para ver si alguno tenía el truco del 0.01
+            for (const item of itemsDelProveedor) {
+                // Buscamos su regla de stock actual
+                const { data: reglaActual } = await clienteSupabase.from('reglas_stock_sucursal')
+                    .select('id, stock_minimo_ua')
+                    .eq('id_sucursal', item.idSuc)
+                    .eq('id_producto', item.idProd)
+                    .maybeSingle();
+                
+                // Si la regla existía y el stock mínimo era exactamente 0.01 (la marca manual)...
+                if (reglaActual && reglaActual.stock_minimo_ua === 0.01) {
+                    // ...lo devolvemos a 0 (cero) para apagar la alerta manual.
+                    await clienteSupabase.from('reglas_stock_sucursal')
+                        .update({ stock_minimo_ua: 0 })
+                        .eq('id', reglaActual.id);
+                }
+            }
         }
 
-        // Limpiamos la memoria
+        // 4. Limpiamos la memoria del carrito
         window.carritoPedidos = window.carritoPedidos.filter(i => i.idProv !== idProv);
         window.guardarCarritoEnMemoria();
 
+        // 5. Refrescamos las pantallas
         window.renderizarBandejaPedidos();
         window.cargarPedidosPlanificados();
         alert("✅ Pedido/Orden generada exitosamente. Revisa las pestañas de Tránsito o Producción.");
