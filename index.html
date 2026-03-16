@@ -125,6 +125,10 @@
                     <button onclick="toggleMenu()" class="text-slate-300 hover:text-white text-3xl font-bold">&times;</button>
                 </div>
             
+                <button onclick="cambiarVista('home')" id="btn-menu-home" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>🏠</span> <span class="menu-texto">Inicio</span></button>
+
+                <button onclick="cambiarVista('dashboard')" id="btn-menu-dashboard" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>📊</span> <span class="menu-texto">Modulo-Inventario</span></button>
+
                 <button onclick="cambiarVista('inventario')" id="btn-menu-inventario" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>📦</span> <span class="menu-texto">Inventario</span></button>
                 
                 <button onclick="cambiarVista('pedidos')" id="btn-menu-pedidos" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors">
@@ -383,6 +387,7 @@
 
     <script src="js/supabase.js"></script>
     <script src="js/app.js"></script>
+    <script src="js/home.js"></script>
     <script src="js/dashboard.js"></script>
     <script src="js/empresas.js"></script>
     <script src="js/catalogos.js"></script>

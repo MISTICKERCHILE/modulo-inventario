@@ -228,6 +228,7 @@ window.cambiarVista = async function(vista) {
         main.innerHTML = html;
         
         // AUTO-ARRANQUE DEPENDIENDO DE LA VISTA
+        if(vista === 'home' && typeof window.cargarHome === 'function') window.cargarHome();
         if(vista === 'dashboard' && typeof window.cargarDashboard === 'function') window.cargarDashboard();
         if(vista === 'empresas' && typeof window.cargarEmpresas === 'function') window.cargarEmpresas();
         if(vista === 'catalogos' && typeof window.cargarCategorias === 'function') {
