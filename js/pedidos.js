@@ -71,7 +71,7 @@ window.cargarPedidosPlanificados = async function() {
 
         (prods||[]).forEach(p => {
             const regla = (reglas||[]).find(r => r.id_sucursal === suc.id && r.id_producto === p.id);
-            if(!regla || (regla.stock_minimo_ua <= 0 && regla.stock_minimo_ua < 1000000)) return;
+            if(!regla || (regla.stock_minimo_ua == 0 && regla.stock_ideal_ua == 0)) return; // No hay lógica definida
 
             const stockFisico = (saldos||[]).filter(s => s.id_sucursal === suc.id && s.id_producto === p.id).reduce((sum, s) => sum + Number(s.cantidad_actual_ua), 0);
             const incomingUA = (transitoGlobal||[]).filter(t => t.id_sucursal_destino === suc.id && t.id_producto === p.id)
@@ -79,18 +79,33 @@ window.cargarPedidosPlanificados = async function() {
 
             const stockVirtual = stockFisico + incomingUA;
             
-            // 👉 LEYENDO EL TRUCO DEL MILLÓN
-            const esSugerenciaManual = regla.stock_minimo_ua >= 1000000;
-            const stockMinimoReal = regla.stock_minimo_ua % 1000000; 
+            // 👉 IDENTIFICANDO EL TRUCO NEGATIVO
+            const esBanderinManual = regla.stock_minimo_ua < 0;
+            // Para cálculos operativos de reorden automatico, usamos valor absoluto
+            const stockMinimoEstrategico = Math.abs(regla.stock_minimo_ua); 
+            const stockIdealEstrategico = regla.stock_ideal_ua;
 
-            if (stockVirtual <= stockMinimoReal || esSugerenciaManual) {
+            // Condición de reorden: Bajo estratégico O Banderín Manual
+            if (stockVirtual <= stockMinimoEstrategico || esBanderinManual) {
                 
                 let sugeridoUA = 0;
-                if (esSugerenciaManual) {
-                    sugeridoUA = regla.stock_ideal_ua > 0 ? (regla.stock_ideal_ua - stockVirtual) : 1;
-                    if (sugeridoUA <= 0) sugeridoUA = 1; 
+                const esStockOK = stockVirtual > stockMinimoEstrategico; // Es manual pero el stock está bien (Stock OK)
+
+                // 👉 RESOLVIENDO LÓGICA DE CANTIDAD (Inspirado en la idea de doblar stock de usuario)
+                if (esBanderinManual && esStockOK) {
+                    // Es manual pero el stock está OK. ¿Cuánto pedir? Usamos la idea del usuario de doblar stock.
+                    // Pedimos lo mismo que tenemos ahora.
+                    sugeridoUA = stockFisico > 0 ? stockFisico : 1; 
                 } else {
-                    sugeridoUA = regla.stock_ideal_ua > 0 ? (regla.stock_ideal_ua - stockVirtual) : (stockMinimoReal - stockVirtual + 1);
+                    // Lógica estándar de reorden automático (o manual de Stock Bajo)
+                    // Pedimos lo que falte para llegar al ideal stratégico
+                    if(stockIdealEstrategico > 0) {
+                        sugeridoUA = stockIdealEstrategico - stockVirtual;
+                        if(sugeridoUA <= 0) sugeridoUA = 1; // Seguridad por si ideal es mal puesto
+                    } else {
+                        // Si no hay ideal, pedimos lo que falta para superar el min estratégico + 1 de seguridad
+                        sugeridoUA = stockMinimoEstrategico - stockVirtual + 1;
+                    }
                 }
 
                 const sugeridoUC = p.cant_en_ua_de_uc > 0 ? (sugeridoUA / p.cant_en_ua_de_uc).toFixed(2) : sugeridoUA;
@@ -101,7 +116,7 @@ window.cargarPedidosPlanificados = async function() {
                 const estaEnCarrito = window.carritoPedidos.some(item => item.idProd === p.id && item.idSuc === suc.id);
                 const displayStyle = estaEnCarrito ? 'style="display: none;"' : '';
                 const txtEnCamino = incomingUA > 0 ? `<br><span class="text-[9px] text-blue-500 font-bold uppercase">+ ${incomingUA.toFixed(2)} en camino</span>` : '';
-                const badgeManual = esSugerenciaManual ? `<span class="bg-indigo-100 text-indigo-700 text-[9px] px-1.5 py-0.5 rounded ml-2 uppercase font-bold">Añadido Manual</span>` : '';
+                const badgeManual = esBanderinManual ? `<span class="bg-indigo-100 text-indigo-700 text-[9px] px-1.5 py-0.5 rounded ml-2 uppercase font-bold">Añadido Manual</span>` : '';
 
                 const paramsParaBoton = `'${suc.id}', '${suc.nombre}', '${p.id}', '${p.nombre.replace(/'/g, "\\'")}', ${sugeridoUC}, '${abrevUC}', ${precioRef}`;
 
@@ -406,7 +421,7 @@ window.generarPedidoTransitoMasivo = async function(idProv) {
             const { error: errDetalles } = await clienteSupabase.from('compras_detalles').insert(detallesAInsertar);
             if (errDetalles) throw errDetalles;
             
-            // 👉 LIMPIANDO EL TRUCO DEL MILLÓN
+            // 👉 LIMPIANDO EL TRUCO NEGATIVO
             for (const item of itemsDelProveedor) {
                 const { data: reglaActual } = await clienteSupabase.from('reglas_stock_sucursal')
                     .select('id, stock_minimo_ua')
@@ -414,10 +429,10 @@ window.generarPedidoTransitoMasivo = async function(idProv) {
                     .eq('id_producto', item.idProd)
                     .maybeSingle();
                 
-                if (reglaActual && reglaActual.stock_minimo_ua >= 1000000) {
-                    // Le quitamos el millón para que vuelva a su mínimo original y desaparezca de sugerencias manuales
+                if (reglaActual && reglaActual.stock_minimo_ua < 0) {
+                    // Multiplicamos por -1 para restaurar el estratégico original (limpiar banderín)
                     await clienteSupabase.from('reglas_stock_sucursal')
-                        .update({ stock_minimo_ua: reglaActual.stock_minimo_ua % 1000000 })
+                        .update({ stock_minimo_ua: reglaActual.stock_minimo_ua * -1 })
                         .eq('id', reglaActual.id);
                 }
             }

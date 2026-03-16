@@ -157,12 +157,12 @@ window.ordenarInventario = function(columna) {
     renderizarTablaInventario(datosOrdenados);
 }
 
-// ACCIÓN: AGREGAR A PEDIDO (El Truco del Millón 💎)
+// ACCIÓN: AGREGAR A PEDIDO MANUAL (El Banderín Negativo 💎)
 window.agregarASugerenciaInteligente = async function(idProd, nombre) {
-    if(!confirm(`¿Deseas agregar "${nombre}" a la lista de pedidos de forma manual?`)) return;
+    if(!confirm(`¿Deseas agregar "${nombre}" a la lista de pedidos?`)) return;
 
     try {
-        // 1. Verificar si ya está en una orden en curso
+        // 1. Verificar si ya está en una orden en curso (Tránsito o Producción)
         const { data: enCurso, error: errCurso } = await clienteSupabase
             .from('compras_detalles')
             .select('id, estado, compras!inner(id_empresa)')
@@ -175,27 +175,30 @@ window.agregarASugerenciaInteligente = async function(idProd, nombre) {
 
         if (enCurso && enCurso.length > 0) {
             alert(`⚠️ "${nombre}" ya se encuentra en estado "${enCurso[0].estado}". Por favor, revisa tus órdenes en curso.`);
-            return; 
+            return; // Detenemos la ejecución
         }
 
-        // 2. EL TRUCO DEL MILLÓN: Sumamos 1,000,000 al stock mínimo para marcarlo como "Manual" sin perder el original
+        // 2. Si no está en curso, lo agregamos a sugerencias.
+        // EL BANDERÍN NEGATIVO: Usamos números negativos como marcador operativo. Es físicamente imposible un mínimo negativo.
         const { data: regla } = await clienteSupabase.from('reglas_stock_sucursal')
-            .select('id, stock_minimo_ua')
+            .select('id, stock_minimo_ua, stock_ideal_ua')
             .eq('id_sucursal', window.sucursalActivaID)
             .eq('id_producto', idProd)
             .maybeSingle();
 
         if(!regla) {
+            // Si no tenía regla, creamos una mínima negativa
             await clienteSupabase.from('reglas_stock_sucursal').insert({
                 id_empresa: window.miEmpresaId,
                 id_sucursal: window.sucursalActivaID,
                 id_producto: idProd,
-                stock_minimo_ua: 1000000 // Si no tenía mínimo, su mínimo ahora es 0 + un millón
+                stock_minimo_ua: -1, // Mínimo imposible = Banderín manual activo
+                stock_ideal_ua: 0 
             });
-        } else if (regla.stock_minimo_ua < 1000000) {
-            // Solo le sumamos el millón si no lo tiene sumado ya
+        } else if (regla.stock_minimo_ua >= 0) {
+            // Si la regla existe y es operativa (positiva), la multiplicamos por -1 para marcarla manual sin perder el valor estratégico.
             await clienteSupabase.from('reglas_stock_sucursal')
-                .update({ stock_minimo_ua: regla.stock_minimo_ua + 1000000 })
+                .update({ stock_minimo_ua: regla.stock_minimo_ua * -1 })
                 .eq('id', regla.id);
         }
         
