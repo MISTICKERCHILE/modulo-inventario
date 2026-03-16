@@ -26,7 +26,7 @@ window.cargarDatosSelects = async function() {
     const selCat = document.getElementById('prod-categoria');
     if(selCat) selCat.innerHTML = '<option value="">Sin Categoría asignada...</option>' + (cat||[]).map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
     
-    const { data: uni } = await clienteSupabase.from('unidades').select('*').eq('id_empresa', window.miEmpresaId).order('nombre');
+    const { data: uni } = await clienteSupabase.from('unidades').select('*').or(`id_empresa.eq.${window.miEmpresaId},id_empresa.is.null`).order('nombre');
     window.unidadesMemoria = uni || []; 
     const opcionesUni = '<option value="">Seleccione Unidad...</option>' + window.unidadesMemoria.map(u => `<option value="${u.id}">${u.nombre} (${u.abreviatura})</option>`).join('');
     
@@ -418,7 +418,6 @@ if (!window.eventosFormProductoAtados) {
     });
     window.eventosFormProductoAtados = true;
 }
-
 // ==========================================
 // --- RECETAS Y BUSCADOR INTELIGENTE ---
 // ==========================================
@@ -815,28 +814,39 @@ window.quitarIngrediente = async function(id) {
 }
 
 // ==========================================
-// --- IMPORTAR, EXPORTAR Y PDF ---
+// --- IMPORTAR, EXPORTAR Y PDF DE PRODUCTOS ---
 // ==========================================
-
 window.exportarProductosCSV = function() {
-    // 1. Ahora lee desde la variable de memoria correcta de esta vista
+    const getU = (id) => window.unidadesMemoria?.find(u => u.id === id)?.nombre || "";
+    const getC = (id) => window.catListMemoria?.find(c => c.id === id)?.nombre || "";
+
+    let csvContent = "NOMBRE;CATEGORIA;COSTO NETO REF.;UNIDAD COMPRA;CONTIENE CANT. UC-UA;UNIDAD ALMACENAMIENTO;CONTIENE CANT. UA-UM;UNIDAD MENOR;CONTIENE CANT. UM-UR;UNIDAD RECETA;CANTIDAD MINIMA (UA);CANTIDAD IDEAL (UA);RECETA;RECETA CONFIDENCIAL;CONTROL STOCK\n";
+
     if (!window.productosListMemoria || window.productosListMemoria.length === 0) {
-        return alert("No hay productos para exportar.");
+        csvContent += "Ejemplo: Pan de Hamburguesa;Panaderia;2000;Bolsa;10;Unidad;1;Unidad;1;Unidad;50;100;FALSE;FALSE;TRUE\n";
+        csvContent += "Ejemplo: Tomate Rey;Verduras;1500;Cajon;15;Kilo;1000;Gramo;1;Gramo;10;30;FALSE;FALSE;TRUE\n";
+        csvContent += "Ejemplo: Hamburguesa Completa;Preparaciones;0;Unidad;1;Unidad;1;Unidad;1;Unidad;0;0;TRUE;FALSE;FALSE\n";
+    } else {
+        window.productosListMemoria.forEach(p => {
+            let nombre = p.nombre ? `"${p.nombre.replace(/"/g, '""')}"` : "";
+            let cat = `"${getC(p.id_categoria)}"`;
+            let costo = p.ultimo_costo_uc || 0;
+            let uCompra = `"${getU(p.id_unidad_compra)}"`;
+            let cant_ua_uc = p.cant_en_ua_de_uc || 1;
+            let uAlmacen = `"${getU(p.id_unidad_almacenamiento)}"`;
+            let cant_um_ua = p.cant_en_um_de_ua || 1;
+            let uMenor = `"${getU(p.id_unidad_menor)}"`;
+            let cant_ur_um = p.cant_en_ur_de_um || 1;
+            let uReceta = `"${getU(p.id_unidad_receta)}"`;
+            let min = 0; 
+            let ideal = 0; 
+            let receta = p.tiene_receta ? "TRUE" : "FALSE";
+            let confidencial = "FALSE"; 
+            let control = p.control_stock !== false ? "TRUE" : "FALSE";
+            
+            csvContent += `${nombre};${cat};${costo};${uCompra};${cant_ua_uc};${uAlmacen};${cant_um_ua};${uMenor};${cant_ur_um};${uReceta};${min};${ideal};${receta};${confidencial};${control}\n`;
+        });
     }
-
-    let csvContent = "Nombre,Categoria_ID,Unidad_Compra_ID,Cant_UA_por_UC,Unidad_Almacen_ID,Tiene_Receta,Control_Fisico\n";
-
-    window.productosListMemoria.forEach(p => {
-        let nombre = p.nombre ? `"${p.nombre.replace(/"/g, '""')}"` : "";
-        let idCat = p.id_categoria || "";
-        let idUC = p.id_unidad_compra || "";
-        let factor = p.cant_en_ua_de_uc || "1";
-        let idUA = p.id_unidad_almacenamiento || "";
-        let tieneReceta = p.tiene_receta ? "TRUE" : "FALSE";
-        let controlFisico = p.control_stock !== false ? "TRUE" : "FALSE";
-        
-        csvContent += `${nombre},${idCat},${idUC},${factor},${idUA},${tieneReceta},${controlFisico}\n`;
-    });
 
     const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' }); 
     const link = document.createElement("a");
@@ -849,9 +859,16 @@ window.exportarProductosCSV = function() {
     document.body.removeChild(link);
 }
 
-window.importarProductosCSV = function(inputElement) {
+window.importarProductosCSV = async function(inputElement) {
     const file = inputElement.files[0];
     if (!file) return;
+
+    const [{ data: cats }, { data: unis }] = await Promise.all([
+        clienteSupabase.from('categorias').select('id, nombre').eq('id_empresa', window.miEmpresaId),
+        clienteSupabase.from('unidades').select('id, nombre, abreviatura').or(`id_empresa.eq.${window.miEmpresaId},id_empresa.is.null`)
+    ]);
+    window.catListMemoria = cats || [];
+    window.unidadesMemoria = unis || [];
 
     inputElement.value = '';
 
@@ -862,46 +879,124 @@ window.importarProductosCSV = function(inputElement) {
             const filas = results.data;
             if(filas.length === 0) return alert("El archivo está vacío.");
             
-            if(!filas[0].hasOwnProperty('Nombre')) {
+            if(!filas[0].hasOwnProperty('NOMBRE') || !filas[0].hasOwnProperty('CATEGORIA')) {
                 return alert("❌ Formato incorrecto. Por favor descarga la plantilla con el botón Exportar primero.");
             }
 
             let insertados = 0;
-            let omitidos = 0;
-
+            let omitidosDuplicados = [];
+            let categoriasFaltantes = new Set();
+            let unidadesFaltantes = new Set();
+            let listosParaInsertar = [];
+            
             const tbody = document.getElementById('lista-productos');
-            if(tbody) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-emerald-600 font-bold animate-pulse">⏳ Importando y validando ${filas.length} productos...</td></tr>`;
+            if(tbody) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-emerald-600 font-bold animate-pulse">⏳ Leyendo y validando el archivo... No cierres esta ventana.</td></tr>`;
+
+            const normalizarTexto = (str) => {
+                if (!str) return '';
+                let s = str.toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+                s = s.replace(/\s+/g, ' '); 
+                if (s.endsWith('es') && s.length > 3) s = s.substring(0, s.length - 2); 
+                else if (s.endsWith('s') && s.length > 2) s = s.substring(0, s.length - 1); 
+                return s;
+            };
+
+            const getCatId = (name) => {
+                if (!name || name.trim() === '') return null;
+                const normName = normalizarTexto(name);
+                const found = window.catListMemoria.find(c => normalizarTexto(c.nombre) === normName);
+                if (found) return found.id;
+                categoriasFaltantes.add(name.trim());
+                return null;
+            };
+
+            const getUniId = (name) => {
+                if (!name || name.trim() === '') return null;
+                const normName = normalizarTexto(name);
+                const found = window.unidadesMemoria.find(u => 
+                    normalizarTexto(u.nombre) === normName || normalizarTexto(u.abreviatura) === normName
+                );
+                if (found) return found.id;
+                unidadesFaltantes.add(name.trim());
+                return null;
+            };
 
             for (const fila of filas) {
-                const nombre = fila['Nombre']?.trim();
+                const nombre = fila['NOMBRE']?.trim();
                 if (!nombre) continue;
+                if (nombre.toLowerCase().startsWith('ejemplo:')) continue;
 
-                // 2. Usa la variable correcta para verificar duplicados
                 const existe = window.productosListMemoria.some(p => p.nombre.toLowerCase() === nombre.toLowerCase());
-                
                 if (existe) {
-                    omitidos++;
+                    omitidosDuplicados.push(nombre);
                     continue; 
                 }
 
-                const payload = {
-                    id_empresa: window.miEmpresaId,
-                    nombre: nombre,
-                    id_categoria: fila['Categoria_ID'] || null,
-                    id_unidad_compra: fila['Unidad_Compra_ID'] || null,
-                    cant_en_ua_de_uc: fila['Cant_UA_por_UC'] ? parseFloat(fila['Cant_UA_por_UC']) : 1,
-                    id_unidad_almacenamiento: fila['Unidad_Almacen_ID'] || null,
-                    tiene_receta: fila['Tiene_Receta'] === 'TRUE',
-                    control_stock: fila['Control_Fisico'] === 'FALSE' ? false : true
-                };
+                let catRaw = fila['CATEGORIA'];
+                let ucRaw = fila['UNIDAD COMPRA'];
+                let uaRaw = fila['UNIDAD ALMACENAMIENTO'];
+                let umRaw = fila['UNIDAD MENOR'];
+                let urRaw = fila['UNIDAD RECETA'];
 
-                const { error } = await clienteSupabase.from('productos').insert([payload]);
-                if (!error) insertados++;
+                let idCat = getCatId(catRaw);
+                let idUC = getUniId(ucRaw);
+                let idUA = getUniId(uaRaw);
+                let idUM = getUniId(umRaw);
+                let idUR = getUniId(urRaw);
+
+                let tieneErrorCatalogo = false;
+                if (catRaw && !idCat) tieneErrorCatalogo = true;
+                if (ucRaw && !idUC) tieneErrorCatalogo = true;
+                if (uaRaw && !idUA) tieneErrorCatalogo = true;
+                if (umRaw && !idUM) tieneErrorCatalogo = true;
+                if (urRaw && !idUR) tieneErrorCatalogo = true;
+
+                if (!tieneErrorCatalogo) {
+                    listosParaInsertar.push({
+                        fila: fila,
+                        payload: {
+                            id_empresa: window.miEmpresaId,
+                            nombre: nombre,
+                            id_categoria: idCat,
+                            ultimo_costo_uc: parseFloat(fila['COSTO NETO REF.']) || 0,
+                            id_unidad_compra: idUC,
+                            cant_en_ua_de_uc: parseFloat(fila['CONTIENE CANT. UC-UA']) || 1,
+                            id_unidad_almacenamiento: idUA,
+                            cant_en_um_de_ua: parseFloat(fila['CONTIENE CANT. UA-UM']) || 1,
+                            id_unidad_menor: idUM,
+                            cant_en_ur_de_um: parseFloat(fila['CONTIENE CANT. UM-UR']) || 1,
+                            id_unidad_receta: idUR,
+                            tiene_receta: fila['RECETA']?.toUpperCase() === 'TRUE',
+                            control_stock: fila['CONTROL STOCK']?.toUpperCase() !== 'FALSE'
+                        }
+                    });
+                }
             }
 
-            alert(`✅ Importación terminada.\n\nNuevos agregados: ${insertados}\nDuplicados omitidos: ${omitidos}`);
+            const { data: sucursales } = await clienteSupabase.from('sucursales').select('id').eq('id_empresa', window.miEmpresaId);
+
+            for (const item of listosParaInsertar) {
+                const { data: newProd, error } = await clienteSupabase.from('productos').insert([item.payload]).select('id').single();
+                if (!error && newProd) {
+                    insertados++;
+                    
+                    if (item.payload.control_stock !== false) {
+                        let min = parseFloat(item.fila['CANTIDAD MINIMA (UA)']) || 0;
+                        let ideal = parseFloat(item.fila['CANTIDAD IDEAL (UA)']) || 0;
+                        
+                        if ((min > 0 || ideal > 0) && sucursales) {
+                            for (const suc of sucursales) {
+                                await clienteSupabase.from('reglas_stock_sucursal').insert([{ 
+                                    id_empresa: window.miEmpresaId, id_producto: newProd.id, id_sucursal: suc.id, stock_minimo_ua: min, stock_ideal_ua: ideal 
+                                }]);
+                            }
+                        }
+                    }
+                }
+            }
+
+            window.mostrarReporteImportacion(insertados, omitidosDuplicados, Array.from(categoriasFaltantes), Array.from(unidadesFaltantes));
             window.cargarProductos(); 
-            if(window.cargarDatosSelects) window.cargarDatosSelects(); 
         },
         error: function(err) {
             alert("Error leyendo el archivo CSV: " + err.message);
@@ -909,7 +1004,60 @@ window.importarProductosCSV = function(inputElement) {
     });
 }
 
-// NUEVA FUNCIÓN: IMPRIMIR CATÁLOGO CON FORMATO
+window.mostrarReporteImportacion = function(insertados, duplicados, catFaltantes, uniFaltantes) {
+    let container = document.getElementById('reporte-importacion-container');
+    
+    if (!container) {
+        const tableWrap = document.querySelector('#lista-productos')?.closest('.bg-white');
+        if (tableWrap) {
+            container = document.createElement('div');
+            container.id = 'reporte-importacion-container';
+            tableWrap.parentNode.insertBefore(container, tableWrap);
+        } else {
+            return alert(`Importación terminada. ${insertados} registrados. ${duplicados.length} duplicados.`); 
+        }
+    }
+
+    let html = `
+    <div class="bg-white border-2 border-slate-200 rounded-xl p-6 mb-6 shadow-sm relative">
+        <button onclick="document.getElementById('reporte-importacion-container').innerHTML=''" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold text-2xl" title="Cerrar Reporte">&times;</button>
+        <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2"><span>📊</span> Reporte de Importación</h3>`;
+
+    if (insertados > 0) {
+        html += `<div class="mb-4 p-4 bg-emerald-50 text-emerald-800 rounded-lg border border-emerald-200">
+            <p class="font-bold text-lg">✅ ¡Éxito! Se importaron ${insertados} productos correctamente.</p>
+        </div>`;
+    } else {
+         html += `<div class="mb-4 p-4 bg-yellow-50 text-yellow-800 rounded-lg border border-yellow-200">
+            <p class="font-bold text-lg">⚠️ Ningún producto nuevo fue importado a la base de datos.</p>
+        </div>`;
+    }
+
+    if (catFaltantes.length > 0 || uniFaltantes.length > 0) {
+        html += `<div class="mb-4 p-4 bg-red-50 text-red-800 rounded-lg border border-red-200">
+            <p class="font-bold mb-2">🛑 ¡Atención! Los siguientes nombres no existen en tu sistema. Se omitieron esos productos:</p>
+            <p class="text-sm mb-3">Debes crear estos catálogos en el menú "Catálogos" antes de subir el Excel:</p>
+            <ul class="list-disc pl-5 text-sm font-medium space-y-1">
+                ${catFaltantes.length > 0 ? `<li><b class="text-red-900">Categorías Faltantes:</b> ${catFaltantes.join(', ')}</li>` : ''}
+                ${uniFaltantes.length > 0 ? `<li><b class="text-red-900">Unidades Faltantes:</b> ${uniFaltantes.join(', ')}</li>` : ''}
+            </ul>
+        </div>`;
+    }
+
+    if (duplicados.length > 0) {
+        html += `<div class="mb-2 p-4 bg-orange-50 text-orange-800 rounded-lg border border-orange-200">
+            <p class="font-bold mb-1">⚠️ Productos Duplicados (Ya existen, no se sobreescribieron):</p>
+            <p class="text-sm text-orange-700 mb-2">${duplicados.length} productos omitidos porque su nombre coincidió de forma exacta.</p>
+            <div class="mt-2 text-xs text-orange-700 font-medium max-h-32 overflow-y-auto bg-orange-100/50 p-3 rounded">
+                ${duplicados.join(' <span class="mx-2 text-orange-300">•</span> ')}
+            </div>
+        </div>`;
+    }
+
+    html += `</div>`;
+    container.innerHTML = html;
+}
+
 window.imprimirCatalogoProductos = function() {
     let filtrados = [...window.productosListMemoria];
 
@@ -998,3 +1146,119 @@ window.imprimirCatalogoProductos = function() {
     `);
     printWindow.document.close();
 }
+
+// ==========================================
+// IMPORTADOR / EXPORTADOR MASIVO DE RECETAS
+// ==========================================
+window.exportarPlantillaRecetasCSV = function() {
+    // Cambiamos las comas por puntos y comas (;) para que el Excel latino lo ame
+    var textoRecetas = "PRODUCTO A PREPARAR;INGREDIENTE;CANTIDAD NETA\n";
+    textoRecetas += "Ejemplo: Completo Italiano;Pan de Completo;1\n";
+    textoRecetas += "Ejemplo: Completo Italiano;Vienesa;1\n";
+    textoRecetas += "Ejemplo: Completo Italiano;Palta Molida;60\n";
+    
+    var blob = new Blob(["\uFEFF" + textoRecetas], { type: 'text/csv;charset=utf-8;' }); 
+    var link = document.createElement("a");
+    var url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", "Plantilla_Recetas.csv");
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+window.importarRecetasCSV = async function(inputElement) {
+    var file = inputElement.files[0];
+    if (!file) return;
+
+    const { data: todosLosProductos } = await clienteSupabase.from('productos')
+        .select('id, nombre, tiene_receta')
+        .eq('id_empresa', window.miEmpresaId);
+    
+    var catalogo = todosLosProductos || [];
+    inputElement.value = '';
+
+    Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        transformHeader: function(h) {
+            return h.replace(/^\uFEFF/g, '').trim().toUpperCase();
+        },
+        complete: async function(results) {
+            var filas = results.data;
+            if(filas.length === 0) return alert("El archivo está vacío.");
+            
+            if(!filas[0].hasOwnProperty('PRODUCTO A PREPARAR') || !filas[0].hasOwnProperty('INGREDIENTE')) {
+                return alert("❌ Formato incorrecto. Por favor usa la plantilla original sin cambiar los títulos.");
+            }
+
+            var insertados = 0;
+            var productosFaltantes = new Set();
+            var ingredientesFaltantes = new Set();
+            var listosParaInsertar = [];
+            var padresAActualizar = new Set(); 
+
+            var container = document.getElementById('reporte-importacion-recetas');
+            if(container) container.innerHTML = `<div class="p-6 text-center text-blue-600 font-bold bg-white rounded-xl shadow-sm">⏳ Construyendo recetas...</div>`;
+
+            for (const fila of filas) {
+                var nombrePadre = fila['PRODUCTO A PREPARAR']?.trim();
+                var nombreIngrediente = fila['INGREDIENTE']?.trim();
+                var cant = parseFloat(fila['CANTIDAD NETA']) || 0;
+
+                if (!nombrePadre || nombrePadre.toLowerCase().includes("ejemplo:")) continue;
+                if (nombrePadre.toUpperCase() === 'PRODUCTO A PREPARAR') continue;
+
+                var padreObj = catalogo.find(p => p.nombre.toLowerCase() === nombrePadre.toLowerCase());
+                var ingreObj = catalogo.find(p => p.nombre.toLowerCase() === nombreIngrediente.toLowerCase());
+
+                if (!padreObj) productosFaltantes.add(nombrePadre);
+                if (!ingreObj) ingredientesFaltantes.add(nombreIngrediente);
+
+                if (padreObj && ingreObj && cant > 0) {
+                    listosParaInsertar.push({
+                        id_empresa: window.miEmpresaId,
+                        id_producto_padre: padreObj.id,
+                        id_ingrediente: ingreObj.id,
+                        cantidad_neta: cant
+                    });
+                    if (!padreObj.tiene_receta) padresAActualizar.add(padreObj.id);
+                }
+            }
+
+            for (const item of listosParaInsertar) {
+                const { data: existe } = await clienteSupabase.from('recetas')
+                    .select('id').eq('id_producto_padre', item.id_producto_padre).eq('id_ingrediente', item.id_ingrediente).maybeSingle();
+
+                if (!existe) {
+                    const { error } = await clienteSupabase.from('recetas').insert([item]);
+                    if (!error) insertados++;
+                }
+            }
+
+            for (const idPadre of padresAActualizar) {
+                await clienteSupabase.from('productos').update({ tiene_receta: true }).eq('id', idPadre);
+            }
+
+            var htmlReporte = `<div class="bg-white border-2 border-blue-200 rounded-xl p-6 mt-4 relative">
+                <button onclick="document.getElementById('reporte-importacion-recetas').innerHTML=''" class="absolute top-4 right-4 font-bold text-2xl">&times;</button>
+                <h3 class="text-xl font-bold mb-4">🥣 Reporte de Recetas</h3>
+                <p><b>✅ Insertados:</b> ${insertados}</p>`;
+            
+            if (productosFaltantes.size > 0 || ingredientesFaltantes.size > 0) {
+                htmlReporte += `<div class="mt-4 p-4 bg-red-50 text-red-800 rounded">
+                    <p><b>🛑 Faltantes en catálogo (Omitidos):</b></p>
+                    <p class="text-sm">Productos: ${Array.from(productosFaltantes).join(', ')}</p>
+                    <p class="text-sm">Ingredientes: ${Array.from(ingredientesFaltantes).join(', ')}</p>
+                </div>`;
+            }
+            htmlReporte += `</div>`;
+            
+            if(container) container.innerHTML = htmlReporte;
+            if(window.cargarBuscadorRecetas) window.cargarBuscadorRecetas();
+            if(window.productoActualParaReceta) window.cargarIngredientesReceta();
+        },
+        error: function(err) { alert("Error: " + err.message); }
+    });
+};

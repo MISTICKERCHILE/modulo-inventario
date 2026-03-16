@@ -1,4 +1,46 @@
 // ==========================================
+// CEREBRO DE EDICIÓN GLOBAL (Previene recargas y errores)
+// ==========================================
+window.modoEdicion = { activo: false, id: null, form: null };
+
+window.activarEdicionGlobal = function(formId, recordId, camposObj) {
+    window.modoEdicion = { activo: true, id: recordId, form: formId };
+    
+    // Llenamos los campos del formulario con los datos del ítem
+    for (const [idElemento, valor] of Object.entries(camposObj)) {
+        const el = document.getElementById(idElemento);
+        if (el) el.value = valor;
+    }
+    
+    // Cambiamos el color y texto del botón para que el usuario sepa que está editando
+    const form = document.getElementById(`form-${formId}`);
+    if(form) {
+        const btnSubmit = form.querySelector('button[type="submit"]');
+        if(btnSubmit) {
+            btnSubmit.innerText = 'Actualizar ✏️';
+            btnSubmit.classList.replace('bg-slate-800', 'bg-blue-600');
+        }
+        const btnCancelar = document.getElementById(`btn-cancelar-${formId}`);
+        if(btnCancelar) btnCancelar.classList.remove('hidden');
+    }
+};
+
+window.cancelarEdicion = function(formId) {
+    window.modoEdicion = { activo: false, id: null, form: null };
+    const form = document.getElementById(`form-${formId}`);
+    if(form) {
+        form.reset();
+        const btnSubmit = form.querySelector('button[type="submit"]');
+        if(btnSubmit) {
+            btnSubmit.innerText = formId === 'proveedor' ? 'Guardar Proveedor' : (formId === 'sucursal' ? 'Guardar Sucursal' : (formId === 'ubicacion' ? 'Guardar Ubicación' : 'Guardar'));
+            btnSubmit.classList.replace('bg-blue-600', 'bg-slate-800');
+        }
+        const btnCancelar = document.getElementById(`btn-cancelar-${formId}`);
+        if(btnCancelar) btnCancelar.classList.add('hidden');
+    }
+};
+
+// ==========================================
 // DELEGADOR GLOBAL DE EVENTOS (Evita que la página se recargue)
 // ==========================================
 if (!window.eventosCatalogosAtados) {
@@ -153,19 +195,34 @@ window.cargarCategorias = async function() {
 }
 
 window.cargarUnidades = async function() {
-    const { data } = await clienteSupabase.from('unidades').select('*').eq('id_empresa', window.miEmpresaId).order('nombre');
-    document.getElementById('lista-unidades').innerHTML = (data||[]).map(u => `
+    // Traemos las unidades PRIVADAS de la empresa actual OR las UNIVERSALES (id_empresa is null)
+    const { data } = await clienteSupabase.from('unidades')
+        .select('*')
+        .or(`id_empresa.eq.${window.miEmpresaId},id_empresa.is.null`)
+        .order('nombre');
+        
+    document.getElementById('lista-unidades').innerHTML = (data||[]).map(u => {
+        const esUniversal = u.id_empresa === null;
+        
+        // Si es universal, le ponemos un candadito visual. Si es privada, le damos los botones normales.
+        const botonesHtml = esUniversal 
+            ? `<span class="px-2 py-1 bg-blue-50 text-blue-600 text-[10px] font-bold uppercase rounded border border-blue-200 shadow-sm" title="Unidad del Sistema (No editable)">🌎 Universal</span>`
+            : `
+                <button onclick="activarEdicionGlobal('unidad', '${u.id}', {'nombre-unidad': '${u.nombre.replace(/'/g,"\\'")}', 'abrev-unidad': '${u.abreviatura}'})" class="text-blue-500 hover:text-blue-700 text-lg transition-transform hover:scale-110" title="Editar">✏️</button>
+                <button onclick="eliminarReg('unidades', '${u.id}')" class="text-slate-400 hover:text-red-500 text-lg transition-transform hover:scale-110" title="Eliminar">🗑️</button>
+            `;
+
+        return `
         <li class="px-6 py-4 flex justify-between items-center hover:bg-slate-50 transition-colors">
             <div>
                 <span class="font-bold text-slate-700">${u.nombre}</span>
-                <span class="ml-2 px-2 py-1 bg-slate-200 text-slate-600 text-xs rounded font-mono">${u.abreviatura}</span>
+                <span class="ml-2 px-2 py-1 bg-slate-200 text-slate-600 text-[10px] rounded font-mono font-bold">${u.abreviatura}</span>
             </div>
-            <div class="flex gap-4">
-                <button onclick="activarEdicionGlobal('unidad', '${u.id}', {'nombre-unidad': '${u.nombre.replace(/'/g,"\\'")}', 'abrev-unidad': '${u.abreviatura}'})" class="text-blue-500 hover:text-blue-700 text-lg transition-transform hover:scale-110" title="Editar">✏️</button>
-                <button onclick="eliminarReg('unidades', '${u.id}')" class="text-slate-400 hover:text-red-500 text-lg transition-transform hover:scale-110" title="Eliminar">🗑️</button>
+            <div class="flex gap-4 items-center">
+                ${botonesHtml}
             </div>
         </li>
-    `).join('');
+    `}).join('');
 }
 
 window.cargarProveedores = async function() {

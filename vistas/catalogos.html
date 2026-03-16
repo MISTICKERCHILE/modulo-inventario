@@ -4,7 +4,7 @@
     <button onclick="cambiarTab('unidades')" id="tab-unidades" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors">Unidades</button>
     <button onclick="cambiarTab('proveedores')" id="tab-proveedores" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors">Proveedores</button>
     <button onclick="cambiarTab('sucursales')" id="tab-sucursales" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors">Sucursales</button>
-    <button onclick="cambiarTab('ubicaciones')" id="tab-ubicaciones" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors">Ubicaciones</button>
+    <button onclick="cambiarTab('ubicaciones')" id="tab-ubicaciones" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors">Ubicación Interna</button>
     <button onclick="cambiarTab('tipos_movimiento')" id="tab-tipos_movimiento" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors">Tipos de Mov.</button>
 </div>
 
@@ -53,9 +53,12 @@
 
 <div id="seccion-ubicaciones" class="hidden space-y-4">
     <form id="form-ubicacion" class="bg-white p-6 rounded-xl shadow-sm border grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-        <div><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Sucursal Padre</label><select id="sel-sucursal-ubi" required class="w-full px-4 py-2 border rounded-md bg-slate-50 outline-none"></select></div>
-        <div><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Ubicación Interna</label><input type="text" id="nombre-ubicacion" required class="w-full px-4 py-2 border rounded-md bg-slate-50 outline-none"></div>
-        <div class="col-span-1 md:col-span-2 flex justify-end gap-3 mt-2 border-t pt-4"><button type="button" id="btn-cancelar-ubicacion" onclick="cancelarEdicion('ubicacion')" class="hidden px-6 py-2 border text-gray-600 rounded-md font-bold">Cancelar</button><button type="submit" class="px-8 py-2 bg-slate-800 text-white rounded-md font-bold shadow-sm">Guardar Ubicación</button></div>
+        <div><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Sucursal Padre</label><select id="sel-sucursal-ubi" required class="w-full px-4 py-2 border rounded-md bg-slate-50 outline-none focus:bg-white focus:ring-2 focus:ring-emerald-500"></select></div>
+        <div><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Ubicación Interna</label><input type="text" id="nombre-ubicacion" required class="w-full px-4 py-2 border rounded-md bg-slate-50 outline-none focus:bg-white focus:ring-2 focus:ring-emerald-500"></div>
+        <div class="col-span-1 md:col-span-2 flex justify-end gap-3 mt-2 border-t pt-4">
+            <button type="button" id="btn-cancelar-ubicacion" onclick="cancelarEdicion('ubicacion')" class="hidden px-6 py-2 border text-gray-600 rounded-md font-bold">Cancelar</button>
+            <button type="submit" class="px-8 py-2 bg-slate-800 text-white rounded-md font-bold shadow-sm transition-colors">Guardar Ubicación</button>
+        </div>
     </form>
     <div class="bg-white rounded-xl shadow-sm border overflow-hidden"><ul id="lista-ubicaciones" class="divide-y divide-gray-100"></ul></div>
 </div>
