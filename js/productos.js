@@ -1179,28 +1179,28 @@ window.imprimirCatalogoProductos = function() {
 }
 
 // ==========================================
-// IMPORTADOR / EXPORTADOR MASIVO DE RECETAS (VERSIÓN ESTABLE)
+// IMPORTADOR / EXPORTADOR MASIVO DE RECETAS (ESTABLE)
 // ==========================================
 
 window.exportarPlantillaRecetasCSV = function() {
-    let contenido = "PRODUCTO A PREPARAR,INGREDIENTE,CANTIDAD NETA\n";
-    contenido += "Ejemplo: Completo Italiano,Pan de Completo,1\n";
-    contenido += "Ejemplo: Completo Italiano,Vienesa,1\n";
-    contenido += "Ejemplo: Completo Italiano,Palta Molida,60\n";
+    var textoRecetas = "PRODUCTO A PREPARAR,INGREDIENTE,CANTIDAD NETA\n";
+    textoRecetas += "Ejemplo: Completo Italiano,Pan de Completo,1\n";
+    textoRecetas += "Ejemplo: Completo Italiano,Vienesa,1\n";
+    textoRecetas += "Ejemplo: Completo Italiano,Palta Molida,60\n";
     
-    const blob = new Blob(["\uFEFF" + contenido], { type: 'text/csv;charset=utf-8;' }); 
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
+    var blob = new Blob(["\uFEFF" + textoRecetas], { type: 'text/csv;charset=utf-8;' }); 
+    var link = document.createElement("a");
+    var url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
-    link.setAttribute("download", `Plantilla_Recetas.csv`);
+    link.setAttribute("download", "Plantilla_Recetas.csv");
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-}
+};
 
 window.importarRecetasCSV = async function(inputElement) {
-    const file = inputElement.files[0];
+    var file = inputElement.files[0];
     if (!file) return;
 
     // Traemos el catálogo de productos
@@ -1208,47 +1208,42 @@ window.importarRecetasCSV = async function(inputElement) {
         .select('id, nombre, tiene_receta')
         .eq('id_empresa', window.miEmpresaId);
     
-    const catalogo = todosLosProductos || [];
+    var catalogo = todosLosProductos || [];
     inputElement.value = '';
 
     Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
-        // Limpia cualquier carácter invisible de los títulos
         transformHeader: function(h) {
             return h.replace(/^\uFEFF/g, '').trim().toUpperCase();
         },
         complete: async function(results) {
-            const filas = results.data;
+            var filas = results.data;
             if(filas.length === 0) return alert("El archivo está vacío.");
             
-            // Validamos títulos
             if(!filas[0].hasOwnProperty('PRODUCTO A PREPARAR') || !filas[0].hasOwnProperty('INGREDIENTE')) {
                 return alert("❌ Formato incorrecto. Por favor usa la plantilla original sin cambiar los títulos.");
             }
 
-            let insertados = 0;
-            let productosFaltantes = new Set();
-            let ingredientesFaltantes = new Set();
-            let listosParaInsertar = [];
-            let padresAActualizar = new Set(); 
+            var insertados = 0;
+            var productosFaltantes = new Set();
+            var ingredientesFaltantes = new Set();
+            var listosParaInsertar = [];
+            var padresAActualizar = new Set(); 
 
-            // Mostrar estado de carga
-            const container = document.getElementById('reporte-importacion-recetas');
+            var container = document.getElementById('reporte-importacion-recetas');
             if(container) container.innerHTML = `<div class="p-6 text-center text-blue-600 font-bold bg-white rounded-xl shadow-sm">⏳ Construyendo recetas...</div>`;
 
-            // Procesar datos
             for (const fila of filas) {
-                const nombrePadre = fila['PRODUCTO A PREPARAR']?.trim();
-                const nombreIngrediente = fila['INGREDIENTE']?.trim();
-                const cant = parseFloat(fila['CANTIDAD NETA']) || 0;
+                var nombrePadre = fila['PRODUCTO A PREPARAR']?.trim();
+                var nombreIngrediente = fila['INGREDIENTE']?.trim();
+                var cant = parseFloat(fila['CANTIDAD NETA']) || 0;
 
-                // Ignorar ejemplos y encabezados repetidos
                 if (!nombrePadre || nombrePadre.toLowerCase().includes("ejemplo:")) continue;
                 if (nombrePadre.toUpperCase() === 'PRODUCTO A PREPARAR') continue;
 
-                const padreObj = catalogo.find(p => p.nombre.toLowerCase() === nombrePadre.toLowerCase());
-                const ingreObj = catalogo.find(p => p.nombre.toLowerCase() === nombreIngrediente.toLowerCase());
+                var padreObj = catalogo.find(p => p.nombre.toLowerCase() === nombrePadre.toLowerCase());
+                var ingreObj = catalogo.find(p => p.nombre.toLowerCase() === nombreIngrediente.toLowerCase());
 
                 if (!padreObj) productosFaltantes.add(nombrePadre);
                 if (!ingreObj) ingredientesFaltantes.add(nombreIngrediente);
@@ -1264,7 +1259,6 @@ window.importarRecetasCSV = async function(inputElement) {
                 }
             }
 
-            // Insertar en BD
             for (const item of listosParaInsertar) {
                 const { data: existe } = await clienteSupabase.from('recetas')
                     .select('id').eq('id_producto_padre', item.id_producto_padre).eq('id_ingrediente', item.id_ingrediente).maybeSingle();
@@ -1275,13 +1269,11 @@ window.importarRecetasCSV = async function(inputElement) {
                 }
             }
 
-            // Actualizar check de "tiene_receta"
             for (const idPadre of padresAActualizar) {
                 await clienteSupabase.from('productos').update({ tiene_receta: true }).eq('id', idPadre);
             }
 
-            // Imprimir Reporte
-            let htmlReporte = `<div class="bg-white border-2 border-blue-200 rounded-xl p-6 mt-4 relative">
+            var htmlReporte = `<div class="bg-white border-2 border-blue-200 rounded-xl p-6 mt-4 relative">
                 <button onclick="document.getElementById('reporte-importacion-recetas').innerHTML=''" class="absolute top-4 right-4 font-bold text-2xl">&times;</button>
                 <h3 class="text-xl font-bold mb-4">🥣 Reporte de Recetas</h3>
                 <p><b>✅ Insertados:</b> ${insertados}</p>`;
@@ -1301,4 +1293,4 @@ window.importarRecetasCSV = async function(inputElement) {
         },
         error: function(err) { alert("Error: " + err.message); }
     });
-}
+};
