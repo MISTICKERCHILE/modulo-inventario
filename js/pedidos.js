@@ -27,31 +27,36 @@ window.cambiarSubTabPedidos = function(subtab) {
 }
 
 // ==========================================
-// --- SECCIÓN 1: PEDIDOS SUGERIDOS Y LOCALSTORAGE ---
+// --- SECCIÓN 1: PEDIDOS SUGERIDOS (COLABORATIVO EN LA NUBE) ---
 // ==========================================
 window.carritoPedidos = [];
 window.proveedoresGlobal = [];
-
-window.guardarCarritoEnMemoria = function() {
-    localStorage.setItem('carrito_pedidos_' + window.miEmpresaId, JSON.stringify(window.carritoPedidos));
-    if(window.actualizarBadgeCarrito) window.actualizarBadgeCarrito();
-}
+window.sugerenciasGlobal = []; // Memoria para el buscador inteligente
 
 window.cargarPedidosPlanificados = async function() {
-    try {
-        const guardado = localStorage.getItem('carrito_pedidos_' + window.miEmpresaId);
-        if(guardado) {
-            window.carritoPedidos = JSON.parse(guardado);
-            if(window.actualizarBadgeCarrito) window.actualizarBadgeCarrito();
-        } else {
-            window.carritoPedidos = [];
-        }
-    } catch(e) {
-        console.error("Error leyendo carrito de memoria:", e);
-        window.carritoPedidos = [];
-        localStorage.removeItem('carrito_pedidos_' + window.miEmpresaId);
-    }
+    // 1. CARGAR CARRITO DESDE LA NUBE (Supabase)
+    // 👉 Le pedimos a Supabase que traiga también la abreviatura de la Unidad de Compra (UC)
+    const { data: carritoNube } = await clienteSupabase.from('carrito_pedidos')
+        .select(`
+            id_sucursal, id_producto, id_proveedor, cantidad_uc, precio_referencia, 
+            sucursales(nombre), 
+            productos(nombre, id_unidad_compra(abreviatura)), 
+            proveedores(nombre)
+        `)
+        .eq('id_empresa', window.miEmpresaId);
 
+    window.carritoPedidos = (carritoNube || []).map(c => ({
+        idSuc: c.id_sucursal, nombreSuc: c.sucursales?.nombre,
+        idProd: c.id_producto, nombreProd: c.productos?.nombre,
+        idProv: c.id_proveedor, nombreProv: c.proveedores?.nombre,
+        cantUC: c.cantidad_uc, precioRef: c.precio_referencia, 
+        // 👉 Extraemos la abreviatura correcta. Si no tiene, pone 'UC'.
+        abrevUC: c.productos?.id_unidad_compra?.abreviatura || 'UC' 
+    }));
+
+    if(window.actualizarBadgeCarrito) window.actualizarBadgeCarrito();
+
+    // 2. CARGAR DATOS PARA SUGERENCIAS
     const [{ data: sucursales }, { data: prods }, { data: reglas }, { data: provs }, { data: saldos }, { data: transitoGlobal }] = await Promise.all([
         clienteSupabase.from('sucursales').select('id, nombre').eq('id_empresa', window.miEmpresaId),
         clienteSupabase.from('productos').select('id, nombre, ultimo_costo_uc, cant_en_ua_de_uc, id_unidad_almacenamiento(abreviatura), id_unidad_compra(abreviatura)').eq('id_empresa', window.miEmpresaId),
@@ -62,16 +67,13 @@ window.cargarPedidosPlanificados = async function() {
     ]);
 
     window.proveedoresGlobal = provs || [];
-    const optsProvs = '<option value="">Elige Proveedor...</option>' + (provs||[]).map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
+    window.sugerenciasGlobal = [];
 
-    let htmlGlobal = '';
-
+    // 3. CALCULAR SUGERENCIAS
     (sucursales||[]).forEach(suc => {
-        let htmlFilasSucursal = '';
-
         (prods||[]).forEach(p => {
             const regla = (reglas||[]).find(r => r.id_sucursal === suc.id && r.id_producto === p.id);
-            if(!regla || (regla.stock_minimo_ua == 0 && regla.stock_ideal_ua == 0)) return; // No hay lógica definida
+            if(!regla || (regla.stock_minimo_ua == 0 && regla.stock_ideal_ua == 0)) return;
 
             const stockFisico = (saldos||[]).filter(s => s.id_sucursal === suc.id && s.id_producto === p.id).reduce((sum, s) => sum + Number(s.cantidad_actual_ua), 0);
             const incomingUA = (transitoGlobal||[]).filter(t => t.id_sucursal_destino === suc.id && t.id_producto === p.id)
@@ -79,31 +81,21 @@ window.cargarPedidosPlanificados = async function() {
 
             const stockVirtual = stockFisico + incomingUA;
             
-            // 👉 IDENTIFICANDO EL TRUCO NEGATIVO
             const esBanderinManual = regla.stock_minimo_ua < 0;
-            // Para cálculos operativos de reorden automatico, usamos valor absoluto
             const stockMinimoEstrategico = Math.abs(regla.stock_minimo_ua); 
             const stockIdealEstrategico = regla.stock_ideal_ua;
 
-            // Condición de reorden: Bajo estratégico O Banderín Manual
             if (stockVirtual <= stockMinimoEstrategico || esBanderinManual) {
-                
                 let sugeridoUA = 0;
-                const esStockOK = stockVirtual > stockMinimoEstrategico; // Es manual pero el stock está bien (Stock OK)
+                const esStockOK = stockVirtual > stockMinimoEstrategico; 
 
-                // 👉 RESOLVIENDO LÓGICA DE CANTIDAD (Inspirado en la idea de doblar stock de usuario)
                 if (esBanderinManual && esStockOK) {
-                    // Es manual pero el stock está OK. ¿Cuánto pedir? Usamos la idea del usuario de doblar stock.
-                    // Pedimos lo mismo que tenemos ahora.
                     sugeridoUA = stockFisico > 0 ? stockFisico : 1; 
                 } else {
-                    // Lógica estándar de reorden automático (o manual de Stock Bajo)
-                    // Pedimos lo que falte para llegar al ideal stratégico
                     if(stockIdealEstrategico > 0) {
                         sugeridoUA = stockIdealEstrategico - stockVirtual;
-                        if(sugeridoUA <= 0) sugeridoUA = 1; // Seguridad por si ideal es mal puesto
+                        if(sugeridoUA <= 0) sugeridoUA = 1; 
                     } else {
-                        // Si no hay ideal, pedimos lo que falta para superar el min estratégico + 1 de seguridad
                         sugeridoUA = stockMinimoEstrategico - stockVirtual + 1;
                     }
                 }
@@ -114,126 +106,149 @@ window.cargarPedidosPlanificados = async function() {
                 const precioRef = p.ultimo_costo_uc || 0;
 
                 const estaEnCarrito = window.carritoPedidos.some(item => item.idProd === p.id && item.idSuc === suc.id);
-                const displayStyle = estaEnCarrito ? 'style="display: none;"' : '';
-                const txtEnCamino = incomingUA > 0 ? `<br><span class="text-[9px] text-blue-500 font-bold uppercase">+ ${incomingUA.toFixed(2)} en camino</span>` : '';
-                const badgeManual = esBanderinManual ? `<span class="bg-indigo-100 text-indigo-700 text-[9px] px-1.5 py-0.5 rounded ml-2 uppercase font-bold">Añadido Manual</span>` : '';
 
-                const paramsParaBoton = `'${suc.id}', '${suc.nombre}', '${p.id}', '${p.nombre.replace(/'/g, "\\'")}', ${sugeridoUC}, '${abrevUC}', ${precioRef}`;
-
-                htmlFilasSucursal += `
-                <tr id="fila-sug-${suc.id}-${p.id}" ${displayStyle} class="hover:bg-orange-50 transition-colors border-b border-orange-100">
-                    <td class="px-4 py-3 font-bold text-slate-700 text-sm flex items-center">${p.nombre} ${badgeManual}</td>
-                    <td class="px-4 py-3 text-center leading-tight">
-                        <span class="bg-red-100 text-red-700 px-2 py-1 rounded font-bold text-xs">${stockFisico.toFixed(2)} ${abrevUA}</span>
-                        ${txtEnCamino}
-                    </td>
-                    <td class="px-4 py-3 text-center text-orange-800 font-bold text-sm">
-                        ${sugeridoUA.toFixed(2)} ${abrevUA} 
-                        <br><span class="text-[10px] text-orange-500 font-normal uppercase">Pedir sugerido: ${sugeridoUC} ${abrevUC}</span>
-                    </td>
-                    <td class="px-4 py-3">
-                        <select id="prov-select-${suc.id}-${p.id}" class="w-full px-2 py-1 border border-orange-200 rounded text-xs outline-none focus:ring-1 focus:ring-orange-400 bg-white">
-                            ${optsProvs}
-                        </select>
-                    </td>
-                    <td class="px-4 py-3 text-center">
-                        <div class="flex items-center justify-center gap-1">
-                            <span class="text-sm font-bold text-slate-600">$${precioRef}</span>
-                            <button onclick="abrirModalHistorialPrecios('${p.id}', '${p.nombre.replace(/'/g, "\\'")}')" class="text-blue-500 hover:text-blue-700" title="Ver precios históricos">ℹ️</button>
-                        </div>
-                    </td>
-                    <td class="px-4 py-3 text-right">
-                        <button onclick="agregarPedidoAlCarrito(${paramsParaBoton}, document.getElementById('prov-select-${suc.id}-${p.id}').value)" class="text-xs bg-slate-800 text-white px-3 py-2 rounded shadow hover:bg-slate-700 font-bold transition-transform hover:scale-105">+ Añadir a Pedido</button>
-                    </td>
-                </tr>`;
+                window.sugerenciasGlobal.push({
+                    idSuc: suc.id, nombreSuc: suc.nombre, idProd: p.id, nombreProd: p.nombre,
+                    stockFisico, incomingUA, sugeridoUA, sugeridoUC, abrevUA, abrevUC, precioRef,
+                    esManual: esBanderinManual, estaEnCarrito, stockVirtual, stockMinimoEstrategico
+                });
             }
         });
-
-        if(htmlFilasSucursal !== '') {
-            htmlGlobal += `
-            <div class="bg-white rounded-xl shadow-sm border border-orange-200 overflow-hidden mb-6">
-                <div class="bg-orange-100 px-4 py-3 border-b border-orange-200">
-                    <h4 class="font-bold text-orange-900 text-lg flex items-center gap-2"><span>🏢</span> Productos a Solicitar para: ${suc.nombre}</h4>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-orange-100">
-                        <thead class="bg-orange-50 text-xs font-bold text-orange-800 uppercase">
-                            <tr><th class="px-4 py-2 text-left">Producto</th><th class="px-4 py-2 text-center">Stock Físico Real</th><th class="px-4 py-2 text-center">Sugerido Pedir</th><th class="px-4 py-2 text-left w-48">Elegir Proveedor</th><th class="px-4 py-2 text-center">Últ. Precio Ref.</th><th class="px-4 py-2 text-right">Acción</th></tr>
-                        </thead>
-                        <tbody class="divide-y divide-orange-50 bg-white">${htmlFilasSucursal}</tbody>
-                    </table>
-                </div>
-            </div>`;
-        }
     });
 
-    const containerAlertas = document.getElementById('lista-alertas-compras');
-    if(containerAlertas) containerAlertas.innerHTML = htmlGlobal || '<div class="p-8 text-center bg-emerald-50 rounded-xl border border-emerald-200 text-emerald-700 font-bold text-lg">🟢 Excelente. No hay productos que necesiten ser pedidos actualmente.</div>';
-
+    window.filtrarSugerencias(); // Pinta la pantalla
     window.renderizarBandejaPedidos();
 }
 
-window.abrirModalHistorialPrecios = async function(idProd, nombreProd) {
-    document.getElementById('hp-producto-nombre').innerText = nombreProd;
-    document.getElementById('modal-historial-precios').classList.remove('hidden');
-    const tbody = document.getElementById('lista-historial-precios');
-    tbody.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-slate-500">Buscando precios... 🕵️‍♀️</td></tr>';
+// NUEVO: BUSCADOR Y ORDENAMIENTO INTELIGENTE
+window.filtrarSugerencias = function() {
+    const term = (document.getElementById('search-sugerencias')?.value || '').toLowerCase().trim();
+    const sort = document.getElementById('sort-sugerencias')?.value || 'urgencia';
+    
+    let filtradas = [...window.sugerenciasGlobal];
 
-    const { data: historialCompras } = await clienteSupabase.from('compras_detalles')
-        .select(`precio_unitario_uc, compras!inner(fecha_compra, proveedores(nombre))`)
-        .eq('id_producto', idProd).order('compras(fecha_compra)', { ascending: false }).limit(10);
+    // 1. Filtrar
+    if(term) {
+        filtradas = filtradas.filter(s => s.nombreProd.toLowerCase().includes(term) || s.nombreSuc.toLowerCase().includes(term));
+    }
 
-    const { data: historialRef } = await clienteSupabase.from('proveedor_precios')
-        .select(`precio_referencia, fecha_actualizacion, proveedores(nombre)`).eq('id_producto', idProd);
+    // 2. Ordenar
+    filtradas.sort((a, b) => {
+        if(sort === 'nombre') return a.nombreProd.localeCompare(b.nombreProd);
+        if(sort === 'precio') return b.precioRef - a.precioRef;
+        if(sort === 'mayor_sugerido') return b.sugeridoUA - a.sugeridoUA;
+        // Urgencia (Por defecto): Manuales primero, luego los de menor stock virtual respecto a su mínimo
+        if(a.esManual !== b.esManual) return a.esManual ? -1 : 1;
+        const urgenciaA = a.stockVirtual - a.stockMinimoEstrategico;
+        const urgenciaB = b.stockVirtual - b.stockMinimoEstrategico;
+        return urgenciaA - urgenciaB;
+    });
 
-    let datosCombinados = [];
-    if (historialCompras) historialCompras.forEach(h => datosCombinados.push({ fecha: new Date(h.compras.fecha_compra), proveedor: h.compras.proveedores?.nombre || 'Desconocido', precio: h.precio_unitario_uc, tipo: '✅ Compra Real', colorBadge: 'bg-blue-100 text-blue-700' }));
-    if (historialRef) historialRef.forEach(r => datosCombinados.push({ fecha: new Date(r.fecha_actualizacion), proveedor: r.proveedores?.nombre || 'Desconocido', precio: r.precio_referencia, tipo: '📌 Ref. Catálogo', colorBadge: 'bg-emerald-100 text-emerald-700' }));
-    datosCombinados.sort((a, b) => b.fecha - a.fecha);
-
-    if (datosCombinados.length === 0) { tbody.innerHTML = '<tr><td colspan="3" class="text-center py-8 text-slate-400 italic">No hay precios registrados ni compras previas para este producto.</td></tr>'; return; }
-    tbody.innerHTML = datosCombinados.map(d => {
-        const fechaStr = d.fecha.toISOString().split('T')[0];
-        return `<tr class="hover:bg-slate-50 border-b border-slate-100 transition-colors">
-            <td class="px-4 py-3 text-slate-500 text-sm font-medium">${fechaStr}</td>
-            <td class="px-4 py-3"><span class="font-bold text-slate-700 block">${d.proveedor}</span><span class="text-[10px] font-bold px-2 py-0.5 rounded uppercase mt-1 inline-block ${d.colorBadge}">${d.tipo}</span></td>
-            <td class="px-4 py-3 text-right font-mono font-black text-slate-800 text-lg">$${d.precio}</td>
-        </tr>`;
-    }).join('');
+    window.renderizarHTMLSugerencias(filtradas);
 }
 
-window.agregarPedidoAlCarrito = function(idSuc, nombreSuc, idProd, nombreProd, cantUC, abrevUC, precioRef, idProv) {
-    if(!idProv) return alert("❌ Por favor, selecciona un proveedor en la lista antes de añadir al pedido.");
-    const nombreProv = window.proveedoresGlobal.find(p => p.id === idProv)?.nombre || 'Desconocido';
-    const existente = window.carritoPedidos.find(item => item.idProd === idProd && item.idSuc === idSuc && item.idProv === idProv);
-    if (existente) existente.cantUC += Number(cantUC);
-    else window.carritoPedidos.push({ idSuc, nombreSuc, idProd, nombreProd, cantUC: Number(cantUC), abrevUC, precioRef, idProv, nombreProv });
+// NUEVO: PINTAR HTML CON ACORDEONES PLEGABLES
+window.renderizarHTMLSugerencias = function(lista) {
+    const container = document.getElementById('lista-alertas-compras');
+    if(!container) return;
 
-    window.guardarCarritoEnMemoria();
-    window.renderizarBandejaPedidos();
+    if(lista.length === 0) {
+        container.innerHTML = '<div class="p-8 text-center bg-emerald-50 rounded-xl border border-emerald-200 text-emerald-700 font-bold text-lg">🟢 Excelente. No hay alertas ni sugerencias pendientes.</div>';
+        return;
+    }
+
+    const optsProvs = '<option value="">Elige Proveedor...</option>' + window.proveedoresGlobal.map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
+    
+    // Agrupamos por sucursal
+    const porSucursal = {};
+    lista.forEach(s => {
+        if(!porSucursal[s.idSuc]) porSucursal[s.idSuc] = { nombre: s.nombreSuc, items: [] };
+        porSucursal[s.idSuc].items.push(s);
+    });
+
+    let htmlGlobal = '';
+    for (const [idSuc, data] of Object.entries(porSucursal)) {
+        let htmlFilas = data.items.map(p => {
+            const displayStyle = p.estaEnCarrito ? 'style="display: none;"' : '';
+            const txtEnCamino = p.incomingUA > 0 ? `<br><span class="text-[9px] text-blue-500 font-bold uppercase">+ ${p.incomingUA.toFixed(2)} en camino</span>` : '';
+            const badgeManual = p.esManual ? `<span class="bg-indigo-100 text-indigo-700 text-[9px] px-1.5 py-0.5 rounded ml-2 uppercase font-bold">Manual</span>` : '';
+            const paramsParaBoton = `'${idSuc}', '${data.nombre}', '${p.idProd}', '${p.nombreProd.replace(/'/g, "\\'")}', ${p.sugeridoUC}, '${p.abrevUC}', ${p.precioRef}`;
+
+            return `
+            <tr id="fila-sug-${idSuc}-${p.idProd}" ${displayStyle} class="hover:bg-orange-50 transition-colors border-b border-orange-100">
+                <td class="px-4 py-3 font-bold text-slate-700 text-sm">${p.nombreProd} ${badgeManual}</td>
+                <td class="px-4 py-3 text-center leading-tight">
+                    <span class="bg-red-100 text-red-700 px-2 py-1 rounded font-bold text-xs">${p.stockFisico.toFixed(2)} ${p.abrevUA}</span>
+                    ${txtEnCamino}
+                </td>
+                <td class="px-4 py-3 text-center text-orange-800 font-bold text-sm">
+                    ${p.sugeridoUA} ${p.abrevUA} <br><span class="text-[10px] text-orange-500 uppercase">${p.sugeridoUC} ${p.abrevUC}</span>
+                </td>
+                <td class="px-4 py-3">
+                    <select id="prov-select-${idSuc}-${p.idProd}" class="w-full px-2 py-1 border border-orange-200 rounded text-xs outline-none bg-white">${optsProvs}</select>
+                </td>
+                <td class="px-4 py-3 text-center font-bold text-slate-600">$${p.precioRef}</td>
+                <td class="px-4 py-3 text-right">
+                    <button onclick="agregarPedidoAlCarrito(${paramsParaBoton}, document.getElementById('prov-select-${idSuc}-${p.idProd}').value)" class="text-xs bg-slate-800 text-white px-3 py-2 rounded shadow hover:bg-slate-700 font-bold">+ Añadir</button>
+                </td>
+            </tr>`;
+        }).join('');
+
+        htmlGlobal += `
+        <div class="bg-white rounded-xl shadow-sm border border-orange-200 overflow-hidden">
+            <button onclick="document.getElementById('tabla-suc-${idSuc}').classList.toggle('hidden')" class="w-full bg-orange-100 hover:bg-orange-200 transition-colors px-4 py-3 border-b border-orange-200 flex justify-between items-center outline-none">
+                <h4 class="font-bold text-orange-900 text-lg flex items-center gap-2"><span>🏢</span> ${data.nombre} <span class="text-xs bg-orange-500 text-white px-2 py-1 rounded-full ml-2">${data.items.length} sugerencias</span></h4>
+                <span class="text-orange-800 text-xl">🔽</span>
+            </button>
+            <div id="tabla-suc-${idSuc}" class="overflow-x-auto block">
+                <table class="min-w-full divide-y divide-orange-100">
+                    <thead class="bg-orange-50 text-xs font-bold text-orange-800 uppercase">
+                        <tr><th class="px-4 py-2 text-left">Producto</th><th class="px-4 py-2 text-center">Stock Real</th><th class="px-4 py-2 text-center">Sugerido</th><th class="px-4 py-2 text-left w-48">Proveedor</th><th class="px-4 py-2 text-center">Ref.</th><th class="px-4 py-2 text-right">Acción</th></tr>
+                    </thead>
+                    <tbody class="divide-y divide-orange-50 bg-white">${htmlFilas}</tbody>
+                </table>
+            </div>
+        </div>`;
+    }
+    container.innerHTML = htmlGlobal;
+}
+
+// CARRITO EN LA NUBE: Guardar
+window.agregarPedidoAlCarrito = async function(idSuc, nombreSuc, idProd, nombreProd, cantUC, abrevUC, precioRef, idProv) {
+    if(!idProv) return alert("❌ Selecciona un proveedor primero.");
+    
+    // Guardar en Supabase
+    const { data: existente } = await clienteSupabase.from('carrito_pedidos')
+        .select('id, cantidad_uc').eq('id_sucursal', idSuc).eq('id_producto', idProd).eq('id_proveedor', idProv).maybeSingle();
+
+    if(existente) {
+        await clienteSupabase.from('carrito_pedidos').update({ cantidad_uc: existente.cantidad_uc + Number(cantUC) }).eq('id', existente.id);
+    } else {
+        await clienteSupabase.from('carrito_pedidos').insert([{
+            id_empresa: window.miEmpresaId, id_sucursal: idSuc, id_producto: idProd, id_proveedor: idProv, cantidad_uc: cantUC, precio_referencia: precioRef
+        }]);
+    }
+
     const fila = document.getElementById(`fila-sug-${idSuc}-${idProd}`);
     if(fila) fila.style.display = 'none';
+    
+    // Recargar nube silenciosamente
+    window.cargarPedidosPlanificados(); 
 }
 
-window.quitarDelCarrito = function(idSuc, idProd, idProv) {
-    window.carritoPedidos = window.carritoPedidos.filter(i => !(i.idSuc === idSuc && i.idProd === idProd && i.idProv === idProv));
-    window.guardarCarritoEnMemoria();
-    window.renderizarBandejaPedidos();
-    const fila = document.getElementById(`fila-sug-${idSuc}-${idProd}`);
-    if(fila) fila.style.display = '';
+// CARRITO EN LA NUBE: Quitar
+window.quitarDelCarrito = async function(idSuc, idProd, idProv) {
+    await clienteSupabase.from('carrito_pedidos').delete().eq('id_sucursal', idSuc).eq('id_producto', idProd).eq('id_proveedor', idProv);
+    window.cargarPedidosPlanificados();
 }
 
-window.actualizarCantCarrito = function(idSuc, idProd, idProv, nuevaCant) {
-    const item = window.carritoPedidos.find(i => i.idSuc === idSuc && i.idProd === idProd && i.idProv === idProv);
-    if (item) {
-        item.cantUC = parseFloat(nuevaCant) || 0;
-        window.guardarCarritoEnMemoria();
-        let totalEstimado = 0;
-        window.carritoPedidos.filter(i => i.idProv === idProv).forEach(i => { totalEstimado += (i.cantUC * i.precioRef); });
-        const spanTotal = document.getElementById(`total-est-${idProv}`);
-        if(spanTotal) spanTotal.innerText = `Total est: $${totalEstimado.toFixed(2)}`;
-    }
+// CARRITO EN LA NUBE: Actualizar Cantidad
+window.actualizarCantCarrito = async function(idSuc, idProd, idProv, nuevaCant) {
+    await clienteSupabase.from('carrito_pedidos').update({ cantidad_uc: parseFloat(nuevaCant) || 0 }).eq('id_sucursal', idSuc).eq('id_producto', idProd).eq('id_proveedor', idProv);
+    window.cargarPedidosPlanificados();
 }
+
+// ... EL RESTO SE MANTIENE IGUAL HASTA LLEGAR A generarPedidoTransitoMasivo ...
 
 window.renderizarBandejaPedidos = function() {
     const contenedor = document.getElementById('contenedor-bandeja');
@@ -273,7 +288,7 @@ window.renderizarBandejaPedidos = function() {
         <div class="bg-white rounded-lg border border-slate-300 shadow-sm overflow-hidden p-1 mb-4">
             <div class="bg-slate-800 text-white px-4 py-3 flex justify-between items-center rounded-t-md">
                 <h4 class="font-bold text-lg">📝 Para: ${data.nombreProv}</h4>
-                <span id="total-est-${idProv}" class="text-sm font-medium bg-slate-700 px-3 py-1 rounded border border-slate-600">Total est: $${totalEstimado.toFixed(2)}</span>
+                <span class="text-sm font-medium bg-slate-700 px-3 py-1 rounded border border-slate-600">Total est: $${totalEstimado.toFixed(2)}</span>
             </div>
             <div class="p-4 bg-slate-50 overflow-x-auto">
                 <table class="min-w-full text-left mb-4 border border-slate-200 rounded-md overflow-hidden">
@@ -283,15 +298,9 @@ window.renderizarBandejaPedidos = function() {
                     <tbody>${filasHTML}</tbody>
                 </table>
                 <div class="flex justify-end gap-3 mt-2 flex-wrap">
-                    <button onclick="imprimirPedido('${idProv}', '${data.nombreProv.replace(/'/g, "\\'")}')" title="Generar PDF / Imprimir Documento" class="px-4 py-2 bg-white text-slate-700 border border-slate-300 rounded font-bold shadow-sm hover:bg-slate-100 transition-colors flex items-center gap-2">
-                        <span class="text-lg">🖨️</span> <span class="hidden sm:inline">Imprimir PDF</span>
-                    </button>
-                    <button onclick="whatsappPedido('${idProv}', '${data.nombreProv.replace(/'/g, "\\'")}')" title="Enviar listado por WhatsApp" class="px-4 py-2 bg-[#25D366] text-white rounded font-bold shadow-sm hover:bg-[#1ebe5d] transition-colors flex items-center gap-2">
-                        <span class="text-lg">💬</span> <span class="hidden sm:inline">WhatsApp</span>
-                    </button>
-                    <button onclick="generarPedidoTransitoMasivo('${idProv}')" class="px-6 py-2 bg-blue-600 text-white rounded font-bold shadow hover:bg-blue-700 transition-transform hover:scale-105 flex items-center gap-2">
-                        <span>🚀</span> Pedido Generado
-                    </button>
+                    <button onclick="imprimirPedido('${idProv}', '${data.nombreProv.replace(/'/g, "\\'")}')" class="px-4 py-2 bg-white text-slate-700 border border-slate-300 rounded font-bold shadow-sm hover:bg-slate-100 transition-colors">🖨️ Imprimir PDF</button>
+                    <button onclick="whatsappPedido('${idProv}', '${data.nombreProv.replace(/'/g, "\\'")}')" class="px-4 py-2 bg-[#25D366] text-white rounded font-bold shadow-sm hover:bg-[#1ebe5d] transition-colors">💬 WhatsApp</button>
+                    <button onclick="generarPedidoTransitoMasivo('${idProv}')" class="px-6 py-2 bg-blue-600 text-white rounded font-bold shadow hover:bg-blue-700 transition-transform hover:scale-105">🚀 Ingresar al Sistema</button>
                 </div>
             </div>
         </div>`;
@@ -299,108 +308,13 @@ window.renderizarBandejaPedidos = function() {
     lista.innerHTML = html;
 }
 
-window.imprimirPedido = async function(idProv, nombreProv) {
-    const items = window.carritoPedidos.filter(i => i.idProv === idProv);
-    if(items.length === 0) return alert("No hay productos en este pedido.");
-
-    const idSuc = items[0].idSuc;
-    const nombreSuc = items[0].nombreSuc;
-    const { data: sucData } = await clienteSupabase.from('sucursales').select('direccion').eq('id', idSuc).maybeSingle();
-    const direccionStr = sucData?.direccion || 'No registrada';
-
-    const fechaHoy = new Date().toLocaleDateString('es-CL');
-
-    let filasHtml = '';
-    items.forEach(item => {
-        filasHtml += `
-            <tr>
-                <td class="prod-col">${item.nombreProd}</td>
-                <td class="unit-col text-center font-mono font-bold">${item.cantUC}</td>
-                <td class="unit-col text-center font-bold text-gray-500">${item.abrevUC}</td>
-            </tr>
-        `;
-    });
-
-    const printWindow = window.open('', '_blank', 'width=800,height=600');
-    printWindow.document.write(`
-        <html>
-        <head>
-            <title>Pedido ${fechaHoy} - ${nombreSuc}</title>
-            <style>
-                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-                body { font-family: 'Inter', sans-serif; margin: 0; padding: 20px; color: #333; }
-                .header-box { border: 2px solid #000; padding: 15px; border-radius: 8px; margin-bottom: 20px; background-color: #fff; }
-                .header-title { font-size: 24px; font-weight: 900; text-transform: uppercase; margin: 0 0 15px 0; text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; }
-                .info-grid { display: flex; flex-wrap: wrap; gap: 15px; }
-                .info-item { flex: 1 1 45%; font-size: 14px; }
-                .info-item strong { text-transform: uppercase; font-size: 12px; color: #555; display: block; }
-                table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-                th, td { border: 1px solid #000; padding: 12px 8px; text-align: left; }
-                th { background-color: #f1f5f9; font-weight: bold; text-transform: uppercase; font-size: 12px; }
-                thead { display: table-header-group; }
-                tr { page-break-inside: avoid; }
-                .prod-col { font-weight: bold; font-size: 14px; }
-                .text-center { text-align: center; }
-                @media print { body { padding: 0; } @page { margin: 15mm; } .header-box { background-color: white !important; -webkit-print-color-adjust: exact; } th { background-color: #f1f5f9 !important; -webkit-print-color-adjust: exact; } }
-            </style>
-        </head>
-        <body>
-            <div class="header-box">
-                <h1 class="header-title">Orden de Pedido</h1>
-                <div class="info-grid">
-                    <div class="info-item"><strong>Proveedor:</strong><div style="font-size: 16px; font-weight: bold; margin-top: 4px;">${nombreProv}</div></div>
-                    <div class="info-item"><strong>Fecha:</strong><div style="font-size: 16px; margin-top: 4px;">${fechaHoy}</div></div>
-                    <div class="info-item"><strong>Sucursal Destino:</strong><div style="font-size: 16px; margin-top: 4px;">${nombreSuc}</div></div>
-                    <div class="info-item"><strong>Dirección de Entrega:</strong><div style="font-size: 14px; margin-top: 4px;">${direccionStr}</div></div>
-                </div>
-            </div>
-            <table>
-                <thead><tr><th>Producto / Insumo</th><th style="width: 120px; text-align: center;">Cantidad</th><th style="width: 100px; text-align: center;">Unidad</th></tr></thead>
-                <tbody>${filasHtml}</tbody>
-            </table>
-            <script>window.onload = function() { window.print(); setTimeout(function() { window.close(); }, 500); }<\/script>
-        </body>
-        </html>
-    `);
-    printWindow.document.close();
-}
-
-window.whatsappPedido = async function(idProv, nombreProv) {
-    const items = window.carritoPedidos.filter(i => i.idProv === idProv);
-    if(items.length === 0) return alert("No hay productos en este pedido.");
-
-    const { data: provData } = await clienteSupabase.from('proveedores').select('whatsapp').eq('id', idProv).maybeSingle();
-    let telf = provData?.whatsapp ? provData.whatsapp.replace(/\D/g,'') : '';
-
-    const nombreSuc = items[0].nombreSuc;
-    const fechaHoy = new Date().toLocaleDateString('es-CL');
-
-    let texto = `Hola, este es nuestro pedido para el ${fechaHoy}:\n\n`;
-    texto += `*Destino:* Sucursal ${nombreSuc}\n`;
-    texto += `*Proveedor:* ${nombreProv}\n\n`;
-    texto += `*LISTA DE PRODUCTOS:*\n`;
-
-    items.forEach(item => {
-        texto += `- ${item.cantUC} ${item.abrevUC} de ${item.nombreProd}\n`;
-    });
-
-    texto += `\nPor favor confirmar recepción. ¡Gracias!`;
-
-    const url = telf
-        ? `https://wa.me/${telf}?text=${encodeURIComponent(texto)}`
-        : `https://wa.me/?text=${encodeURIComponent(texto)}`;
-
-    window.open(url, '_blank');
-}
-
-// ==== LA FUNCIÓN BLINDADA CON TRY/CATCH ====
 window.generarPedidoTransitoMasivo = async function(idProv) {
     const itemsDelProveedor = window.carritoPedidos.filter(i => i.idProv === idProv);
     if(itemsDelProveedor.length === 0) return;
 
     let tieneError = false;
     itemsDelProveedor.forEach(i => { if(i.cantUC <= 0) tieneError = true; });
-    if(tieneError) return alert("❌ Tienes productos con cantidad 0 en la bandeja. Elimínalos o ponles una cantidad válida.");
+    if(tieneError) return alert("❌ Tienes productos con cantidad 0. Elimínalos o arréglalos.");
 
     const totalEstimado = itemsDelProveedor.reduce((sum, item) => sum + (item.cantUC * item.precioRef), 0);
 
@@ -418,36 +332,29 @@ window.generarPedidoTransitoMasivo = async function(idProv) {
                 id_compra: cabecera.id, id_producto: item.idProd, id_sucursal_destino: item.idSuc,
                 cantidad_uc: item.cantUC, precio_unitario_uc: item.precioRef, subtotal: item.cantUC * item.precioRef, estado: 'En Tránsito'
             }));
-            const { error: errDetalles } = await clienteSupabase.from('compras_detalles').insert(detallesAInsertar);
-            if (errDetalles) throw errDetalles;
+            await clienteSupabase.from('compras_detalles').insert(detallesAInsertar);
             
             // 👉 LIMPIANDO EL TRUCO NEGATIVO
             for (const item of itemsDelProveedor) {
                 const { data: reglaActual } = await clienteSupabase.from('reglas_stock_sucursal')
-                    .select('id, stock_minimo_ua')
-                    .eq('id_sucursal', item.idSuc)
-                    .eq('id_producto', item.idProd)
-                    .maybeSingle();
+                    .select('id, stock_minimo_ua').eq('id_sucursal', item.idSuc).eq('id_producto', item.idProd).maybeSingle();
                 
                 if (reglaActual && reglaActual.stock_minimo_ua < 0) {
-                    // Multiplicamos por -1 para restaurar el estratégico original (limpiar banderín)
                     await clienteSupabase.from('reglas_stock_sucursal')
-                        .update({ stock_minimo_ua: reglaActual.stock_minimo_ua * -1 })
-                        .eq('id', reglaActual.id);
+                        .update({ stock_minimo_ua: reglaActual.stock_minimo_ua * -1 }).eq('id', reglaActual.id);
                 }
             }
+            
+            // BORRAMOS EL CARRITO COLABORATIVO DE LA NUBE
+            await clienteSupabase.from('carrito_pedidos').delete().eq('id_empresa', window.miEmpresaId).eq('id_proveedor', idProv);
         }
 
-        window.carritoPedidos = window.carritoPedidos.filter(i => i.idProv !== idProv);
-        window.guardarCarritoEnMemoria();
-
-        window.renderizarBandejaPedidos();
-        window.cargarPedidosPlanificados();
+        window.cargarPedidosPlanificados(); // Recarga limpia
         alert("✅ Pedido/Orden generada exitosamente. Revisa las pestañas de Tránsito o Producción.");
 
     } catch (error) {
         console.error("Error al generar pedido:", error);
-        alert("❌ Ocurrió un error en la base de datos al guardar: " + error.message);
+        alert("❌ Error en BD: " + error.message);
     } finally {
         document.body.style.cursor = 'default';
     }
@@ -583,8 +490,15 @@ window.abrirModalRecepcionMasiva = async function(idSuc, nombreSuc, idProv, nomb
         const isPostpuesto = d.estado === 'Postpuesto';
         const labelPost = isPostpuesto ? `<span class="block mt-1 text-[10px] bg-yellow-100 text-yellow-800 px-2 py-1 rounded w-max">Estaba en espera</span>` : '';
         const colorInputCant = isProd ? 'text-purple-700' : 'text-emerald-700';
+
 // Condición clave: Si es Producción (isProd), el bloque de costo queda vacío. Si no, dibuja el input.
-        const bloqueCostoNeto = isProd ? '' : `
+// Condición clave: Si es Producción, muestra LOTE. Si es externo, muestra COSTO NETO.
+        const bloqueExtra = isProd ? `
+            <div class="flex items-center gap-2 mt-2 border-t pt-2 border-slate-100">
+                <span class="text-xs text-slate-500 font-bold w-24">Lote / OT:</span>
+                <input type="text" placeholder="Ej: L-1029" class="w-full px-2 py-1 border border-slate-300 rounded text-sm font-bold text-slate-700 outline-none focus:ring-1 focus:ring-purple-500 input-lote-real bg-white">
+            </div>
+        ` : `
             <div class="flex items-center gap-2">
                 <span class="text-xs text-slate-500 font-bold w-24">Costo Neto (x ${abrev}):</span>
                 <div class="relative w-24">
@@ -614,12 +528,12 @@ window.abrirModalRecepcionMasiva = async function(idSuc, nombreSuc, idProv, nomb
                         <span class="text-xs font-bold text-slate-400">${abrev}</span>
                     </div>
                     
-                    ${bloqueCostoNeto}
-                    
                     <div class="flex items-center gap-2">
                         <span class="text-xs text-slate-500 font-bold w-24">Guardar en:</span>
                         <select class="flex-1 px-2 py-1 border rounded text-xs select-ubi-rec bg-white outline-none focus:ring-1 focus:ring-emerald-500">${optsUbi}</select>
                     </div>
+                    
+                    ${bloqueExtra}
                 </div>
                 <div id="zona-no-recibido-${d.id}" class="zona-dinamica hidden bg-red-50 p-2 rounded border border-red-100">
                     <input type="text" placeholder="${txtMotivo}" value="${d.motivo_no_recepcion || ''}" class="w-full px-2 py-2 border border-red-300 rounded bg-white text-sm outline-none focus:ring-1 focus:ring-red-500 input-motivo-rec">
@@ -706,9 +620,22 @@ window.guardarRecepcionMasiva = async function() {
                     await clienteSupabase.from('inventario_saldos').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_sucursal: window.recepcionActivaSuc, id_ubicacion: idUbi, cantidad_actual_ua: cantUA }]);
                 }
 
-                const refMov = isProd ? 'Producción Interna Terminada' : 'Recepción Masiva de Proveedor';
+                // 👉 LEYENDO EL LOTE
+                const loteInput = isProd ? fila.querySelector('.input-lote-real').value.trim() : '';
+                const textoLote = loteInput ? `Lote/OT: ${loteInput}` : 'Producción Interna';
+                
+                // Tipo de movimiento OFICIAL (Para los filtros de la BD)
                 const tipoMov = isProd ? 'INGRESO_PRODUCCION' : 'INGRESO_COMPRA';
+                
+                // Texto de referencia para el usuario (Kardex)
+                const refMov = isProd ? textoLote : 'Recepción Masiva de Proveedor';
 
+                // Guardamos el movimiento
+                await clienteSupabase.from('movimientos_inventario').insert([{ 
+                    id_empresa: window.miEmpresaId, id_producto: idProd, id_ubicacion: idUbi, 
+                    tipo_movimiento: tipoMov, cantidad_movida: cantUA, costo_unitario_movimiento: precioRealUC, referencia: refMov 
+                }]);
+                
                 // Guardamos el movimiento en el historial con el nuevo costo unitario
                 await clienteSupabase.from('movimientos_inventario').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_ubicacion: idUbi, tipo_movimiento: tipoMov, cantidad_movida: cantUA, costo_unitario_movimiento: precioRealUC, referencia: refMov }]);
                 
