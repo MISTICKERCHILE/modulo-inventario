@@ -71,21 +71,22 @@ async function cargarNotasHome() {
     `).join('');
 }
 
-window.crearNotaHome = async function() {
-    const texto = prompt("📝 Escribe tu nota rápida:");
-    if(!texto || texto.trim() === '') return;
+window.cargarHome = async function() {
+    console.log("🏠 Cargando Home ERP...");
 
-    const colores = ['bg-yellow-100', 'bg-blue-100', 'bg-emerald-100', 'bg-orange-100'];
-    const colorElegido = colores[Math.floor(Math.random() * colores.length)];
+    // 1. Saludo Inteligente
+    const hora = new Date().getHours();
+    let saludo = "Buenas noches";
+    if (hora >= 5 && hora < 12) saludo = "Buenos días";
+    else if (hora >= 12 && hora < 19) saludo = "Buenas tardes";
 
-    const { error } = await clienteSupabase.from('notas_home').insert([{
-        id_empresa: window.miEmpresaId,
-        contenido: texto,
-        color: colorElegido
-    }]);
+    const elSaludo = document.getElementById('home-saludo');
+    if(elSaludo) {
+        elSaludo.innerHTML = `${saludo}, <span class="text-emerald-600">${window.usuarioActual}!</span>`;
+    }
 
-    if(error) alert("Error guardando: " + error.message);
-    else cargarNotasHome(); 
+    cargarMetricasHome();
+    cargarNotasHome();
 }
 
 window.borrarNotaHome = async function(id) {

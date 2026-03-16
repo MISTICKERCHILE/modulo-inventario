@@ -202,6 +202,15 @@ window.cambiarVista = async function(vista) {
     // 👉 AQUÍ ANOTAMOS EN LA LIBRETA CADA VEZ QUE CAMBIA DE PANTALLA
     localStorage.setItem('pantalla_actual', vista);
     
+    const submenuInv = document.getElementById('submenu-inventario');
+    if (submenuInv) {
+        if (vista === 'home') {
+            submenuInv.classList.add('hidden'); // Lo esconde en el inicio
+        } else {
+            submenuInv.classList.remove('hidden'); // Lo muestra si entras a cualquier lado de inventario
+        }
+    }
+
     const main = document.getElementById('main-content');
     main.innerHTML = '<div class="flex h-full items-center justify-center"><p class="text-slate-400 font-bold text-lg animate-pulse">Cargando...</p></div>';
     

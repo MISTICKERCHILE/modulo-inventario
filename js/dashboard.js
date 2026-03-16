@@ -1,13 +1,5 @@
 window.cargarDashboard = async function() {
-    // 1. EL SALUDO INTELIGENTE
-    const hora = new Date().getHours();
-    let saludo = "Buenas noches";
-    if (hora >= 5 && hora < 12) saludo = "Buenos días";
-    else if (hora >= 12 && hora < 19) saludo = "Buenas tardes";
-    
-    const elSaludo = document.getElementById('dash-saludo');
-    if(elSaludo) elSaludo.innerText = `¡${saludo}, ${window.usuarioActual}!`;
-
+    // 1. EL SALUDO INTELIGENTE - ya saludo en el inicio - HOME. 
     // 2. WIDGET DE VENTAS POS
     const { data: posMovs } = await clienteSupabase.from('movimientos_inventario').select('fecha_movimiento').eq('id_empresa', window.miEmpresaId).eq('tipo_movimiento', 'VENTA_POS').order('fecha_movimiento', { ascending: false }).limit(1);
     
