@@ -207,6 +207,7 @@ document.addEventListener('click', (e) => {
 
 // CARGA DINÁMICA DE VISTAS
 window.cambiarVista = async function(vista) {
+    localStorage.setItem('pantalla_actual', vista);
     const main = document.getElementById('main-content');
     main.innerHTML = '<div class="flex h-full items-center justify-center"><p class="text-slate-400 font-bold text-lg animate-pulse">Cargando...</p></div>';
     
