@@ -130,18 +130,20 @@
                 </button>
                 
                 <div class="my-2 border-t border-slate-700"></div>
-                <div class="px-4 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Módulos</div>
+                <div class="px-4 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Módulos Operativos</div>
+
+                <button onclick="cambiarVista('ventas')" id="btn-menu-ventas" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors">
+                    <span>💰</span> <span class="menu-texto">Módulo Ventas</span>
+                </button>
 
                 <button onclick="cambiarVista('dashboard')" id="btn-menu-dashboard" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors">
                     <span>📦</span> <span class="menu-texto">Módulo Inventario</span>
                 </button>
 
                 <div id="submenu-inventario" class="space-y-1 mt-1 border-l-2 border-slate-700 ml-4 pl-2 hidden">
-                    
                     <button onclick="cambiarVista('inventario')" id="btn-menu-inventario" class="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
                         <span>📋</span> <span class="menu-texto">Stock Actual</span>
                     </button>
-
                     <button onclick="cambiarVista('pedidos')" id="btn-menu-pedidos" class="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
                         <span>🛒</span> <span class="menu-texto flex items-center gap-2">Pedidos<span id="badge-cart" class="hidden bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm animate-pulse">0</span></span>
                     </button>
@@ -154,13 +156,17 @@
                     <button onclick="cambiarVista('recetas')" id="btn-menu-recetas" class="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
                         <span>📝</span> <span class="menu-texto">Recetas</span>
                     </button>
-                    <button onclick="cambiarVista('reportes')" id="btn-menu-reportes" class="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
-                        <span>📊</span> <span class="menu-texto">Reportes</span>
-                    </button>
-                    <button onclick="cambiarVista('catalogos')" id="btn-menu-catalogos" class="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
-                        <span>⚙️</span> <span class="menu-texto">Catálogos</span>
-                    </button>
                 </div>
+
+                <div class="my-2 border-t border-slate-700"></div>
+                <div class="px-4 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">General</div>
+
+                <button onclick="cambiarVista('reportes')" id="btn-menu-reportes" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors">
+                    <span>📊</span> <span class="menu-texto">Reportes Globales</span>
+                </button>
+                <button onclick="cambiarVista('catalogos')" id="btn-menu-catalogos" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors">
+                    <span>⚙️</span> <span class="menu-texto">Catálogos</span>
+                </button>
             </aside>
 
             <main id="main-content" class="flex-1 p-4 md:p-8 overflow-y-auto w-full relative"></main>

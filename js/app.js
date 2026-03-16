@@ -202,12 +202,17 @@ window.cambiarVista = async function(vista) {
     // 👉 AQUÍ ANOTAMOS EN LA LIBRETA CADA VEZ QUE CAMBIA DE PANTALLA
     localStorage.setItem('pantalla_actual', vista);
     
+    // Mostrar u ocultar el submenú de inventario inteligentemente
+    const vistasInventario = ['dashboard', 'inventario', 'pedidos', 'movimientos', 'productos', 'recetas'];
     const submenuInv = document.getElementById('submenu-inventario');
+    
     if (submenuInv) {
-        if (vista === 'home') {
-            submenuInv.classList.add('hidden'); // Lo esconde en el inicio
+        // Si la vista a la que vamos pertenece a Inventario, mostramos el submenú.
+        if (vistasInventario.includes(vista)) {
+            submenuInv.classList.remove('hidden');
         } else {
-            submenuInv.classList.remove('hidden'); // Lo muestra si entras a cualquier lado de inventario
+            // Si vamos a Home, Ventas, Reportes, etc... lo escondemos.
+            submenuInv.classList.add('hidden');
         }
     }
 
