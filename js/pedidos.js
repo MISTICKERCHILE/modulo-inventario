@@ -290,7 +290,7 @@ window.renderizarBandejaPedidos = function() {
                         <span class="text-lg">💬</span> <span class="hidden sm:inline">WhatsApp</span>
                     </button>
                     <button onclick="generarPedidoTransitoMasivo('${idProv}')" class="px-6 py-2 bg-blue-600 text-white rounded font-bold shadow hover:bg-blue-700 transition-transform hover:scale-105 flex items-center gap-2">
-                        <span>🚀</span> Ingresar al Sistema
+                        <span>🚀</span> Pedido Generado
                     </button>
                 </div>
             </div>
@@ -376,9 +376,9 @@ window.whatsappPedido = async function(idProv, nombreProv) {
     const fechaHoy = new Date().toLocaleDateString('es-CL');
 
     let texto = `Hola, este es nuestro pedido para el ${fechaHoy}:\n\n`;
-    texto += `🏢 *Destino:* Sucursal ${nombreSuc}\n`;
-    texto += `📦 *Proveedor:* ${nombreProv}\n\n`;
-    texto += `*📋 LISTA DE PRODUCTOS:*\n`;
+    texto += `*Destino:* Sucursal ${nombreSuc}\n`;
+    texto += `*Proveedor:* ${nombreProv}\n\n`;
+    texto += `*LISTA DE PRODUCTOS:*\n`;
 
     items.forEach(item => {
         texto += `- ${item.cantUC} ${item.abrevUC} de ${item.nombreProd}\n`;
