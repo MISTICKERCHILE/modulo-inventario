@@ -309,6 +309,10 @@ window.editarProductoFull = async function(id) {
     document.getElementById('prod-cant-ur').value = data.cant_en_ur_de_um || 1;
     document.getElementById('prod-u-receta').value = data.id_unidad_receta || '';
     document.getElementById('prod-tiene-receta').checked = data.tiene_receta || false;
+
+    // NUEVO: Cargar datos del POS
+    if(document.getElementById('prod-codigo-barras')) document.getElementById('prod-codigo-barras').value = data.codigo_barras || '';
+    if(document.getElementById('prod-vender-pos')) document.getElementById('prod-vender-pos').checked = data.vender_en_pos || false;
     
     if(document.getElementById('prod-costo-borrador')) {
         document.getElementById('prod-costo-borrador').value = data.ultimo_costo_uc || '';
@@ -361,7 +365,10 @@ if (!window.eventosFormProductoAtados) {
                 cant_en_ur_de_um: parseFloat(document.getElementById('prod-cant-ur').value) || 1,
                 id_unidad_receta: document.getElementById('prod-u-receta').value || null, 
                 tiene_receta: document.getElementById('prod-tiene-receta').checked,
-                control_stock: valorControlStock
+                control_stock: valorControlStock,
+                // NUEVOS CAMPOS DEL POS:
+                codigo_barras: document.getElementById('prod-codigo-barras') ? document.getElementById('prod-codigo-barras').value.trim() : null,
+                vender_en_pos: document.getElementById('prod-vender-pos') ? document.getElementById('prod-vender-pos').checked : false
             };
             
             if(costoBorrador !== null && !isNaN(costoBorrador)) {
