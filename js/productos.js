@@ -75,21 +75,6 @@ window.abrirModalProducto = async function(esEdicion = false, nombreSugerido = '
     });
     document.getElementById('contenedor-reglas-stock').innerHTML = htmlReglas;
 
-    // ESTO DIBUJA EL CHECKBOX DE CONTROL DE STOCK
-    if(!document.getElementById('contenedor-control-stock')) {
-        const contenedorTipoReceta = document.getElementById('prod-tiene-receta').parentElement;
-        const htmlInterruptor = `
-            <div id="contenedor-control-stock" class="mt-4 p-4 bg-blue-50 border border-blue-100 rounded-lg flex items-start gap-3">
-                <input type="checkbox" id="prod-control-stock" class="mt-1 w-4 h-4 text-blue-600 rounded border-blue-300 focus:ring-blue-500 cursor-pointer" checked>
-                <div>
-                    <label for="prod-control-stock" class="font-bold text-blue-900 cursor-pointer block">¿Lleva control de stock físico?</label>
-                    <p class="text-xs text-blue-700 mt-1 leading-tight">Apágalo solo si es un producto ensamblado al momento (Ej: Un combo o plato preparado) para que el sistema no te exija tenerlo en bodega y descuente directamente sus ingredientes.</p>
-                </div>
-            </div>
-        `;
-        contenedorTipoReceta.insertAdjacentHTML('afterend', htmlInterruptor);
-    }
-
     if(!esEdicion) {
         window.cancelarEdicion('producto');
         document.getElementById('titulo-modal-producto').innerText = "Nuevo Producto / Insumo";
