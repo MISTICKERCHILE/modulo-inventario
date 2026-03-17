@@ -91,6 +91,16 @@
                 <div><label class="block text-xs font-bold mb-1 text-orange-600 uppercase" title="Precio estimado hasta que exista una compra oficial">Costo Neto Ref. ($)</label><input type="number" step="0.01" id="prod-costo-borrador" placeholder="Ej: 1500" class="w-full px-3 py-2 border border-orange-300 rounded-md bg-orange-50 focus:ring-2 focus:ring-orange-500 outline-none font-bold text-slate-800 shadow-inner"></div>
             </div>
 
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-b border-slate-100 pb-4">
+                <div>
+                    <label class="block text-xs font-bold mb-1 text-slate-500 uppercase">Código de Barras (Opcional)</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-bold">|||</span>
+                        <input type="text" id="prod-codigo-barras" placeholder="Escanea o escribe el código..." class="w-full pl-10 pr-3 py-2 border rounded-md outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-sm">
+                    </div>
+                </div>
+            </div>
+
             <div class="bg-slate-50 p-4 md:p-6 rounded-lg border overflow-x-auto">
                 <h4 class="font-bold text-slate-700 mb-4 whitespace-nowrap">Conversión de Unidades Inteligente</h4>
                 <div class="flex gap-2 items-end mb-4 text-center min-w-max">
@@ -113,15 +123,37 @@
                     <div class="w-40 md:w-48"><label class="block text-xs font-bold text-gray-500 mb-1">4. U. RECETA</label><select id="prod-u-receta" required class="w-full px-2 py-2 border rounded-md bg-white"></select></div>
                 </div>
             </div>
+            
             <div class="bg-orange-50 p-4 md:p-6 rounded-lg border border-orange-100">
                 <h4 class="font-bold text-orange-800 mb-4">Reglas de Inventario por Sucursal (en UA)</h4>
                 <div id="contenedor-reglas-stock" class="space-y-3"></div>
             </div>
-            <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 flex items-center gap-4">
-                <label class="flex items-center gap-2 font-bold text-blue-800 cursor-pointer">
-                    <input type="checkbox" id="prod-tiene-receta" class="w-5 h-5 accent-blue-600"> Este producto tiene Receta / Ficha Técnica
-                </label>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                
+                <div class="bg-emerald-50 p-4 rounded-lg border border-emerald-200 flex items-start gap-3">
+                    <input type="checkbox" id="prod-vender-pos" class="w-5 h-5 accent-emerald-600 mt-0.5 cursor-pointer"> 
+                    <div>
+                        <label for="prod-vender-pos" class="font-bold text-emerald-900 cursor-pointer block">Habilitar en POS (Punto de Venta)</label>
+                        <p class="text-xs text-emerald-700 mt-1">Aparecerá en la caja registradora para venta directa al cliente.</p>
+                    </div>
+                </div>
+
+                <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 flex flex-col gap-3">
+                    <label class="flex items-center gap-2 font-bold text-blue-900 cursor-pointer">
+                        <input type="checkbox" id="prod-tiene-receta" class="w-5 h-5 accent-blue-600"> Este producto tiene Receta / Ficha Técnica
+                    </label>
+                    
+                    <div class="bg-white/60 p-3 rounded-md border border-blue-100">
+                        <label class="flex items-center gap-2 font-bold text-blue-900 cursor-pointer mb-1">
+                            <input type="checkbox" id="prod-control-stock" class="w-4 h-4 accent-blue-600" checked> ¿Lleva control de stock físico?
+                        </label>
+                        <p class="text-[10px] text-blue-700 leading-tight">Apágalo solo si es un producto ensamblado al momento (Ej: Un combo o plato preparado) para que el sistema no te exija tenerlo en bodega y descuente directamente sus ingredientes.</p>
+                    </div>
+                </div>
+                
             </div>
+
             <div class="flex flex-col-reverse md:flex-row justify-end gap-3 md:gap-4 mt-6">
                 <button type="button" onclick="cerrarModalProducto()" class="w-full md:w-auto px-6 py-3 md:py-2 border text-gray-700 rounded-md hover:bg-gray-50 font-bold text-center">Cancelar</button>
                 <button type="submit" id="btn-guardar-producto" class="w-full md:w-auto px-8 py-3 md:py-2 bg-emerald-600 text-white rounded-md font-bold shadow-sm text-center">Guardar</button>
