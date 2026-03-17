@@ -94,8 +94,26 @@ window.togglePosMenu = function() {
     document.getElementById('pos-dropdown-menu').classList.toggle('hidden');
 }
 
+// Entrar a la caja registradora
 window.iniciarNuevaVenta = function() {
-    alert("¡Aquí cargaremos tu dibujo de 'Nueva Venta' en la Fase 2!");
+    // Ocultar el dashboard del POS
+    document.getElementById('pos-dashboard-screen').classList.add('hidden');
+    document.getElementById('pos-dashboard-screen').classList.remove('flex');
+    
+    // Mostrar la pantalla de Nueva Venta (Caja)
+    document.getElementById('pos-nueva-venta-screen').classList.remove('hidden');
+    document.getElementById('pos-nueva-venta-screen').classList.add('flex');
+}
+
+// Volver al dashboard del POS
+window.volverAlPosDashboard = function() {
+    // Ocultar la Caja
+    document.getElementById('pos-nueva-venta-screen').classList.add('hidden');
+    document.getElementById('pos-nueva-venta-screen').classList.remove('flex');
+    
+    // Mostrar el dashboard
+    document.getElementById('pos-dashboard-screen').classList.remove('hidden');
+    document.getElementById('pos-dashboard-screen').classList.add('flex');
 }
 
 window.cerrarTurno = function() {

@@ -78,4 +78,92 @@
             </div>
         </div>
     </div>
+    <div id="pos-nueva-venta-screen" class="hidden flex-1 bg-slate-100 flex-col md:flex-row overflow-hidden relative">
+        
+        <div class="flex-1 flex flex-col h-full overflow-hidden relative z-10">
+            
+            <div class="bg-white px-4 py-3 flex items-center justify-between border-b shadow-sm shrink-0">
+                <button onclick="volverAlPosDashboard()" class="text-slate-500 hover:text-slate-800 font-bold px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors flex items-center gap-2">
+                    <span class="text-xl">←</span> <span class="hidden sm:inline">Volver</span>
+                </button>
+                <div class="flex-1 max-w-lg mx-4 relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-lg">🔍</span>
+                    <input type="text" placeholder="Buscar o escanear código de barras..." class="w-full pl-10 pr-4 py-3 border-2 border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none transition-all font-medium text-slate-700">
+                </div>
+            </div>
+
+            <div class="bg-white border-b px-4 py-3 flex gap-2 overflow-x-auto shrink-0 shadow-sm z-10" style="scrollbar-width: none;">
+                <button class="px-5 py-2 bg-emerald-100 text-emerald-800 font-black rounded-xl whitespace-nowrap border-2 border-emerald-200">Todas</button>
+                <button class="px-5 py-2 text-slate-600 font-bold hover:bg-slate-100 rounded-xl whitespace-nowrap transition-colors border-2 border-transparent">Bebidas</button>
+                <button class="px-5 py-2 text-slate-600 font-bold hover:bg-slate-100 rounded-xl whitespace-nowrap transition-colors border-2 border-transparent">Postres</button>
+                <button class="px-5 py-2 text-slate-600 font-bold hover:bg-slate-100 rounded-xl whitespace-nowrap transition-colors border-2 border-transparent">Platos Principales</button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-100/50">
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4" id="pos-productos-grid">
+                    
+                    <div class="bg-white p-4 rounded-2xl shadow-sm hover:shadow-md hover:border-emerald-400 border-2 border-transparent cursor-pointer transition-all flex flex-col h-36 relative group select-none overflow-hidden">
+                        <div class="absolute top-0 right-0 w-16 h-16 bg-emerald-50 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-150 z-0"></div>
+                        <h3 class="font-bold text-slate-800 leading-tight relative z-10 line-clamp-2">Hamburguesa Doble Queso</h3>
+                        <div class="mt-auto flex justify-between items-end relative z-10">
+                            <span class="font-black text-emerald-600 text-lg">$6.500</span>
+                            <div class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center font-black group-hover:bg-emerald-500 group-hover:text-white transition-colors text-xl">+</div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-4 rounded-2xl shadow-sm hover:shadow-md hover:border-emerald-400 border-2 border-transparent cursor-pointer transition-all flex flex-col h-36 relative group select-none overflow-hidden">
+                        <h3 class="font-bold text-slate-800 leading-tight relative z-10 line-clamp-2">Lata Coca-Cola 350ml</h3>
+                        <div class="mt-auto flex justify-between items-end relative z-10">
+                            <span class="font-black text-emerald-600 text-lg">$1.500</span>
+                            <div class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center font-black group-hover:bg-emerald-500 group-hover:text-white transition-colors text-xl">+</div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <div class="w-full md:w-[400px] bg-white border-l-2 border-slate-200 flex flex-col h-full shadow-2xl z-20 shrink-0">
+            
+            <div class="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center shrink-0">
+                <div>
+                    <h2 class="font-black text-slate-800 text-lg">Cuenta #001</h2>
+                    <button class="text-xs text-blue-600 font-bold hover:underline flex items-center gap-1 mt-0.5">👤 Asignar Cliente (Opcional)</button>
+                </div>
+                <button class="text-slate-400 hover:text-slate-800 text-2xl font-bold px-2 pb-2">⋮</button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-2" id="pos-cart-list">
+                <div class="h-full flex flex-col items-center justify-center text-slate-300 space-y-2">
+                    <span class="text-6xl mb-2">🛒</span>
+                    <p class="font-bold text-slate-400">Carrito vacío</p>
+                    <p class="text-xs text-slate-400">Escanea o selecciona productos</p>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 p-5 border-t-2 border-slate-200 space-y-3 shrink-0">
+                <div class="flex justify-between text-sm font-bold text-slate-500">
+                    <span>Subtotal:</span>
+                    <span>$0</span>
+                </div>
+                <div class="flex justify-between text-sm font-bold text-slate-500">
+                    <span class="text-blue-600 cursor-pointer hover:underline border-b border-dashed border-blue-600">Descuentos:</span>
+                    <span class="text-blue-600">-$0</span>
+                </div>
+                <div class="flex justify-between items-end pt-3 border-t border-slate-200 mt-2">
+                    <span class="text-lg font-bold text-slate-700">Total:</span>
+                    <span class="text-3xl font-black text-slate-800">$0</span>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-2 mt-4">
+                    <button class="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-bold py-3 rounded-xl transition-colors text-sm">Guardar Cuenta</button>
+                    <button class="bg-red-50 hover:bg-red-100 text-red-600 font-bold py-3 rounded-xl transition-colors text-sm">Borrar</button>
+                </div>
+
+                <button class="w-full bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl py-5 font-black text-2xl shadow-lg mt-2 transition-transform active:scale-95 border-b-4 border-emerald-800 uppercase tracking-wider">
+                    Pagar!
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
