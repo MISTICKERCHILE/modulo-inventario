@@ -202,6 +202,20 @@ window.cambiarVista = async function(vista) {
     // 👉 AQUÍ ANOTAMOS EN LA LIBRETA CADA VEZ QUE CAMBIA DE PANTALLA
     localStorage.setItem('pantalla_actual', vista);
     
+    // Mostrar u ocultar el submenú de inventario inteligentemente
+    const vistasInventario = ['dashboard', 'inventario', 'pedidos', 'movimientos', 'productos', 'recetas'];
+    const submenuInv = document.getElementById('submenu-inventario');
+    
+    if (submenuInv) {
+        // Si la vista a la que vamos pertenece a Inventario, mostramos el submenú.
+        if (vistasInventario.includes(vista)) {
+            submenuInv.classList.remove('hidden');
+        } else {
+            // Si vamos a Home, Ventas, Reportes, etc... lo escondemos.
+            submenuInv.classList.add('hidden');
+        }
+    }
+
     const main = document.getElementById('main-content');
     main.innerHTML = '<div class="flex h-full items-center justify-center"><p class="text-slate-400 font-bold text-lg animate-pulse">Cargando...</p></div>';
     
@@ -228,6 +242,7 @@ window.cambiarVista = async function(vista) {
         main.innerHTML = html;
         
         // AUTO-ARRANQUE DEPENDIENDO DE LA VISTA
+        if(vista === 'home' && typeof window.cargarHome === 'function') window.cargarHome();
         if(vista === 'dashboard' && typeof window.cargarDashboard === 'function') window.cargarDashboard();
         if(vista === 'empresas' && typeof window.cargarEmpresas === 'function') window.cargarEmpresas();
         if(vista === 'catalogos' && typeof window.cargarCategorias === 'function') {
@@ -274,6 +289,13 @@ window.eliminarReg = async function(tabla, id) {
 // CONTROL DEL HEADER Y ROLES
 // ==========================================
 window.actualizarTopBar = function(nombreEmpresa, rolUsuario) {
+    // 1. Actualiza el título superior izquierdo
+    const mainTitle = document.getElementById('main-app-title');
+    if(mainTitle && nombreEmpresa) {
+        mainTitle.innerText = `Simple - ${nombreEmpresa}`;
+    }
+
+    // 2. Actualiza el nombre de la empresa al lado de la campanita
     const spanEmpresa = document.getElementById('header-nombre-empresa');
     if(spanEmpresa && nombreEmpresa) {
         spanEmpresa.innerHTML = `🏢 ${nombreEmpresa}`;

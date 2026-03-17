@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Módulo - Inventario</title>
+    <title>Simple</title>
     <script>
         if (typeof process === 'undefined') { window.process = { env: { NODE_ENV: 'development' } }; }
     </script>
@@ -16,8 +16,8 @@
     <div id="login-container" class="min-h-screen flex items-center justify-center p-4">
         <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-sm border border-gray-100">
             <div class="text-center mb-6">
-                <div class="text-4xl mb-4">📦</div>
-                <h1 class="text-2xl font-bold">Módulo - Inventario</h1>
+                <div class="text-4xl mb-4">♻️</div>
+                <h1 class="text-2xl font-bold">Simple</h1>
             </div>
             
             <div class="flex mb-6 border-b">
@@ -62,7 +62,7 @@
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
                 </button>
                 <div class="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity" onclick="cambiarVista('dashboard')" title="Ir al Dashboard">
-                    <span class="text-xl md:text-2xl">📦</span><h1 class="text-lg md:text-xl font-bold hidden sm:block">Módulo - Inventario</h1>
+                    <span class="text-xl md:text-2xl">♻️</span><h1 class="text-lg md:text-xl font-bold hidden sm:block">Simple</h1>
                 </div>
             </div>
             
@@ -124,22 +124,49 @@
                     <span class="font-bold text-lg">Menú</span>
                     <button onclick="toggleMenu()" class="text-slate-300 hover:text-white text-3xl font-bold">&times;</button>
                 </div>
-            
-                <button onclick="cambiarVista('inventario')" id="btn-menu-inventario" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>📦</span> <span class="menu-texto">Inventario</span></button>
+
+                <button onclick="cambiarVista('home')" id="btn-menu-home" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors">
+                    <span>🏠</span> <span class="menu-texto">Inicio ERP</span>
+                </button>
                 
-                <button onclick="cambiarVista('pedidos')" id="btn-menu-pedidos" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors">
-                    <span>🛒</span> <span class="menu-texto flex items-center gap-2">Pedidos<span id="badge-cart" class="hidden bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm animate-pulse">0</span></span>
+                <div class="my-2 border-t border-slate-700"></div>
+                <div class="px-4 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Módulos Operativos</div>
+
+                <button onclick="cambiarVista('ventas')" id="btn-menu-ventas" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors">
+                    <span>💰</span> <span class="menu-texto">Módulo Ventas</span>
                 </button>
 
-                <button onclick="cambiarVista('movimientos')" id="btn-menu-movimientos" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors">
-                    <span>🔄</span> <span class="menu-texto">Movimientos</span>
+                <button onclick="cambiarVista('dashboard')" id="btn-menu-dashboard" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors">
+                    <span>📦</span> <span class="menu-texto">Módulo Inventario</span>
                 </button>
+
+                <div id="submenu-inventario" class="space-y-1 mt-1 border-l-2 border-slate-700 ml-4 pl-2 hidden">
+                    <button onclick="cambiarVista('inventario')" id="btn-menu-inventario" class="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
+                        <span>📋</span> <span class="menu-texto">Stock Actual</span>
+                    </button>
+                    <button onclick="cambiarVista('pedidos')" id="btn-menu-pedidos" class="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
+                        <span>🛒</span> <span class="menu-texto flex items-center gap-2">Pedidos<span id="badge-cart" class="hidden bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm animate-pulse">0</span></span>
+                    </button>
+                    <button onclick="cambiarVista('movimientos')" id="btn-menu-movimientos" class="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
+                        <span>🔄</span> <span class="menu-texto">Movimientos</span>
+                    </button>
+                    <button onclick="cambiarVista('productos')" id="btn-menu-productos" class="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
+                        <span>🍔</span> <span class="menu-texto">Productos</span>
+                    </button>
+                    <button onclick="cambiarVista('recetas')" id="btn-menu-recetas" class="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
+                        <span>📝</span> <span class="menu-texto">Recetas</span>
+                    </button>
+                </div>
 
                 <div class="my-2 border-t border-slate-700"></div>
-                <button onclick="cambiarVista('productos')" id="btn-menu-productos" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>🍔</span> <span class="menu-texto">Productos</span></button>
-                <button onclick="cambiarVista('recetas')" id="btn-menu-recetas" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>📝</span> <span class="menu-texto">Recetas</span></button>
-                <button onclick="cambiarVista('reportes')" id="btn-menu-reportes" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>📊</span> <span class="menu-texto">Reportes</span></button>
-                <button onclick="cambiarVista('catalogos')" id="btn-menu-catalogos" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors"><span>⚙️</span> <span class="menu-texto">Catálogos</span></button>
+                <div class="px-4 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">General</div>
+
+                <button onclick="cambiarVista('reportes')" id="btn-menu-reportes" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors">
+                    <span>📊</span> <span class="menu-texto">Reportes Globales</span>
+                </button>
+                <button onclick="cambiarVista('catalogos')" id="btn-menu-catalogos" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors">
+                    <span>⚙️</span> <span class="menu-texto">Catálogos</span>
+                </button>
             </aside>
 
             <main id="main-content" class="flex-1 p-4 md:p-8 overflow-y-auto w-full relative"></main>
@@ -383,6 +410,7 @@
 
     <script src="js/supabase.js"></script>
     <script src="js/app.js"></script>
+    <script src="js/home.js"></script>
     <script src="js/dashboard.js"></script>
     <script src="js/empresas.js"></script>
     <script src="js/catalogos.js"></script>

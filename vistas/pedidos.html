@@ -8,12 +8,34 @@
     <button onclick="cambiarSubTabPedidos('produccion')" id="subtab-produccion" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors whitespace-nowrap">Órdenes de Producción</button>
 </div>
 
-<div id="subvista-sugerencias" class="block space-y-8">
-    <div id="lista-alertas-compras" class="space-y-6"></div>
+<div id="subvista-sugerencias" class="block space-y-6">
+    
+    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4 justify-between items-center">
+        <div class="relative w-full md:w-1/2">
+            <span class="absolute left-3 top-2.5 text-slate-400">🔍</span>
+            <input type="text" id="search-sugerencias" oninput="filtrarSugerencias()" placeholder="Buscar producto, categoría o referencia..." class="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 focus:bg-white transition-colors font-medium">
+        </div>
+        <div class="flex items-center gap-3 w-full md:w-auto">
+            <label class="text-xs font-bold text-slate-500 uppercase">Ordenar por:</label>
+            <select id="sort-sugerencias" onchange="filtrarSugerencias()" class="px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 bg-white font-bold text-sm text-slate-700">
+                <option value="urgencia">🔥 Mayor Urgencia (Stock Bajo)</option>
+                <option value="nombre">🔤 Alfabético (A-Z)</option>
+                <option value="mayor_sugerido">📦 Mayor Cant. Sugerida</option>
+                <option value="precio">💰 Precio de Referencia</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="lista-alertas-compras" class="space-y-4"></div>
     
     <div id="contenedor-bandeja" class="hidden mt-8 border-t-2 border-dashed border-slate-300 pt-8">
-        <h3 class="text-xl font-bold mb-2 text-slate-800 flex items-center gap-2"><span>📦</span> Bandeja de Pedidos a Generar</h3>
-        <p class="text-sm text-slate-500 mb-6">Ajusta las cantidades, genera el PDF o envía por WhatsApp al proveedor, y luego haz clic en "Ingresar al Sistema" para pasarlo a Tránsito.</p>
+        <div class="flex justify-between items-end mb-6">
+            <div>
+                <h3 class="text-2xl font-black text-slate-800 flex items-center gap-2"><span>☁️</span> Bandeja de Pedidos (Colaborativa)</h3>
+                <p class="text-sm text-slate-500 mt-1">Este carrito está en la nube. Tu equipo puede verlo y editarlo en tiempo real.</p>
+            </div>
+            <button onclick="cargarPedidosPlanificados()" class="text-sm text-blue-600 hover:text-blue-800 font-bold bg-blue-50 px-3 py-1.5 rounded-md border border-blue-200 shadow-sm transition-colors flex items-center gap-1">🔄 Sincronizar Nube</button>
+        </div>
         <div id="lista-carritos-proveedor" class="space-y-6"></div>
     </div>
 </div>

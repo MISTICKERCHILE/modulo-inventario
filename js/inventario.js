@@ -127,55 +127,6 @@ window.renderizarTablaInventario = function(datos) {
     tbody.innerHTML = html;
 }
 
-// LOGICA INTELIGENTE DEL CARRITO (Verifica Tránsito y Producción)
-window.agregarASugerenciaInteligente = async function(idProd, nombre) {
-    if(!confirm(`¿Deseas agregar "${nombre}" a la lista de pedidos por stock?`)) return;
-
-    try {
-        // 1. Verificamos si el producto ya está en una orden activa
-        const { data: enCurso, error } = await clienteSupabase
-            .from('compras_detalles')
-            .select('estado, compras!inner(id_empresa)')
-            .eq('compras.id_empresa', window.miEmpresaId)
-            .eq('id_producto', idProd)
-            .in('estado', ['En Tránsito', 'En Producción', 'Orden de Producción'])
-            .limit(1);
-
-        if (error) throw error;
-
-        // Si ya está en camino o en producción, bloqueamos y avisamos
-        if (enCurso && enCurso.length > 0) {
-            alert(`⚠️ El producto "${nombre}" ya se encuentra en estado: "${enCurso[0].estado}". No es necesario sugerirlo de nuevo.`);
-            return;
-        }
-
-        // 2. Si no está, lo agregamos a Sugerencias ajustando la regla de stock mínimo
-        const { data: regla } = await clienteSupabase.from('reglas_stock_sucursal')
-            .select('id, stock_minimo_ua')
-            .eq('id_sucursal', window.sucursalActivaID)
-            .eq('id_producto', idProd)
-            .maybeSingle();
-
-        if(!regla) {
-            await clienteSupabase.from('reglas_stock_sucursal').insert({
-                id_empresa: window.miEmpresaId,
-                id_sucursal: window.sucursalActivaID,
-                id_producto: idProd,
-                stock_minimo_ua: 0.01 
-            });
-        } else if (regla.stock_minimo_ua <= 0) {
-            await clienteSupabase.from('reglas_stock_sucursal')
-                .update({ stock_minimo_ua: 0.01 })
-                .eq('id', regla.id);
-        }
-        
-        alert(`✅ "${nombre}" fue agregado con éxito a sugerencias de pedidos.`);
-
-    } catch (err) {
-        alert("❌ Error de sistema: " + err.message);
-    }
-}
-
 // FILTRO INTELIGENTE (Sin recargar página)
 window.filtrarInventarioLocal = function(texto) {
     const term = texto.toLowerCase().trim();
@@ -206,7 +157,7 @@ window.ordenarInventario = function(columna) {
     renderizarTablaInventario(datosOrdenados);
 }
 
-// ACCIÓN: AGREGAR A PEDIDO (La joya de la corona 💎)
+// ACCIÓN: AGREGAR A PEDIDO MANUAL (El Banderín Negativo 💎)
 window.agregarASugerenciaInteligente = async function(idProd, nombre) {
     if(!confirm(`¿Deseas agregar "${nombre}" a la lista de pedidos?`)) return;
 
@@ -227,31 +178,31 @@ window.agregarASugerenciaInteligente = async function(idProd, nombre) {
             return; // Detenemos la ejecución
         }
 
-        // 2. Si no está en curso, lo agregamos a sugerencias creando/actualizando la regla
+        // 2. Si no está en curso, lo agregamos a sugerencias.
+        // EL BANDERÍN NEGATIVO: Usamos números negativos como marcador operativo. Es físicamente imposible un mínimo negativo.
         const { data: regla } = await clienteSupabase.from('reglas_stock_sucursal')
-            .select('id, stock_minimo_ua')
+            .select('id, stock_minimo_ua, stock_ideal_ua')
             .eq('id_sucursal', window.sucursalActivaID)
             .eq('id_producto', idProd)
             .maybeSingle();
 
         if(!regla) {
-            // Creamos una regla mínima para que salte la alerta
+            // Si no tenía regla, creamos una mínima negativa
             await clienteSupabase.from('reglas_stock_sucursal').insert({
                 id_empresa: window.miEmpresaId,
                 id_sucursal: window.sucursalActivaID,
                 id_producto: idProd,
-                stock_minimo_ua: 0.01 
+                stock_minimo_ua: -1, // Mínimo imposible = Banderín manual activo
+                stock_ideal_ua: 0 
             });
-        } else if (regla.stock_minimo_ua <= 0) {
-            // Si la regla existe pero es 0, la subimos un poco para forzar la sugerencia
+        } else if (regla.stock_minimo_ua >= 0) {
+            // Si la regla existe y es operativa (positiva), la multiplicamos por -1 para marcarla manual sin perder el valor estratégico.
             await clienteSupabase.from('reglas_stock_sucursal')
-                .update({ stock_minimo_ua: 0.01 })
+                .update({ stock_minimo_ua: regla.stock_minimo_ua * -1 })
                 .eq('id', regla.id);
         }
         
         alert(`✅ "${nombre}" se ha agregado a sugerencias de pedidos.`);
-        // Opcional: Recargar el inventario para actualizar la UI si tienes un indicador visual
-        // window.abrirInventarioSucursal(window.sucursalActivaID, window.sucursalActivaNombre);
 
     } catch (err) {
         alert("Error al procesar el pedido: " + err.message);
