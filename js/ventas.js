@@ -404,13 +404,15 @@ window.confirmarVentaPOS = async function() {
     btn.disabled = true;
 
     try {
-        // 1. Armar el paquete de datos para Supabase
+        const jwtStr = localStorage.getItem('supabase.auth.token');
+        const empresaID = jwtStr ? JSON.parse(jwtStr).currentSession.user.user_metadata.id_empresa : window.miEmpresaId;
+
         const payloadVenta = {
-            id_empresa: window.miEmpresaId,
+            id_empresa: empresaID,
+            id_cajero: supabase.auth.user()?.id || null, // Guardamos también quién cobró
             total: checkoutTotalVenta,
             metodo_pago: checkoutMetodoPago,
             estado: 'COMPLETADA'
-            // Nota: Aquí luego vincularemos el id_turno cuando hagamos la Apertura de Caja
         };
 
         // 2. Guardar en la tabla pos_ventas
