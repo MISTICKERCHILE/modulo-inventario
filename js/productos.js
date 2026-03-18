@@ -359,7 +359,7 @@ if (!window.eventosFormProductoAtados) {
                 control_stock: valorControlStock,
                 // NUEVOS CAMPOS DEL POS:
                 codigo_barras: document.getElementById('prod-codigo-barras') ? document.getElementById('prod-codigo-barras').value.trim() : null,
-                vender_en_pos: document.getElementById('prod-vender-pos') ? document.getElementById('prod-vender-pos').checked : false
+                vender_en_pos: document.getElementById('prod-vender-pos') ? document.getElementById('prod-vender-pos').checked : false,
                 // NUEVOS CAMPOS DEL POS Y PRECIOS:
                 codigo_barras: document.getElementById('prod-codigo-barras') ? document.getElementById('prod-codigo-barras').value.trim() : null,
                 vender_en_pos: document.getElementById('prod-vender-pos') ? document.getElementById('prod-vender-pos').checked : false,
