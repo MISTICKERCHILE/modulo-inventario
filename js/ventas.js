@@ -542,3 +542,22 @@ window.eliminarCuentaGuardada = function(idCuenta) {
         renderizarCuentasGuardadas();
     }
 }
+
+window.volverDashboardPOS = function() {
+    // Ocultamos la pantalla de cuentas
+    document.getElementById('pos-cuentas-screen').classList.add('hidden');
+    
+    // Mostramos el menú principal (Asegúrate de que tu menú de los 3 botones grandes tenga el id="pos-dashboard")
+    const dashboard = document.getElementById('pos-dashboard');
+    if(dashboard) {
+        dashboard.classList.remove('hidden');
+    }
+}
+
+window.volverDashboardPOS = function() {
+    // 1. Ocultamos la pantalla de las cuentas
+    document.getElementById('pos-cuentas-screen').classList.add('hidden');
+    
+    // 2. Volvemos a mostrar el menú de los 3 botones gigantes
+    document.getElementById('pos-dashboard').classList.remove('hidden');
+}
