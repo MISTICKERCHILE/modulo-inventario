@@ -167,24 +167,36 @@ window.cambiarTab = function(tab) {
         const sec = document.getElementById(`seccion-${t}`);
         const btn = document.getElementById(`tab-${t}`);
         if(sec) sec.classList.add('hidden');
-        // Reset a estilo inactivo (gris)
         if(btn) btn.className = 'text-left px-4 py-2 rounded-lg font-medium text-slate-600 hover:bg-slate-100 transition-colors w-full outline-none';
     });
     
     const actSec = document.getElementById(`seccion-${tab}`);
     const actBtn = document.getElementById(`tab-${tab}`);
     if(actSec) actSec.classList.remove('hidden');
-    // Estilo Activo (Verde brillante y con borde)
     if(actBtn) actBtn.className = 'text-left px-4 py-2 rounded-lg font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 shadow-sm w-full outline-none';
 
-    // Disparar las consultas a la base de datos según el tab
+    // MAGIA MOBILE: Si la pantalla es chica, ocultamos el menú y mostramos la tabla a pantalla completa
+    if (window.innerWidth < 768) {
+        document.getElementById('menu-lateral-catalogos').classList.add('hidden');
+        document.getElementById('menu-lateral-catalogos').classList.remove('block');
+        document.getElementById('area-contenido-catalogos').classList.remove('hidden');
+        document.getElementById('area-contenido-catalogos').classList.add('block');
+    }
+
     if(tab === 'categorias') window.cargarCategorias();
     if(tab === 'unidades') window.cargarUnidades();
     if(tab === 'proveedores') window.cargarProveedores();
     if(tab === 'sucursales') window.cargarSucursales();
     if(tab === 'ubicaciones') window.cargarUbicaciones();
     if(tab === 'tipos_movimiento') window.cargarTiposMovimiento();
-    // En el futuro aquí pondremos: if(tab === 'productos') window.cargarProductos();
+}
+
+// NUEVA FUNCIÓN: Para el botón "Volver" en celulares
+window.volverMenuMobileCat = function() {
+    document.getElementById('menu-lateral-catalogos').classList.remove('hidden');
+    document.getElementById('menu-lateral-catalogos').classList.add('block');
+    document.getElementById('area-contenido-catalogos').classList.add('hidden');
+    document.getElementById('area-contenido-catalogos').classList.remove('block');
 }
 
 window.cargarCategorias = async function() {
