@@ -82,6 +82,11 @@ window.abrirModalProducto = async function(esEdicion = false, nombreSugerido = '
         document.getElementById('prod-sku').value = 'PRD-' + aleatorio;
         if(document.getElementById('prod-control-stock')) document.getElementById('prod-control-stock').checked = true;
         
+        // NUEVO: Asegurarnos de que la cajita de precios empiece oculta en un producto nuevo
+        if(document.getElementById('contenedor-precios-pos')) {
+            document.getElementById('contenedor-precios-pos').classList.add('hidden');
+        }
+        
         if (nombreSugerido) {
             document.getElementById('prod-nombre').value = nombreSugerido;
         }
