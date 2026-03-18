@@ -268,3 +268,60 @@ window.modificarCantCarrito = function(idProducto, delta) {
         renderizarCarrito();
     }
 }
+
+// ==========================================
+// BUSCADOR Y ESCÁNER DE CÓDIGO DE BARRAS
+// ==========================================
+
+window.buscarProductoPOS = function(texto) {
+    const term = texto.toLowerCase().trim();
+    const grid = document.getElementById('pos-productos-grid');
+    
+    if (term === '') {
+        // Si borran el texto, volvemos a mostrar todo (o la categoría seleccionada)
+        // Por ahora, para simplificar, mostramos 'TODOS'
+        renderizarProductosPOS('TODOS');
+        return;
+    }
+
+    // Buscamos por nombre O por código de barras exacto
+    const filtrados = window.productosPosMemoria.filter(p => {
+        const matchNombre = p.nombre.toLowerCase().includes(term);
+        const matchCodigo = p.codigo_barras && p.codigo_barras.toLowerCase() === term;
+        return matchNombre || matchCodigo;
+    });
+
+    if (filtrados.length === 0) {
+        grid.innerHTML = '<p class="col-span-full text-center text-slate-400 font-bold py-10">No hay coincidencias.</p>';
+        return;
+    }
+
+    // Si el cajero escaneó un código de barras exacto y hay SOLO 1 resultado, lo agregamos al carrito automáticamente!
+    const posibleEscaneo = window.productosPosMemoria.find(p => p.codigo_barras && p.codigo_barras.toLowerCase() === term);
+    
+    if (posibleEscaneo && filtrados.length === 1) {
+        agregarAlCarrito(posibleEscaneo.id);
+        
+        // Limpiamos el buscador rápido para el siguiente escaneo
+        const inputBuscador = document.querySelector('input[placeholder="Buscar o escanear código de barras..."]');
+        if(inputBuscador) {
+            inputBuscador.value = '';
+            // Le devolvemos el foco para que pueda seguir escaneando sin usar el mouse
+            setTimeout(() => inputBuscador.focus(), 10); 
+        }
+        renderizarProductosPOS('TODOS'); // Restauramos la vista
+        return; // Salimos para no dibujar la grilla filtrada
+    }
+
+    // Si es una búsqueda normal por nombre, dibujamos los resultados
+    grid.innerHTML = filtrados.map(p => `
+        <div onclick="agregarAlCarrito('${p.id}')" class="bg-white p-4 rounded-2xl shadow-sm hover:shadow-md hover:border-emerald-400 border-2 border-transparent cursor-pointer transition-all flex flex-col h-36 relative group select-none overflow-hidden">
+            <div class="absolute top-0 right-0 w-16 h-16 bg-emerald-50 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-150 z-0"></div>
+            <h3 class="font-bold text-slate-800 leading-tight relative z-10 line-clamp-2">${p.nombre}</h3>
+            <div class="mt-auto flex justify-between items-end relative z-10">
+                <span class="font-black text-emerald-600 text-lg">$${p.ultimo_costo_uc || 0}</span>
+                <div class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center font-black group-hover:bg-emerald-500 group-hover:text-white transition-colors text-xl">+</div>
+            </div>
+        </div>
+    `).join('');
+}
