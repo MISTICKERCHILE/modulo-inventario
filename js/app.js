@@ -48,6 +48,9 @@ document.getElementById('auth-form').addEventListener('submit', async (e) => {
                     nombre: nombreInput,
                     apellido: apellidoInput,
                     telefono: telInput
+                    // IMPORTANTE: Ya no guardamos el id_empresa aquí porque
+                    // el usuario recién registrado aún NO TIENE empresa asignada.
+                    // El administrador se la asignará después.
                 }
             }
         });
@@ -87,10 +90,14 @@ document.getElementById('auth-form').addEventListener('submit', async (e) => {
     }
 });
 
-window.iniciarSesionEmpresa = function(id, nombre, email, nombreUsuario, rol) {
+window.iniciarSesionEmpresa = async function(id, nombre, email, nombreUsuario, rol) {
     window.miEmpresaId = id;
     window.usuarioActual = nombreUsuario;
     window.miRol = rol; 
+    
+    // LA CURA DEFINITIVA: 
+    // Cada vez que entras a una empresa, estampamos ese ID en tu Carnet de Seguridad (JWT)
+    await clienteSupabase.auth.updateUser({ data: { id_empresa: id } });
     
     localStorage.setItem('sesion_activa_olympia', JSON.stringify({
         id: id, nombre: nombre, email: email, nombreUsuario: nombreUsuario, rol: rol
@@ -116,11 +123,9 @@ window.iniciarSesionEmpresa = function(id, nombre, email, nombreUsuario, rol) {
     const urlParams = new URLSearchParams(window.location.search);
     const vistaDirecta = urlParams.get('v');
     
-    // 👉 AQUÍ ESTÁ LA MAGIA DEL INICIO INTELIGENTE
     if (vistaDirecta) {
         window.cambiarVista(vistaDirecta);
     } else {
-        // Leemos dónde estaba el usuario. Si no hay nada, lo mandamos al dashboard.
         const pantallaGuardada = localStorage.getItem('pantalla_actual') || 'dashboard';
         window.cambiarVista(pantallaGuardada);
     }
