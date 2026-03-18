@@ -364,7 +364,7 @@ if (!window.eventosFormProductoAtados) {
                 codigo_barras: document.getElementById('prod-codigo-barras') ? document.getElementById('prod-codigo-barras').value.trim() : null,
                 vender_en_pos: document.getElementById('prod-vender-pos') ? document.getElementById('prod-vender-pos').checked : false,
                 precio_venta_neto: parseFloat(document.getElementById('prod-precio-neto')?.value) || 0,
-                precio_venta_iva: parseFloat(document.getElementById('prod-precio-iva')?.value) || 0,
+                precio_venta_iva: parseFloat(document.getElementById('prod-precio-iva')?.value) || 0
             };
             
             if(costoBorrador !== null && !isNaN(costoBorrador)) {
