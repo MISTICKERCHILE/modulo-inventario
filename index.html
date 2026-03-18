@@ -224,11 +224,28 @@
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     
-                    <div class="bg-emerald-50 p-4 rounded-lg border border-emerald-200 flex items-start gap-3">
-                        <input type="checkbox" id="prod-vender-pos" class="w-5 h-5 accent-emerald-600 mt-0.5 cursor-pointer"> 
-                        <div>
-                            <label for="prod-vender-pos" class="font-bold text-emerald-900 cursor-pointer block">Habilitar en POS (Punto de Venta)</label>
-                            <p class="text-xs text-emerald-700 mt-1">Aparecerá en la caja registradora para venta directa al cliente.</p>
+                    <div class="bg-emerald-50 p-4 rounded-lg border border-emerald-200 flex flex-col gap-3">
+                        <div class="flex items-start gap-3">
+                            <input type="checkbox" id="prod-vender-pos" class="w-5 h-5 accent-emerald-600 mt-0.5 cursor-pointer" onchange="document.getElementById('contenedor-precios-pos').classList.toggle('hidden', !this.checked)"> 
+                            <div>
+                                <label for="prod-vender-pos" class="font-bold text-emerald-900 cursor-pointer block">Habilitar en POS (Punto de Venta)</label>
+                                <p class="text-xs text-emerald-700 mt-1">Aparecerá en la caja registradora para venta directa al cliente.</p>
+                            </div>
+                        </div>
+                        
+                        <div id="contenedor-precios-pos" class="hidden bg-white p-3 rounded-md border border-emerald-100 shadow-sm mt-1">
+                            <p class="text-[10px] font-bold text-emerald-800 mb-2 uppercase tracking-wider">Fijar Precio de Venta (PDV)</p>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 mb-1">Precio Neto ($)</label>
+                                    <input type="number" step="0.01" id="prod-precio-neto" class="w-full px-2 py-1.5 border border-slate-200 rounded outline-none focus:ring-2 focus:ring-emerald-400 font-mono text-sm" placeholder="Ej: 1000">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 mb-1">Precio Final (+IVA) ($)</label>
+                                    <input type="number" step="0.01" id="prod-precio-iva" class="w-full px-2 py-1.5 border border-slate-200 rounded outline-none focus:ring-2 focus:ring-emerald-400 font-mono text-sm font-bold text-emerald-700 bg-emerald-50/50" placeholder="Ej: 1190">
+                                </div>
+                            </div>
+                            <p class="text-[9px] text-slate-400 mt-2 italic">* El cálculo automático asume un IVA del 19%.</p>
                         </div>
                     </div>
 
