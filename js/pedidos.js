@@ -726,18 +726,19 @@ window.guardarRecepcionMasiva = async function() {
                 // Texto de referencia para el usuario (Kardex)
                 const refMov = isProd ? textoLote : 'Recepción Masiva de Proveedor';
 
-                // Guardamos el movimiento
+                // Guardamos el movimiento en el historial con su costo unitario real
                 await clienteSupabase.from('movimientos_inventario').insert([{ 
-                    id_empresa: window.miEmpresaId, id_producto: idProd, id_ubicacion: idUbi, 
-                    tipo_movimiento: tipoMov, cantidad_movida: cantUA, costo_unitario_movimiento: precioRealUC, referencia: refMov 
+                    id_empresa: window.miEmpresaId, 
+                    id_producto: idProd, 
+                    id_ubicacion: idUbi, 
+                    tipo_movimiento: tipoMov, 
+                    cantidad_movida: cantUA, 
+                    costo_unitario_movimiento: precioRealUC, 
+                    referencia: refMov 
                 }]);
-
-                // Guardamos el movimiento en el historial con el nuevo costo unitario
-                await clienteSupabase.from('movimientos_inventario').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_ubicacion: idUbi, tipo_movimiento: tipoMov, cantidad_movida: cantUA, costo_unitario_movimiento: precioRealUC, referencia: refMov }]);
                 
                 // Actualizamos el "último costo" en el maestro de productos para futuras sugerencias
                 if(!isProd) await clienteSupabase.from('productos').update({ ultimo_costo_uc: precioRealUC }).eq('id', idProd);
-
                 if(idCompraPadre) comprasAfectadas.add(idCompraPadre);
 
             } else if (estado === 'No Recibido') {
