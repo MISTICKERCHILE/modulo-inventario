@@ -296,12 +296,18 @@ window.editarProductoFull = async function(id) {
     document.getElementById('prod-tiene-receta').checked = data.tiene_receta || false;
 
     // NUEVO: Cargar datos del POS
+    // Cargar datos del POS y Precios
     if(document.getElementById('prod-codigo-barras')) document.getElementById('prod-codigo-barras').value = data.codigo_barras || '';
-    if(document.getElementById('prod-vender-pos')) document.getElementById('prod-vender-pos').checked = data.vender_en_pos || false;
-    
-    if(document.getElementById('prod-costo-borrador')) {
-        document.getElementById('prod-costo-borrador').value = data.ultimo_costo_uc || '';
+    if(document.getElementById('prod-vender-pos')) {
+        const checkPos = document.getElementById('prod-vender-pos');
+        checkPos.checked = data.vender_en_pos || false;
+        // Mostramos la cajita de precios si estaba habilitado
+        if(document.getElementById('contenedor-precios-pos')) {
+            document.getElementById('contenedor-precios-pos').classList.toggle('hidden', !checkPos.checked);
+        }
     }
+    if(document.getElementById('prod-precio-neto')) document.getElementById('prod-precio-neto').value = data.precio_venta_neto || '';
+    if(document.getElementById('prod-precio-iva')) document.getElementById('prod-precio-iva').value = data.precio_venta_iva || '';
 
     const checkControl = document.getElementById('prod-control-stock');
     if(checkControl) {
@@ -354,6 +360,11 @@ if (!window.eventosFormProductoAtados) {
                 // NUEVOS CAMPOS DEL POS:
                 codigo_barras: document.getElementById('prod-codigo-barras') ? document.getElementById('prod-codigo-barras').value.trim() : null,
                 vender_en_pos: document.getElementById('prod-vender-pos') ? document.getElementById('prod-vender-pos').checked : false
+                // NUEVOS CAMPOS DEL POS Y PRECIOS:
+                codigo_barras: document.getElementById('prod-codigo-barras') ? document.getElementById('prod-codigo-barras').value.trim() : null,
+                vender_en_pos: document.getElementById('prod-vender-pos') ? document.getElementById('prod-vender-pos').checked : false,
+                precio_venta_neto: parseFloat(document.getElementById('prod-precio-neto')?.value) || 0,
+                precio_venta_iva: parseFloat(document.getElementById('prod-precio-iva')?.value) || 0,
             };
             
             if(costoBorrador !== null && !isNaN(costoBorrador)) {
@@ -1254,3 +1265,20 @@ window.importarRecetasCSV = async function(inputElement) {
         error: function(err) { alert("Error: " + err.message); }
     });
 };
+
+// CÁLCULO BIDIRECCIONAL DE PRECIOS (NETO <-> IVA)
+document.addEventListener('input', (e) => {
+    // Nota: El 1.19 luego vendrá de los parámetros de la empresa
+    const TASA_IVA = 1.19; 
+    
+    if (e.target.id === 'prod-precio-neto') {
+        const neto = parseFloat(e.target.value);
+        if (!isNaN(neto)) document.getElementById('prod-precio-iva').value = Math.round(neto * TASA_IVA);
+        else document.getElementById('prod-precio-iva').value = '';
+    } 
+    else if (e.target.id === 'prod-precio-iva') {
+        const iva = parseFloat(e.target.value);
+        if (!isNaN(iva)) document.getElementById('prod-precio-neto').value = Math.round(iva / TASA_IVA);
+        else document.getElementById('prod-precio-neto').value = '';
+    }
+});

@@ -193,7 +193,7 @@ window.renderizarProductosPOS = function(idCategoria) {
             <div class="absolute top-0 right-0 w-16 h-16 bg-emerald-50 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-150 z-0"></div>
             <h3 class="font-bold text-slate-800 leading-tight relative z-10 line-clamp-2">${p.nombre}</h3>
             <div class="mt-auto flex justify-between items-end relative z-10">
-                <span class="font-black text-emerald-600 text-lg">$${p.ultimo_costo_uc || 0}</span>
+                <span class="font-black text-emerald-600 text-lg">$${p.precio_venta_iva || 0}</span>
                 <div class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center font-black group-hover:bg-emerald-500 group-hover:text-white transition-colors text-xl">+</div>
             </div>
         </div>
@@ -212,7 +212,7 @@ window.agregarAlCarrito = function(idProducto) {
         window.carritoPos.push({
             id: prod.id,
             nombre: prod.nombre,
-            precio: prod.ultimo_costo_uc || 0, // Asumimos que "ultimo_costo_uc" es el precio de venta temporalmente
+            precio: prod.precio_venta_iva || 0,
             cantidad: 1
         });
     }
