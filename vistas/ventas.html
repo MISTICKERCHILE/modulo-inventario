@@ -53,32 +53,29 @@
             </div>
         </header>
 
-        <div id="pos-dashboard" class="flex flex-col gap-6 max-w-md mx-auto mt-10">
-        </div>
+        <div id="pos-dashboard" class="flex-1 flex flex-col items-center justify-center p-6 w-full max-w-md mx-auto space-y-6 mt-4">
+    
+            <button onclick="iniciarNuevaVenta()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white rounded-3xl p-8 flex justify-between items-center shadow-lg transform transition-transform hover:scale-105 group border-b-4 border-emerald-800">
+                <div class="text-left">
+                    <h2 class="text-4xl font-black uppercase">Nueva<br>Venta</h2>
+                </div>
+                <span class="text-6xl font-black opacity-50 group-hover:opacity-100 transition-opacity">+</span>
+            </button>
 
-        <div class="flex-1 flex items-center justify-center p-6">
-            <div class="w-full max-w-md space-y-4">
-                <button onclick="iniciarNuevaVenta()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white rounded-3xl p-8 flex justify-between items-center shadow-lg transform transition-transform hover:scale-105 group border-b-4 border-emerald-800">
-                    <div class="text-left">
-                        <h2 class="text-4xl font-black uppercase">Nueva<br>Venta</h2>
-                    </div>
-                    <span class="text-6xl font-black opacity-50 group-hover:opacity-100 transition-opacity">+</span>
-                </button>
+            <button onclick="mostrarPantallaCuentas()" class="w-full bg-blue-600 hover:bg-blue-500 text-white rounded-3xl p-8 flex justify-between items-center shadow-lg transform transition-transform hover:scale-105 group border-b-4 border-blue-800">
+                <div class="text-left">
+                    <h2 class="text-4xl font-black uppercase">Cuentas<br>Guardadas</h2>
+                </div>
+                <span class="text-6xl font-black opacity-50 group-hover:opacity-100 transition-opacity">📝</span>
+            </button>
 
-                <button onclick="mostrarPantallaCuentas()" class="w-full bg-blue-600 hover:bg-blue-500 text-white rounded-3xl p-8 flex justify-between items-center shadow-lg transform transition-transform hover:scale-105 group border-b-4 border-blue-800">
-                    <div class="text-left">
-                        <h2 class="text-4xl font-black uppercase">Cuentas<br>Guardadas</h2>
-                    </div>
-                    <span class="text-6xl font-black opacity-50 group-hover:opacity-100 transition-opacity">📝</span>
-                </button>
+            <button onclick="abrirModuloClientes()" class="w-full bg-orange-600 hover:bg-orange-500 text-white rounded-3xl p-8 flex justify-between items-center shadow-lg transform transition-transform hover:scale-105 group border-b-4 border-orange-800">
+                <div class="text-left">
+                    <h2 class="text-4xl font-black uppercase">Clientes</h2>
+                </div>
+                <span class="text-6xl font-black opacity-50 group-hover:opacity-100 transition-opacity">👤</span>
+            </button>
 
-                <button class="w-full bg-amber-600 hover:bg-amber-500 text-white rounded-3xl p-8 flex justify-between items-center shadow-lg transform transition-transform hover:scale-105 group border-b-4 border-amber-800">
-                    <div class="text-left">
-                        <h2 class="text-3xl font-black uppercase">Clientes</h2>
-                    </div>
-                    <span class="text-5xl">👤</span>
-                </button>
-            </div>
         </div>
     </div>
 
