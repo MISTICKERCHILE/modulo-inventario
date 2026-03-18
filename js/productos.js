@@ -295,22 +295,20 @@ window.editarProductoFull = async function(id) {
     document.getElementById('prod-u-receta').value = data.id_unidad_receta || '';
     document.getElementById('prod-tiene-receta').checked = data.tiene_receta || false;
 
-    // NUEVO: Cargar datos del POS
-    // Cargar datos del POS y Precios
+    // NUEVO: Cargar datos del POS y Precios
     if(document.getElementById('prod-codigo-barras')) document.getElementById('prod-codigo-barras').value = data.codigo_barras || '';
-    if(document.getElementById('prod-vender-pos')) {
-        const checkPos = document.getElementById('prod-vender-pos');
-        checkPos.checked = data.vender_en_pos || false;
-        // Mostramos la cajita de precios si estaba habilitado
-        if(document.getElementById('contenedor-precios-pos')) {
-            document.getElementById('contenedor-precios-pos').classList.toggle('hidden', !checkPos.checked);
+    
+    const checkPos = document.getElementById('prod-vender-pos');
+        if(checkPos) {
+            checkPos.checked = data.vender_en_pos || false;
+            const cajaPrecios = document.getElementById('contenedor-precios-pos');
+            if(cajaPrecios) cajaPrecios.classList.toggle('hidden', !checkPos.checked);
         }
-    }
-    if(document.getElementById('prod-precio-neto')) document.getElementById('prod-precio-neto').value = data.precio_venta_neto || '';
-    if(document.getElementById('prod-precio-iva')) document.getElementById('prod-precio-iva').value = data.precio_venta_iva || '';
-
-    const checkControl = document.getElementById('prod-control-stock');
-    if(checkControl) {
+        
+        if(document.getElementById('prod-precio-neto')) document.getElementById('prod-precio-neto').value = data.precio_venta_neto || '';
+        if(document.getElementById('prod-precio-iva')) document.getElementById('prod-precio-iva').value = data.precio_venta_iva || '';
+        const checkControl = document.getElementById('prod-control-stock');
+        if(checkControl) {
         checkControl.checked = data.control_stock !== false; 
     }
 
