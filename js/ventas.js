@@ -404,18 +404,15 @@ window.confirmarVentaPOS = async function() {
     btn.disabled = true;
 
     try {
-        const jwtStr = localStorage.getItem('supabase.auth.token');
-        const empresaID = jwtStr ? JSON.parse(jwtStr).currentSession.user.user_metadata.id_empresa : window.miEmpresaId;
-
+        // 1. Payload limpio usando tu variable global segura
         const payloadVenta = {
-            id_empresa: empresaID,
-            id_cajero: supabase.auth.user()?.id || null, // Guardamos también quién cobró
+            id_empresa: window.miEmpresaId,
             total: checkoutTotalVenta,
             metodo_pago: checkoutMetodoPago,
             estado: 'COMPLETADA'
         };
 
-        // 2. Guardar en la tabla pos_ventas
+        // 2. Guardar en la tabla
         const { data: ventaGuardada, error } = await clienteSupabase
             .from('pos_ventas')
             .insert([payloadVenta])
@@ -424,15 +421,15 @@ window.confirmarVentaPOS = async function() {
 
         if (error) throw error;
 
-        // 3. Éxito: Avisar, limpiar y cerrar
+        // 3. Éxito absoluto
         alert("✅ ¡Venta registrada con éxito!");
-        window.carritoPos = []; // Vaciar carrito
-        renderizarCarrito();    // Actualizar pantalla
-        cerrarCheckout();       // Cerrar modal
+        window.carritoPos = []; 
+        renderizarCarrito();    
+        cerrarCheckout();       
 
     } catch(error) {
         console.error("Error al registrar venta:", error);
-        alert("Error al registrar venta: " + error.message);
+        alert("Error al registrar venta: " + (error.message || "Desconocido"));
     } finally {
         btn.innerText = "CONFIRMAR PAGO";
         btn.disabled = false;
