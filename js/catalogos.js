@@ -161,24 +161,30 @@ if (!window.eventosCatalogosAtados) {
 }
 
 window.cambiarTab = function(tab) {
-    ['categorias', 'unidades', 'proveedores', 'sucursales', 'ubicaciones', 'tipos_movimiento'].forEach(t => {
+    const todosLosTabs = ['productos', 'categorias', 'unidades', 'proveedores', 'sucursales', 'ubicaciones', 'tipos_movimiento', 'clientes'];
+    
+    todosLosTabs.forEach(t => {
         const sec = document.getElementById(`seccion-${t}`);
         const btn = document.getElementById(`tab-${t}`);
         if(sec) sec.classList.add('hidden');
-        if(btn) btn.className = 'px-6 py-3 font-medium text-gray-500 hover:text-gray-700 transition-colors';
+        // Reset a estilo inactivo (gris)
+        if(btn) btn.className = 'text-left px-4 py-2 rounded-lg font-medium text-slate-600 hover:bg-slate-100 transition-colors w-full outline-none';
     });
     
     const actSec = document.getElementById(`seccion-${tab}`);
     const actBtn = document.getElementById(`tab-${tab}`);
     if(actSec) actSec.classList.remove('hidden');
-    if(actBtn) actBtn.className = 'px-6 py-3 font-medium border-b-2 border-emerald-600 text-emerald-600 bg-emerald-50/50';
+    // Estilo Activo (Verde brillante y con borde)
+    if(actBtn) actBtn.className = 'text-left px-4 py-2 rounded-lg font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 shadow-sm w-full outline-none';
 
+    // Disparar las consultas a la base de datos según el tab
     if(tab === 'categorias') window.cargarCategorias();
     if(tab === 'unidades') window.cargarUnidades();
     if(tab === 'proveedores') window.cargarProveedores();
     if(tab === 'sucursales') window.cargarSucursales();
     if(tab === 'ubicaciones') window.cargarUbicaciones();
     if(tab === 'tipos_movimiento') window.cargarTiposMovimiento();
+    // En el futuro aquí pondremos: if(tab === 'productos') window.cargarProductos();
 }
 
 window.cargarCategorias = async function() {
