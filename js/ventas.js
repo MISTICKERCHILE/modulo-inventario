@@ -325,3 +325,114 @@ window.buscarProductoPOS = function(texto) {
         </div>
     `).join('');
 }
+
+// ==========================================
+// LÓGICA DE CHECKOUT Y PAGOS
+// ==========================================
+let checkoutMetodoPago = '';
+let checkoutTotalVenta = 0;
+
+window.abrirCheckout = function() {
+    if(window.carritoPos.length === 0) {
+        alert("⚠️ El carrito está vacío. Agrega productos primero.");
+        return;
+    }
+
+    // 1. Calcular total actual sumando el carrito
+    checkoutTotalVenta = window.carritoPos.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
+    document.getElementById('checkout-total').innerText = "$" + checkoutTotalVenta.toLocaleString('es-CL');
+    
+    // 2. Resetear el modal para que esté limpio
+    checkoutMetodoPago = '';
+    document.getElementById('checkout-recibido').value = '';
+    document.getElementById('checkout-vuelto').innerText = '$0';
+    document.getElementById('checkout-seccion-efectivo').classList.add('hidden');
+    document.getElementById('btn-confirmar-venta').disabled = true;
+
+    // Quitar color verde de los botones de pago por si había uno seleccionado antes
+    const botones = document.querySelectorAll('.metodo-pago-btn');
+    botones.forEach(btn => {
+        btn.classList.remove('ring-4', 'ring-emerald-400', 'bg-emerald-50');
+    });
+
+    // 3. Mostrar el modal
+    document.getElementById('pos-checkout-modal').classList.remove('hidden');
+}
+
+window.cerrarCheckout = function() {
+    document.getElementById('pos-checkout-modal').classList.add('hidden');
+}
+
+window.seleccionarMetodoPago = function(metodo) {
+    checkoutMetodoPago = metodo;
+    document.getElementById('btn-confirmar-venta').disabled = false; // Habilitar botón de confirmar
+
+    // Limpiar todos los botones
+    const botones = document.querySelectorAll('.metodo-pago-btn');
+    botones.forEach(btn => btn.classList.remove('ring-4', 'ring-emerald-400', 'bg-emerald-50'));
+    
+    // Pintar de verde el botón seleccionado
+    let btnActivo;
+    if(metodo === 'EFECTIVO') btnActivo = document.getElementById('btn-pago-efectivo');
+    if(metodo === 'TARJETA') btnActivo = document.getElementById('btn-pago-tarjeta');
+    if(metodo === 'TRANSFERENCIA') btnActivo = document.getElementById('btn-pago-transf');
+    
+    if(btnActivo) btnActivo.classList.add('ring-4', 'ring-emerald-400', 'bg-emerald-50');
+
+    // Mostrar u ocultar la calculadora de vuelto
+    const seccionEfectivo = document.getElementById('checkout-seccion-efectivo');
+    if(metodo === 'EFECTIVO') {
+        seccionEfectivo.classList.remove('hidden');
+        setTimeout(() => document.getElementById('checkout-recibido').focus(), 100); // Autofocus para escribir rápido
+    } else {
+        seccionEfectivo.classList.add('hidden');
+    }
+}
+
+window.calcularVuelto = function() {
+    const recibido = parseFloat(document.getElementById('checkout-recibido').value) || 0;
+    let vuelto = recibido - checkoutTotalVenta;
+    if(vuelto < 0) vuelto = 0; // No mostramos vueltos negativos
+    document.getElementById('checkout-vuelto').innerText = "$" + vuelto.toLocaleString('es-CL');
+}
+
+window.confirmarVentaPOS = async function() {
+    if(!checkoutMetodoPago) return alert("Selecciona un método de pago.");
+    
+    const btn = document.getElementById('btn-confirmar-venta');
+    btn.innerText = "⏳ Procesando...";
+    btn.disabled = true;
+
+    try {
+        // 1. Armar el paquete de datos para Supabase
+        const payloadVenta = {
+            id_empresa: window.miEmpresaId,
+            total: checkoutTotalVenta,
+            metodo_pago: checkoutMetodoPago,
+            estado: 'COMPLETADA'
+            // Nota: Aquí luego vincularemos el id_turno cuando hagamos la Apertura de Caja
+        };
+
+        // 2. Guardar en la tabla pos_ventas
+        const { data: ventaGuardada, error } = await clienteSupabase
+            .from('pos_ventas')
+            .insert([payloadVenta])
+            .select('id')
+            .single();
+
+        if (error) throw error;
+
+        // 3. Éxito: Avisar, limpiar y cerrar
+        alert("✅ ¡Venta registrada con éxito!");
+        window.carritoPos = []; // Vaciar carrito
+        renderizarCarrito();    // Actualizar pantalla
+        cerrarCheckout();       // Cerrar modal
+
+    } catch(error) {
+        console.error("Error al registrar venta:", error);
+        alert("Error al registrar venta: " + error.message);
+    } finally {
+        btn.innerText = "CONFIRMAR PAGO";
+        btn.disabled = false;
+    }
+}
