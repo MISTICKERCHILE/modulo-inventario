@@ -103,6 +103,9 @@ window.iniciarNuevaVenta = function() {
     // Mostrar la pantalla de Nueva Venta (Caja)
     document.getElementById('pos-nueva-venta-screen').classList.remove('hidden');
     document.getElementById('pos-nueva-venta-screen').classList.add('flex');
+
+    // (Agrega esta línea al final de iniciarNuevaVenta)
+    cargarCatalogoPOS();
 }
 
 // Volver al dashboard del POS
@@ -120,5 +123,148 @@ window.cerrarTurno = function() {
     if(confirm("¿Seguro que deseas iniciar el cierre de caja?")) {
         alert("Iniciando arqueo de caja...");
         // Esto lo programaremos luego
+    }
+}
+
+// ==========================================
+// LÓGICA DE LA CAJA REGISTRADORA (CARRITO)
+// ==========================================
+window.productosPosMemoria = [];
+window.carritoPos = [];
+
+// Esta función trae los productos de la BD
+async function cargarCatalogoPOS() {
+    document.getElementById('pos-productos-grid').innerHTML = '<p class="col-span-full text-center text-slate-400 font-bold mt-10 animate-pulse">Cargando catálogo...</p>';
+
+    // Solo trae los productos de esta empresa que tienen "vender_en_pos" = true
+    const { data: prods, error } = await clienteSupabase
+        .from('productos')
+        .select('*, categorias(nombre)')
+        .eq('id_empresa', window.miEmpresaId)
+        .eq('vender_en_pos', true)
+        .order('nombre');
+
+    if (error) {
+        console.error("Error cargando catálogo POS:", error);
+        return;
+    }
+
+    window.productosPosMemoria = prods || [];
+    renderizarCategoriasPOS();
+    renderizarProductosPOS('TODOS');
+}
+
+// Dibuja los botones de arriba (Bebidas, Postres, etc.) dinámicamente
+function renderizarCategoriasPOS() {
+    const catMap = new Map();
+    window.productosPosMemoria.forEach(p => {
+        if (p.id_categoria && p.categorias) {
+            catMap.set(p.id_categoria, p.categorias.nombre);
+        }
+    });
+
+    const contenedor = document.getElementById('pos-categorias-container');
+    if(!contenedor) return;
+
+    let html = `<button onclick="renderizarProductosPOS('TODOS')" class="px-5 py-2 bg-emerald-100 text-emerald-800 font-black rounded-xl whitespace-nowrap border-2 border-emerald-200">Todas</button>`;
+    
+    catMap.forEach((nombre, id) => {
+        html += `<button onclick="renderizarProductosPOS('${id}')" class="px-5 py-2 text-slate-600 font-bold hover:bg-slate-100 rounded-xl whitespace-nowrap transition-colors border-2 border-transparent">${nombre}</button>`;
+    });
+
+    contenedor.innerHTML = html;
+}
+
+// Pinta los botones gigantes de los productos
+window.renderizarProductosPOS = function(idCategoria) {
+    let filtrados = window.productosPosMemoria;
+    if (idCategoria !== 'TODOS') {
+        filtrados = filtrados.filter(p => p.id_categoria === idCategoria);
+    }
+
+    const grid = document.getElementById('pos-productos-grid');
+    if (filtrados.length === 0) {
+        grid.innerHTML = '<p class="col-span-full text-center text-slate-400 font-bold py-10">No hay productos disponibles.</p>';
+        return;
+    }
+
+    grid.innerHTML = filtrados.map(p => `
+        <div onclick="agregarAlCarrito('${p.id}')" class="bg-white p-4 rounded-2xl shadow-sm hover:shadow-md hover:border-emerald-400 border-2 border-transparent cursor-pointer transition-all flex flex-col h-36 relative group select-none overflow-hidden">
+            <div class="absolute top-0 right-0 w-16 h-16 bg-emerald-50 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-150 z-0"></div>
+            <h3 class="font-bold text-slate-800 leading-tight relative z-10 line-clamp-2">${p.nombre}</h3>
+            <div class="mt-auto flex justify-between items-end relative z-10">
+                <span class="font-black text-emerald-600 text-lg">$${p.ultimo_costo_uc || 0}</span>
+                <div class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center font-black group-hover:bg-emerald-500 group-hover:text-white transition-colors text-xl">+</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Agrega items a la columna derecha (El Ticket)
+window.agregarAlCarrito = function(idProducto) {
+    const prod = window.productosPosMemoria.find(p => p.id === idProducto);
+    if(!prod) return;
+    
+    const itemExistente = window.carritoPos.find(item => item.id === idProducto);
+    if(itemExistente) {
+        itemExistente.cantidad++;
+    } else {
+        window.carritoPos.push({
+            id: prod.id,
+            nombre: prod.nombre,
+            precio: prod.ultimo_costo_uc || 0, // Asumimos que "ultimo_costo_uc" es el precio de venta temporalmente
+            cantidad: 1
+        });
+    }
+    renderizarCarrito();
+}
+
+// Actualiza el Ticket Visualmente
+function renderizarCarrito() {
+    const list = document.getElementById('pos-cart-list');
+    if (window.carritoPos.length === 0) {
+        list.innerHTML = `
+            <div class="h-full flex flex-col items-center justify-center text-slate-300 space-y-2">
+                <span class="text-6xl mb-2">🛒</span>
+                <p class="font-bold text-slate-400">Carrito vacío</p>
+                <p class="text-xs text-slate-400">Escanea o selecciona productos</p>
+            </div>`;
+        document.getElementById('pos-total-pagar').innerText = "$0";
+        return;
+    }
+
+    let total = 0;
+    list.innerHTML = window.carritoPos.map(item => {
+        const subtotalItem = item.precio * item.cantidad;
+        total += subtotalItem;
+        return `
+        <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-100 mb-2 flex justify-between items-center">
+            <div class="flex-1">
+                <p class="font-bold text-slate-800 text-sm leading-tight">${item.nombre}</p>
+                <p class="text-emerald-600 font-black text-xs">$${item.precio}</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="flex items-center bg-slate-100 rounded-lg">
+                    <button onclick="modificarCantCarrito('${item.id}', -1)" class="w-8 h-8 flex items-center justify-center text-slate-600 font-bold hover:bg-slate-200 rounded-l-lg">-</button>
+                    <span class="w-8 text-center font-bold text-sm">${item.cantidad}</span>
+                    <button onclick="modificarCantCarrito('${item.id}', 1)" class="w-8 h-8 flex items-center justify-center text-slate-600 font-bold hover:bg-slate-200 rounded-r-lg">+</button>
+                </div>
+            </div>
+        </div>
+        `;
+    }).join('');
+
+    document.getElementById('pos-total-pagar').innerText = "$" + total.toLocaleString('es-CL');
+}
+
+// Botones de + y - dentro del carrito
+window.modificarCantCarrito = function(idProducto, delta) {
+    const index = window.carritoPos.findIndex(item => item.id === idProducto);
+    if(index > -1) {
+        window.carritoPos[index].cantidad += delta;
+        if(window.carritoPos[index].cantidad <= 0) {
+            window.carritoPos.splice(index, 1); // Lo elimina si llega a 0
+        }
+        renderizarCarrito();
     }
 }
