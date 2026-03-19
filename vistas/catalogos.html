@@ -57,7 +57,43 @@
             <div class="text-center py-20">
                 <span class="text-6xl mb-4 block">👥</span>
                 <h3 class="text-xl font-bold text-slate-700">Módulo de Clientes</h3>
-                <p class="text-slate-500 mt-2">Aquí construiremos la base de datos conectada a tu POS.</p>
+                <div id="seccion-clientes" class="hidden space-y-4">
+                    <div class="bg-blue-50 border border-blue-200 p-4 rounded-xl mb-4 flex items-center justify-between shadow-sm">
+                        <div>
+                            <h3 class="font-bold text-blue-800 text-lg flex items-center gap-2">👥 Base de Clientes (CRM)</h3>
+                            <p class="text-xs text-blue-600 mt-1">Registra sus datos aquí para facturación rápida en el POS y futuras campañas de Marketing (Mailing/WhatsApp).</p>
+                        </div>
+                        <span class="text-4xl hidden md:block opacity-80">💌</span>
+                    </div>
+                    
+                    <form id="form-cliente" class="bg-slate-50 p-6 rounded-xl border border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre Completo / Razón Social</label>
+                            <input type="text" id="nombre-cliente" required class="w-full px-4 py-2 border rounded-md bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">RUT / DNI (Opcional para boletas)</label>
+                            <input type="text" id="doc-cliente" class="w-full px-4 py-2 border rounded-md bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Correo Electrónico (Para Mailing)</label>
+                            <input type="email" id="correo-cliente" placeholder="ejemplo@correo.com" class="w-full px-4 py-2 border rounded-md bg-white focus:ring-2 focus:ring-blue-500 outline-none font-medium text-blue-700">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Teléfono / WhatsApp (Marketing)</label>
+                            <input type="tel" id="telefono-cliente" placeholder="+56 9 1234 5678" class="w-full px-4 py-2 border rounded-md bg-white focus:ring-2 focus:ring-emerald-500 outline-none font-medium text-emerald-700">
+                        </div>
+                        
+                        <div class="col-span-1 md:col-span-2 flex justify-end gap-3 mt-2 border-t pt-4">
+                            <button type="button" id="btn-cancelar-cliente" onclick="cancelarEdicion('cliente')" class="hidden px-6 py-2 border border-slate-300 bg-white text-slate-600 rounded-md font-bold">Cancelar</button>
+                            <button type="submit" class="px-8 py-2 bg-blue-600 text-white rounded-md font-bold shadow-sm hover:bg-blue-700 transition-colors">Guardar Cliente</button>
+                        </div>
+                    </form>
+                    
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <ul id="lista-clientes" class="divide-y divide-gray-100"></ul>
+                    </div>
+                </div>
             </div>
         </div>
 

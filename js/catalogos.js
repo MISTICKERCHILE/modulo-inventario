@@ -156,6 +156,25 @@ if (!window.eventosCatalogosAtados) {
             if (res.error) return alert("❌ Error BD: " + res.error.message);
             window.cancelarEdicion('tipo-movimiento'); window.cargarTiposMovimiento();
         }
+
+        // --- GUARDAR CLIENTE (CRM) ---
+        else if (e.target.id === 'form-cliente') {
+            e.preventDefault();
+            const payload = {
+                nombre: document.getElementById('nombre-cliente').value,
+                documento: document.getElementById('doc-cliente').value,
+                correo: document.getElementById('correo-cliente').value,
+                telefono: document.getElementById('telefono-cliente').value
+            };
+            let res;
+            if(window.modoEdicion.activo && window.modoEdicion.form === 'cliente') {
+                res = await clienteSupabase.from('clientes').update(payload).eq('id', window.modoEdicion.id);
+            } else {
+                res = await clienteSupabase.from('clientes').insert([{...payload, id_empresa: window.miEmpresaId}]);
+            }
+            if (res.error) return alert("❌ Error BD: " + res.error.message);
+            window.cancelarEdicion('cliente'); window.cargarClientes();
+        }
     });
     window.eventosCatalogosAtados = true;
 }
@@ -189,6 +208,8 @@ window.cambiarTab = function(tab) {
     if(tab === 'sucursales') window.cargarSucursales();
     if(tab === 'ubicaciones') window.cargarUbicaciones();
     if(tab === 'tipos_movimiento') window.cargarTiposMovimiento();
+    if(tab === 'clientes') window.cargarClientes();
+    
 }
 
 // NUEVA FUNCIÓN: Para el botón "Volver" en celulares
@@ -366,4 +387,35 @@ window.cargarTiposMovimiento = async function() {
             </div>
         </li>
     `}).join('');
+}
+
+window.cargarClientes = async function() {
+    const { data } = await clienteSupabase.from('clientes').select('*').eq('id_empresa', window.miEmpresaId).order('nombre');
+    
+    const lista = document.getElementById('lista-clientes');
+    if (!lista) return;
+
+    if (!data || data.length === 0) {
+        lista.innerHTML = '<li class="p-8 text-center text-slate-400 font-medium">Aún no tienes clientes registrados. ¡Empieza a crear tu base de datos!</li>';
+        return;
+    }
+
+    lista.innerHTML = data.map(c => `
+        <li class="px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center hover:bg-slate-50 transition-colors border-b border-slate-100 gap-4">
+            <div class="flex flex-col gap-1">
+                <div class="flex items-baseline gap-2">
+                    <span class="font-black text-slate-800 text-lg uppercase">${c.nombre}</span>
+                    <span class="text-[10px] text-slate-500 font-bold border border-slate-200 bg-slate-100 px-2 py-0.5 rounded uppercase">${c.documento || 'Sin RUT'}</span>
+                </div>
+                <div class="text-xs text-slate-500 flex flex-col sm:flex-row gap-2 sm:gap-4 mt-1">
+                    <span class="flex items-center gap-1">✉️ <b class="text-blue-600">${c.correo || 'Sin correo'}</b></span>
+                    <span class="flex items-center gap-1">📱 <b class="text-emerald-600">${c.telefono || 'Sin teléfono'}</b></span>
+                </div>
+            </div>
+            <div class="flex gap-4 self-end md:self-auto">
+                <button onclick="activarEdicionGlobal('cliente', '${c.id}', {'nombre-cliente': '${c.nombre.replace(/'/g,"\\'")}', 'doc-cliente': '${(c.documento||'').replace(/'/g,"\\'")}', 'correo-cliente': '${(c.correo||'').replace(/'/g,"\\'")}', 'telefono-cliente': '${(c.telefono||'').replace(/'/g,"\\'")}'})" class="text-blue-500 hover:text-blue-700 text-lg transition-transform hover:scale-110" title="Editar">✏️</button>
+                <button onclick="eliminarReg('clientes', '${c.id}'); setTimeout(window.cargarClientes, 500);" class="text-slate-400 hover:text-red-500 text-lg transition-transform hover:scale-110" title="Eliminar">🗑️</button>
+            </div>
+        </li>
+    `).join('');
 }
