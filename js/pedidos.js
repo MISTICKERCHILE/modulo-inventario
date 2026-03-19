@@ -190,7 +190,7 @@ window.renderizarHTMLSugerencias = function(lista) {
                 <td class="px-4 py-3 text-center font-bold text-slate-600">
                     <div class="flex items-center justify-center gap-2">
                         $${p.precioRef}
-                        <button onclick="verHistorialPrecios('${p.idProd}', '${p.nombreProd.replace(/'/g, "\\'")}')" class="text-blue-500 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-full w-6 h-6 flex items-center justify-center font-bold transition-colors text-xs" title="Ver historial de precios de compra">ℹ️</button>
+                        <button onclick="verHistorialPrecios('${p.idProd}', '${p.nombreProd.replace(/'/g, "\\'")}')" class="text-blue-500 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-full w-6 h-6 flex items-center justify-center font-bold transition-colors text-xs" title="Ver historial de precios de compra">i</button>
                     </div>
                 </td>
                 <td class="px-4 py-3 text-right">
