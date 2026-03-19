@@ -187,7 +187,12 @@ window.renderizarHTMLSugerencias = function(lista) {
                 <td class="px-4 py-3">
                     <select id="prov-select-${idSuc}-${p.idProd}" class="w-full px-2 py-1 border border-orange-200 rounded text-xs outline-none bg-white">${optsProvs}</select>
                 </td>
-                <td class="px-4 py-3 text-center font-bold text-slate-600">$${p.precioRef}</td>
+                <td class="px-4 py-3 text-center font-bold text-slate-600">
+                    <div class="flex items-center justify-center gap-2">
+                        $${p.precioRef}
+                        <button onclick="verHistorialPrecios('${p.idProd}', '${p.nombreProd.replace(/'/g, "\\'")}')" class="text-blue-500 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-full w-6 h-6 flex items-center justify-center font-bold transition-colors text-xs" title="Ver historial de precios de compra">ℹ️</button>
+                    </div>
+                </td>
                 <td class="px-4 py-3 text-right">
                     <button onclick="agregarPedidoAlCarrito(${paramsParaBoton}, document.getElementById('prov-select-${idSuc}-${p.idProd}').value)" class="text-xs bg-slate-800 text-white px-3 py-2 rounded shadow hover:bg-slate-700 font-bold">+ Añadir</button>
                 </td>
@@ -762,4 +767,38 @@ window.guardarRecepcionMasiva = async function() {
         alert("Error al recepcionar: " + error.message);
         btn.innerText = "✅ Guardar Recepción"; btn.disabled = false;
     }
+}
+
+// ==========================================
+// HISTORIAL DE PRECIOS DE COMPRA (BOTÓN "i")
+// ==========================================
+window.verHistorialPrecios = async function(idProd, nombreProd) {
+    // 1. Abrimos el modal y ponemos el título
+    document.getElementById('hp-producto-nombre').innerText = nombreProd;
+    document.getElementById('modal-historial-precios').classList.remove('hidden');
+    
+    const tbody = document.getElementById('lista-historial-precios');
+    tbody.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-slate-500 font-bold animate-pulse">⏳ Buscando en el historial...</td></tr>';
+
+    // 2. Buscamos las últimas 10 compras recibidas de este producto
+    const { data, error } = await clienteSupabase.from('compras_detalles')
+        .select('precio_unitario_uc, created_at, compras!inner(proveedores(nombre))')
+        .eq('id_producto', idProd)
+        .eq('estado', 'Recibido')
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+    // 3. Dibujamos los resultados
+    if (error || !data || data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center py-6 text-slate-500">No hay compras anteriores registradas para este producto.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = data.map(d => `
+        <tr class="hover:bg-slate-50 border-b border-slate-100">
+            <td class="px-4 py-3 font-medium text-slate-600">${new Date(d.created_at).toLocaleDateString('es-CL')}</td>
+            <td class="px-4 py-3 font-bold text-slate-800">${d.compras?.proveedores?.nombre || 'Proveedor Desconocido'}</td>
+            <td class="px-4 py-3 text-right font-bold text-emerald-700 font-mono">$${d.precio_unitario_uc}</td>
+        </tr>
+    `).join('');
 }
