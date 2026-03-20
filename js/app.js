@@ -221,6 +221,19 @@ window.cambiarVista = async function(vista) {
         }
     }
 
+    // 👉 NUEVO: Mostrar u ocultar el submenú de Ventas inteligentemente
+    const vistasVentas = ['dashboard_ventas', 'ventas', 'cuentas_cobrar', 'cotizaciones', 'ranking'];
+    const submenuVen = document.getElementById('submenu-dashboard_ventas');
+    
+    if (submenuVen) {
+        // Si la vista pertenece a Ventas, mostramos su submenú.
+        if (vistasVentas.includes(vista)) {
+            submenuVen.classList.remove('hidden');
+        } else {
+            submenuVen.classList.add('hidden');
+        }
+    }
+
     const main = document.getElementById('main-content');
     main.innerHTML = '<div class="flex h-full items-center justify-center"><p class="text-slate-400 font-bold text-lg animate-pulse">Cargando...</p></div>';
     
