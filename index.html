@@ -154,22 +154,22 @@
                     </button>
                 </div>
 
-                <button onclick="cambiarVista('dashboard_ventas')" id="btn-menu-dashboard_ventas" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors">
-                    <span>💰</span> <span class="menu-texto">Módulo Ventas</span>
+                <button onclick="cambiarVista('dashboard')" id="btn-menu-dashboard" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors">
+                    <span>📦</span> <span class="menu-texto">Módulo Inventario</span>
                 </button>
 
-                <div id="submenu-dashboard_ventas" class="space-y-1 mt-1 border-l-2 border-slate-700 ml-4 pl-2 hidden">
-                    <button onclick="cambiarVista('ventas')" id="btn-menu-ventas" class="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors text-emerald-400">
-                        <span>🛒</span> <span class="menu-texto font-bold">Punto de Venta (POS)</span>
+                <div id="submenu-inventario" class="space-y-1 mt-1 border-l-2 border-slate-700 ml-4 pl-2 hidden">
+                    <button onclick="cambiarVista('inventario')" id="btn-menu-inventario" class="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
+                        <span>📋</span> <span class="menu-texto">Stock Actual</span>
                     </button>
-                    <button onclick="cambiarVista('cuentas_cobrar')" id="btn-menu-cuentas_cobrar" class="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
-                        <span>📒</span> <span class="menu-texto">Cuentas por Cobrar</span>
+                    <button onclick="cambiarVista('pedidos')" id="btn-menu-pedidos" class="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
+                        <span>🛒</span> <span class="menu-texto flex items-center gap-2">Pedidos<span id="badge-cart" class="hidden bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm animate-pulse">0</span></span>
                     </button>
-                    <button onclick="cambiarVista('cotizaciones')" id="btn-menu-cotizaciones" class="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
-                        <span>📄</span> <span class="menu-texto">Cotizaciones & Reservas</span>
+                    <button onclick="cambiarVista('movimientos')" id="btn-menu-movimientos" class="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
+                        <span>🔄</span> <span class="menu-texto">Movimientos</span>
                     </button>
-                    <button onclick="cambiarVista('ranking')" id="btn-menu-ranking" class="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
-                        <span>🏆</span> <span class="menu-texto">Laboratorio & Ranking</span>
+                    <button onclick="cambiarVista('recetas')" id="btn-menu-recetas" class="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
+                        <span>📝</span> <span class="menu-texto">Recetas</span>
                     </button>
                 </div>
 
