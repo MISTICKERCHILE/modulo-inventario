@@ -1,0 +1,81 @@
+<div class="mb-8">
+    <h2 class="text-3xl font-black text-slate-800 flex items-center gap-3">
+        <span>💰</span> Panel de Control de Ventas
+    </h2>
+    <p class="text-slate-500 mt-2 text-lg">Hola <span id="dv-nombre-usuario" class="font-bold text-emerald-600">Usuario</span>, aquí tienes el resumen en tiempo real de tus ventas.</p>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+    
+    <button onclick="cambiarVista('visor_ventas')" class="bg-white p-6 rounded-2xl shadow-sm border border-emerald-200 hover:shadow-md hover:border-emerald-400 transition-all text-left flex flex-col justify-between group h-full outline-none">
+        <div class="flex justify-between items-start mb-4">
+            <h3 class="font-bold text-slate-500 uppercase tracking-wider text-sm">Ventas del Día</h3>
+            <span class="text-3xl opacity-80 group-hover:scale-110 transition-transform">📈</span>
+        </div>
+        <div id="dv-resumen-sucursales" class="space-y-3 mb-4 flex-1">
+            <p class="text-sm text-slate-400 italic">Cargando sucursales...</p>
+        </div>
+        <p class="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-2 rounded-lg text-center mt-auto">Ver reporte detallado ↗️</p>
+    </button>
+
+    <button onclick="cambiarVista('cuentas_cobrar')" class="bg-white p-6 rounded-2xl shadow-sm border border-orange-200 hover:shadow-md hover:border-orange-400 transition-all text-left flex flex-col justify-between group h-full outline-none">
+        <div class="flex justify-between items-start mb-4">
+            <h3 class="font-bold text-slate-500 uppercase tracking-wider text-sm">Cuentas Abiertas</h3>
+            <span class="text-3xl opacity-80 group-hover:scale-110 transition-transform">📒</span>
+        </div>
+        <div class="flex-1 flex flex-col justify-center">
+            <p class="text-5xl font-black text-slate-800" id="dv-total-cuentas">0</p>
+            <p class="text-sm font-medium text-orange-600 mt-2">Cuentas por cobrar en el POS</p>
+        </div>
+        <p class="text-xs font-bold text-orange-600 bg-orange-50 px-3 py-2 rounded-lg text-center mt-auto">Gestionar y Cobrar ↗️</p>
+    </button>
+
+    <button onclick="cambiarVista('ranking')" class="bg-white p-6 rounded-2xl shadow-sm border border-blue-200 hover:shadow-md hover:border-blue-400 transition-all text-left flex flex-col justify-between group h-full outline-none">
+        <div class="flex justify-between items-start mb-4">
+            <h3 class="font-bold text-slate-500 uppercase tracking-wider text-sm">Highlights & Ranking</h3>
+            <span class="text-3xl opacity-80 group-hover:scale-110 transition-transform">🏆</span>
+        </div>
+        <div class="space-y-2 flex-1 mb-4">
+            <p class="text-sm text-slate-600"><span class="font-bold text-blue-600">Top Producto:</span> <span id="dv-top-prod">-</span></p>
+            <p class="text-sm text-slate-600"><span class="font-bold text-blue-600">Mejor Mes:</span> <span id="dv-mejor-mes">-</span></p>
+            <p class="text-sm text-slate-600"><span class="font-bold text-blue-600">Día Récord:</span> <span id="dv-mejor-dia">-</span></p>
+        </div>
+        <p class="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-2 rounded-lg text-center mt-auto">Abrir Laboratorio ↗️</p>
+    </button>
+
+</div>
+
+<h3 class="font-bold text-slate-700 text-lg mb-4">⚡ Accesos Rápidos</h3>
+<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+    
+    <button onclick="cambiarVista('ventas')" class="bg-emerald-600 hover:bg-emerald-500 text-white p-4 rounded-xl shadow-sm transition-all flex flex-col items-center justify-center gap-2 text-center h-28 transform hover:-translate-y-1">
+        <span class="text-2xl">🛒</span>
+        <span class="text-xs font-bold uppercase tracking-wider">Ir al POS</span>
+    </button>
+
+    <button onclick="abrirModalCRM()" class="bg-white border border-slate-200 hover:border-indigo-400 hover:shadow-md text-slate-700 p-4 rounded-xl transition-all flex flex-col items-center justify-center gap-2 text-center h-28">
+        <span class="text-2xl">📝</span>
+        <span class="text-xs font-bold">Nueva Nota Cliente</span>
+    </button>
+
+    <button onclick="cambiarVista('cuentas_cobrar')" class="bg-white border border-slate-200 hover:border-orange-400 hover:shadow-md text-slate-700 p-4 rounded-xl transition-all flex flex-col items-center justify-center gap-2 text-center h-28">
+        <span class="text-2xl">💸</span>
+        <span class="text-xs font-bold">Ir a Cobrar</span>
+    </button>
+
+    <button onclick="cambiarVista('cotizaciones')" class="bg-white border border-slate-200 hover:border-purple-400 hover:shadow-md text-slate-700 p-4 rounded-xl transition-all flex flex-col items-center justify-center gap-2 text-center h-28">
+        <span class="text-2xl">📦</span>
+        <span class="text-xs font-bold">Pedidos / Reservas</span>
+    </button>
+
+    <button onclick="cambiarVista('cotizaciones')" class="bg-white border border-slate-200 hover:border-blue-400 hover:shadow-md text-slate-700 p-4 rounded-xl transition-all flex flex-col items-center justify-center gap-2 text-center h-28">
+        <span class="text-2xl">📄</span>
+        <span class="text-xs font-bold">Cotizaciones</span>
+    </button>
+
+    <button onclick="cambiarVista('ranking')" class="bg-white border border-slate-200 hover:border-slate-400 hover:shadow-md text-slate-700 p-4 rounded-xl transition-all flex flex-col items-center justify-center gap-2 text-center h-28">
+        <span class="text-2xl">🔬</span>
+        <span class="text-xs font-bold">Laboratorio</span>
+    </button>
+
+</div>
