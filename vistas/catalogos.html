@@ -57,10 +57,15 @@
             
             <div class="bg-blue-50 border border-blue-200 p-4 rounded-xl mb-4 flex items-center justify-between shadow-sm">
                 <div>
-                    <h3 class="font-bold text-blue-800 text-lg flex items-center gap-2">👥 Clientes</h3>
-                    <p class="text-xs text-blue-600 mt-1">Registra sus datos aquí para facturación rápida en el POS, envíos y contacto rápido.</p>
+                    <h3 class="font-bold text-blue-800 text-lg flex items-center gap-2">👥 Base de Clientes (CRM)</h3>
+                    <p class="text-xs text-blue-600 mt-1">Registra sus datos aquí para facturación rápida en el POS y envíos.</p>
                 </div>
-                <span class="text-4xl hidden md:block opacity-80">💌</span>
+                <div class="flex items-center gap-4">
+                    <span class="text-4xl hidden md:block opacity-80" id="icono-crm-clientes">💌</span>
+                    <button id="btn-volver-pos-clientes" onclick="volverAPosDesdeClientes()" class="hidden bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-xl font-black shadow-md transition-transform hover:scale-105 outline-none flex items-center gap-2">
+                        <span>🔙</span> Volver al POS
+                    </button>
+                </div>
             </div>
             
             <form id="form-cliente" class="bg-slate-50 p-6 rounded-xl border border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-4">

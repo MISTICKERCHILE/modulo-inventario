@@ -423,3 +423,42 @@ window.cargarClientes = async function() {
         </li>
     `).join('');
 }
+
+// ==========================================
+// NAVEGACIÓN SEGURA DESDE EL POS A CLIENTES
+// ==========================================
+
+window.irAClientesDesdePOS = function() {
+    // 1. Cambiamos a la vista de catálogos
+    cambiarVista('catalogos');
+    
+    // 2. Esperamos un instante a que cargue y hacemos la magia
+    setTimeout(() => {
+        cambiarTab('clientes');
+        
+        // Ocultamos el menú lateral (Modo "Cajero Encerrado")
+        const sidebar = document.getElementById('sidebar-menu');
+        if(sidebar) sidebar.style.display = 'none';
+        
+        // Mostramos el botón de volver al POS y ocultamos el sobre
+        const btnVolver = document.getElementById('btn-volver-pos-clientes');
+        const iconoCrm = document.getElementById('icono-crm-clientes');
+        if(btnVolver) btnVolver.classList.remove('hidden');
+        if(iconoCrm) iconoCrm.classList.add('hidden');
+    }, 300);
+};
+
+window.volverAPosDesdeClientes = function() {
+    // 1. Restauramos el menú lateral a la normalidad
+    const sidebar = document.getElementById('sidebar-menu');
+    if(sidebar) sidebar.style.display = '';
+    
+    // 2. Ocultamos el botón de volver y mostramos el sobre
+    const btnVolver = document.getElementById('btn-volver-pos-clientes');
+    const iconoCrm = document.getElementById('icono-crm-clientes');
+    if(btnVolver) btnVolver.classList.add('hidden');
+    if(iconoCrm) iconoCrm.classList.remove('hidden');
+    
+    // 3. Lo devolvemos al POS
+    cambiarVista('ventas');
+};
