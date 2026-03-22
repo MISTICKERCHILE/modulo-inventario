@@ -274,6 +274,7 @@ window.cambiarVista = async function(vista) {
         if(vista === 'reportes' && typeof window.cargarReportes === 'function') window.cargarReportes();
         if(vista === 'parametros') window.cargarParametros();
         if(vista === 'ventas' && typeof window.cargarVentas === 'function') window.cargarVentas();
+        if(vista === 'ranking' && typeof window.cargarLaboratorio === 'function') window.cargarLaboratorio();
 
     } catch (error) {
         main.innerHTML = `<div class="p-8 text-center text-red-500"><p class="text-4xl mb-4">❌</p><h2 class="text-xl font-bold">Error cargando la vista: ${vista}.html</h2></div>`;
