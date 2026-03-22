@@ -462,3 +462,106 @@ window.volverAPosDesdeClientes = function() {
     // 3. Lo devolvemos al POS
     cambiarVista('ventas');
 };
+
+// ==========================================
+// MODAL DE CLIENTES (EXCLUSIVO PARA EL POS)
+// ==========================================
+window.clientesPOSMemoria = [];
+
+window.abrirModalClientesPOS = async function() {
+    document.getElementById('modal-clientes-pos').classList.remove('hidden');
+    window.limpiarFormClientePOS();
+    await window.cargarListaClientesPOS();
+};
+
+window.limpiarFormClientePOS = function() {
+    document.getElementById('form-cliente-pos').reset();
+    document.getElementById('pos-id-cliente').value = '';
+    document.getElementById('btn-guardar-cliente-pos').innerText = 'Guardar Cliente';
+};
+
+window.cargarListaClientesPOS = async function() {
+    const lista = document.getElementById('lista-clientes-pos');
+    lista.innerHTML = '<li class="p-4 text-center text-slate-400 font-bold">Cargando clientes...</li>';
+    
+    const { data } = await clienteSupabase.from('clientes').select('*').eq('id_empresa', window.miEmpresaId).order('nombre');
+    window.clientesPOSMemoria = data || [];
+    window.renderizarListaClientesPOS(window.clientesPOSMemoria);
+};
+
+window.filtrarClientesPOS = function() {
+    const texto = document.getElementById('pos-buscador-cliente').value.toLowerCase().trim();
+    const filtrados = window.clientesPOSMemoria.filter(c => 
+        c.nombre.toLowerCase().includes(texto) || (c.documento && c.documento.toLowerCase().includes(texto))
+    );
+    window.renderizarListaClientesPOS(filtrados);
+};
+
+window.renderizarListaClientesPOS = function(arreglo) {
+    const lista = document.getElementById('lista-clientes-pos');
+    if(arreglo.length === 0) {
+        lista.innerHTML = '<li class="p-4 text-center text-slate-500 italic">No hay clientes con ese nombre.</li>';
+        return;
+    }
+    
+    lista.innerHTML = arreglo.map(c => `
+        <li class="px-4 py-3 flex justify-between items-center hover:bg-slate-50 border-b transition-colors cursor-pointer group">
+            <div onclick="seleccionarClienteParaVenta('${c.id}', '${c.nombre.replace(/'/g,"\\'")}')" class="flex-1">
+                <p class="font-black text-slate-800 uppercase group-hover:text-orange-600 transition-colors">${c.nombre}</p>
+                <p class="text-xs text-slate-500 font-bold">${c.documento || 'Sin RUT'} | 📱 ${c.telefono || 'Sin Tel.'}</p>
+            </div>
+            <button onclick="editarClientePOS('${c.id}')" class="text-blue-500 hover:text-blue-700 bg-blue-50 px-3 py-1 rounded text-xs font-bold border border-blue-200 shadow-sm transition-transform hover:scale-105">✏️ Editar</button>
+        </li>
+    `).join('');
+};
+
+window.editarClientePOS = function(id) {
+    const c = window.clientesPOSMemoria.find(x => x.id === id);
+    if(!c) return;
+    document.getElementById('pos-id-cliente').value = c.id;
+    document.getElementById('pos-nombre').value = c.nombre;
+    document.getElementById('pos-doc').value = c.documento || '';
+    document.getElementById('pos-correo').value = c.correo || '';
+    document.getElementById('pos-tel').value = c.telefono || '';
+    document.getElementById('pos-dir').value = c.direccion || '';
+    document.getElementById('btn-guardar-cliente-pos').innerText = 'Actualizar Cliente ✏️';
+};
+
+// Guardar desde el Modal POS
+if (!window.eventosPOSClientesAtados) {
+    document.addEventListener('submit', async (e) => {
+        if (e.target.id === 'form-cliente-pos') {
+            e.preventDefault();
+            const idEdicion = document.getElementById('pos-id-cliente').value;
+            const payload = {
+                nombre: document.getElementById('pos-nombre').value,
+                documento: document.getElementById('pos-doc').value,
+                correo: document.getElementById('pos-correo').value,
+                telefono: document.getElementById('pos-tel').value,
+                direccion: document.getElementById('pos-dir').value
+            };
+            
+            const btnSubmit = document.getElementById('btn-guardar-cliente-pos');
+            btnSubmit.innerText = '⏳ Guardando...'; btnSubmit.disabled = true;
+
+            if(idEdicion) {
+                await clienteSupabase.from('clientes').update(payload).eq('id', idEdicion);
+            } else {
+                await clienteSupabase.from('clientes').insert([{...payload, id_empresa: window.miEmpresaId}]);
+            }
+            
+            window.limpiarFormClientePOS();
+            await window.cargarListaClientesPOS();
+            
+            // Si el módulo de catálogos está abierto por atrás, que se actualice también
+            if(typeof window.cargarClientes === 'function') window.cargarClientes();
+        }
+    });
+    window.eventosPOSClientesAtados = true;
+}
+
+// Función temporal para cuando el cajero seleccione al cliente
+window.seleccionarClienteParaVenta = function(id, nombre) {
+    alert("¡Cliente " + nombre + " seleccionado para la venta! (Conectaremos esto al carrito pronto)");
+    document.getElementById('modal-clientes-pos').classList.add('hidden');
+};
