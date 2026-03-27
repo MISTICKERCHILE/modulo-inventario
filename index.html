@@ -21,6 +21,11 @@
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased">
 
+    <div id="preloader" class="fixed inset-0 z-[9999] bg-slate-50 flex flex-col items-center justify-center transition-opacity duration-500">
+        <img src="/img/img/loading.gif" alt="Cargando Simple ERP..." class="w-24 h-24 object-contain">
+        <p class="text-emerald-600 font-bold mt-4 animate-pulse tracking-widest text-sm">CARGANDO...</p>
+    </div>
+
     <div class="bg-white border-b border-slate-200 py-3 px-6 z-50 relative">
         <div class="max-w-7xl mx-auto flex items-center justify-between">
             <div class="flex items-center gap-2">
@@ -187,7 +192,17 @@
                 once: true,    
                 offset: 100    
             });
-    </script>       
+    </script>   
+     
+    <script>
+        window.addEventListener('load', function() {
+            const preloader = document.getElementById('preloader');
+            if (preloader) {
+                preloader.classList.add('opacity-0');
+                setTimeout(() => { preloader.classList.add('hidden'); }, 500); 
+            }
+        });
+    </script>   
 
 </body>
 </html>

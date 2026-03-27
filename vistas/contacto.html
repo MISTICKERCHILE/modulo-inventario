@@ -16,6 +16,11 @@
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased flex flex-col min-h-screen">
 
+    <div id="preloader" class="fixed inset-0 z-[9999] bg-slate-50 flex flex-col items-center justify-center transition-opacity duration-500">
+        <img src="/img/img/loading.gif" alt="Cargando Simple ERP..." class="w-24 h-24 object-contain">
+        <p class="text-emerald-600 font-bold mt-4 animate-pulse tracking-widest text-sm">CARGANDO...</p>
+    </div>
+
     <header class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
         <div class="py-3 px-6 border-b border-slate-100">
             <div class="max-w-7xl mx-auto flex items-center justify-between">
@@ -139,5 +144,15 @@
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     <script>AOS.init({ duration: 800, once: true, offset: 50 });</script>
 
+    <script>
+        window.addEventListener('load', function() {
+            const preloader = document.getElementById('preloader');
+            if (preloader) {
+                preloader.classList.add('opacity-0');
+                setTimeout(() => { preloader.classList.add('hidden'); }, 500); 
+            }
+        });
+    </script>
+    
 </body>
 </html>
