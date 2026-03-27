@@ -164,7 +164,7 @@ window.cerrarSesion = async function() {
         await clienteSupabase.auth.signOut();
     }
     
-    window.location.href = 'index.html'; 
+    window.location.href = 'app.html'; 
 }
 
 // --- NAVEGACIÓN Y UI ---
