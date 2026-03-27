@@ -143,12 +143,12 @@ window.iniciarSesionEmpresa = async function(id, nombre, email, nombreUsuario, r
     if (vistaDirecta) {
         window.cambiarVista(vistaDirecta);
     } else {
-        const pantallaGuardada = localStorage.getItem('pantalla_actual') || 'dashboard';
+        const pantallaGuardada = localStorage.getItem('pantalla_actual') || 'home';
         window.cambiarVista(pantallaGuardada);
     }
     
     if (window.cargarDatosSelects) window.cargarDatosSelects();
-    if (window.cargarDashboard) window.cargarDashboard();
+    if (window.cargarHome) window.cargarHome();
 }
 
 window.volverASelectorEmpresa = async function() {
