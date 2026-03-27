@@ -5,6 +5,23 @@ window.modoEdicion = { activo: false, id: null, form: null };
 window.usuarioActual = 'Equipo';
 window.miRol = null;
 
+// ============================================================================
+// NUEVO: DETECTOR DE LANDING PAGE (Abrir Registro Automáticamente)
+// ============================================================================
+document.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    // Si la URL trae "?registro=true", cambiamos la pestaña a Registro
+    if (urlParams.get('registro') === 'true') {
+        setTimeout(() => {
+            if (typeof window.toggleAuthMode === 'function') {
+                window.toggleAuthMode('register');
+            }
+        }, 50); // 50ms para asegurar que el HTML del login ya se pintó
+    }
+});
+// ============================================================================
+
 // --- LOGIN Y SESIÓN MULTI-EMPRESA ---
 window.toggleAuthMode = function(mode) {
     document.getElementById('auth-mode').value = mode;
