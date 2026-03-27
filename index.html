@@ -179,5 +179,15 @@
         </div>
     </footer>
 
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+        <script>
+            // Inicializamos las animaciones
+            AOS.init({
+                duration: 800, // Duración de la animación (0.8 segundos para que sea suave)
+                once: true,    // true = la animación solo ocurre una vez al bajar, no cada vez que subes y bajas
+                offset: 100    // Empieza a animar 100px antes de que el elemento aparezca en pantalla
+            });
+    </script>       
+
 </body>
 </html>
