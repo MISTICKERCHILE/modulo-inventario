@@ -22,63 +22,34 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 // ============================================================================
 
-// --- LOGIN Y SESIÓN MULTI-EMPRESA ---
+// --- LOGIN Y ASISTENTE DE REGISTRO MULTI-EMPRESA ---
 window.toggleAuthMode = function(mode) {
-    document.getElementById('auth-mode').value = mode;
-    const regFields = document.getElementById('register-fields');
-    const regNombre = document.getElementById('reg-nombre');
-    const regApellido = document.getElementById('reg-apellido');
+    const formLogin = document.getElementById('form-login-view');
+    const formReg1 = document.getElementById('form-register-step-1');
+    const formReg2 = document.getElementById('form-register-step-2');
+    const tabLogin = document.getElementById('tab-login');
+    const tabRegister = document.getElementById('tab-register');
 
     if(mode === 'login') {
-        document.getElementById('tab-login').className = 'flex-1 pb-2 border-b-2 border-emerald-600 font-bold text-emerald-600 outline-none transition-colors';
-        document.getElementById('tab-register').className = 'flex-1 pb-2 font-bold text-slate-400 outline-none hover:text-emerald-500 transition-colors';
-        document.getElementById('auth-btn').innerText = 'Entrar al Sistema';
-        regFields.classList.add('hidden');
-        regNombre.removeAttribute('required'); 
-        regApellido.removeAttribute('required');
+        tabLogin.className = 'flex-1 pb-2 border-b-2 border-emerald-600 font-bold text-emerald-600 outline-none transition-colors';
+        tabRegister.className = 'flex-1 pb-2 font-bold text-slate-400 outline-none hover:text-emerald-500 transition-colors';
+        formLogin.classList.remove('hidden');
+        formReg1.classList.add('hidden');
+        formReg2.classList.add('hidden');
     } else {
-        document.getElementById('tab-register').className = 'flex-1 pb-2 border-b-2 border-emerald-600 font-bold text-emerald-600 outline-none transition-colors';
-        document.getElementById('tab-login').className = 'flex-1 pb-2 font-bold text-slate-400 outline-none hover:text-emerald-500 transition-colors';
-        document.getElementById('auth-btn').innerText = 'Crear mi Cuenta';
-        regFields.classList.remove('hidden');
-        regNombre.setAttribute('required', 'true'); 
-        regApellido.setAttribute('required', 'true');
+        tabRegister.className = 'flex-1 pb-2 border-b-2 border-emerald-600 font-bold text-emerald-600 outline-none transition-colors';
+        tabLogin.className = 'flex-1 pb-2 font-bold text-slate-400 outline-none hover:text-emerald-500 transition-colors';
+        formLogin.classList.add('hidden');
+        formReg1.classList.remove('hidden');
+        formReg2.classList.add('hidden'); // Siempre empezamos en el paso 1
     }
 }
 
-document.getElementById('auth-form').addEventListener('submit', async (e) => {
+// Lógica de Inicio de Sesión Clásico
+document.getElementById('form-login-view').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const emailInput = document.getElementById('email').value.trim();
-    const passwordInput = document.getElementById('password').value;
-    const mode = document.getElementById('auth-mode').value;
-
-    if(mode === 'register') {
-        const nombreInput = document.getElementById('reg-nombre').value.trim();
-        const apellidoInput = document.getElementById('reg-apellido').value.trim();
-        const telInput = document.getElementById('reg-telefono').value.trim();
-
-        const { data, error } = await clienteSupabase.auth.signUp({ 
-            email: emailInput, 
-            password: passwordInput,
-            options: {
-                data: {
-                    nombre: nombreInput,
-                    apellido: apellidoInput,
-                    telefono: telInput
-                    // IMPORTANTE: Ya no guardamos el id_empresa aquí porque
-                    // el usuario recién registrado aún NO TIENE empresa asignada.
-                    // El administrador se la asignará después.
-                }
-            }
-        });
-        
-        if(error) return alert("❌ Error al registrar: " + error.message);
-        
-        alert(`✅ Cuenta creada para ${nombreInput}. Ahora pide a tu administrador que te dé acceso a la empresa.`);
-        window.toggleAuthMode('login');
-        document.getElementById('password').value = '';
-        return;
-    }
+    const emailInput = document.getElementById('login-email').value.trim();
+    const passwordInput = document.getElementById('login-password').value;
 
     const { data, error } = await clienteSupabase.auth.signInWithPassword({ email: emailInput, password: passwordInput });
     if (error) return alert("❌ Credenciales incorrectas. Verifica tu correo y contraseña.");
@@ -105,6 +76,104 @@ document.getElementById('auth-form').addEventListener('submit', async (e) => {
             </button>
         `).join('');
     }
+});
+
+// Paso 1: Validar RUT y pasar al Paso 2
+document.getElementById('form-register-step-1').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const rutInput = document.getElementById('reg-rut').value.trim().toUpperCase();
+    const msgError = document.getElementById('msg-rut-error');
+    const btnReg = document.getElementById('btn-continuar-reg');
+
+    btnReg.innerText = "Verificando...";
+    btnReg.disabled = true;
+
+    // Consultamos a Supabase si ese RUT ya existe
+    const { data, error } = await clienteSupabase.from('empresas').select('id').eq('rut_o_identificacion', rutInput).maybeSingle();
+
+    if (data) {
+        // El RUT ya existe
+        msgError.classList.remove('hidden');
+        btnReg.innerHTML = `Continuar <span class="text-xl leading-none">→</span>`;
+        btnReg.disabled = false;
+        return;
+    }
+
+    // El RUT está libre, pasamos al paso 2
+    msgError.classList.add('hidden');
+    
+    // Llenamos el resumen visual para el usuario
+    document.getElementById('resumen-empresa').innerText = document.getElementById('reg-razon-social').value.trim();
+    document.getElementById('resumen-rut').innerText = rutInput;
+
+    document.getElementById('form-register-step-1').classList.add('hidden');
+    document.getElementById('form-register-step-2').classList.remove('hidden');
+    
+    btnReg.innerHTML = `Continuar <span class="text-xl leading-none">→</span>`;
+    btnReg.disabled = false;
+});
+
+// Volver al Paso 1
+window.volverPaso1 = function() {
+    document.getElementById('form-register-step-2').classList.add('hidden');
+    document.getElementById('form-register-step-1').classList.remove('hidden');
+}
+
+// Paso 2: Crear el Usuario y la Empresa
+document.getElementById('form-register-step-2').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const pass1 = document.getElementById('reg-user-pass').value;
+    const pass2 = document.getElementById('reg-user-pass2').value;
+    
+    if (pass1 !== pass2) {
+        return alert("❌ Las contraseñas no coinciden. Por favor, revísalas.");
+    }
+
+    const btnFinal = document.getElementById('btn-final-reg');
+    btnFinal.innerText = "Creando tu imperio...";
+    btnFinal.disabled = true;
+
+    // Recopilamos todos los datos (Empresa + Usuario)
+    const emailInput = document.getElementById('reg-user-email').value.trim();
+    const datosMeta = {
+        tipo_registro: 'nueva_empresa',
+        pais: document.getElementById('reg-pais').value,
+        rut_empresa: document.getElementById('reg-rut').value.trim().toUpperCase(),
+        nombre_empresa: document.getElementById('reg-razon-social').value.trim(),
+        nombre_comercial: document.getElementById('reg-nombre-comercial').value.trim(),
+        nombre: document.getElementById('reg-user-nombre').value.trim(),
+        apellido: document.getElementById('reg-user-apellido').value.trim(),
+        telefono: document.getElementById('reg-user-telefono').value.trim(),
+        fecha_nacimiento: document.getElementById('reg-user-nacimiento').value,
+        pin_seguridad: document.getElementById('reg-user-pin').value
+    };
+
+    // Le pasamos la pelota a Supabase Auth (y nuestro Trigger de SQL hará el resto)
+    const { data, error } = await clienteSupabase.auth.signUp({ 
+        email: emailInput, 
+        password: pass1,
+        options: { data: datosMeta }
+    });
+    
+    if(error) {
+        btnFinal.innerText = "Crear Empresa y Entrar 🚀";
+        btnFinal.disabled = false;
+        return alert("❌ Error al registrar: " + error.message);
+    }
+    
+    alert(`🎉 ¡Felicidades, ${datosMeta.nombre}! Tu empresa ha sido creada con éxito. Inicia sesión para comenzar.`);
+    
+    // Limpiamos los formularios y lo devolvemos al login
+    document.getElementById('form-register-step-1').reset();
+    document.getElementById('form-register-step-2').reset();
+    window.toggleAuthMode('login');
+    
+    // Autocompletamos su correo en el login para facilitar la entrada
+    document.getElementById('login-email').value = emailInput;
+    
+    btnFinal.innerText = "Crear Empresa y Entrar 🚀";
+    btnFinal.disabled = false;
 });
 
 window.iniciarSesionEmpresa = async function(id, nombre, email, nombreUsuario, rol) {
