@@ -75,27 +75,17 @@ window.abrirModalProducto = async function(esEdicion = false, nombreSugerido = '
     });
     document.getElementById('contenedor-reglas-stock').innerHTML = htmlReglas;
 
-    // ESTO DIBUJA EL CHECKBOX DE CONTROL DE STOCK
-    if(!document.getElementById('contenedor-control-stock')) {
-        const contenedorTipoReceta = document.getElementById('prod-tiene-receta').parentElement;
-        const htmlInterruptor = `
-            <div id="contenedor-control-stock" class="mt-4 p-4 bg-blue-50 border border-blue-100 rounded-lg flex items-start gap-3">
-                <input type="checkbox" id="prod-control-stock" class="mt-1 w-4 h-4 text-blue-600 rounded border-blue-300 focus:ring-blue-500 cursor-pointer" checked>
-                <div>
-                    <label for="prod-control-stock" class="font-bold text-blue-900 cursor-pointer block">¿Lleva control de stock físico?</label>
-                    <p class="text-xs text-blue-700 mt-1 leading-tight">Apágalo solo si es un producto ensamblado al momento (Ej: Un combo o plato preparado) para que el sistema no te exija tenerlo en bodega y descuente directamente sus ingredientes.</p>
-                </div>
-            </div>
-        `;
-        contenedorTipoReceta.insertAdjacentHTML('afterend', htmlInterruptor);
-    }
-
     if(!esEdicion) {
         window.cancelarEdicion('producto');
         document.getElementById('titulo-modal-producto').innerText = "Nuevo Producto / Insumo";
         const aleatorio = Math.random().toString(36).substring(2, 8).toUpperCase();
         document.getElementById('prod-sku').value = 'PRD-' + aleatorio;
         if(document.getElementById('prod-control-stock')) document.getElementById('prod-control-stock').checked = true;
+        
+        // NUEVO: Asegurarnos de que la cajita de precios empiece oculta en un producto nuevo
+        if(document.getElementById('contenedor-precios-pos')) {
+            document.getElementById('contenedor-precios-pos').classList.add('hidden');
+        }
         
         if (nombreSugerido) {
             document.getElementById('prod-nombre').value = nombreSugerido;
@@ -309,13 +299,21 @@ window.editarProductoFull = async function(id) {
     document.getElementById('prod-cant-ur').value = data.cant_en_ur_de_um || 1;
     document.getElementById('prod-u-receta').value = data.id_unidad_receta || '';
     document.getElementById('prod-tiene-receta').checked = data.tiene_receta || false;
-    
-    if(document.getElementById('prod-costo-borrador')) {
-        document.getElementById('prod-costo-borrador').value = data.ultimo_costo_uc || '';
-    }
 
-    const checkControl = document.getElementById('prod-control-stock');
-    if(checkControl) {
+    // NUEVO: Cargar datos del POS y Precios
+    if(document.getElementById('prod-codigo-barras')) document.getElementById('prod-codigo-barras').value = data.codigo_barras || '';
+    
+    const checkPos = document.getElementById('prod-vender-pos');
+        if(checkPos) {
+            checkPos.checked = data.vender_en_pos || false;
+            const cajaPrecios = document.getElementById('contenedor-precios-pos');
+            if(cajaPrecios) cajaPrecios.classList.toggle('hidden', !checkPos.checked);
+        }
+        
+        if(document.getElementById('prod-precio-neto')) document.getElementById('prod-precio-neto').value = data.precio_venta_neto || '';
+        if(document.getElementById('prod-precio-iva')) document.getElementById('prod-precio-iva').value = data.precio_venta_iva || '';
+        const checkControl = document.getElementById('prod-control-stock');
+        if(checkControl) {
         checkControl.checked = data.control_stock !== false; 
     }
 
@@ -361,7 +359,15 @@ if (!window.eventosFormProductoAtados) {
                 cant_en_ur_de_um: parseFloat(document.getElementById('prod-cant-ur').value) || 1,
                 id_unidad_receta: document.getElementById('prod-u-receta').value || null, 
                 tiene_receta: document.getElementById('prod-tiene-receta').checked,
-                control_stock: valorControlStock
+                control_stock: valorControlStock,
+                // NUEVOS CAMPOS DEL POS:
+                codigo_barras: document.getElementById('prod-codigo-barras') ? document.getElementById('prod-codigo-barras').value.trim() : null,
+                vender_en_pos: document.getElementById('prod-vender-pos') ? document.getElementById('prod-vender-pos').checked : false,
+                // NUEVOS CAMPOS DEL POS Y PRECIOS:
+                codigo_barras: document.getElementById('prod-codigo-barras') ? document.getElementById('prod-codigo-barras').value.trim() : null,
+                vender_en_pos: document.getElementById('prod-vender-pos') ? document.getElementById('prod-vender-pos').checked : false,
+                precio_venta_neto: parseFloat(document.getElementById('prod-precio-neto')?.value) || 0,
+                precio_venta_iva: parseFloat(document.getElementById('prod-precio-iva')?.value) || 0
             };
             
             if(costoBorrador !== null && !isNaN(costoBorrador)) {
@@ -1262,3 +1268,20 @@ window.importarRecetasCSV = async function(inputElement) {
         error: function(err) { alert("Error: " + err.message); }
     });
 };
+
+// CÁLCULO BIDIRECCIONAL DE PRECIOS (NETO <-> IVA)
+document.addEventListener('input', (e) => {
+    // Nota: El 1.19 luego vendrá de los parámetros de la empresa
+    const TASA_IVA = 1.19; 
+    
+    if (e.target.id === 'prod-precio-neto') {
+        const neto = parseFloat(e.target.value);
+        if (!isNaN(neto)) document.getElementById('prod-precio-iva').value = Math.round(neto * TASA_IVA);
+        else document.getElementById('prod-precio-iva').value = '';
+    } 
+    else if (e.target.id === 'prod-precio-iva') {
+        const iva = parseFloat(e.target.value);
+        if (!isNaN(iva)) document.getElementById('prod-precio-neto').value = Math.round(iva / TASA_IVA);
+        else document.getElementById('prod-precio-neto').value = '';
+    }
+});

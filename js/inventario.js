@@ -691,3 +691,23 @@ window.imprimirPlanillaConteo = function() {
     `);
     printWindow.document.close();
 }
+
+// --- NUEVA FUNCIÓN: Buscador en tiempo real para Conteo Masivo ---
+window.filtrarProductosConteo = function() {
+    const textoBuscado = document.getElementById('cm-buscador-productos').value.toLowerCase().trim();
+    const filasProductos = document.querySelectorAll('#cm-filas tr'); // Agarramos todas las filas cargadas
+    
+    // Si la tabla está vacía o tiene el mensaje de "Selecciona ubicación", no hacemos nada
+    if(filasProductos.length === 0 || filasProductos[0].cells.length === 1) return;
+
+    filasProductos.forEach(fila => {
+        // Asumimos que el nombre del producto está en la primera celda (td) de cada fila
+        const nombreProducto = fila.cells[0].innerText.toLowerCase();
+        
+        if (nombreProducto.includes(textoBuscado)) {
+            fila.style.display = ''; // Lo mostramos
+        } else {
+            fila.style.display = 'none'; // Lo ocultamos
+        }
+    });
+}

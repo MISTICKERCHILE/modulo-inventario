@@ -5,6 +5,23 @@ window.modoEdicion = { activo: false, id: null, form: null };
 window.usuarioActual = 'Equipo';
 window.miRol = null;
 
+// ============================================================================
+// NUEVO: DETECTOR DE LANDING PAGE (Abrir Registro Automáticamente)
+// ============================================================================
+document.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    // Si la URL trae "?registro=true", cambiamos la pestaña a Registro
+    if (urlParams.get('registro') === 'true') {
+        setTimeout(() => {
+            if (typeof window.toggleAuthMode === 'function') {
+                window.toggleAuthMode('register');
+            }
+        }, 50); // 50ms para asegurar que el HTML del login ya se pintó
+    }
+});
+// ============================================================================
+
 // --- LOGIN Y SESIÓN MULTI-EMPRESA ---
 window.toggleAuthMode = function(mode) {
     document.getElementById('auth-mode').value = mode;
@@ -48,6 +65,9 @@ document.getElementById('auth-form').addEventListener('submit', async (e) => {
                     nombre: nombreInput,
                     apellido: apellidoInput,
                     telefono: telInput
+                    // IMPORTANTE: Ya no guardamos el id_empresa aquí porque
+                    // el usuario recién registrado aún NO TIENE empresa asignada.
+                    // El administrador se la asignará después.
                 }
             }
         });
@@ -87,10 +107,14 @@ document.getElementById('auth-form').addEventListener('submit', async (e) => {
     }
 });
 
-window.iniciarSesionEmpresa = function(id, nombre, email, nombreUsuario, rol) {
+window.iniciarSesionEmpresa = async function(id, nombre, email, nombreUsuario, rol) {
     window.miEmpresaId = id;
     window.usuarioActual = nombreUsuario;
     window.miRol = rol; 
+    
+    // LA CURA DEFINITIVA: 
+    // Cada vez que entras a una empresa, estampamos ese ID en tu Carnet de Seguridad (JWT)
+    await clienteSupabase.auth.updateUser({ data: { id_empresa: id } });
     
     localStorage.setItem('sesion_activa_olympia', JSON.stringify({
         id: id, nombre: nombre, email: email, nombreUsuario: nombreUsuario, rol: rol
@@ -116,17 +140,15 @@ window.iniciarSesionEmpresa = function(id, nombre, email, nombreUsuario, rol) {
     const urlParams = new URLSearchParams(window.location.search);
     const vistaDirecta = urlParams.get('v');
     
-    // 👉 AQUÍ ESTÁ LA MAGIA DEL INICIO INTELIGENTE
     if (vistaDirecta) {
         window.cambiarVista(vistaDirecta);
     } else {
-        // Leemos dónde estaba el usuario. Si no hay nada, lo mandamos al dashboard.
-        const pantallaGuardada = localStorage.getItem('pantalla_actual') || 'dashboard';
+        const pantallaGuardada = localStorage.getItem('pantalla_actual') || 'home';
         window.cambiarVista(pantallaGuardada);
     }
     
     if (window.cargarDatosSelects) window.cargarDatosSelects();
-    if (window.cargarDashboard) window.cargarDashboard();
+    if (window.cargarHome) window.cargarHome();
 }
 
 window.volverASelectorEmpresa = async function() {
@@ -159,7 +181,7 @@ window.cerrarSesion = async function() {
         await clienteSupabase.auth.signOut();
     }
     
-    window.location.href = 'index.html'; 
+    window.location.href = 'app.html'; 
 }
 
 // --- NAVEGACIÓN Y UI ---
@@ -216,8 +238,27 @@ window.cambiarVista = async function(vista) {
         }
     }
 
+    // 👉 NUEVO: Mostrar u ocultar el submenú de Ventas inteligentemente
+    const vistasVentas = ['dashboard_ventas', 'ventas', 'cuentas_cobrar', 'cotizaciones', 'ranking'];
+    const submenuVen = document.getElementById('submenu-dashboard_ventas');
+    
+    if (submenuVen) {
+        // Si la vista pertenece a Ventas, mostramos su submenú.
+        if (vistasVentas.includes(vista)) {
+            submenuVen.classList.remove('hidden');
+        } else {
+            submenuVen.classList.add('hidden');
+        }
+    }
+
     const main = document.getElementById('main-content');
-    main.innerHTML = '<div class="flex h-full items-center justify-center"><p class="text-slate-400 font-bold text-lg animate-pulse">Cargando...</p></div>';
+    // Reemplazamos el texto aburrido por tu GIF personalizado
+    main.innerHTML = `
+        <div class="flex flex-col h-full items-center justify-center space-y-4 transition-opacity duration-300">
+            <img src="/img/img/loading.gif" alt="Cargando módulo..." class="w-16 h-16 object-contain">
+            <p class="text-emerald-600 font-bold text-xs tracking-widest animate-pulse uppercase">Cargando módulo...</p>
+        </div>
+    `;
     
     document.querySelectorAll('#sidebar-menu button').forEach(b => {
         b.classList.remove('bg-emerald-600', 'text-white', 'shadow-md');
@@ -256,6 +297,7 @@ window.cambiarVista = async function(vista) {
         if(vista === 'reportes' && typeof window.cargarReportes === 'function') window.cargarReportes();
         if(vista === 'parametros') window.cargarParametros();
         if(vista === 'ventas' && typeof window.cargarVentas === 'function') window.cargarVentas();
+        if(vista === 'ranking' && typeof window.cargarLaboratorio === 'function') window.cargarLaboratorio();
 
     } catch (error) {
         main.innerHTML = `<div class="p-8 text-center text-red-500"><p class="text-4xl mb-4">❌</p><h2 class="text-xl font-bold">Error cargando la vista: ${vista}.html</h2></div>`;
