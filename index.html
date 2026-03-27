@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple - ERP de control para pymes</title>
+    
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>♻️</text></svg>">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; scroll-behavior: smooth; }
+        /* Clase para el banner principal con imagen de fondo (puedes cambiar la URL luego) */
+        .bg-hero-pattern {
+            background-image: linear-gradient(rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.7)), url('https://images.unsplash.com/photo-1600880292203-757bb62b4baf?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80');
+            background-size: cover;
+            background-position: center;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased">
+
+    <div class="bg-white border-b border-slate-200 py-3 px-6 z-50 relative">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <span class="text-3xl">♻️</span>
+                <span class="text-2xl font-black text-slate-800 tracking-tight">Simple</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <a href="app.html" class="text-slate-600 font-bold hover:text-emerald-600 text-sm transition-colors">Iniciar Sesión</a>
+                <a href="app.html?registro=true" class="bg-emerald-600 text-white px-5 py-2 rounded-lg font-bold hover:bg-emerald-700 shadow-sm transition-all text-sm">Registrarse</a>
+            </div>
+        </div>
+    </div>
+
+    <nav class="bg-slate-50 border-b border-slate-200 py-3 px-6 sticky top-0 z-40 shadow-sm">
+        <div class="max-w-7xl mx-auto flex justify-center md:justify-start gap-8 font-bold text-slate-500 text-sm">
+            <a href="#inicio" class="hover:text-emerald-600 transition-colors">Inicio</a>
+            <a href="#planes" class="hover:text-emerald-600 transition-colors">Planes</a>
+            <a href="#contacto" class="hover:text-emerald-600 transition-colors">Contacto</a>
+        </div>
+    </nav>
+
+    <section id="inicio" class="bg-hero-pattern py-32 px-6 text-center text-white">
+        <div class="max-w-4xl mx-auto">
+            <h1 class="text-4xl md:text-6xl font-black mb-8 leading-tight drop-shadow-lg">
+                ERP de control para pymes y negocios desde donde estés.
+            </h1>
+            <a href="#planes" class="inline-block bg-white text-emerald-700 px-8 py-4 rounded-xl font-bold text-lg hover:bg-slate-100 shadow-lg transition-all">
+                Ver Planes
+            </a>
+        </div>
+    </section>
+
+    <section class="bg-emerald-600 py-20 px-6 text-center text-white">
+        <div class="max-w-4xl mx-auto">
+            <h2 class="text-3xl md:text-5xl font-bold mb-8 leading-tight">
+                ¿Emprender es más difícil de lo que pensabas? <br>
+                <span class="text-emerald-200">¡Hazlo Simple desde HOY!</span>
+            </h2>
+            <a href="app.html?registro=true" class="inline-block bg-slate-900 text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-slate-800 shadow-lg transition-all border border-slate-700">
+                Registro
+            </a>
+        </div>
+    </section>
+
+    <section class="bg-slate-100 py-24 px-6 text-center border-y border-slate-200">
+        <div class="max-w-5xl mx-auto">
+            <span class="text-5xl mb-6 block">🚒</span>
+            <h3 class="text-2xl md:text-4xl font-bold mb-6 text-slate-800 leading-snug">
+                ¿Tu empresa está creciendo? ¡Felicidades! <br>
+                <span class="text-slate-500 font-medium text-xl md:text-2xl block mt-4">Asegúrate de no convertirte en el bombero de tu organización. Llega antes del fuego a las alertas y mantén todo bajo control.</span>
+            </h3>
+            <a href="#contacto" class="inline-block mt-4 bg-emerald-600 text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-emerald-700 shadow-md transition-all">
+                Agendar Demo
+            </a>
+        </div>
+    </section>
+
+    <section class="py-24 px-6 bg-white">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl md:text-4xl font-black text-slate-800 mb-4">Todo lo que necesitas en un solo lugar</h2>
+                <p class="text-slate-500 font-medium">Módulos integrados para que la información fluya sin errores.</p>
+            </div>
+            
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 text-center">
+                <div class="p-6 bg-slate-50 rounded-2xl border border-slate-100 hover:border-emerald-300 hover:shadow-md transition-all group">
+                    <div class="text-4xl mb-3 group-hover:scale-110 transition-transform">👥</div>
+                    <h4 class="font-bold text-slate-700">Personas</h4>
+                </div>
+                <div class="p-6 bg-slate-50 rounded-2xl border border-slate-100 hover:border-emerald-300 hover:shadow-md transition-all group">
+                    <div class="text-4xl mb-3 group-hover:scale-110 transition-transform">💰</div>
+                    <h4 class="font-bold text-slate-700">Finanzas</h4>
+                </div>
+                <div class="p-6 bg-slate-50 rounded-2xl border border-slate-100 hover:border-emerald-300 hover:shadow-md transition-all group">
+                    <div class="text-4xl mb-3 group-hover:scale-110 transition-transform">🛒</div>
+                    <h4 class="font-bold text-slate-700">Compras</h4>
+                </div>
+                <div class="p-6 bg-slate-50 rounded-2xl border border-slate-100 hover:border-emerald-300 hover:shadow-md transition-all group">
+                    <div class="text-4xl mb-3 group-hover:scale-110 transition-transform">🚀</div>
+                    <h4 class="font-bold text-slate-700">Ventas</h4>
+                </div>
+                <div class="p-6 bg-slate-50 rounded-2xl border border-slate-100 hover:border-emerald-300 hover:shadow-md transition-all group">
+                    <div class="text-4xl mb-3 group-hover:scale-110 transition-transform">📦</div>
+                    <h4 class="font-bold text-slate-700">Inventarios</h4>
+                </div>
+                <div class="p-6 bg-slate-50 rounded-2xl border border-slate-100 hover:border-emerald-300 hover:shadow-md transition-all group">
+                    <div class="text-4xl mb-3 group-hover:scale-110 transition-transform">📊</div>
+                    <h4 class="font-bold text-slate-700">Proyectos</h4>
+                </div>
+            </div>
+            <p class="text-center text-slate-400 font-bold mt-8 italic">... y mucho más.</p>
+        </div>
+    </section>
+
+    <section class="py-24 px-6 bg-slate-50 border-t border-slate-200">
+        <div class="max-w-4xl mx-auto">
+            <h2 class="text-3xl md:text-4xl font-black text-slate-800 mb-12 text-center">Preguntas Frecuentes</h2>
+            
+            <div class="space-y-6">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+                    <h4 class="text-lg font-bold text-slate-800 mb-2">¿Necesito saber de contabilidad o ser un experto en tecnología para usar Simple?</h4>
+                    <p class="text-slate-600 text-sm">No. Diseñamos Simple específicamente para dueños de negocios, no para informáticos. La interfaz es intuitiva y te guía paso a paso para que tengas el control sin dolores de cabeza.</p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+                    <h4 class="text-lg font-bold text-slate-800 mb-2">¿Cuánto tiempo tarda mi empresa en empezar a usar el sistema?</h4>
+                    <p class="text-slate-600 text-sm">Puedes estar operando el mismo día. A diferencia de los ERP tradicionales que tardan meses en implementarse, con Simple te registras, cargas tu catálogo inicial y comienzas a gestionar.</p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+                    <h4 class="text-lg font-bold text-slate-800 mb-2">Si mi computador se daña o me lo roban, ¿pierdo mi inventario y mis ventas?</h4>
+                    <p class="text-slate-600 text-sm">Absolutamente no. Toda tu información está respaldada en tiempo real en la nube bajo estrictos estándares de seguridad. Solo inicias sesión desde otro dispositivo y tu empresa sigue intacta.</p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+                    <h4 class="text-lg font-bold text-slate-800 mb-2">¿Cómo me ayuda Simple con el Servicio de Impuestos Internos (SII)?</h4>
+                    <p class="text-slate-600 text-sm">Te entregamos reportes de ventas, compras e inventario perfectamente cuadrados. Esto le ahorra horas de trabajo a tu contador y te asegura tener la información transparente ante cualquier revisión.</p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+                    <h4 class="text-lg font-bold text-slate-800 mb-2">Mi negocio está abriendo una nueva sucursal, ¿tengo que pagar un sistema nuevo?</h4>
+                    <p class="text-slate-600 text-sm">No es necesario empezar de cero. Simple está diseñado para crecer contigo. Dependiendo de tu plan, puedes administrar múltiples sucursales y bodegas desde la misma cuenta central.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer id="contacto" class="bg-slate-900 text-slate-400 py-16 border-t border-slate-800">
+        <div class="max-w-7xl mx-auto px-6 grid md:grid-cols-4 gap-8 text-sm">
+            <div class="col-span-1 md:col-span-2">
+                <div class="flex items-center gap-2 mb-4 text-white">
+                    <span class="text-2xl">♻️</span>
+                    <span class="text-xl font-black tracking-tight">Simple</span>
+                </div>
+                <p class="max-w-xs mb-4">La herramienta definitiva para llevar tu negocio al siguiente nivel, sin complicaciones.</p>
+                <div class="text-slate-300">
+                    <p class="font-bold flex items-center gap-2">📍 Quillota, Valparaíso, Chile.</p>
+                </div>
+            </div>
+            
+            <div>
+                <h4 class="text-white font-bold mb-4 uppercase tracking-wider text-xs">Mapa del Sitio</h4>
+                <ul class="space-y-2">
+                    <li><a href="#inicio" class="hover:text-emerald-400 transition-colors">Inicio</a></li>
+                    <li><a href="#planes" class="hover:text-emerald-400 transition-colors">Ver Planes</a></li>
+                    <li><a href="app.html" class="hover:text-emerald-400 transition-colors">Iniciar Sesión</a></li>
+                    <li><a href="app.html?registro=true" class="hover:text-emerald-400 transition-colors">Crear Cuenta</a></li>
+                </ul>
+            </div>
+
+            <div>
+                <h4 class="text-white font-bold mb-4 uppercase tracking-wider text-xs">Contacto & Legal</h4>
+                <ul class="space-y-2">
+                    <li><a href="mailto:hola@simple.cl" class="hover:text-emerald-400 transition-colors">Agendar Demo</a></li>
+                    <li><a href="#" class="hover:text-emerald-400 transition-colors">Términos y Condiciones</a></li>
+                    <li><a href="#" class="hover:text-emerald-400 transition-colors">Políticas de Privacidad</a></li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="max-w-7xl mx-auto px-6 mt-12 pt-8 border-t border-slate-800 text-center text-xs">
+            &copy; 2026 Simple ERP. Marca Registrada. Todos los derechos reservados.
+        </div>
+    </footer>
+
+</body>
+</html>
