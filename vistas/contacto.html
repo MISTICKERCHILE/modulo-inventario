@@ -46,96 +46,61 @@
                 <p class="text-xl text-slate-500 max-w-2xl mx-auto">Agenda una demostración guiada de 30 minutos o escríbenos si tienes dudas puntuales.</p>
             </div>
 
-            <div class="grid lg:grid-cols-5 gap-12 max-w-6xl mx-auto">
-                
-                <div class="lg:col-span-2 space-y-8" data-aos="fade-right" data-aos-delay="100">
-                    <div class="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
-                        <h3 class="text-2xl font-bold text-slate-800 mb-6">Información Directa</h3>
-                        
-                        <div class="space-y-6">
-                            <div class="flex items-start gap-4">
-                                <div class="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center text-2xl shrink-0">📍</div>
-                                <div>
-                                    <h4 class="font-bold text-slate-700">Oficina Central</h4>
-                                    <p class="text-slate-500 text-sm mt-1">Quillota, Región de Valparaíso<br>Chile.</p>
-                                </div>
+            <div class="max-w-3xl mx-auto" data-aos="fade-up" data-aos-delay="100">
+                <div class="bg-white p-8 md:p-10 rounded-3xl border border-slate-200 shadow-xl relative">
+                    <div class="absolute top-0 right-8 transform -translate-y-1/2 bg-emerald-100 text-emerald-800 px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wide border border-emerald-200">
+                        Contacto Directo
+                    </div>
+                    
+                    <h3 class="text-2xl font-bold text-slate-800 mb-6 text-center md:text-left">Escríbenos</h3>
+                    
+                    <form class="space-y-5">
+                        <div class="grid md:grid-cols-2 gap-5">
+                            <div>
+                                <label class="block text-sm font-bold text-slate-700 mb-1">Tu Nombre</label>
+                                <input type="text" placeholder="Ej: Juan Pérez" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all bg-slate-50 focus:bg-white" required>
                             </div>
-                            
-                            <div class="flex items-start gap-4">
-                                <div class="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center text-2xl shrink-0">✉️</div>
-                                <div>
-                                    <h4 class="font-bold text-slate-700">Soporte y Ventas</h4>
-                                    <p class="text-slate-500 text-sm mt-1">hola@simple.cl<br>soporte@simple.cl</p>
-                                </div>
+                            <div>
+                                <label class="block text-sm font-bold text-slate-700 mb-1">Nombre de la Empresa</label>
+                                <input type="text" placeholder="Ej: Mi Pyme SpA" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all bg-slate-50 focus:bg-white" required>
                             </div>
+                        </div>
 
-                            <div class="flex items-start gap-4">
-                                <div class="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center text-2xl shrink-0">💬</div>
-                                <div>
-                                    <h4 class="font-bold text-slate-700">WhatsApp Comercial</h4>
-                                    <p class="text-slate-500 text-sm mt-1">+56 9 1234 5678<br><span class="text-xs text-slate-400">Lun - Vie, 09:00 a 18:00 hrs.</span></p>
+                        <div>
+                            <label class="block text-sm font-bold text-slate-700 mb-1">Correo Electrónico</label>
+                            <input type="email" placeholder="correo@empresa.cl" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all bg-slate-50 focus:bg-white" required>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-bold text-slate-700 mb-1">Asunto</label>
+                            <div class="relative">
+                                <select class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all bg-slate-50 focus:bg-white appearance-none cursor-pointer text-slate-700 font-medium" required>
+                                    <option value="" disabled selected>Selecciona una opción...</option>
+                                    <option value="General">General</option>
+                                    <option value="Agendar Demo">Agendar Demo</option>
+                                    <option value="Sugerencia">Sugerencia</option>
+                                    <option value="Felicitaciones">Felicitaciones</option>
+                                    <option value="Otros">Otros</option>
+                                </select>
+                                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                </div>
 
-                <div class="lg:col-span-3" data-aos="fade-left" data-aos-delay="200">
-                    <div class="bg-white p-8 md:p-10 rounded-3xl border border-slate-200 shadow-xl relative">
-                        <div class="absolute top-0 right-8 transform -translate-y-1/2 bg-emerald-100 text-emerald-800 px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wide border border-emerald-200">
-                            Contacto Directo
+                        <div>
+                            <label class="block text-sm font-bold text-slate-700 mb-1">Mensaje / ¿En qué te podemos ayudar?</label>
+                            <textarea rows="5" placeholder="Escribe aquí tu mensaje..." class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all bg-slate-50 focus:bg-white resize-none" required></textarea>
                         </div>
-                        
-                        <h3 class="text-2xl font-bold text-slate-800 mb-6">Escríbenos</h3>
-                        
-                        <form class="space-y-5">
-                            <div class="grid md:grid-cols-2 gap-5">
-                                <div>
-                                    <label class="block text-sm font-bold text-slate-700 mb-1">Tu Nombre</label>
-                                    <input type="text" placeholder="Ej: Juan Pérez" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all bg-slate-50 focus:bg-white" required>
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-bold text-slate-700 mb-1">Nombre de la Empresa</label>
-                                    <input type="text" placeholder="Ej: Mi Pyme SpA" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all bg-slate-50 focus:bg-white" required>
-                                </div>
-                            </div>
 
-                            <div>
-                                <label class="block text-sm font-bold text-slate-700 mb-1">Correo Electrónico</label>
-                                <input type="email" placeholder="correo@empresa.cl" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all bg-slate-50 focus:bg-white" required>
-                            </div>
+                        <button type="submit" class="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all text-lg mt-4">
+                            Enviar Mensaje
+                        </button>
+                    </form>
 
-                            <div>
-                                <label class="block text-sm font-bold text-slate-700 mb-1">Asunto</label>
-                                <div class="relative">
-                                    <select class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all bg-slate-50 focus:bg-white appearance-none cursor-pointer text-slate-700 font-medium" required>
-                                        <option value="" disabled selected>Selecciona una opción...</option>
-                                        <option value="General">General</option>
-                                        <option value="Agendar Demo">Agendar Demo</option>
-                                        <option value="Sugerencia">Sugerencia</option>
-                                        <option value="Felicitaciones">Felicitaciones</option>
-                                        <option value="Otros">Otros</option>
-                                    </select>
-                                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-bold text-slate-700 mb-1">Mensaje / ¿En qué te podemos ayudar?</label>
-                                <textarea rows="4" placeholder="Escribe aquí tu mensaje..." class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all bg-slate-50 focus:bg-white resize-none" required></textarea>
-                            </div>
-
-                            <button type="submit" class="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all text-lg mt-2">
-                                Enviar Mensaje
-                            </button>
-                        </form>
-
-                    </div>
                 </div>
-
             </div>
+
         </div>
     </main>
 
