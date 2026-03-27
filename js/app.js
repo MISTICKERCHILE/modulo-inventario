@@ -252,7 +252,13 @@ window.cambiarVista = async function(vista) {
     }
 
     const main = document.getElementById('main-content');
-    main.innerHTML = '<div class="flex h-full items-center justify-center"><p class="text-slate-400 font-bold text-lg animate-pulse">Cargando...</p></div>';
+    // Reemplazamos el texto aburrido por tu GIF personalizado
+    main.innerHTML = `
+        <div class="flex flex-col h-full items-center justify-center space-y-4 transition-opacity duration-300">
+            <img src="/img/img/loading.gif" alt="Cargando módulo..." class="w-16 h-16 object-contain">
+            <p class="text-emerald-600 font-bold text-xs tracking-widest animate-pulse uppercase">Cargando módulo...</p>
+        </div>
+    `;
     
     document.querySelectorAll('#sidebar-menu button').forEach(b => {
         b.classList.remove('bg-emerald-600', 'text-white', 'shadow-md');
