@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Simple</title>
 
-    <link rel="icon" type="image/png" href="img/favicon.png">
+    <link rel="icon" type="image/png" href="img/img/favicon.png">
 
     <script>
         if (typeof process === 'undefined') { window.process = { env: { NODE_ENV: 'development' } }; }
@@ -18,9 +18,11 @@
 
     <div id="login-container" class="min-h-screen flex items-center justify-center p-4">
         <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-sm border border-gray-100">
-            <div class="flex items-center gap-2">
-                <img src="img/dark%20logo.png" alt="Simple ERP Logo" class="h-10 w-auto">
-                <span class="text-2xl font-black text-slate-800 tracking-tight">Simple</span>
+            <div class="text-center mb-6 flex flex-col items-center justify-center">
+                <div class="bg-slate-800 p-3 rounded-xl inline-flex items-center gap-2 mb-2 shadow-sm">
+                    <img src="img/img/light%20logo.png" alt="Simple ERP Logo" class="h-8 w-auto">
+                    <span class="text-xl font-black text-white tracking-tight">Simple</span>
+                </div>
             </div>
             
             <div class="flex mb-6 border-b">
@@ -67,11 +69,10 @@
                 </button>
                 
                 <div class="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity" onclick="cambiarVista('dashboard')" title="Ir al Dashboard">
-                    
-                    <img src="img/light%20logo.png" alt="Logo Simple" class="h-8 md:h-10 w-auto">
-                    
-                    <h1 class="text-lg md:text-xl font-bold hidden sm:block">Simple</h1>
-                    
+                    <div class="bg-slate-800 p-1.5 rounded-md flex items-center gap-2">
+                        <img src="img/img/light%20logo.png" alt="Logo Simple" class="h-6 md:h-8 w-auto">
+                        <h1 class="text-base md:text-lg font-bold text-white hidden sm:block">Simple</h1>
+                    </div>
                 </div>
             </div>
             
