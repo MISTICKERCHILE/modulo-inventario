@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planes - Simple ERP</title>
+    
+    <link rel="icon" type="image/png" href="img/img/favicon.png">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased flex flex-col min-h-screen">
+
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+        <div class="py-3 px-6 border-b border-slate-100">
+            <div class="max-w-7xl mx-auto flex items-center justify-between">
+                <a href="index.html" class="flex items-center gap-2">
+                    <img src="img/img/light%20logo.png" alt="Simple ERP Logo" class="h-10 w-auto">
+                    <span class="text-2xl font-black text-slate-800 tracking-tight">| ERP Simple</span>
+                </a>
+                <div class="flex items-center gap-4">
+                    <a href="app.html" class="text-slate-600 font-bold hover:text-emerald-600 text-sm transition-colors">Iniciar Sesión</a>
+                    <a href="app.html?registro=true" class="bg-emerald-600 text-white px-5 py-2 rounded-lg font-bold hover:bg-emerald-700 shadow-sm transition-all text-sm">Registrarse</a>
+                </div>
+            </div>
+        </div>
+        <nav class="py-3 px-6 bg-slate-50/80 backdrop-blur-sm">
+            <div class="max-w-7xl mx-auto flex justify-center md:justify-start gap-8 font-bold text-slate-500 text-sm">
+                <a href="index.html" class="hover:text-emerald-600 transition-colors">Inicio</a>
+                <a href="planes.html" class="text-emerald-600 border-b-2 border-emerald-600 pb-1">Planes</a>
+                <a href="contacto.html" class="hover:text-emerald-600 transition-colors">Contacto</a>
+            </div>
+        </nav>
+    </header>
+
+    <main class="flex-grow py-20 px-6">
+        <div class="max-w-7xl mx-auto">
+            
+            <div class="text-center mb-16" data-aos="fade-up">
+                <h1 class="text-4xl md:text-5xl font-black text-slate-800 mb-4 tracking-tight">Elige el plan perfecto para tu PyMe</h1>
+                <p class="text-xl text-slate-500 max-w-2xl mx-auto">Sin contratos forzosos. Comienza gratis, paga cuando tu negocio crezca.</p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto items-center">
+                
+                <div data-aos="fade-up" data-aos-delay="100" class="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm hover:border-emerald-200 transition-all flex flex-col h-full">
+                    <div class="mb-6">
+                        <h3 class="text-lg font-bold text-slate-500 uppercase tracking-wide mb-2">Starter</h3>
+                        <div class="flex items-baseline gap-1">
+                            <span class="text-4xl font-black text-slate-800">$0</span>
+                            <span class="text-slate-400 font-medium">/mes</span>
+                        </div>
+                        <p class="text-sm text-slate-500 mt-2">Perfecto para negocios que recién comienzan.</p>
+                    </div>
+                    
+                    <ul class="space-y-4 mb-8 flex-1">
+                        <li class="flex items-start gap-3 text-sm text-slate-600 font-medium"><span class="text-emerald-500">✓</span> 1 Usuario (Dueño)</li>
+                        <li class="flex items-start gap-3 text-sm text-slate-600 font-medium"><span class="text-emerald-500">✓</span> 1 Sucursal / Bodega</li>
+                        <li class="flex items-start gap-3 text-sm text-slate-600 font-medium"><span class="text-emerald-500">✓</span> Inventario Básico (100 SKUs)</li>
+                        <li class="flex items-start gap-3 text-sm text-slate-600 font-medium"><span class="text-emerald-500">✓</span> Ventas POS Limitadas</li>
+                    </ul>
+                    
+                    <a href="app.html?registro=true&plan=starter" class="w-full py-3 rounded-xl border-2 border-slate-200 text-slate-700 font-bold hover:bg-slate-50 hover:border-slate-300 transition-all text-center block">Comenzar Gratis</a>
+                </div>
+
+                <div data-aos="fade-up" data-aos-delay="200" class="bg-white p-8 rounded-3xl border-2 border-emerald-500 shadow-2xl relative flex flex-col h-full transform scale-105 z-10">
+                    <div class="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gradient-to-r from-emerald-500 to-teal-400 text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wide shadow-md">
+                        Más Popular
+                    </div>
+                    <div class="mb-6">
+                        <h3 class="text-lg font-bold text-emerald-600 uppercase tracking-wide mb-2">Profesional</h3>
+                        <div class="flex items-baseline gap-1">
+                            <span class="text-5xl font-black text-slate-800">$29.990</span>
+                            <span class="text-slate-400 font-medium">/mes</span>
+                        </div>
+                        <p class="text-sm text-slate-500 mt-2">Para empresas establecidas en crecimiento.</p>
+                    </div>
+                    
+                    <ul class="space-y-4 mb-8 flex-1">
+                        <li class="flex items-start gap-3 text-sm text-slate-600 font-medium"><span class="text-emerald-500 font-bold">✓</span> <strong class="text-slate-800">5 Usuarios</strong> incluidos</li>
+                        <li class="flex items-start gap-3 text-sm text-slate-600 font-medium"><span class="text-emerald-500 font-bold">✓</span> Hasta 3 Sucursales</li>
+                        <li class="flex items-start gap-3 text-sm text-slate-600 font-medium"><span class="text-emerald-500 font-bold">✓</span> Inventario Ilimitado & Recetas</li>
+                        <li class="flex items-start gap-3 text-sm text-slate-600 font-medium"><span class="text-emerald-500 font-bold">✓</span> Punto de Venta (POS) Ilimitado</li>
+                        <li class="flex items-start gap-3 text-sm text-slate-600 font-medium"><span class="text-emerald-500 font-bold">✓</span> Reportes Avanzados</li>
+                    </ul>
+                    
+                    <a href="app.html?registro=true&plan=pro" class="w-full py-4 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all text-center block text-lg">Elegir Profesional</a>
+                </div>
+
+                <div data-aos="fade-up" data-aos-delay="300" class="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm hover:border-emerald-200 transition-all flex flex-col h-full">
+                    <div class="mb-6">
+                        <h3 class="text-lg font-bold text-slate-500 uppercase tracking-wide mb-2">Corporativo</h3>
+                        <div class="flex items-baseline gap-1">
+                            <span class="text-4xl font-black text-slate-800">$69.990</span>
+                            <span class="text-slate-400 font-medium">/mes</span>
+                        </div>
+                        <p class="text-sm text-slate-500 mt-2">Control total para grandes operaciones.</p>
+                    </div>
+                    
+                    <ul class="space-y-4 mb-8 flex-1">
+                        <li class="flex items-start gap-3 text-sm text-slate-600 font-medium"><span class="text-emerald-500">✓</span> <strong class="text-slate-800">Usuarios Ilimitados</strong></li>
+                        <li class="flex items-start gap-3 text-sm text-slate-600 font-medium"><span class="text-emerald-500">✓</span> Sucursales Ilimitadas</li>
+                        <li class="flex items-start gap-3 text-sm text-slate-600 font-medium"><span class="text-emerald-500">✓</span> Todas las funciones Pro</li>
+                        <li class="flex items-start gap-3 text-sm text-slate-600 font-medium"><span class="text-emerald-500">✓</span> Integración contable (SII)</li>
+                        <li class="flex items-start gap-3 text-sm text-slate-600 font-medium"><span class="text-emerald-500">✓</span> Soporte Prioritario 24/7</li>
+                    </ul>
+                    
+                    <a href="app.html?registro=true&plan=corp" class="w-full py-3 rounded-xl border-2 border-slate-200 text-slate-700 font-bold hover:bg-slate-50 hover:border-slate-300 transition-all text-center block">Contactar Ventas</a>
+                </div>
+
+            </div>
+
+            <div class="mt-24 max-w-3xl mx-auto" data-aos="fade-up">
+                <h3 class="text-2xl font-bold text-center mb-8">Dudas sobre facturación</h3>
+                <div class="space-y-4">
+                    <div class="bg-white p-6 rounded-xl border border-slate-100">
+                        <h4 class="font-bold text-slate-800">¿Puedo cambiar de plan más adelante?</h4>
+                        <p class="text-sm text-slate-500 mt-1">Sí, puedes subir o bajar de plan en cualquier momento desde la configuración de tu empresa. El cobro se ajustará proporcionalmente.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl border border-slate-100">
+                        <h4 class="font-bold text-slate-800">¿Los precios incluyen IVA?</h4>
+                        <p class="text-sm text-slate-500 mt-1">Todos los valores expresados son netos. Se agregará el 19% de IVA al momento de la facturación electrónica.</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <footer class="bg-slate-900 text-slate-400 py-16 border-t border-slate-800 mt-auto">
+        <div class="max-w-7xl mx-auto px-6 grid md:grid-cols-4 gap-8 text-sm">
+            <div class="col-span-1 md:col-span-2">
+                <div class="flex items-center gap-2 mb-4 text-white">
+                    <img src="img/img/light%20logo.png" alt="Simple ERP Logo" class="h-8 w-auto">
+                    <span class="text-xl font-black tracking-tight">| ERP Simple</span>
+                </div>
+                <p class="max-w-xs mb-4">La herramienta definitiva para llevar tu negocio al siguiente nivel, sin complicaciones.</p>
+            </div>
+            <div>
+                <h4 class="text-white font-bold mb-4 uppercase tracking-wider text-xs">Mapa del Sitio</h4>
+                <ul class="space-y-2">
+                    <li><a href="index.html" class="hover:text-emerald-400 transition-colors">Inicio</a></li>
+                    <li><a href="planes.html" class="hover:text-emerald-400 transition-colors">Ver Planes</a></li>
+                    <li><a href="app.html" class="hover:text-emerald-400 transition-colors">Iniciar Sesión</a></li>
+                    <li><a href="app.html?registro=true" class="hover:text-emerald-400 transition-colors">Crear Cuenta</a></li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="text-white font-bold mb-4 uppercase tracking-wider text-xs">Contacto & Legal</h4>
+                <ul class="space-y-2">
+                    <li><a href="contacto.html" class="hover:text-emerald-400 transition-colors">Agendar Demo</a></li>
+                    <li><a href="#" class="hover:text-emerald-400 transition-colors">Términos y Condiciones</a></li>
+                    <li><a href="#" class="hover:text-emerald-400 transition-colors">Políticas de Privacidad</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="max-w-7xl mx-auto px-6 mt-12 pt-8 border-t border-slate-800 text-center text-xs">
+            &copy; 2026 Simple ERP. Marca Registrada. Todos los derechos reservados.
+        </div>
+    </footer>
+
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>AOS.init({ duration: 800, once: true, offset: 50 });</script>
+
+</body>
+</html>

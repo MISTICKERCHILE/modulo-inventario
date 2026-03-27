@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contacto y Demo - Simple ERP</title>
+    
+    <link rel="icon" type="image/png" href="img/img/favicon.png">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased flex flex-col min-h-screen">
+
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+        <div class="py-3 px-6 border-b border-slate-100">
+            <div class="max-w-7xl mx-auto flex items-center justify-between">
+                <a href="index.html" class="flex items-center gap-2">
+                    <img src="img/img/dark%20logo.png" alt="Simple ERP Logo" class="h-10 w-auto">
+                    <span class="text-2xl font-black text-slate-800 tracking-tight">| ERP Simple</span>
+                </a>
+                <div class="flex items-center gap-4">
+                    <a href="app.html" class="text-slate-600 font-bold hover:text-emerald-600 text-sm transition-colors">Iniciar Sesión</a>
+                    <a href="app.html?registro=true" class="bg-emerald-600 text-white px-5 py-2 rounded-lg font-bold hover:bg-emerald-700 shadow-sm transition-all text-sm">Registrarse</a>
+                </div>
+            </div>
+        </div>
+        <nav class="py-3 px-6 bg-slate-50/80 backdrop-blur-sm">
+            <div class="max-w-7xl mx-auto flex justify-center md:justify-start gap-8 font-bold text-slate-500 text-sm">
+                <a href="index.html" class="hover:text-emerald-600 transition-colors">Inicio</a>
+                <a href="planes.html" class="hover:text-emerald-600 transition-colors">Planes</a>
+                <a href="contacto.html" class="text-emerald-600 border-b-2 border-emerald-600 pb-1">Contacto</a>
+            </div>
+        </nav>
+    </header>
+
+    <main class="flex-grow py-20 px-6">
+        <div class="max-w-7xl mx-auto">
+            
+            <div class="text-center mb-16" data-aos="fade-up">
+                <h1 class="text-4xl md:text-5xl font-black text-slate-800 mb-4 tracking-tight">Hablemos de tu negocio</h1>
+                <p class="text-xl text-slate-500 max-w-2xl mx-auto">Agenda una demostración guiada de 30 minutos o escríbenos si tienes dudas puntuales.</p>
+            </div>
+
+            <div class="grid lg:grid-cols-5 gap-12 max-w-6xl mx-auto">
+                
+                <div class="lg:col-span-2 space-y-8" data-aos="fade-right" data-aos-delay="100">
+                    <div class="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
+                        <h3 class="text-2xl font-bold text-slate-800 mb-6">Información Directa</h3>
+                        
+                        <div class="space-y-6">
+                            <div class="flex items-start gap-4">
+                                <div class="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center text-2xl shrink-0">📍</div>
+                                <div>
+                                    <h4 class="font-bold text-slate-700">Oficina Central</h4>
+                                    <p class="text-slate-500 text-sm mt-1">Quillota, Región de Valparaíso<br>Chile.</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start gap-4">
+                                <div class="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center text-2xl shrink-0">✉️</div>
+                                <div>
+                                    <h4 class="font-bold text-slate-700">Soporte y Ventas</h4>
+                                    <p class="text-slate-500 text-sm mt-1">hola@simple.cl<br>soporte@simple.cl</p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-start gap-4">
+                                <div class="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center text-2xl shrink-0">💬</div>
+                                <div>
+                                    <h4 class="font-bold text-slate-700">WhatsApp Comercial</h4>
+                                    <p class="text-slate-500 text-sm mt-1">+56 9 1234 5678<br><span class="text-xs text-slate-400">Lun - Vie, 09:00 a 18:00 hrs.</span></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-3" data-aos="fade-left" data-aos-delay="200">
+                    <div class="bg-white p-8 md:p-10 rounded-3xl border border-slate-200 shadow-xl relative">
+                        <div class="absolute top-0 right-8 transform -translate-y-1/2 bg-emerald-100 text-emerald-800 px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wide border border-emerald-200">
+                            Contacto Directo
+                        </div>
+                        
+                        <h3 class="text-2xl font-bold text-slate-800 mb-6">Escríbenos</h3>
+                        
+                        <form class="space-y-5">
+                            <div class="grid md:grid-cols-2 gap-5">
+                                <div>
+                                    <label class="block text-sm font-bold text-slate-700 mb-1">Tu Nombre</label>
+                                    <input type="text" placeholder="Ej: Juan Pérez" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all bg-slate-50 focus:bg-white" required>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-bold text-slate-700 mb-1">Nombre de la Empresa</label>
+                                    <input type="text" placeholder="Ej: Mi Pyme SpA" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all bg-slate-50 focus:bg-white" required>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-bold text-slate-700 mb-1">Correo Electrónico</label>
+                                <input type="email" placeholder="correo@empresa.cl" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all bg-slate-50 focus:bg-white" required>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-bold text-slate-700 mb-1">Asunto</label>
+                                <div class="relative">
+                                    <select class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all bg-slate-50 focus:bg-white appearance-none cursor-pointer text-slate-700 font-medium" required>
+                                        <option value="" disabled selected>Selecciona una opción...</option>
+                                        <option value="General">General</option>
+                                        <option value="Agendar Demo">Agendar Demo</option>
+                                        <option value="Sugerencia">Sugerencia</option>
+                                        <option value="Felicitaciones">Felicitaciones</option>
+                                        <option value="Otros">Otros</option>
+                                    </select>
+                                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-bold text-slate-700 mb-1">Mensaje / ¿En qué te podemos ayudar?</label>
+                                <textarea rows="4" placeholder="Escribe aquí tu mensaje..." class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all bg-slate-50 focus:bg-white resize-none" required></textarea>
+                            </div>
+
+                            <button type="submit" class="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all text-lg mt-2">
+                                Enviar Mensaje
+                            </button>
+                        </form>
+
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-slate-900 text-slate-400 py-16 border-t border-slate-800 mt-auto">
+        <div class="max-w-7xl mx-auto px-6 grid md:grid-cols-4 gap-8 text-sm">
+            <div class="col-span-1 md:col-span-2">
+                <div class="flex items-center gap-2 mb-4 text-white">
+                    <img src="img/img/light%20logo.png" alt="Simple ERP Logo" class="h-8 w-auto">
+                    <span class="text-xl font-black tracking-tight">| ERP Simple</span>
+                </div>
+                <p class="max-w-xs mb-4">La herramienta definitiva para llevar tu negocio al siguiente nivel, sin complicaciones.</p>
+            </div>
+            <div>
+                <h4 class="text-white font-bold mb-4 uppercase tracking-wider text-xs">Mapa del Sitio</h4>
+                <ul class="space-y-2">
+                    <li><a href="index.html" class="hover:text-emerald-400 transition-colors">Inicio</a></li>
+                    <li><a href="planes.html" class="hover:text-emerald-400 transition-colors">Ver Planes</a></li>
+                    <li><a href="app.html" class="hover:text-emerald-400 transition-colors">Iniciar Sesión</a></li>
+                    <li><a href="app.html?registro=true" class="hover:text-emerald-400 transition-colors">Crear Cuenta</a></li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="text-white font-bold mb-4 uppercase tracking-wider text-xs">Contacto & Legal</h4>
+                <ul class="space-y-2">
+                    <li><a href="contacto.html" class="hover:text-emerald-400 transition-colors">Agendar Demo</a></li>
+                    <li><a href="#" class="hover:text-emerald-400 transition-colors">Términos y Condiciones</a></li>
+                    <li><a href="#" class="hover:text-emerald-400 transition-colors">Políticas de Privacidad</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="max-w-7xl mx-auto px-6 mt-12 pt-8 border-t border-slate-800 text-center text-xs">
+            &copy; 2026 Simple ERP. Marca Registrada. Todos los derechos reservados.
+        </div>
+    </footer>
+
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>AOS.init({ duration: 800, once: true, offset: 50 });</script>
+
+</body>
+</html>
