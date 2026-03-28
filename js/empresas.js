@@ -119,34 +119,24 @@ if(!window.eventosEmpresasAtados) {
 
         } else if (e.target.id === 'form-vincular-usuario') {
             e.preventDefault();
+            
             const seleccion = document.getElementById('vu-empresa').value.split('|');
             const idEmpresa = seleccion[0];
             const nombreEmpresa = seleccion[1];
             const emailTarget = document.getElementById('vu-email').value.trim();
             const rolAsignado = document.getElementById('vu-rol').value;
 
-            const { data: perfilEncontrado } = await clienteSupabase.from('perfiles').select('id_usuario, nombre').eq('email', emailTarget).maybeSingle();
+            // 1. Armamos la URL Mágica con los parámetros seguros
+            // window.location.origin saca tu dominio actual (ej: https://tudominio.vercel.app)
+            const baseUrl = window.location.origin + window.location.pathname; 
+            const urlMagica = `${baseUrl}?invite=true&emp_id=${idEmpresa}&emp_nom=${encodeURIComponent(nombreEmpresa)}&email=${encodeURIComponent(emailTarget)}&rol=${rolAsignado}`;
 
-            if(!perfilEncontrado) {
-                return alert("❌ No encontramos ningún usuario con ese correo. Pídele que vaya a la página principal y se cree una cuenta primero.");
-            }
+            // 2. Ponemos la URL en el input para que el usuario la copie
+            document.getElementById('vu-link-generado').value = urlMagica;
 
-            const { data: yaExiste } = await clienteSupabase.from('usuarios_empresas').select('id').eq('id_usuario', perfilEncontrado.id_usuario).eq('id_empresa', idEmpresa).maybeSingle();
-            if(yaExiste) return alert("⚠️ Este usuario ya tiene acceso a esta empresa.");
-
-            const { error } = await clienteSupabase.from('usuarios_empresas').insert({
-                id_usuario: perfilEncontrado.id_usuario,
-                id_empresa: idEmpresa,
-                nombre_empresa: nombreEmpresa,
-                rol: rolAsignado
-            });
-
-            if(error) return alert("❌ Error al vincular.");
-            
-            alert(`✅ ${perfilEncontrado.nombre || emailTarget} ha sido vinculado a ${nombreEmpresa} como ${rolAsignado}.`);
-            document.getElementById('modal-vincular-usuario').classList.add('hidden');
-            document.getElementById('form-vincular-usuario').reset();
-            window.cargarUsuariosDeEmpresa(idEmpresa, nombreEmpresa);
+            // 3. Ocultamos el formulario y mostramos el resultado
+            document.getElementById('vu-step-1').classList.add('hidden');
+            document.getElementById('vu-step-2').classList.remove('hidden');
         }
     });
     window.eventosEmpresasAtados = true;
@@ -158,4 +148,21 @@ window.eliminarAcceso = async function(idRegistro) {
         document.getElementById('lista-usuarios-empresa').innerHTML = '<li class="p-8 text-center text-slate-400 font-medium text-sm">👈 Selecciona una empresa a la izquierda para ver su equipo.</li>';
         window.cargarEmpresas();
     }
+}
+
+// --- UTILIDADES PARA EL MODAL DE INVITACIONES ---
+window.cerrarModalInvitacion = function() {
+    document.getElementById('modal-vincular-usuario').classList.add('hidden');
+    // Reseteamos el modal a su estado original para la próxima vez
+    document.getElementById('form-vincular-usuario').reset();
+    document.getElementById('vu-step-1').classList.remove('hidden');
+    document.getElementById('vu-step-2').classList.add('hidden');
+}
+
+window.copiarEnlaceInvitacion = function() {
+    const inputLink = document.getElementById('vu-link-generado');
+    inputLink.select();
+    inputLink.setSelectionRange(0, 99999); // Para celulares
+    navigator.clipboard.writeText(inputLink.value);
+    alert("✅ ¡Enlace copiado al portapapeles!");
 }
