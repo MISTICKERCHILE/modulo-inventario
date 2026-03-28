@@ -22,36 +22,243 @@
     </div>
 
     <div id="login-container" class="min-h-screen flex items-center justify-center p-4">
-        <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-sm border border-gray-100">
+        <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md border border-gray-100 transition-all duration-300">
+            
             <div class="text-center mb-6 flex flex-col items-center justify-center">
                 <div class="bg-slate-800 p-3 rounded-xl inline-flex items-center gap-2 mb-2 shadow-sm">
-                    <img src="img/img/dark%20logo.png" alt="Simple ERP Logo" class="h-8 w-auto">
+                    <img src="/img/img/dark%20logo.png" alt="Simple ERP Logo" class="h-8 w-auto">
                     <span class="text-xl font-black text-white tracking-tight">Simple</span>
                 </div>
             </div>
             
-            <div class="flex mb-6 border-b">
+            <div class="flex mb-6 border-b" id="auth-tabs">
                 <button id="tab-login" onclick="toggleAuthMode('login')" class="flex-1 pb-2 border-b-2 border-emerald-600 font-bold text-emerald-600 outline-none transition-colors">Entrar</button>
-                <button id="tab-register" onclick="toggleAuthMode('register')" class="flex-1 pb-2 font-bold text-slate-400 outline-none hover:text-emerald-500 transition-colors">Registrarse</button>
+                <button id="tab-register" onclick="toggleAuthMode('register')" class="flex-1 pb-2 font-bold text-slate-400 outline-none hover:text-emerald-500 transition-colors">Crear Empresa</button>
             </div>
 
-            <form id="auth-form" class="space-y-4">
-                <input type="hidden" id="auth-mode" value="login">
+            <form id="form-login-view" class="space-y-4">
                 
-                <div id="register-fields" class="hidden space-y-4 mb-4">
-                    <div class="flex gap-4">
-                        <input type="text" id="reg-nombre" placeholder="Nombre" class="w-1/2 px-3 py-3 border rounded-md outline-none focus:ring-2 focus:ring-emerald-500">
-                        <input type="text" id="reg-apellido" placeholder="Apellido" class="w-1/2 px-3 py-3 border rounded-md outline-none focus:ring-2 focus:ring-emerald-500">
-                    </div>
-                    <input type="tel" id="reg-telefono" placeholder="Teléfono (Opcional)" class="w-full px-3 py-3 border rounded-md outline-none focus:ring-2 focus:ring-emerald-500">
+                <div id="login-invite-banner" class="hidden bg-blue-50 p-3 rounded-lg border border-blue-200 text-center mb-4 shadow-inner">
+                    <p class="text-[10px] text-blue-600 font-bold uppercase mb-1">¡Te han invitado!</p>
+                    <p class="text-sm font-bold text-blue-900">Inicia sesión para unirte a <span id="login-invite-empresa" class="font-black"></span></p>
                 </div>
 
-                <input type="email" id="email" placeholder="Correo electrónico" required class="w-full px-3 py-3 border rounded-md outline-none focus:ring-2 focus:ring-emerald-500">
-                <input type="password" id="password" placeholder="Contraseña" required class="w-full px-3 py-3 border rounded-md outline-none focus:ring-2 focus:ring-emerald-500">
-                <button type="submit" id="auth-btn" class="w-full py-3 bg-emerald-600 text-white rounded-md font-bold hover:bg-emerald-700 transition-colors shadow-sm">Entrar al Sistema</button>
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="block text-xs font-bold text-slate-500">Correo Electrónico</label>
+                    </div>
+                    <input type="email" id="login-email" placeholder="ejemplo@correo.com" required class="w-full px-4 py-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 focus:bg-white transition-colors">
+                </div>
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="block text-xs font-bold text-slate-500">Contraseña</label>
+                        <a href="#" onclick="mostrarOlvidePassword()" class="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 transition-colors">¿Olvidaste tu contraseña?</a>
+                    </div>
+                    <div class="relative">
+                        <input type="password" id="login-password" placeholder="••••••••" required class="w-full px-4 py-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 focus:bg-white transition-colors">
+                        <button type="button" onclick="togglePasswordVisibility('login-password')" class="absolute inset-y-0 right-0 px-3 flex items-center text-slate-400 hover:text-emerald-600 focus:outline-none text-sm">👁️</button>
+                    </div>
+                </div>
+                <button type="submit" class="w-full py-3 mt-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors shadow-md">Entrar al Sistema</button>
             </form>
+
+            <form id="form-olvide-pass" class="hidden space-y-4">
+                <div class="text-center mb-4">
+                    <div class="text-4xl mb-2">🔐</div>
+                    <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider">Recuperar Contraseña</h3>
+                    <p class="text-xs text-slate-500 mt-2">Ingresa tu correo y te enviaremos las instrucciones para crear una nueva.</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">Correo Electrónico</label>
+                    <input type="email" id="olvide-email" placeholder="ejemplo@correo.com" required class="w-full px-4 py-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 focus:bg-white transition-colors">
+                </div>
+                <button type="submit" id="btn-olvide-enviar" class="w-full py-3 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors shadow-md">Enviar enlace de recuperación</button>
+                <button type="button" onclick="toggleAuthMode('login')" class="w-full py-3 text-slate-500 font-bold hover:bg-slate-50 rounded-lg transition-colors text-sm">← Volver al Login</button>
+            </form>
+
+            <form id="form-nueva-pass" class="hidden space-y-4">
+                <div class="text-center mb-4">
+                    <div class="text-4xl mb-2">✨</div>
+                    <h3 class="text-sm font-bold text-emerald-600 uppercase tracking-wider">Crea tu nueva contraseña</h3>
+                </div>
+                <div class="space-y-3 relative">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">Nueva Contraseña</label>
+                        <div class="relative">
+                            <input type="password" id="nueva-pass-1" minlength="6" required class="w-full px-4 py-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-sm" oninput="validarNuevaPass()">
+                            <button type="button" onclick="togglePasswordVisibility('nueva-pass-1')" class="absolute inset-y-0 right-0 px-3 text-slate-400 hover:text-emerald-600">👁️</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">Repetir Nueva Contraseña</label>
+                        <div class="relative">
+                            <input type="password" id="nueva-pass-2" minlength="6" required class="w-full px-4 py-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-sm" oninput="validarNuevaPass()">
+                            <button type="button" onclick="togglePasswordVisibility('nueva-pass-2')" class="absolute inset-y-0 right-0 px-3 text-slate-400 hover:text-emerald-600">👁️</button>
+                        </div>
+                    </div>
+                    <p id="msg-nueva-pass-match" class="text-[10px] font-bold mt-1 hidden"></p>
+                </div>
+                <button type="submit" id="btn-guardar-nueva-pass" class="w-full py-3 mt-4 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors shadow-md">Guardar y Entrar</button>
+            </form>
+
+            <form id="form-register-step-1" class="hidden space-y-4">
+                <div class="text-center mb-4"><h3 class="text-sm font-bold text-slate-500 uppercase tracking-wider">Paso 1 de 2: Tu Empresa</h3></div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">País de Operación</label>
+                    <select id="reg-pais" required class="w-full px-4 py-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 cursor-pointer font-medium text-slate-700">
+                        <option value="Chile">🇨🇱 Chile</option><option value="Venezuela">🇻🇪 Venezuela</option><option value="Otro">🌎 Otro</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">ID de Empresa (RUT/RIF sin puntos ni guion)</label>
+                    <input type="text" id="reg-rut" placeholder="Ej: 76123456K" required class="w-full px-4 py-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 focus:bg-white uppercase font-mono">
+                    <p id="msg-rut-error" class="text-xs text-red-500 font-bold mt-1 hidden">Esta empresa ya está registrada. Contáctanos.</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">Nombre o Razón Social</label>
+                    <input type="text" id="reg-razon-social" placeholder="Ej: Mi Pyme SpA" required class="w-full px-4 py-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 focus:bg-white">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">Nombre Comercial (Fantasía)</label>
+                    <input type="text" id="reg-nombre-comercial" placeholder="Ej: Tienda Simple" required class="w-full px-4 py-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 focus:bg-white">
+                </div>
+                <button type="submit" id="btn-continuar-reg" class="w-full py-3 mt-2 bg-slate-800 text-white rounded-lg font-bold hover:bg-slate-900 transition-colors shadow-md flex justify-center items-center gap-2">Continuar <span class="text-xl leading-none">→</span></button>
+            </form>
+
+            <form id="form-register-step-2" class="hidden space-y-4">
+                <div class="flex items-center justify-between mb-4 border-b border-slate-100 pb-4">
+                    <button type="button" onclick="volverPaso1()" class="text-slate-400 hover:text-emerald-600 font-bold text-sm">← Volver</button>
+                    <h3 class="text-sm font-bold text-emerald-600 uppercase tracking-wider">Paso 2: Tu Cuenta</h3>
+                </div>
+                <div class="bg-emerald-50 p-3 rounded-lg border border-emerald-100 mb-4">
+                    <p class="text-[10px] font-bold text-emerald-800 uppercase mb-1">Empresa a crear:</p>
+                    <p id="resumen-empresa" class="text-sm font-bold text-emerald-900 truncate">...</p>
+                    <p id="resumen-rut" class="text-xs font-mono text-emerald-700">...</p>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-[10px] font-bold text-slate-500 mb-1">Nombres</label><input type="text" id="reg-user-nombre" required class="w-full px-3 py-2.5 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-sm"></div>
+                    <div><label class="block text-[10px] font-bold text-slate-500 mb-1">Apellidos</label><input type="text" id="reg-user-apellido" required class="w-full px-3 py-2.5 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-sm"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-[10px] font-bold text-slate-500 mb-1">Fecha Nacimiento</label><input type="date" id="reg-user-nacimiento" required class="w-full px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-sm text-slate-600"></div>
+                    <div><label class="block text-[10px] font-bold text-slate-500 mb-1">PIN (4 Dígitos POS)</label>
+                        <div class="relative"><input type="password" id="reg-user-pin" maxlength="4" pattern="[0-9]{4}" required class="w-full px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-center tracking-widest font-mono text-lg"><button type="button" onclick="togglePasswordVisibility('reg-user-pin')" class="absolute inset-y-0 right-0 px-3 text-slate-400 hover:text-emerald-600">👁️</button></div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-[10px] font-bold text-slate-500 mb-1">Tu RUT / DNI</label><input type="text" id="reg-user-rut" required class="w-full px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-sm"></div>
+                    <div><label class="block text-[10px] font-bold text-slate-500 mb-1">Teléfono</label><input type="tel" id="reg-user-telefono" required class="w-full px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-sm"></div>
+                </div>
+                <div><label class="block text-[10px] font-bold text-slate-500 mb-1">Correo Electrónico</label><input type="email" id="reg-user-email" required class="w-full px-4 py-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-sm"></div>
+                <div class="grid grid-cols-2 gap-3 relative">
+                    <div><label class="block text-[10px] font-bold text-slate-500 mb-1">Contraseña</label><div class="relative"><input type="password" id="reg-user-pass" minlength="6" required class="w-full px-3 py-2.5 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-sm" oninput="validarPasswords()"><button type="button" onclick="togglePasswordVisibility('reg-user-pass')" class="absolute inset-y-0 right-0 px-3 text-slate-400 hover:text-emerald-600">👁️</button></div></div>
+                    <div><label class="block text-[10px] font-bold text-slate-500 mb-1">Repetir Contraseña</label><div class="relative"><input type="password" id="reg-user-pass2" minlength="6" required class="w-full px-3 py-2.5 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-sm" oninput="validarPasswords()"><button type="button" onclick="togglePasswordVisibility('reg-user-pass2')" class="absolute inset-y-0 right-0 px-3 text-slate-400 hover:text-emerald-600">👁️</button></div></div>
+                    <p id="msg-password-match" class="col-span-2 text-[10px] font-bold mt-0 hidden"></p>
+                </div>
+                <div class="space-y-2 mt-4 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                    <label class="flex items-start gap-2 cursor-pointer"><input type="checkbox" required class="w-4 h-4 mt-0.5 accent-emerald-600"><span class="text-xs text-slate-600 leading-tight">Acepto los Términos y Condiciones.</span></label>
+                    <label class="flex items-start gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 mt-0.5 accent-emerald-600" checked><span class="text-xs text-slate-600 leading-tight">Permito el uso anónimo de datos.</span></label>
+                </div>
+                <button type="submit" id="btn-final-reg" class="w-full py-4 mt-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-200 text-lg">Crear Empresa y Entrar 🚀</button>
+            </form>
+
+            <form id="form-register-invite" class="hidden space-y-4">
+                <div class="text-center mb-4"><div class="text-4xl mb-2">👋</div><h3 class="text-sm font-bold text-slate-500 uppercase tracking-wider">¡Te han invitado!</h3></div>
+                <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-4 text-center shadow-inner">
+                    <p class="text-[10px] text-blue-600 font-bold uppercase mb-1">Únete al equipo de:</p>
+                    <p id="invite-empresa-nombre" class="text-xl font-black text-blue-900 truncate">Buscando...</p>
+                    <p id="invite-rol-nombre" class="text-xs font-bold text-blue-700 mt-1 bg-blue-100 inline-block px-2 py-0.5 rounded">Rol: ...</p>
+                </div>
+                
+                <input type="hidden" id="invite-empresa-id">
+                <input type="hidden" id="invite-rol">
+                <input type="hidden" id="invite-id-registro">
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div><input type="text" id="inv-user-nombre" placeholder="Tus nombres" required class="w-full px-3 py-2.5 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 text-sm"></div>
+                    <div><input type="text" id="inv-user-apellido" placeholder="Tus apellidos" required class="w-full px-3 py-2.5 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 text-sm"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-[10px] font-bold text-slate-500 mb-1">RUT / DNI</label><input type="text" id="inv-user-rut" required class="w-full px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 text-sm"></div>
+                    <div><label class="block text-[10px] font-bold text-slate-500 mb-1">PIN (4 Dígitos POS)</label><div class="relative"><input type="password" id="inv-user-pin" maxlength="4" pattern="[0-9]{4}" required class="w-full px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 text-center tracking-widest font-mono text-lg"><button type="button" onclick="togglePasswordVisibility('inv-user-pin')" class="absolute inset-y-0 right-0 px-3 text-slate-400 hover:text-blue-600">👁️</button></div></div>
+                </div>
+                <div><label class="block text-[10px] font-bold text-slate-500 mb-1">Correo Electrónico (Tu Usuario)</label><input type="email" id="inv-user-email" readonly class="w-full px-4 py-3 border border-blue-200 bg-blue-100/50 rounded-lg outline-none text-sm font-bold text-slate-500 cursor-not-allowed"></div>
+                <div class="grid grid-cols-2 gap-3 relative">
+                    <div><label class="block text-[10px] font-bold text-slate-500 mb-1">Crea tu Contraseña</label><div class="relative"><input type="password" id="inv-user-pass" minlength="6" required class="w-full px-3 py-2.5 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 text-sm" oninput="validarPasswordsInv()"><button type="button" onclick="togglePasswordVisibility('inv-user-pass')" class="absolute inset-y-0 right-0 px-3 text-slate-400 hover:text-blue-600">👁️</button></div></div>
+                    <div><label class="block text-[10px] font-bold text-slate-500 mb-1">Repetir Contraseña</label><div class="relative"><input type="password" id="inv-user-pass2" minlength="6" required class="w-full px-3 py-2.5 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 text-sm" oninput="validarPasswordsInv()"><button type="button" onclick="togglePasswordVisibility('inv-user-pass2')" class="absolute inset-y-0 right-0 px-3 text-slate-400 hover:text-blue-600">👁️</button></div></div>
+                    <p id="msg-password-match-inv" class="col-span-2 text-[10px] font-bold mt-0 hidden"></p>
+                </div>
+                <button type="submit" id="btn-final-inv" class="w-full py-4 mt-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200 text-lg">Unirme al Equipo 🚀</button>
+            </form>
+
         </div>
     </div>
+
+    <form id="form-register-invite" class="hidden space-y-4">
+                <div class="text-center mb-4">
+                    <div class="text-4xl mb-2">👋</div>
+                    <h3 class="text-sm font-bold text-slate-500 uppercase tracking-wider">¡Te han invitado!</h3>
+                </div>
+                
+                <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-4 text-center shadow-inner">
+                    <p class="text-[10px] text-blue-600 font-bold uppercase mb-1">Únete al equipo de:</p>
+                    <p id="invite-empresa-nombre" class="text-xl font-black text-blue-900 truncate">...</p>
+                    <p id="invite-rol-nombre" class="text-xs font-bold text-blue-700 mt-1 bg-blue-100 inline-block px-2 py-0.5 rounded">Rol: ...</p>
+                </div>
+
+                <input type="hidden" id="invite-empresa-id">
+                <input type="hidden" id="invite-rol">
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <input type="text" id="inv-user-nombre" placeholder="Tus nombres" required class="w-full px-3 py-2.5 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 text-sm">
+                    </div>
+                    <div>
+                        <input type="text" id="inv-user-apellido" placeholder="Tus apellidos" required class="w-full px-3 py-2.5 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 text-sm">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 mb-1">RUT / DNI (Sin puntos ni guion)</label>
+                        <input type="text" id="inv-user-rut" required class="w-full px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 mb-1">PIN (4 Dígitos POS)</label>
+                        <div class="relative">
+                            <input type="password" id="inv-user-pin" maxlength="4" pattern="[0-9]{4}" required class="w-full px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 text-center tracking-widest font-mono text-lg">
+                            <button type="button" onclick="togglePasswordVisibility('inv-user-pin')" class="absolute inset-y-0 right-0 px-3 text-slate-400 hover:text-blue-600">👁️</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 mb-1">Correo Electrónico (Tu Usuario)</label>
+                    <input type="email" id="inv-user-email" readonly class="w-full px-4 py-3 border border-blue-200 bg-blue-100/50 rounded-lg outline-none text-sm font-bold text-slate-500 cursor-not-allowed" title="Tu jefe ya asignó este correo.">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 relative">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 mb-1">Crea tu Contraseña</label>
+                        <div class="relative">
+                            <input type="password" id="inv-user-pass" minlength="6" required class="w-full px-3 py-2.5 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 text-sm" oninput="validarPasswordsInv()">
+                            <button type="button" onclick="togglePasswordVisibility('inv-user-pass')" class="absolute inset-y-0 right-0 px-3 text-slate-400 hover:text-blue-600">👁️</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 mb-1">Repetir Contraseña</label>
+                        <div class="relative">
+                            <input type="password" id="inv-user-pass2" minlength="6" required class="w-full px-3 py-2.5 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 text-sm" oninput="validarPasswordsInv()">
+                            <button type="button" onclick="togglePasswordVisibility('inv-user-pass2')" class="absolute inset-y-0 right-0 px-3 text-slate-400 hover:text-blue-600">👁️</button>
+                        </div>
+                    </div>
+                    <p id="msg-password-match-inv" class="col-span-2 text-[10px] font-bold mt-0 hidden"></p>
+                </div>
+
+                <button type="submit" id="btn-final-inv" class="w-full py-4 mt-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200 text-lg">
+                    Unirme al Equipo 🚀
+                </button>
+            </form>
 
     <div id="selector-empresa-container" class="hidden min-h-screen flex items-center justify-center p-4 bg-slate-50">
         <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md border border-gray-100">
