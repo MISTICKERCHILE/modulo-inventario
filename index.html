@@ -12,8 +12,24 @@
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; scroll-behavior: smooth; }
+        
+        /* BANNER 1: El Hero Principal */
         .bg-hero-pattern {
-            background-image: linear-gradient(rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.7)), url('https://images.unsplash.com/photo-1600880292203-757bb62b4baf?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80');
+            background-image: linear-gradient(rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.7)), url('img/img/simplreerpparatuempresa.jpg');
+            background-size: cover;
+            background-position: center;
+        }
+
+        /* BANNER 2: El Registro */
+        .bg-registro-pattern {
+            background-image: linear-gradient(rgba(5, 150, 105, 0.85), rgba(5, 150, 105, 0.85)), url('img/img/todobajocontrolsimple.jpg');
+            background-size: cover;
+            background-position: center;
+        }
+
+        /* BANNER 3: El Bombero (Agendar Demo) */
+        .bg-bombero-pattern {
+            background-image: linear-gradient(rgba(248, 250, 252, 0.9), rgba(248, 250, 252, 0.9)), url('img/img/dejadeapagarfuegos.jpg');
             background-size: cover;
             background-position: center;
         }
@@ -58,11 +74,11 @@
         </div>
     </section>
 
-    <section class="bg-emerald-600 py-20 px-6 text-center text-white">
+    <section class="bg-registro-pattern py-20 px-6 text-center text-white">
         <div class="max-w-4xl mx-auto" data-aos="fade-up">
-            <h2 class="text-3xl md:text-5xl font-bold mb-8 leading-tight">
+            <h2 class="text-3xl md:text-5xl font-bold mb-8 leading-tight drop-shadow-md">
                 ¿Emprender es más difícil de lo que pensabas? <br>
-                <span class="text-emerald-200">¡Hazlo Simple desde HOY!</span>
+                <span class="text-emerald-100">¡Hazlo Simple desde HOY!</span>
             </h2>
             <a href="/app.html?registro=true" class="inline-block bg-slate-900 text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-slate-800 shadow-lg transition-all border border-slate-700">
                 Registro
@@ -70,12 +86,12 @@
         </div>
     </section>
 
-    <section class="bg-slate-100 py-24 px-6 text-center border-y border-slate-200">
+    <section class="bg-bombero-pattern py-24 px-6 text-center border-y border-slate-200">
         <div class="max-w-5xl mx-auto" data-aos="fade-up">
-            <span class="text-5xl mb-6 block">🚒</span>
-            <h3 class="text-2xl md:text-4xl font-bold mb-6 text-slate-800 leading-snug">
+            <span class="text-5xl mb-6 block drop-shadow-sm">🚒</span>
+            <h3 class="text-2xl md:text-4xl font-bold mb-6 text-slate-800 leading-snug drop-shadow-sm">
                 ¿Tu empresa está creciendo? ¡Felicidades! <br>
-                <span class="text-slate-500 font-medium text-xl md:text-2xl block mt-4">Asegúrate de no convertirte en el bombero de tu organización. Llega antes del fuego a las alertas y mantén todo bajo control.</span>
+                <span class="text-slate-600 font-medium text-xl md:text-2xl block mt-4">Asegúrate de no convertirte en el bombero de tu organización. Llega antes del fuego a las alertas y mantén todo bajo control.</span>
             </h3>
             <a href="vistas/contacto.html" class="inline-block mt-4 bg-emerald-600 text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-emerald-700 shadow-md transition-all">
                 Agendar Demo
