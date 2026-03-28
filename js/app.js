@@ -138,7 +138,7 @@ document.getElementById('form-register-step-2').addEventListener('submit', async
     btnFinal.innerText = "Creando tu imperio...";
     btnFinal.disabled = true;
 
-// Recopilamos todos los datos (Empresa + Usuario)
+    // 1. Capturamos los datos
     const emailInput = document.getElementById('reg-user-email').value.trim();
     
     // --- TRADUCTOR DE FECHAS ---
@@ -152,9 +152,9 @@ document.getElementById('form-register-step-2').addEventListener('submit', async
         fechaLimpia = `${partes[2]}-${partes[1]}-${partes[0]}`;
     }
     
-    // Limpiamos el RUT personal de puntos y guiones
     const rutPersonal = document.getElementById('reg-user-rut').value.replace(/[\.\-]/g, '').trim().toUpperCase();
 
+    // 2. CREAMOS EL OBJETO (UNA SOLA VEZ)
     const datosMeta = {
         tipo_registro: 'nueva_empresa',
         pais: document.getElementById('reg-pais').value,
@@ -164,25 +164,12 @@ document.getElementById('form-register-step-2').addEventListener('submit', async
         nombre: document.getElementById('reg-user-nombre').value.trim(),
         apellido: document.getElementById('reg-user-apellido').value.trim(),
         telefono: document.getElementById('reg-user-telefono').value.trim(),
-        rut_personal: rutPersonal, // <- AQUÍ ENVIAMOS EL RUT PERSONAL
+        rut_personal: rutPersonal,
         fecha_nacimiento: fechaLimpia,
         pin_seguridad: document.getElementById('reg-user-pin').value
     };
-    
-    const datosMeta = {
-        tipo_registro: 'nueva_empresa',
-        pais: document.getElementById('reg-pais').value,
-        rut_empresa: document.getElementById('reg-rut').value.trim().toUpperCase(),
-        nombre_empresa: document.getElementById('reg-razon-social').value.trim(),
-        nombre_comercial: document.getElementById('reg-nombre-comercial').value.trim(),
-        nombre: document.getElementById('reg-user-nombre').value.trim(),
-        apellido: document.getElementById('reg-user-apellido').value.trim(),
-        telefono: document.getElementById('reg-user-telefono').value.trim(),
-        fecha_nacimiento: fechaLimpia, // Usamos la fecha ya traducida
-        pin_seguridad: document.getElementById('reg-user-pin').value
-    };
 
-    // Le pasamos la pelota a Supabase Auth (y nuestro Trigger de SQL hará el resto)
+    // 3. Enviamos a Supabase
     const { data, error } = await clienteSupabase.auth.signUp({ 
         email: emailInput, 
         password: pass1,
@@ -197,12 +184,9 @@ document.getElementById('form-register-step-2').addEventListener('submit', async
     
     alert(`🎉 ¡Felicidades, ${datosMeta.nombre}! Tu empresa ha sido creada con éxito. Inicia sesión para comenzar.`);
     
-    // Limpiamos los formularios y lo devolvemos al login
     document.getElementById('form-register-step-1').reset();
     document.getElementById('form-register-step-2').reset();
     window.toggleAuthMode('login');
-    
-    // Autocompletamos su correo en el login para facilitar la entrada
     document.getElementById('login-email').value = emailInput;
     
     btnFinal.innerText = "Crear Empresa y Entrar 🚀";
