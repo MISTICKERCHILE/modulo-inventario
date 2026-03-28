@@ -50,48 +50,99 @@ window.cargarMisEmpresas = window.cargarEmpresas;
 
 window.cargarUsuariosDeEmpresa = async function(idEmpresa, nombreEmpresa) {
     const lista = document.getElementById('lista-usuarios-empresa');
-    lista.innerHTML = '<li class="p-8 text-center text-slate-400 font-bold">⏳ Buscando equipo...</li>';
+    lista.innerHTML = '<li class="p-8 text-center text-slate-400 font-bold animate-pulse">⏳ Buscando equipo e invitaciones...</li>';
 
-    const { data: accesos, error } = await clienteSupabase.from('usuarios_empresas')
+    // 1. Buscamos los usuarios activos
+    const { data: accesos, error: errAcc } = await clienteSupabase.from('usuarios_empresas')
         .select('id, id_usuario, rol')
         .eq('id_empresa', idEmpresa);
 
-    if(error || !accesos || accesos.length === 0) {
-        lista.innerHTML = `<li class="p-8 text-center text-slate-400">Nadie tiene acceso a ${nombreEmpresa} aún.</li>`;
+    // 2. Buscamos las invitaciones pendientes
+    const { data: invitaciones, error: errInv } = await clienteSupabase.from('invitaciones')
+        .select('id, email_invitado, rol, estado')
+        .eq('id_empresa', idEmpresa)
+        .eq('estado', 'Pendiente');
+
+    if(errAcc) {
+        lista.innerHTML = `<li class="p-8 text-center text-red-400">Error cargando el equipo.</li>`;
         return;
     }
 
-    const idsUsuarios = accesos.map(a => a.id_usuario);
-    const { data: perfiles } = await clienteSupabase.from('perfiles')
-        .select('id_usuario, nombre, apellido')
-        .in('id_usuario', idsUsuarios);
-
-    lista.innerHTML = `
+    let htmlFinal = `
         <li class="px-6 py-3 bg-slate-200/50 text-xs font-bold text-slate-500 uppercase tracking-wider">
             Equipo en: ${nombreEmpresa}
         </li>
-    ` + accesos.map(acceso => {
-        const perfil = (perfiles || []).find(p => p.id_usuario === acceso.id_usuario);
-        const nombreStr = perfil?.nombre || 'Usuario';
-        const apellidoStr = perfil?.apellido || '';
-        const nombreCompleto = `${nombreStr} ${apellidoStr}`.trim();
-        const iniciales = (nombreStr.substring(0,1) + (apellidoStr ? apellidoStr.substring(0,1) : nombreStr.substring(1,2))).toUpperCase();
+    `;
 
-        return `
-        <li class="px-6 py-4 hover:bg-white transition-colors flex justify-between items-center bg-slate-50/50">
-            <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-full bg-slate-300 flex items-center justify-center text-slate-600 font-bold text-xs uppercase shadow-sm">
-                    ${iniciales}
+    // Renderizamos a los usuarios ACTIVOS
+    if (accesos && accesos.length > 0) {
+        const idsUsuarios = accesos.map(a => a.id_usuario);
+        const { data: perfiles } = await clienteSupabase.from('perfiles')
+            .select('id_usuario, nombre, apellido, email')
+            .in('id_usuario', idsUsuarios);
+
+        htmlFinal += accesos.map(acceso => {
+            const perfil = (perfiles || []).find(p => p.id_usuario === acceso.id_usuario);
+            const nombreStr = perfil?.nombre || 'Usuario';
+            const apellidoStr = perfil?.apellido || '';
+            const nombreCompleto = `${nombreStr} ${apellidoStr}`.trim();
+            const iniciales = (nombreStr.substring(0,1) + (apellidoStr ? apellidoStr.substring(0,1) : nombreStr.substring(1,2))).toUpperCase();
+
+            return `
+            <li class="px-6 py-4 hover:bg-white transition-colors flex justify-between items-center bg-slate-50/50">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full bg-slate-300 flex items-center justify-center text-slate-600 font-bold text-xs uppercase shadow-sm">
+                        ${iniciales}
+                    </div>
+                    <div class="flex flex-col">
+                        <span class="font-bold text-slate-800">${nombreCompleto}</span>
+                        <span class="text-[10px] font-bold text-emerald-600 uppercase tracking-wide">${acceso.rol || 'Operador'} • <span class="text-slate-400 normal-case">${perfil?.email || ''}</span></span>
+                    </div>
                 </div>
-                <div class="flex flex-col">
-                    <span class="font-bold text-slate-800">${nombreCompleto}</span>
-                    <span class="text-[10px] font-bold text-emerald-600 uppercase tracking-wide">${acceso.rol || 'Operador'}</span>
-                </div>
-            </div>
-            <button onclick="eliminarAcceso('${acceso.id}')" class="text-red-400 hover:text-red-600 font-bold text-xs bg-red-50 px-3 py-1.5 rounded shadow-sm transition-transform hover:scale-105" title="Revocar Acceso">Revocar</button>
-        </li>
+                <button onclick="eliminarAcceso('${acceso.id}')" class="text-red-400 hover:text-red-600 font-bold text-xs bg-red-50 px-3 py-1.5 rounded shadow-sm transition-transform hover:scale-105" title="Revocar Acceso">Revocar</button>
+            </li>
+            `;
+        }).join('');
+    } else {
+        htmlFinal += `<li class="p-4 text-center text-slate-400 text-sm">No hay usuarios activos aún.</li>`;
+    }
+
+    // Renderizamos las invitaciones PENDIENTES
+    if (invitaciones && invitaciones.length > 0) {
+        htmlFinal += `
+            <li class="px-6 py-3 bg-orange-100/50 text-xs font-bold text-orange-600 uppercase tracking-wider border-t border-orange-100">
+                Invitaciones Pendientes
+            </li>
         `;
-    }).join('');
+        htmlFinal += invitaciones.map(inv => {
+            return `
+            <li class="px-6 py-4 hover:bg-white transition-colors flex justify-between items-center bg-orange-50/30">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full bg-orange-200 flex items-center justify-center text-orange-600 font-bold text-xl shadow-sm">
+                        ⏳
+                    </div>
+                    <div class="flex flex-col">
+                        <span class="font-bold text-slate-700">${inv.email_invitado}</span>
+                        <span class="text-[10px] font-bold text-orange-500 uppercase tracking-wide">Esperando registro como ${inv.rol}</span>
+                    </div>
+                </div>
+                <button onclick="cancelarInvitacion('${inv.id}')" class="text-slate-400 hover:text-slate-600 font-bold text-xs bg-white border border-slate-200 px-3 py-1.5 rounded shadow-sm transition-transform hover:scale-105" title="Cancelar Invitación">Cancelar</button>
+            </li>
+            `;
+        }).join('');
+    }
+
+    lista.innerHTML = htmlFinal;
+}
+
+// Nueva función para cancelar una invitación que aún no ha sido aceptada
+window.cancelarInvitacion = async function(idInvitacion) {
+    if(confirm("¿Seguro que deseas cancelar esta invitación? El enlace dejará de funcionar.")) {
+        await clienteSupabase.from('invitaciones').delete().eq('id', idInvitacion);
+        // Recargamos la lista (usamos un truco para re-simular el click en la empresa actual)
+        window.cargarEmpresas(); 
+        document.getElementById('lista-usuarios-empresa').innerHTML = '<li class="p-8 text-center text-slate-400 font-medium text-sm">👈 Selecciona una empresa a la izquierda para ver su equipo.</li>';
+    }
 }
 
 // Delegador global de Formularios de Empresa (Evita recarga de página)
@@ -123,20 +174,45 @@ if(!window.eventosEmpresasAtados) {
             const seleccion = document.getElementById('vu-empresa').value.split('|');
             const idEmpresa = seleccion[0];
             const nombreEmpresa = seleccion[1];
-            const emailTarget = document.getElementById('vu-email').value.trim();
+            const emailTarget = document.getElementById('vu-email').value.trim().toLowerCase(); // Aseguramos minúsculas
             const rolAsignado = document.getElementById('vu-rol').value;
 
-            // 1. Armamos la URL Mágica con los parámetros seguros
-            // window.location.origin saca tu dominio actual (ej: https://tudominio.vercel.app)
-            const baseUrl = window.location.origin + window.location.pathname; 
-            const urlMagica = `${baseUrl}?invite=true&emp_id=${idEmpresa}&emp_nom=${encodeURIComponent(nombreEmpresa)}&email=${encodeURIComponent(emailTarget)}&rol=${rolAsignado}`;
+            // 1. Verificamos si ese usuario YA está en la empresa (para no invitarlo doble)
+            const { data: perfilExistente } = await clienteSupabase.from('perfiles').select('id_usuario').eq('email', emailTarget).maybeSingle();
+            
+            if (perfilExistente) {
+                const { data: yaExiste } = await clienteSupabase.from('usuarios_empresas').select('id').eq('id_usuario', perfilExistente.id_usuario).eq('id_empresa', idEmpresa).maybeSingle();
+                if (yaExiste) return alert("⚠️ Este usuario ya es parte activa de esta empresa.");
+            }
 
-            // 2. Ponemos la URL en el input para que el usuario la copie
+            // 2. Verificamos si ya hay una invitación pendiente para él
+            const { data: invPendiente } = await clienteSupabase.from('invitaciones').select('id').eq('email_invitado', emailTarget).eq('id_empresa', idEmpresa).eq('estado', 'Pendiente').maybeSingle();
+            if (invPendiente) return alert("⏳ Ya hay una invitación pendiente enviada a este correo para esta empresa.");
+
+            // 3. GUARDAMOS LA INVITACIÓN EN LA BASE DE DATOS
+            const { data: nuevaInv, error: errInv } = await clienteSupabase.from('invitaciones').insert({
+                id_empresa: idEmpresa,
+                nombre_empresa: nombreEmpresa,
+                email_invitado: emailTarget,
+                rol: rolAsignado,
+                estado: 'Pendiente'
+            }).select('id').single();
+
+            if (errInv) return alert("❌ Error al crear la invitación: " + errInv.message);
+
+            // 4. Armamos el Link Mágico CORTITO con el ID de la invitación
+            const baseUrl = window.location.origin + window.location.pathname; 
+            const urlMagica = `${baseUrl}?invite=${nuevaInv.id}`;
+
+            // 5. Ponemos la URL en el input para que el usuario la copie
             document.getElementById('vu-link-generado').value = urlMagica;
 
-            // 3. Ocultamos el formulario y mostramos el resultado
+            // 6. Ocultamos el formulario y mostramos el resultado
             document.getElementById('vu-step-1').classList.add('hidden');
             document.getElementById('vu-step-2').classList.remove('hidden');
+            
+            // Refrescamos la lista para que el dueño vea la invitación "Pendiente"
+            window.cargarUsuariosDeEmpresa(idEmpresa, nombreEmpresa);
         }
     });
     window.eventosEmpresasAtados = true;
@@ -170,7 +246,7 @@ window.copiarEnlaceInvitacion = function() {
     
     // Lo copiamos al portapapeles
     navigator.clipboard.writeText(mensaje).then(() => {
-        alert("✅ ¡Mensaje y enlace copiados! Ve a WhatsApp y dale a 'Pegar'.");
+        alert("✅ ¡Invitación y enlace copiados al portapapeles! Pégalo y envíalo a tu Colaborador.");
     }).catch(err => {
         alert("❌ Error copiando. Por favor, copia el enlace manualmente.");
     });
