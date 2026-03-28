@@ -6,48 +6,80 @@ window.usuarioActual = 'Equipo';
 window.miRol = null;
 
 // ============================================================================
-// DETECTOR INTELIGENTE DE ENLACES (Registro e Invitaciones)
+// DETECTOR INTELIGENTE DE ENLACES (Registro e Invitaciones CORTAS)
 // ============================================================================
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     const urlParams = new URLSearchParams(window.location.search);
+    const inviteId = urlParams.get('invite');
     
-    // Si la URL trae "?registro=true" (Desde la Landing Page pública)
+    // Si la URL trae "?registro=true" (Landing Page)
     if (urlParams.get('registro') === 'true') {
         setTimeout(() => {
-            if (typeof window.toggleAuthMode === 'function') {
-                window.toggleAuthMode('register');
-            }
+            if (typeof window.toggleAuthMode === 'function') window.toggleAuthMode('register');
         }, 50);
     }
     
-    // Si la URL trae "?invite=true" (Viene del WhatsApp del Jefe)
-    if (urlParams.get('invite') === 'true') {
-        setTimeout(() => {
-            const empId = urlParams.get('emp_id');
-            const empNom = urlParams.get('emp_nom');
-            const email = urlParams.get('email');
-            const rol = urlParams.get('rol');
+    // Si la URL trae "?invite=ID_CORTITO" (Viene del WhatsApp del Jefe)
+    if (inviteId && inviteId !== 'true') {
+        // SEMÁFORO ROJO: Ocultamos el Dashboard y forzamos a mostrar el Login Container
+        document.getElementById('dashboard-container').classList.add('hidden');
+        document.getElementById('login-container').classList.remove('hidden');
+        
+        // Escondemos todo el panel de Login normal
+        document.getElementById('auth-tabs').classList.add('hidden');
+        document.getElementById('form-login-view').classList.add('hidden');
+        document.getElementById('form-register-step-1').classList.add('hidden');
+        document.getElementById('form-register-step-2').classList.add('hidden');
+        
+        // Mostramos la tarjeta exclusiva de invitado
+        const formInvite = document.getElementById('form-register-invite');
+        formInvite.classList.remove('hidden');
 
-            if(empId && email) {
-                // Escondemos todo el panel de Login normal
-                document.getElementById('auth-tabs').classList.add('hidden');
-                document.getElementById('form-login-view').classList.add('hidden');
-                document.getElementById('form-register-step-1').classList.add('hidden');
-                document.getElementById('form-register-step-2').classList.add('hidden');
-                
-                // Mostramos la tarjeta exclusiva de invitado
-                document.getElementById('form-register-invite').classList.remove('hidden');
+        try {
+            // Buscamos la invitación en la base de datos
+            const { data: inv, error } = await clienteSupabase.from('invitaciones')
+                .select('*')
+                .eq('id', inviteId)
+                .single();
 
-                // Llenamos la información que viene en el link
-                document.getElementById('invite-empresa-nombre').innerText = decodeURIComponent(empNom) || 'La Empresa';
-                document.getElementById('invite-rol-nombre').innerText = `Rol Asignado: ${rol || 'Operador'}`;
-                document.getElementById('invite-empresa-id').value = empId;
-                document.getElementById('invite-rol').value = rol || 'Operador';
-                document.getElementById('inv-user-email').value = decodeURIComponent(email);
+            if (error || !inv) throw new Error("Invitación no encontrada");
+            
+            if (inv.estado !== 'Pendiente') {
+                document.getElementById('invite-empresa-nombre').innerText = "Invitación ya usada o cancelada ❌";
+                document.getElementById('btn-final-inv').disabled = true;
+                document.getElementById('btn-final-inv').classList.add('opacity-50', 'cursor-not-allowed');
+                return;
             }
-        }, 100); 
+
+            // Llenamos la información en la pantalla azul
+            document.getElementById('invite-empresa-nombre').innerText = inv.nombre_empresa;
+            document.getElementById('invite-rol-nombre').innerText = `Rol Asignado: ${inv.rol}`;
+            document.getElementById('invite-empresa-id').value = inv.id_empresa;
+            document.getElementById('invite-rol').value = inv.rol;
+            document.getElementById('inv-user-email').value = inv.email_invitado;
+            document.getElementById('invite-id-registro').value = inv.id; // Guardamos el ID para cambiarle el estado luego
+
+        } catch (err) {
+            document.getElementById('invite-empresa-nombre').innerText = "Enlace inválido ❌";
+            console.error("Error cargando invitación:", err);
+        }
+    } else if (!inviteId) {
+        // SEMÁFORO VERDE: Si NO hay invitación, dejamos que el sistema restaure la sesión normal
+        const sesion = localStorage.getItem('sesion_activa_olympia');
+        if (sesion) {
+            const login = document.getElementById('login-container');
+            if (login) login.classList.add('hidden');
+            try {
+                const s = JSON.parse(sesion);
+                window.iniciarSesionEmpresa(s.id, s.nombre, s.email, s.nombreUsuario, s.rol);
+            } catch (e) {
+                console.error("Error leyendo la sesión:", e);
+                localStorage.removeItem('sesion_activa_olympia');
+            }
+        }
     }
 });
+
 // ============================================================================
 
 // --- LOGIN Y ASISTENTE DE REGISTRO MULTI-EMPRESA ---
