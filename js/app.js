@@ -532,3 +532,26 @@ window.togglePasswordVisibility = function(inputId) {
         input.type = "password";
     }
 }
+
+// --- UTILIDAD: Validación de contraseñas en tiempo real ---
+window.validarPasswords = function() {
+    const p1 = document.getElementById('reg-user-pass').value;
+    const p2 = document.getElementById('reg-user-pass2').value;
+    const msg = document.getElementById('msg-password-match');
+    
+    // Si no ha escrito nada en la segunda contraseña, escondemos el mensaje
+    if(p2.length === 0) {
+        msg.classList.add('hidden');
+        return;
+    }
+    
+    msg.classList.remove('hidden');
+    
+    if (p1 === p2) {
+        msg.innerText = "✅ Las contraseñas coinciden";
+        msg.className = "col-span-2 text-[10px] font-bold mt-0 text-emerald-600";
+    } else {
+        msg.innerText = "❌ Las contraseñas no coinciden";
+        msg.className = "col-span-2 text-[10px] font-bold mt-0 text-red-500";
+    }
+}
