@@ -5,66 +5,77 @@ window.modoEdicion = { activo: false, id: null, form: null };
 window.usuarioActual = 'Equipo';
 window.miRol = null;
 
+// Variable global para atrapar la invitación
+window.invitacionPendiente = null; 
+
 // ============================================================================
-// DETECTOR INTELIGENTE DE ENLACES (Registro e Invitaciones CORTAS)
+// DETECTOR INTELIGENTE DE ENLACES Y SEMÁFORO
 // ============================================================================
 document.addEventListener('DOMContentLoaded', async () => {
     const urlParams = new URLSearchParams(window.location.search);
     const inviteId = urlParams.get('invite');
     
-    // Si la URL trae "?registro=true" (Landing Page)
     if (urlParams.get('registro') === 'true') {
-        setTimeout(() => {
-            if (typeof window.toggleAuthMode === 'function') window.toggleAuthMode('register');
-        }, 50);
+        setTimeout(() => { if (typeof window.toggleAuthMode === 'function') window.toggleAuthMode('register'); }, 50);
     }
     
-    // Si la URL trae "?invite=ID_CORTITO" (Viene del WhatsApp del Jefe)
     if (inviteId && inviteId !== 'true') {
-        // SEMÁFORO ROJO: Ocultamos el Dashboard y forzamos a mostrar el Login Container
+        // SEMÁFORO ROJO: Ocultar Dashboard
         document.getElementById('dashboard-container').classList.add('hidden');
         document.getElementById('login-container').classList.remove('hidden');
-        
-        // Escondemos todo el panel de Login normal
         document.getElementById('auth-tabs').classList.add('hidden');
         document.getElementById('form-login-view').classList.add('hidden');
         document.getElementById('form-register-step-1').classList.add('hidden');
         document.getElementById('form-register-step-2').classList.add('hidden');
-        
-        // Mostramos la tarjeta exclusiva de invitado
-        const formInvite = document.getElementById('form-register-invite');
-        formInvite.classList.remove('hidden');
 
         try {
-            // Buscamos la invitación en la base de datos
-            const { data: inv, error } = await clienteSupabase.from('invitaciones')
-                .select('*')
-                .eq('id', inviteId)
-                .single();
-
+            // Buscamos la invitación
+            const { data: inv, error } = await clienteSupabase.from('invitaciones').select('*').eq('id', inviteId).single();
             if (error || !inv) throw new Error("Invitación no encontrada");
             
             if (inv.estado !== 'Pendiente') {
-                document.getElementById('invite-empresa-nombre').innerText = "Invitación ya usada o cancelada ❌";
+                const formInvite = document.getElementById('form-register-invite');
+                formInvite.classList.remove('hidden');
+                document.getElementById('invite-empresa-nombre').innerText = "Invitación ya usada ❌";
                 document.getElementById('btn-final-inv').disabled = true;
-                document.getElementById('btn-final-inv').classList.add('opacity-50', 'cursor-not-allowed');
                 return;
             }
 
-            // Llenamos la información en la pantalla azul
-            document.getElementById('invite-empresa-nombre').innerText = inv.nombre_empresa;
-            document.getElementById('invite-rol-nombre').innerText = `Rol Asignado: ${inv.rol}`;
-            document.getElementById('invite-empresa-id').value = inv.id_empresa;
-            document.getElementById('invite-rol').value = inv.rol;
-            document.getElementById('inv-user-email').value = inv.email_invitado;
-            document.getElementById('invite-id-registro').value = inv.id; // Guardamos el ID para cambiarle el estado luego
+            // ¿El usuario ya existe en nuestra base de datos?
+            const { data: userExists } = await clienteSupabase.from('perfiles').select('id_usuario').eq('email', inv.email_invitado).maybeSingle();
+
+            if (userExists) {
+                // SÍ EXISTE: Mostramos el Login con Banner
+                document.getElementById('form-login-view').classList.remove('hidden');
+                document.getElementById('login-invite-banner').classList.remove('hidden');
+                document.getElementById('login-invite-empresa').innerText = inv.nombre_empresa;
+                
+                const inputEmail = document.getElementById('login-email');
+                inputEmail.value = inv.email_invitado;
+                inputEmail.readOnly = true;
+                inputEmail.classList.add('bg-slate-100', 'text-slate-500', 'cursor-not-allowed');
+
+                // Guardamos la invitación en memoria para procesarla al hacer Login
+                window.invitacionPendiente = inv;
+
+            } else {
+                // NO EXISTE: Mostramos el Formulario Azul
+                document.getElementById('form-register-invite').classList.remove('hidden');
+                document.getElementById('invite-empresa-nombre').innerText = inv.nombre_empresa;
+                document.getElementById('invite-rol-nombre').innerText = `Rol Asignado: ${inv.rol}`;
+                document.getElementById('invite-empresa-id').value = inv.id_empresa;
+                document.getElementById('invite-rol').value = inv.rol;
+                document.getElementById('inv-user-email').value = inv.email_invitado;
+                document.getElementById('invite-id-registro').value = inv.id; 
+            }
 
         } catch (err) {
+            console.error("Error invitación:", err);
+            document.getElementById('form-register-invite').classList.remove('hidden');
             document.getElementById('invite-empresa-nombre').innerText = "Enlace inválido ❌";
-            console.error("Error cargando invitación:", err);
         }
     } else if (!inviteId) {
-        // SEMÁFORO VERDE: Si NO hay invitación, dejamos que el sistema restaure la sesión normal
+        // SEMÁFORO VERDE: Sesión normal
         const sesion = localStorage.getItem('sesion_activa_olympia');
         if (sesion) {
             const login = document.getElementById('login-container');
@@ -73,16 +84,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const s = JSON.parse(sesion);
                 window.iniciarSesionEmpresa(s.id, s.nombre, s.email, s.nombreUsuario, s.rol);
             } catch (e) {
-                console.error("Error leyendo la sesión:", e);
                 localStorage.removeItem('sesion_activa_olympia');
             }
         }
     }
 });
 
-// ============================================================================
-
-// --- LOGIN Y ASISTENTE DE REGISTRO MULTI-EMPRESA ---
 window.toggleAuthMode = function(mode) {
     const formLogin = document.getElementById('form-login-view');
     const formReg1 = document.getElementById('form-register-step-1');
@@ -101,26 +108,42 @@ window.toggleAuthMode = function(mode) {
         tabLogin.className = 'flex-1 pb-2 font-bold text-slate-400 outline-none hover:text-emerald-500 transition-colors';
         formLogin.classList.add('hidden');
         formReg1.classList.remove('hidden');
-        formReg2.classList.add('hidden'); // Siempre empezamos en el paso 1
+        formReg2.classList.add('hidden'); 
     }
 }
 
-// Lógica de Inicio de Sesión Clásico
+// ============================================================================
+// EVENTOS DE SUBMIT (Login, Registro y Formulario Azul)
+// ============================================================================
+
+// 1. EL LOGIN NORMAL (Y ACEPTACIÓN DE INVITACIÓN)
 document.getElementById('form-login-view').addEventListener('submit', async (e) => {
     e.preventDefault();
     const emailInput = document.getElementById('login-email').value.trim();
     const passwordInput = document.getElementById('login-password').value;
 
     const { data, error } = await clienteSupabase.auth.signInWithPassword({ email: emailInput, password: passwordInput });
-    if (error) return alert("❌ Credenciales incorrectas. Verifica tu correo y contraseña.");
+    if (error) return alert("❌ Credenciales incorrectas. Verifica tu contraseña.");
 
-    const { data: perfil } = await clienteSupabase.from('perfiles').select('nombre, apellido').eq('id_usuario', data.user.id).maybeSingle();
+    // MAGIA: Si estaba invitado a algo, lo procesamos aquí
+    if (window.invitacionPendiente) {
+        await clienteSupabase.from('usuarios_empresas').insert({
+            id_usuario: data.user.id,
+            id_empresa: window.invitacionPendiente.id_empresa,
+            nombre_empresa: window.invitacionPendiente.nombre_empresa,
+            rol: window.invitacionPendiente.rol
+        });
+        await clienteSupabase.from('invitaciones').update({estado: 'Aceptada'}).eq('id', window.invitacionPendiente.id);
+        alert(`🎉 ¡Invitación aceptada! Bienvenido al equipo de ${window.invitacionPendiente.nombre_empresa}`);
+    }
+
+    const { data: perfil } = await clienteSupabase.from('perfiles').select('nombre').eq('id_usuario', data.user.id).maybeSingle();
     const nombreReal = perfil?.nombre || emailInput.split('@')[0];
 
     const { data: empresasAsignadas } = await clienteSupabase.from('usuarios_empresas').select('id_empresa, nombre_empresa, rol').eq('id_usuario', data.user.id);
 
     if (!empresasAsignadas || empresasAsignadas.length === 0) {
-        return alert("🛑 Tu cuenta existe, pero aún no tienes empresas asignadas. Contacta a tu administrador.");
+        return alert("🛑 Tu cuenta existe, pero aún no tienes empresas asignadas.");
     }
 
     document.getElementById('login-container').classList.add('hidden');
@@ -138,83 +161,57 @@ document.getElementById('form-login-view').addEventListener('submit', async (e) 
     }
 });
 
-// Paso 1: Validar RUT y pasar al Paso 2
+// 2. PASO 1 DE EMPRESA NUEVA
 document.getElementById('form-register-step-1').addEventListener('submit', async (e) => {
     e.preventDefault();
-    
-    // NUEVO: Limpiamos los puntos y guiones automáticamente
     const rutInputRaw = document.getElementById('reg-rut').value;
     const rutInput = rutInputRaw.replace(/[\.\-]/g, '').trim().toUpperCase();
-    
     const msgError = document.getElementById('msg-rut-error');
     const btnReg = document.getElementById('btn-continuar-reg');
 
-    btnReg.innerText = "Verificando...";
-    btnReg.disabled = true;
+    btnReg.innerText = "Verificando..."; btnReg.disabled = true;
 
-    // Consultamos a Supabase si ese RUT ya existe (usando el RUT ya limpio)
     const { data, error } = await clienteSupabase.from('empresas').select('id').eq('rut_o_identificacion', rutInput).maybeSingle();
-
     if (data) {
-        // El RUT ya existe
         msgError.classList.remove('hidden');
-        btnReg.innerHTML = `Continuar <span class="text-xl leading-none">→</span>`;
-        btnReg.disabled = false;
+        btnReg.innerHTML = `Continuar <span class="text-xl leading-none">→</span>`; btnReg.disabled = false;
         return;
     }
-
-    // El RUT está libre, pasamos al paso 2
     msgError.classList.add('hidden');
-    
-    // Llenamos el resumen visual para el usuario
     document.getElementById('resumen-empresa').innerText = document.getElementById('reg-razon-social').value.trim();
     document.getElementById('resumen-rut').innerText = rutInput;
 
     document.getElementById('form-register-step-1').classList.add('hidden');
     document.getElementById('form-register-step-2').classList.remove('hidden');
     
-    btnReg.innerHTML = `Continuar <span class="text-xl leading-none">→</span>`;
-    btnReg.disabled = false;
+    btnReg.innerHTML = `Continuar <span class="text-xl leading-none">→</span>`; btnReg.disabled = false;
 });
 
-// Volver al Paso 1
 window.volverPaso1 = function() {
     document.getElementById('form-register-step-2').classList.add('hidden');
     document.getElementById('form-register-step-1').classList.remove('hidden');
 }
 
-// Paso 2: Crear el Usuario y la Empresa
+// 3. PASO 2 DE EMPRESA NUEVA
 document.getElementById('form-register-step-2').addEventListener('submit', async (e) => {
     e.preventDefault();
-    
     const pass1 = document.getElementById('reg-user-pass').value;
     const pass2 = document.getElementById('reg-user-pass2').value;
-    
-    if (pass1 !== pass2) {
-        return alert("❌ Las contraseñas no coinciden. Por favor, revísalas.");
-    }
+    if (pass1 !== pass2) return alert("❌ Las contraseñas no coinciden.");
 
     const btnFinal = document.getElementById('btn-final-reg');
-    btnFinal.innerText = "Creando tu imperio...";
-    btnFinal.disabled = true;
+    btnFinal.innerText = "Creando tu imperio..."; btnFinal.disabled = true;
 
-    // 1. Capturamos los datos
     const emailInput = document.getElementById('reg-user-email').value.trim();
-    
-    // --- TRADUCTOR DE FECHAS ---
     let fechaRaw = document.getElementById('reg-user-nacimiento').value;
     let fechaLimpia = fechaRaw;
     if (fechaRaw.includes('/')) {
-        let partes = fechaRaw.split('/');
-        fechaLimpia = `${partes[2]}-${partes[1]}-${partes[0]}`;
+        let partes = fechaRaw.split('/'); fechaLimpia = `${partes[2]}-${partes[1]}-${partes[0]}`;
     } else if (fechaRaw.includes('-') && fechaRaw.split('-')[0].length <= 2) {
-        let partes = fechaRaw.split('-');
-        fechaLimpia = `${partes[2]}-${partes[1]}-${partes[0]}`;
+        let partes = fechaRaw.split('-'); fechaLimpia = `${partes[2]}-${partes[1]}-${partes[0]}`;
     }
-    
     const rutPersonal = document.getElementById('reg-user-rut').value.replace(/[\.\-]/g, '').trim().toUpperCase();
 
-    // 2. CREAMOS EL OBJETO (UNA SOLA VEZ)
     const datosMeta = {
         tipo_registro: 'nueva_empresa',
         pais: document.getElementById('reg-pais').value,
@@ -229,28 +226,81 @@ document.getElementById('form-register-step-2').addEventListener('submit', async
         pin_seguridad: document.getElementById('reg-user-pin').value
     };
 
-    // 3. Enviamos a Supabase
-    const { data, error } = await clienteSupabase.auth.signUp({ 
-        email: emailInput, 
-        password: pass1,
-        options: { data: datosMeta }
-    });
-    
+    const { data, error } = await clienteSupabase.auth.signUp({ email: emailInput, password: pass1, options: { data: datosMeta } });
     if(error) {
-        btnFinal.innerText = "Crear Empresa y Entrar 🚀";
-        btnFinal.disabled = false;
+        btnFinal.innerText = "Crear Empresa y Entrar 🚀"; btnFinal.disabled = false;
         return alert("❌ Error al registrar: " + error.message);
     }
-    
     alert(`🎉 ¡Felicidades, ${datosMeta.nombre}! Tu empresa ha sido creada con éxito. Inicia sesión para comenzar.`);
     
     document.getElementById('form-register-step-1').reset();
     document.getElementById('form-register-step-2').reset();
     window.toggleAuthMode('login');
     document.getElementById('login-email').value = emailInput;
+    btnFinal.innerText = "Crear Empresa y Entrar 🚀"; btnFinal.disabled = false;
+});
+
+// 4. FORMULARIO AZUL DE INVITACIÓN (REGISTRO NUEVO EMPLEADO)
+document.getElementById('form-register-invite').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const pass1 = document.getElementById('inv-user-pass').value;
+    const pass2 = document.getElementById('inv-user-pass2').value;
+    if (pass1 !== pass2) return alert("❌ Las contraseñas no coinciden.");
+
+    const btnFinal = document.getElementById('btn-final-inv');
+    btnFinal.innerText = "Aceptando invitación..."; btnFinal.disabled = true;
+
+    const email = document.getElementById('inv-user-email').value;
+    const nombre = document.getElementById('inv-user-nombre').value.trim();
+    const apellido = document.getElementById('inv-user-apellido').value.trim();
+    const rutPersonal = document.getElementById('inv-user-rut').value.replace(/[\.\-]/g, '').trim().toUpperCase();
+    const pin = document.getElementById('inv-user-pin').value;
     
-    btnFinal.innerText = "Crear Empresa y Entrar 🚀";
-    btnFinal.disabled = false;
+    const idEmpresa = document.getElementById('invite-empresa-id').value;
+    const nombreEmpresa = document.getElementById('invite-empresa-nombre').innerText;
+    const rol = document.getElementById('invite-rol').value;
+    const idInvitacion = document.getElementById('invite-id-registro').value;
+
+    // A. Registramos al usuario en Supabase Auth
+    const { data: authData, error: authErr } = await clienteSupabase.auth.signUp({ 
+        email: email, 
+        password: pass1,
+        options: { data: { tipo_registro: 'invitacion' } } // Ignorará nuestro trigger
+    });
+
+    if(authErr) {
+        btnFinal.innerText = "Unirme al Equipo 🚀"; btnFinal.disabled = false;
+        return alert("❌ Error: " + authErr.message);
+    }
+
+    const userId = authData.user.id;
+
+    // B. Creamos su Perfil Manualmente
+    await clienteSupabase.from('perfiles').insert({
+        id_usuario: userId,
+        id_empresa: idEmpresa,
+        nombre: nombre,
+        apellido: apellido,
+        email: email,
+        pin_seguridad: pin,
+        rut_o_identificacion: rutPersonal
+    });
+
+    // C. Lo vinculamos a la empresa
+    await clienteSupabase.from('usuarios_empresas').insert({
+        id_usuario: userId,
+        id_empresa: idEmpresa,
+        nombre_empresa: nombreEmpresa,
+        rol: rol
+    });
+
+    // D. Marcamos la invitación como aceptada
+    await clienteSupabase.from('invitaciones').update({estado: 'Aceptada'}).eq('id', idInvitacion);
+
+    alert(`🎉 ¡Listo, ${nombre}! Ya eres parte de ${nombreEmpresa}.`);
+    
+    // Lo mandamos al login para que entre directo
+    window.location.href = 'app.html';
 });
 
 window.iniciarSesionEmpresa = async function(id, nombre, email, nombreUsuario, rol) {
