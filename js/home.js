@@ -53,13 +53,17 @@ async function cargarMetricasHome() {
 async function cargarNotasHome() {
     const grid = document.getElementById('home-notas-grid');
     if(!grid) return;
-
     grid.innerHTML = '<p class="text-slate-400 text-sm col-span-full">Cargando...</p>';
 
+    // Obtenemos el usuario actual
+    const { data: { user } } = await clienteSupabase.auth.getUser();
+
+    // Buscamos SOLO las notas de esta empresa Y de este usuario
     const { data: notas, error } = await clienteSupabase
         .from('notas_home')
         .select('*')
         .eq('id_empresa', window.miEmpresaId)
+        .eq('id_usuario', user.id)
         .order('creado_at', { ascending: false });
 
     if (error) {
@@ -84,31 +88,44 @@ async function cargarNotasHome() {
     `).join('');
 }
 
-window.borrarNotaHome = async function(id) {
-    if(!confirm("¿Borrar esta nota?")) return;
-    await clienteSupabase.from('notas_home').delete().eq('id', id);
-    cargarNotasHome();
-}
-
 window.crearNotaHome = async function() {
-    const contenido = prompt("Escribe tu nueva nota rápida:");
+    const contenido = prompt("Escribe tu nueva nota rápida (Privada):");
     if (!contenido || contenido.trim() === '') return;
 
-    // Colores aleatorios para darle estilo a los post-its
     const colores = ['bg-yellow-100', 'bg-blue-100', 'bg-pink-100', 'bg-emerald-100', 'bg-purple-100'];
     const colorElegido = colores[Math.floor(Math.random() * colores.length)];
+    const { data: { user } } = await clienteSupabase.auth.getUser();
 
     const { error } = await clienteSupabase.from('notas_home').insert({
         id_empresa: window.miEmpresaId,
+        id_usuario: user.id, // <- Le estampamos la firma del dueño
         contenido: contenido,
         color: colorElegido
     });
 
     if (error) {
-        alert("Error al guardar la nota.");
+        alert("Error al guardar la nota. Revisa los permisos.");
         console.error(error);
         return;
     }
+    cargarNotasHome();
+}
+
+window.borrarNotaHome = async function(id) {
+    if(!confirm("¿Seguro que deseas borrar esta nota?")) return;
     
+    // El RLS que configuramos en la base de datos ya asegura que 
+    // Supabase solo borre la nota si le pertenece a este usuario.
+    const { error } = await clienteSupabase
+        .from('notas_home')
+        .delete()
+        .eq('id', id);
+        
+    if (error) {
+        alert("❌ Error al borrar: " + error.message);
+        return;
+    }
+    
+    // Recargamos la cartelera visualmente
     cargarNotasHome();
 }
