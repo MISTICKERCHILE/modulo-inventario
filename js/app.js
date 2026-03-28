@@ -14,6 +14,22 @@ window.invitacionPendiente = null;
 document.addEventListener('DOMContentLoaded', async () => {
     const urlParams = new URLSearchParams(window.location.search);
     const inviteId = urlParams.get('invite');
+
+    // RADAR DE RECUPERACIÓN DE CONTRASEÑA (Viene del enlace del correo)
+    const hashData = window.location.hash;
+    if (hashData && hashData.includes('type=recovery')) {
+        setTimeout(() => {
+            // Escondemos todo lo normal
+            document.getElementById('dashboard-container').classList.add('hidden');
+            document.getElementById('login-container').classList.remove('hidden');
+            document.getElementById('auth-tabs').classList.add('hidden');
+            document.getElementById('form-login-view').classList.add('hidden');
+            
+            // Mostramos el formulario de crear nueva contraseña
+            document.getElementById('form-nueva-pass').classList.remove('hidden');
+        }, 50);
+        return; // Detenemos el resto de comprobaciones
+    }
     
     if (urlParams.get('registro') === 'true') {
         setTimeout(() => { if (typeof window.toggleAuthMode === 'function') window.toggleAuthMode('register'); }, 50);
@@ -612,27 +628,6 @@ window.aplicarPermisosVisuales = async function() {
     }
 };
 
-// ==========================================
-// RESTAURACIÓN AUTOMÁTICA DE SESIÓN
-// ==========================================
-document.addEventListener('DOMContentLoaded', () => {
-    const sesion = localStorage.getItem('sesion_activa_olympia');
-    
-    if (sesion) {
-        const login = document.getElementById('login-container');
-        if (login) login.classList.add('hidden');
-
-        try {
-            const s = JSON.parse(sesion);
-            window.iniciarSesionEmpresa(s.id, s.nombre, s.email, s.nombreUsuario, s.rol);
-        } catch (e) {
-            console.error("Error leyendo la sesión:", e);
-            localStorage.removeItem('sesion_activa_olympia');
-            if (login) login.classList.remove('hidden'); 
-        }
-    }
-});
-
 // --- UTILIDAD: Mostrar/Ocultar Contraseñas y PIN ---
 window.togglePasswordVisibility = function(inputId) {
     const input = document.getElementById(inputId);
@@ -682,3 +677,92 @@ window.validarPasswordsInv = function() {
         msg.className = "col-span-2 text-[10px] font-bold mt-0 text-red-500";
     }
 }
+
+// ============================================================================
+// SISTEMA DE RECUPERACIÓN DE CONTRASEÑA
+// ============================================================================
+
+// 1. Mostrar el formulario de solicitar correo
+window.mostrarOlvidePassword = function() {
+    document.getElementById('auth-tabs').classList.add('hidden');
+    document.getElementById('form-login-view').classList.add('hidden');
+    document.getElementById('form-olvide-pass').classList.remove('hidden');
+}
+
+// Para arreglar el botón de "Entrar" y "Crear Empresa" si cancelan la recuperación
+const oldToggleAuthMode = window.toggleAuthMode;
+window.toggleAuthMode = function(mode) {
+    document.getElementById('auth-tabs').classList.remove('hidden');
+    document.getElementById('form-olvide-pass').classList.add('hidden');
+    document.getElementById('form-nueva-pass').classList.add('hidden');
+    oldToggleAuthMode(mode);
+}
+
+// 2. Enviar el correo a través de Supabase
+document.getElementById('form-olvide-pass').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('olvide-email').value.trim();
+    const btn = document.getElementById('btn-olvide-enviar');
+    
+    btn.innerText = "Enviando..."; btn.disabled = true;
+
+    // Mandamos el link al correo. Redirigimos de vuelta a esta misma página.
+    const { data, error } = await clienteSupabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + window.location.pathname
+    });
+
+    if (error) {
+        btn.innerText = "Enviar enlace de recuperación"; btn.disabled = false;
+        return alert("❌ Error: " + error.message);
+    }
+
+    alert("✅ ¡Listo! Revisa tu bandeja de entrada (o SPAM). Te enviamos un enlace seguro para recuperar tu acceso.");
+    window.toggleAuthMode('login'); // Lo devolvemos al login
+    btn.innerText = "Enviar enlace de recuperación"; btn.disabled = false;
+});
+
+// 3. Validador visual para la nueva contraseña
+window.validarNuevaPass = function() {
+    const p1 = document.getElementById('nueva-pass-1').value;
+    const p2 = document.getElementById('nueva-pass-2').value;
+    const msg = document.getElementById('msg-nueva-pass-match');
+    
+    if(p2.length === 0) { msg.classList.add('hidden'); return; }
+    msg.classList.remove('hidden');
+    
+    if (p1 === p2) {
+        msg.innerText = "✅ Las contraseñas coinciden";
+        msg.className = "text-[10px] font-bold mt-1 text-emerald-600 block";
+    } else {
+        msg.innerText = "❌ Las contraseñas no coinciden";
+        msg.className = "text-[10px] font-bold mt-1 text-red-500 block";
+    }
+}
+
+// 4. Guardar la nueva contraseña en Supabase
+document.getElementById('form-nueva-pass').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const pass1 = document.getElementById('nueva-pass-1').value;
+    const pass2 = document.getElementById('nueva-pass-2').value;
+    
+    if (pass1 !== pass2) return alert("❌ Las contraseñas no coinciden.");
+
+    const btn = document.getElementById('btn-guardar-nueva-pass');
+    btn.innerText = "Guardando..."; btn.disabled = true;
+
+    // Supabase actualiza al usuario que acaba de hacer clic en el link
+    const { data, error } = await clienteSupabase.auth.updateUser({
+        password: pass1
+    });
+
+    if (error) {
+        btn.innerText = "Guardar y Entrar"; btn.disabled = false;
+        return alert("❌ Error al guardar: " + error.message);
+    }
+
+    alert("🎉 ¡Tu contraseña ha sido actualizada con éxito!");
+    
+    // Lo mandamos al login limpiecito para que entre con su nueva clave
+    window.location.hash = ''; // Borramos el token de la URL
+    window.location.reload(); 
+});

@@ -52,7 +52,7 @@
                 <div>
                     <div class="flex justify-between items-center mb-1">
                         <label class="block text-xs font-bold text-slate-500">Contraseña</label>
-                        <a href="#" class="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 transition-colors">¿Olvidaste tu contraseña?</a>
+                        <a href="#" onclick="mostrarOlvidePassword()" class="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 transition-colors">¿Olvidaste tu contraseña?</a>
                     </div>
                     <div class="relative">
                         <input type="password" id="login-password" placeholder="••••••••" required class="w-full px-4 py-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 focus:bg-white transition-colors">
@@ -60,6 +60,45 @@
                     </div>
                 </div>
                 <button type="submit" class="w-full py-3 mt-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors shadow-md">Entrar al Sistema</button>
+            </form>
+
+            <form id="form-olvide-pass" class="hidden space-y-4">
+                <div class="text-center mb-4">
+                    <div class="text-4xl mb-2">🔐</div>
+                    <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider">Recuperar Contraseña</h3>
+                    <p class="text-xs text-slate-500 mt-2">Ingresa tu correo y te enviaremos las instrucciones para crear una nueva.</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">Correo Electrónico</label>
+                    <input type="email" id="olvide-email" placeholder="ejemplo@correo.com" required class="w-full px-4 py-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 focus:bg-white transition-colors">
+                </div>
+                <button type="submit" id="btn-olvide-enviar" class="w-full py-3 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors shadow-md">Enviar enlace de recuperación</button>
+                <button type="button" onclick="toggleAuthMode('login')" class="w-full py-3 text-slate-500 font-bold hover:bg-slate-50 rounded-lg transition-colors text-sm">← Volver al Login</button>
+            </form>
+
+            <form id="form-nueva-pass" class="hidden space-y-4">
+                <div class="text-center mb-4">
+                    <div class="text-4xl mb-2">✨</div>
+                    <h3 class="text-sm font-bold text-emerald-600 uppercase tracking-wider">Crea tu nueva contraseña</h3>
+                </div>
+                <div class="space-y-3 relative">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">Nueva Contraseña</label>
+                        <div class="relative">
+                            <input type="password" id="nueva-pass-1" minlength="6" required class="w-full px-4 py-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-sm" oninput="validarNuevaPass()">
+                            <button type="button" onclick="togglePasswordVisibility('nueva-pass-1')" class="absolute inset-y-0 right-0 px-3 text-slate-400 hover:text-emerald-600">👁️</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">Repetir Nueva Contraseña</label>
+                        <div class="relative">
+                            <input type="password" id="nueva-pass-2" minlength="6" required class="w-full px-4 py-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-sm" oninput="validarNuevaPass()">
+                            <button type="button" onclick="togglePasswordVisibility('nueva-pass-2')" class="absolute inset-y-0 right-0 px-3 text-slate-400 hover:text-emerald-600">👁️</button>
+                        </div>
+                    </div>
+                    <p id="msg-nueva-pass-match" class="text-[10px] font-bold mt-1 hidden"></p>
+                </div>
+                <button type="submit" id="btn-guardar-nueva-pass" class="w-full py-3 mt-4 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors shadow-md">Guardar y Entrar</button>
             </form>
 
             <form id="form-register-step-1" class="hidden space-y-4">
