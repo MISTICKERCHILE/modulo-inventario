@@ -1,22 +1,32 @@
 window.cargarHome = async function() {
     console.log("🏠 Cargando Home ERP...");
 
-    // 1. Saludo Personalizado
+    // 1. Saludo Inteligente (Primer nombre con mayúscula)
+    const hora = new Date().getHours();
+    let saludo = "Buenas noches";
+    if (hora >= 5 && hora < 12) saludo = "Buenos días";
+    else if (hora >= 12 && hora < 19) saludo = "Buenas tardes";
+
+    // Lógica para extraer el primer nombre
+    let nombreLimpio = window.usuarioActual || "Equipo";
+    // Si viene como "Maria Jose", separamos por espacio y agarramos "Maria"
+    let primerNombre = nombreLimpio.split(' ')[0]; 
+    // Aseguramos que la primera letra sea mayúscula (por si se registraron en minúsculas)
+    primerNombre = primerNombre.charAt(0).toUpperCase() + primerNombre.slice(1).toLowerCase();
+
     const elSaludo = document.getElementById('home-saludo');
     if(elSaludo) {
-        elSaludo.innerHTML = `Buen Día, <span class="text-emerald-600">${window.usuarioActual}!</span>`;
+        elSaludo.innerHTML = `${saludo}, <span class="text-emerald-600">${primerNombre}!</span>`;
     }
 
-    // 2. Cargar Métricas (Conexión temporal)
+    // 2. Cargar Métricas y Notas
     cargarMetricasHome();
-
-    // 3. Cargar Notas desde Supabase
     cargarNotasHome();
 }
 
 async function cargarMetricasHome() {
     try {
-        // Conteo seguro de compras en tránsito (Igual que en tu dashboard original)
+        // Conteo seguro de compras en tránsito
         const { data: transitoData, error } = await clienteSupabase
             .from('compras_detalles')
             .select('id, compras!inner(id_empresa)')
@@ -25,12 +35,15 @@ async function cargarMetricasHome() {
         
         if (error) throw error;
         
+        // Escudos protectores (solo intentan cambiar el texto si el elemento existe en el HTML)
         const mCompras = document.getElementById('hm-metrica-compras');
-        if(mCompras) mCompras.innerText = transitoData ? transitoData.length : 0;
+        if (mCompras) mCompras.innerText = transitoData ? transitoData.length : 0;
 
-        // Simuladas por ahora
-        document.getElementById('hm-metrica-ventas').innerText = "Próx.";
-        document.getElementById('hm-metrica-inventario').innerText = "Activo";
+        const mVentas = document.getElementById('hm-metrica-ventas');
+        if (mVentas) mVentas.innerText = "Próx.";
+
+        const mInventario = document.getElementById('hm-metrica-inventario');
+        if (mInventario) mInventario.innerText = "Activo";
 
     } catch (error) {
         console.error("Error cargando métricas home:", error.message);
@@ -71,26 +84,31 @@ async function cargarNotasHome() {
     `).join('');
 }
 
-window.cargarHome = async function() {
-    console.log("🏠 Cargando Home ERP...");
-
-    // 1. Saludo Inteligente
-    const hora = new Date().getHours();
-    let saludo = "Buenas noches";
-    if (hora >= 5 && hora < 12) saludo = "Buenos días";
-    else if (hora >= 12 && hora < 19) saludo = "Buenas tardes";
-
-    const elSaludo = document.getElementById('home-saludo');
-    if(elSaludo) {
-        elSaludo.innerHTML = `${saludo}, <span class="text-emerald-600">${window.usuarioActual}!</span>`;
-    }
-
-    cargarMetricasHome();
-    cargarNotasHome();
-}
-
 window.borrarNotaHome = async function(id) {
     if(!confirm("¿Borrar esta nota?")) return;
     await clienteSupabase.from('notas_home').delete().eq('id', id);
+    cargarNotasHome();
+}
+
+window.crearNotaHome = async function() {
+    const contenido = prompt("Escribe tu nueva nota rápida:");
+    if (!contenido || contenido.trim() === '') return;
+
+    // Colores aleatorios para darle estilo a los post-its
+    const colores = ['bg-yellow-100', 'bg-blue-100', 'bg-pink-100', 'bg-emerald-100', 'bg-purple-100'];
+    const colorElegido = colores[Math.floor(Math.random() * colores.length)];
+
+    const { error } = await clienteSupabase.from('notas_home').insert({
+        id_empresa: window.miEmpresaId,
+        contenido: contenido,
+        color: colorElegido
+    });
+
+    if (error) {
+        alert("Error al guardar la nota.");
+        console.error(error);
+        return;
+    }
+    
     cargarNotasHome();
 }
