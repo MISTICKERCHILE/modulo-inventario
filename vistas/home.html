@@ -92,4 +92,30 @@
         <div id="home-notas-grid" class="grid grid-cols-2 md:grid-cols-4 gap-4">
             </div>
     </section>
+
+    <div id="modal-nota" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm border-t-4 border-emerald-500 transform scale-95 transition-transform duration-300" id="modal-nota-box">
+            <h3 id="modal-nota-titulo" class="text-lg font-black text-slate-800 mb-4">Nueva Nota Rápida</h3>
+            
+            <textarea id="nota-contenido" rows="4" class="w-full p-4 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 resize-none text-sm text-slate-700 bg-slate-50 focus:bg-white transition-colors shadow-inner" placeholder="Escribe tu idea, recordatorio o tarea aquí..."></textarea>
+            
+            <div class="mt-4 mb-6">
+                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Color del Post-it</label>
+                <div class="flex gap-3" id="nota-selector-colores">
+                    <button onclick="seleccionarColorNota('bg-yellow-100')" class="w-8 h-8 rounded-full bg-yellow-100 border-2 border-yellow-300 focus:outline-none hover:scale-110 transition-transform shadow-sm ring-2 ring-offset-2 ring-transparent color-btn"></button>
+                    <button onclick="seleccionarColorNota('bg-blue-100')" class="w-8 h-8 rounded-full bg-blue-100 border-2 border-blue-300 focus:outline-none hover:scale-110 transition-transform shadow-sm ring-2 ring-offset-2 ring-transparent color-btn"></button>
+                    <button onclick="seleccionarColorNota('bg-pink-100')" class="w-8 h-8 rounded-full bg-pink-100 border-2 border-pink-300 focus:outline-none hover:scale-110 transition-transform shadow-sm ring-2 ring-offset-2 ring-transparent color-btn"></button>
+                    <button onclick="seleccionarColorNota('bg-emerald-100')" class="w-8 h-8 rounded-full bg-emerald-100 border-2 border-emerald-300 focus:outline-none hover:scale-110 transition-transform shadow-sm ring-2 ring-offset-2 ring-transparent color-btn"></button>
+                    <button onclick="seleccionarColorNota('bg-purple-100')" class="w-8 h-8 rounded-full bg-purple-100 border-2 border-purple-300 focus:outline-none hover:scale-110 transition-transform shadow-sm ring-2 ring-offset-2 ring-transparent color-btn"></button>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-2">
+                <button onclick="cerrarModalNota()" class="px-5 py-2.5 text-slate-500 font-bold hover:bg-slate-100 rounded-xl text-sm transition-colors">Cancelar</button>
+                <button onclick="guardarNotaModal()" id="btn-guardar-nota" class="px-6 py-2.5 bg-emerald-600 text-white rounded-xl font-bold shadow-md shadow-emerald-200 hover:bg-emerald-700 text-sm transition-all flex items-center gap-2">
+                    Guardar
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
