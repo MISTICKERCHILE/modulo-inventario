@@ -160,9 +160,18 @@ window.cerrarModalInvitacion = function() {
 }
 
 window.copiarEnlaceInvitacion = function() {
-    const inputLink = document.getElementById('vu-link-generado');
-    inputLink.select();
-    inputLink.setSelectionRange(0, 99999); // Para celulares
-    navigator.clipboard.writeText(inputLink.value);
-    alert("✅ ¡Enlace copiado al portapapeles!");
+    const inputLink = document.getElementById('vu-link-generado').value;
+    const seleccion = document.getElementById('vu-empresa').value.split('|');
+    const nombreEmpresa = seleccion[1] || 'nuestra empresa';
+    const rol = document.getElementById('vu-rol').value;
+    
+    // Armamos el mensaje bonito
+    const mensaje = `👋 ¡Hola! Te invito a unirte al equipo de *${nombreEmpresa}* en Simple ERP como ${rol}.\n\nIngresa a este enlace seguro para crear tu cuenta y contraseña:\n${inputLink}\n\n¡Nos vemos adentro! 🚀`;
+    
+    // Lo copiamos al portapapeles
+    navigator.clipboard.writeText(mensaje).then(() => {
+        alert("✅ ¡Mensaje y enlace copiados! Ve a WhatsApp y dale a 'Pegar'.");
+    }).catch(err => {
+        alert("❌ Error copiando. Por favor, copia el enlace manualmente.");
+    });
 }

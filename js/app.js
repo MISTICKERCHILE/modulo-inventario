@@ -6,18 +6,46 @@ window.usuarioActual = 'Equipo';
 window.miRol = null;
 
 // ============================================================================
-// NUEVO: DETECTOR DE LANDING PAGE (Abrir Registro Automáticamente)
+// DETECTOR INTELIGENTE DE ENLACES (Registro e Invitaciones)
 // ============================================================================
 document.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
     
-    // Si la URL trae "?registro=true", cambiamos la pestaña a Registro
+    // Si la URL trae "?registro=true" (Desde la Landing Page pública)
     if (urlParams.get('registro') === 'true') {
         setTimeout(() => {
             if (typeof window.toggleAuthMode === 'function') {
                 window.toggleAuthMode('register');
             }
-        }, 50); // 50ms para asegurar que el HTML del login ya se pintó
+        }, 50);
+    }
+    
+    // Si la URL trae "?invite=true" (Viene del WhatsApp del Jefe)
+    if (urlParams.get('invite') === 'true') {
+        setTimeout(() => {
+            const empId = urlParams.get('emp_id');
+            const empNom = urlParams.get('emp_nom');
+            const email = urlParams.get('email');
+            const rol = urlParams.get('rol');
+
+            if(empId && email) {
+                // Escondemos todo el panel de Login normal
+                document.getElementById('auth-tabs').classList.add('hidden');
+                document.getElementById('form-login-view').classList.add('hidden');
+                document.getElementById('form-register-step-1').classList.add('hidden');
+                document.getElementById('form-register-step-2').classList.add('hidden');
+                
+                // Mostramos la tarjeta exclusiva de invitado
+                document.getElementById('form-register-invite').classList.remove('hidden');
+
+                // Llenamos la información que viene en el link
+                document.getElementById('invite-empresa-nombre').innerText = decodeURIComponent(empNom) || 'La Empresa';
+                document.getElementById('invite-rol-nombre').innerText = `Rol Asignado: ${rol || 'Operador'}`;
+                document.getElementById('invite-empresa-id').value = empId;
+                document.getElementById('invite-rol').value = rol || 'Operador';
+                document.getElementById('inv-user-email').value = decodeURIComponent(email);
+            }
+        }, 100); 
     }
 });
 // ============================================================================
@@ -550,6 +578,23 @@ window.validarPasswords = function() {
     if (p1 === p2) {
         msg.innerText = "✅ Las contraseñas coinciden";
         msg.className = "col-span-2 text-[10px] font-bold mt-0 text-emerald-600";
+    } else {
+        msg.innerText = "❌ Las contraseñas no coinciden";
+        msg.className = "col-span-2 text-[10px] font-bold mt-0 text-red-500";
+    }
+}
+
+window.validarPasswordsInv = function() {
+    const p1 = document.getElementById('inv-user-pass').value;
+    const p2 = document.getElementById('inv-user-pass2').value;
+    const msg = document.getElementById('msg-password-match-inv');
+    
+    if(p2.length === 0) { msg.classList.add('hidden'); return; }
+    msg.classList.remove('hidden');
+    
+    if (p1 === p2) {
+        msg.innerText = "✅ Las contraseñas coinciden";
+        msg.className = "col-span-2 text-[10px] font-bold mt-0 text-blue-600";
     } else {
         msg.innerText = "❌ Las contraseñas no coinciden";
         msg.className = "col-span-2 text-[10px] font-bold mt-0 text-red-500";
