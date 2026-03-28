@@ -134,8 +134,22 @@ document.getElementById('form-register-step-2').addEventListener('submit', async
     btnFinal.innerText = "Creando tu imperio...";
     btnFinal.disabled = true;
 
-    // Recopilamos todos los datos (Empresa + Usuario)
+// Recopilamos todos los datos (Empresa + Usuario)
     const emailInput = document.getElementById('reg-user-email').value.trim();
+    
+    // --- TRADUCTOR DE FECHAS (De Latino a Universal YYYY-MM-DD) ---
+    let fechaRaw = document.getElementById('reg-user-nacimiento').value;
+    let fechaLimpia = fechaRaw;
+    
+    if (fechaRaw.includes('/')) {
+        let partes = fechaRaw.split('/'); // DD/MM/YYYY
+        fechaLimpia = `${partes[2]}-${partes[1]}-${partes[0]}`;
+    } else if (fechaRaw.includes('-') && fechaRaw.split('-')[0].length <= 2) {
+        let partes = fechaRaw.split('-'); // DD-MM-YYYY
+        fechaLimpia = `${partes[2]}-${partes[1]}-${partes[0]}`;
+    }
+    // --------------------------------------------------------------
+
     const datosMeta = {
         tipo_registro: 'nueva_empresa',
         pais: document.getElementById('reg-pais').value,
@@ -145,7 +159,7 @@ document.getElementById('form-register-step-2').addEventListener('submit', async
         nombre: document.getElementById('reg-user-nombre').value.trim(),
         apellido: document.getElementById('reg-user-apellido').value.trim(),
         telefono: document.getElementById('reg-user-telefono').value.trim(),
-        fecha_nacimiento: document.getElementById('reg-user-nacimiento').value,
+        fecha_nacimiento: fechaLimpia, // Usamos la fecha ya traducida
         pin_seguridad: document.getElementById('reg-user-pin').value
     };
 
