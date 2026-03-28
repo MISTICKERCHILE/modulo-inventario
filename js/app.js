@@ -141,19 +141,34 @@ document.getElementById('form-register-step-2').addEventListener('submit', async
 // Recopilamos todos los datos (Empresa + Usuario)
     const emailInput = document.getElementById('reg-user-email').value.trim();
     
-    // --- TRADUCTOR DE FECHAS (De Latino a Universal YYYY-MM-DD) ---
+    // --- TRADUCTOR DE FECHAS ---
     let fechaRaw = document.getElementById('reg-user-nacimiento').value;
     let fechaLimpia = fechaRaw;
-    
     if (fechaRaw.includes('/')) {
-        let partes = fechaRaw.split('/'); // DD/MM/YYYY
+        let partes = fechaRaw.split('/');
         fechaLimpia = `${partes[2]}-${partes[1]}-${partes[0]}`;
     } else if (fechaRaw.includes('-') && fechaRaw.split('-')[0].length <= 2) {
-        let partes = fechaRaw.split('-'); // DD-MM-YYYY
+        let partes = fechaRaw.split('-');
         fechaLimpia = `${partes[2]}-${partes[1]}-${partes[0]}`;
     }
-    // --------------------------------------------------------------
+    
+    // Limpiamos el RUT personal de puntos y guiones
+    const rutPersonal = document.getElementById('reg-user-rut').value.replace(/[\.\-]/g, '').trim().toUpperCase();
 
+    const datosMeta = {
+        tipo_registro: 'nueva_empresa',
+        pais: document.getElementById('reg-pais').value,
+        rut_empresa: document.getElementById('reg-rut').value.replace(/[\.\-]/g, '').trim().toUpperCase(),
+        nombre_empresa: document.getElementById('reg-razon-social').value.trim(),
+        nombre_comercial: document.getElementById('reg-nombre-comercial').value.trim(),
+        nombre: document.getElementById('reg-user-nombre').value.trim(),
+        apellido: document.getElementById('reg-user-apellido').value.trim(),
+        telefono: document.getElementById('reg-user-telefono').value.trim(),
+        rut_personal: rutPersonal, // <- AQUÍ ENVIAMOS EL RUT PERSONAL
+        fecha_nacimiento: fechaLimpia,
+        pin_seguridad: document.getElementById('reg-user-pin').value
+    };
+    
     const datosMeta = {
         tipo_registro: 'nueva_empresa',
         pais: document.getElementById('reg-pais').value,
