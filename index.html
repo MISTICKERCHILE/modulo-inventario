@@ -15,27 +15,27 @@
         
         /* BANNER 1: El Hero Principal */
         .bg-hero-pattern {
-            background-image: linear-gradient(rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.7)), url('/img/img/simpleerpparatuempresa.png');
+            background-image: linear-gradient(rgba(15, 23, 42, 0.55), rgba(15, 23, 42, 0.55)), url('/img/img/simpleerpparatuempresa.png');
             background-size: cover;
             background-position: center;
         }
 
         /* BANNER 2: El Registro */
         .bg-registro-pattern {
-            background-image: linear-gradient(rgba(5, 150, 105, 0.85), rgba(5, 150, 105, 0.85)), url('/img/img/todobajocontrolsimple.png');
+            background-image: linear-gradient(rgba(5, 150, 105, 0.85), rgba(5, 150, 105, 0.55)), url('/img/img/todobajocontrolsimple.png');
             background-size: cover;
             background-position: center;
         }
 
         /* BANNER 3: El Bombero (Agendar Demo) */
         .bg-bombero-pattern {
-            background-image: linear-gradient(rgba(248, 250, 252, 0.9), rgba(248, 250, 252, 0.9)), url('/img/img/dejadeapagarfuegos.png');
+            background-image: linear-gradient(rgba(248, 250, 252, 0.9), rgba(248, 250, 252, 0.55)), url('/img/img/dejadeapagarfuegos.png');
             background-size: cover;
             background-position: center;
         }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 antialiased">
+<body class="bg-slate-50 text-slate-900 antialiased">
 
     <div id="preloader" class="fixed inset-0 z-[9999] bg-slate-50 flex flex-col items-center justify-center transition-opacity duration-500">
         <img src="/img/img/loading.gif" alt="Cargando Simple ERP..." class="w-24 h-24 object-contain">
@@ -46,10 +46,10 @@
         <div class="max-w-7xl mx-auto flex items-center justify-between">
             <div class="flex items-center gap-2">
                 <img src="img/img/light%20logo.png" alt="Simple ERP Logo" class="h-10 w-auto">
-                <span class="text-2xl font-black text-slate-800 tracking-tight">| Simple ERP</span>
+                <span class="text-2xl font-black text-slate-900 tracking-tight">| Simple ERP</span>
             </div>
             <div class="flex items-center gap-4">
-                <a href="/app.html" class="text-slate-600 font-bold hover:text-emerald-600 text-sm transition-colors">Iniciar Sesión</a>
+                <a href="/app.html" class="text-slate-700 font-bold hover:text-emerald-600 text-sm transition-colors">Iniciar Sesión</a>
                 <a href="/app.html?registro=true" class="bg-emerald-600 text-white px-5 py-2 rounded-lg font-bold hover:bg-emerald-700 shadow-sm transition-all text-sm">Registrarse</a>
             </div>
         </div>
@@ -74,35 +74,10 @@
         </div>
     </section>
 
-    <section class="bg-registro-pattern py-20 px-6 text-center text-white">
-        <div class="max-w-4xl mx-auto" data-aos="fade-up">
-            <h2 class="text-3xl md:text-5xl font-bold mb-8 leading-tight drop-shadow-md">
-                ¿Emprender es más difícil de lo que pensabas? <br>
-                <span class="text-emerald-100">¡Hazlo Simple desde HOY!</span>
-            </h2>
-            <a href="/app.html?registro=true" class="inline-block bg-slate-900 text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-slate-800 shadow-lg transition-all border border-slate-700">
-                Registro
-            </a>
-        </div>
-    </section>
-
-    <section class="bg-bombero-pattern py-24 px-6 text-center border-y border-slate-200">
-        <div class="max-w-5xl mx-auto" data-aos="fade-up">
-            <span class="text-5xl mb-6 block drop-shadow-sm">🚒</span>
-            <h3 class="text-2xl md:text-4xl font-bold mb-6 text-slate-800 leading-snug drop-shadow-sm">
-                ¿Tu empresa está creciendo? ¡Felicidades! <br>
-                <span class="text-slate-600 font-medium text-xl md:text-2xl block mt-4">Asegúrate de no convertirte en el bombero de tu organización. Llega antes del fuego a las alertas y mantén todo bajo control.</span>
-            </h3>
-            <a href="vistas/contacto.html" class="inline-block mt-4 bg-emerald-600 text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-emerald-700 shadow-md transition-all">
-                Agendar Demo
-            </a>
-        </div>
-    </section>
-
     <section class="py-24 px-6 bg-white">
         <div class="max-w-7xl mx-auto" data-aos="fade-up">
             <div class="text-center mb-16" data-aos="fade-up">
-                <h2 class="text-3xl md:text-4xl font-black text-slate-800 mb-4">Todo lo que necesitas en un solo lugar</h2>
+                <h2 class="text-3xl md:text-4xl font-black text-slate-900 mb-4">Todo lo que necesitas en un solo lugar</h2>
                 <p class="text-slate-500 font-medium">Módulos integrados para que la información fluya sin errores.</p>
             </div>
             
@@ -136,32 +111,56 @@
         </div>
     </section>
 
+    <section class="bg-registro-pattern py-20 px-6 text-center text-white">
+        <div class="max-w-4xl mx-auto" data-aos="fade-up">
+            <h2 class="text-3xl md:text-5xl font-bold mb-8 leading-tight drop-shadow-md">
+                ¿Emprender es más difícil de lo que pensabas? <br>
+                <span class="text-emerald-100">¡Hazlo Simple desde HOY!</span>
+            </h2>
+            <a href="/app.html?registro=true" class="inline-block bg-slate-900 text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-slate-800 shadow-lg transition-all border border-slate-700">
+                Registro
+            </a>
+        </div>
+    </section>
+
     <section class="py-24 px-6 bg-slate-50 border-t border-slate-200">
         <div class="max-w-4xl mx-auto" data-aos="fade-up">
-            <h2 class="text-3xl md:text-4xl font-black text-slate-800 mb-12 text-center">Preguntas Frecuentes</h2>
+            <h2 class="text-3xl md:text-4xl font-black text-slate-900 mb-12 text-center">Preguntas Frecuentes</h2>
             
             <div class="space-y-6">
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-                    <h4 class="text-lg font-bold text-slate-800 mb-2">¿Necesito saber de contabilidad o ser un experto en tecnología para usar Simple?</h4>
-                    <p class="text-slate-600 text-sm">No. Diseñamos Simple específicamente para dueños de negocios, no para informáticos. La interfaz es intuitiva y te guía paso a paso para que tengas el control sin dolores de cabeza.</p>
+                    <h4 class="text-lg font-bold text-slate-900 mb-2">¿Necesito saber de contabilidad o ser un experto en tecnología para usar Simple?</h4>
+                    <p class="text-slate-700 text-sm">No. Diseñamos Simple específicamente para dueños de negocios, no para informáticos. La interfaz es intuitiva y te guía paso a paso para que tengas el control sin dolores de cabeza.</p>
                 </div>
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-                    <h4 class="text-lg font-bold text-slate-800 mb-2">¿Cuánto tiempo tarda mi empresa en empezar a usar el sistema?</h4>
-                    <p class="text-slate-600 text-sm">Puedes estar operando el mismo día. A diferencia de los ERP tradicionales que tardan meses en implementarse, con Simple te registras, cargas tu catálogo inicial y comienzas a gestionar.</p>
+                    <h4 class="text-lg font-bold text-slate-900 mb-2">¿Cuánto tiempo tarda mi empresa en empezar a usar el sistema?</h4>
+                    <p class="text-slate-700 text-sm">Puedes estar operando el mismo día. A diferencia de los ERP tradicionales que tardan meses en implementarse, con Simple te registras, cargas tu catálogo inicial y comienzas a gestionar.</p>
                 </div>
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-                    <h4 class="text-lg font-bold text-slate-800 mb-2">Si mi computador se daña o me lo roban, ¿pierdo mi inventario y mis ventas?</h4>
-                    <p class="text-slate-600 text-sm">Absolutamente no. Toda tu información está respaldada en tiempo real en la nube bajo estrictos estándares de seguridad. Solo inicias sesión desde otro dispositivo y tu empresa sigue intacta.</p>
+                    <h4 class="text-lg font-bold text-slate-900 mb-2">Si mi computador se daña o me lo roban, ¿pierdo mi inventario y mis ventas?</h4>
+                    <p class="text-slate-700 text-sm">Absolutamente no. Toda tu información está respaldada en tiempo real en la nube bajo estrictos estándares de seguridad. Solo inicias sesión desde otro dispositivo y tu empresa sigue intacta.</p>
                 </div>
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-                    <h4 class="text-lg font-bold text-slate-800 mb-2">¿Cómo me ayuda Simple con el Servicio de Impuestos Internos (SII)?</h4>
-                    <p class="text-slate-600 text-sm">Te entregamos reportes de ventas, compras e inventario perfectamente cuadrados. Esto le ahorra horas de trabajo a tu contador y te asegura tener la información transparente ante cualquier revisión.</p>
+                    <h4 class="text-lg font-bold text-slate-900 mb-2">¿Cómo me ayuda Simple con el Servicio de Impuestos Internos (SII)?</h4>
+                    <p class="text-slate-700 text-sm">Te entregamos reportes de ventas, compras e inventario perfectamente cuadrados. Esto le ahorra horas de trabajo a tu contador y te asegura tener la información transparente ante cualquier revisión.</p>
                 </div>
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-                    <h4 class="text-lg font-bold text-slate-800 mb-2">Mi negocio está abriendo una nueva sucursal, ¿tengo que pagar un sistema nuevo?</h4>
-                    <p class="text-slate-600 text-sm">No es necesario empezar de cero. Simple está diseñado para crecer contigo. Dependiendo de tu plan, puedes administrar múltiples sucursales y bodegas desde la misma cuenta central.</p>
+                    <h4 class="text-lg font-bold text-slate-900 mb-2">Mi negocio está abriendo una nueva sucursal, ¿tengo que pagar un sistema nuevo?</h4>
+                    <p class="text-slate-700 text-sm">No es necesario empezar de cero. Simple está diseñado para crecer contigo. Dependiendo de tu plan, puedes administrar múltiples sucursales y bodegas desde la misma cuenta central.</p>
                 </div>
             </div>
+        </div>
+    </section>
+
+    <section class="bg-bombero-pattern py-24 px-6 text-center border-y border-slate-200">
+        <div class="max-w-5xl mx-auto" data-aos="fade-up">
+            <h3 class="text-2xl md:text-4xl font-bold mb-6 text-slate-900 leading-snug drop-shadow-sm">
+                ¿Tu empresa está creciendo? ¡Felicidades! <br>
+                <span class="text-slate-700 font-medium text-xl md:text-2xl block mt-4">Asegúrate de no convertirte en el bombero de tu organización. Llega antes del fuego a las alertas y mantén todo bajo control.</span>
+            </h3>
+            <a href="vistas/contacto.html" class="inline-block mt-4 bg-emerald-600 text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-emerald-700 shadow-md transition-all">
+                Agendar Demo
+            </a>
         </div>
     </section>
 
