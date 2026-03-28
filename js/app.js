@@ -81,14 +81,18 @@ document.getElementById('form-login-view').addEventListener('submit', async (e) 
 // Paso 1: Validar RUT y pasar al Paso 2
 document.getElementById('form-register-step-1').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const rutInput = document.getElementById('reg-rut').value.trim().toUpperCase();
+    
+    // NUEVO: Limpiamos los puntos y guiones automáticamente
+    const rutInputRaw = document.getElementById('reg-rut').value;
+    const rutInput = rutInputRaw.replace(/[\.\-]/g, '').trim().toUpperCase();
+    
     const msgError = document.getElementById('msg-rut-error');
     const btnReg = document.getElementById('btn-continuar-reg');
 
     btnReg.innerText = "Verificando...";
     btnReg.disabled = true;
 
-    // Consultamos a Supabase si ese RUT ya existe
+    // Consultamos a Supabase si ese RUT ya existe (usando el RUT ya limpio)
     const { data, error } = await clienteSupabase.from('empresas').select('id').eq('rut_o_identificacion', rutInput).maybeSingle();
 
     if (data) {
