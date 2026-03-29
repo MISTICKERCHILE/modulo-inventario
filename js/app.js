@@ -571,67 +571,6 @@ window.actualizarTopBar = function(nombreEmpresa, rolUsuario) {
     }
 }
 
-// ==========================================
-// MÓDULO DE PARÁMETROS Y PERMISOS (JSON)
-// ==========================================
-
-window.cargarParametros = async function() {
-    if (!window.miEmpresaId) return;
-    try {
-        const { data, error } = await clienteSupabase.from('empresas').select('configuracion').eq('id', window.miEmpresaId).single();
-        if (error) throw error;
-        
-        const config = data.configuracion || {};
-        const opPermisos = config.operador || { catalogos: true, recetas: true, reportes: true }; 
-        
-        document.getElementById('toggle-op-catalogos').checked = opPermisos.catalogos !== false;
-        document.getElementById('toggle-op-recetas').checked = opPermisos.recetas !== false;
-        document.getElementById('toggle-op-reportes').checked = opPermisos.reportes !== false;
-    } catch (err) {
-        console.error("Error al cargar parámetros:", err);
-    }
-};
-
-window.guardarParametros = async function() {
-    const configNueva = {
-        operador: {
-            catalogos: document.getElementById('toggle-op-catalogos').checked,
-            recetas: document.getElementById('toggle-op-recetas').checked,
-            reportes: document.getElementById('toggle-op-reportes').checked
-        }
-    };
-    
-    try {
-        await clienteSupabase.from('empresas').update({ configuracion: configNueva }).eq('id', window.miEmpresaId);
-        console.log("Parámetros guardados automáticamente");
-    } catch (err) {
-        alert("Error al guardar: " + err.message);
-    }
-};
-
-window.aplicarPermisosVisuales = async function() {
-    if (window.miRol === 'Dueño' || window.miRol === 'Admin' || window.miRol === 'Administrador') {
-        ['catalogos', 'recetas', 'reportes'].forEach(modulo => {
-            document.getElementById(`btn-menu-${modulo}`)?.classList.remove('hidden');
-        });
-        return;
-    }
-    
-    if (window.miRol === 'Operador') {
-        const { data } = await clienteSupabase.from('empresas').select('configuracion').eq('id', window.miEmpresaId).single();
-        const config = data?.configuracion || {};
-        const opPermisos = config.operador || { catalogos: true, recetas: true, reportes: true };
-        
-        const btnCat = document.getElementById('btn-menu-catalogos');
-        const btnRec = document.getElementById('btn-menu-recetas');
-        const btnRep = document.getElementById('btn-menu-reportes');
-        
-        if (btnCat) opPermisos.catalogos === false ? btnCat.classList.add('hidden') : btnCat.classList.remove('hidden');
-        if (btnRec) opPermisos.recetas === false ? btnRec.classList.add('hidden') : btnRec.classList.remove('hidden');
-        if (btnRep) opPermisos.reportes === false ? btnRep.classList.add('hidden') : btnRep.classList.remove('hidden');
-    }
-};
-
 // --- UTILIDAD: Mostrar/Ocultar Contraseñas y PIN ---
 window.togglePasswordVisibility = function(inputId) {
     const input = document.getElementById(inputId);
