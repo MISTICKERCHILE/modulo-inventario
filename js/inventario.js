@@ -115,10 +115,10 @@ window.renderizarTablaInventario = function(datos) {
             </td>
             <td class="px-6 py-3 text-center">
                 <div class="flex justify-center items-center gap-4 text-lg">
-                    <button onclick="agregarASugerenciaInteligente('${inv.id_producto}', '${inv.nombreProducto.replace(/'/g, "\\'")}')" title="Agregar a Pedido" class="text-emerald-600 hover:text-emerald-800 transition-transform hover:scale-110">🛒</button>
+                    <button onclick="agregarASugerenciaInteligente('${inv.id_producto}', '${inv.nombreProducto.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')" title="Agregar a Pedido" class="text-emerald-600 hover:text-emerald-800 transition-transform hover:scale-110">🛒</button>
                     <button onclick="editarProductoFull('${inv.id_producto}')" title="Editar Detalles del Producto" class="text-blue-500 hover:text-blue-700 transition-transform hover:scale-110">✏️</button>
-                    <button onclick="abrirAjusteRapido('${inv.id}', '${inv.id_producto}', '${inv.nombreProducto.replace(/'/g, "\\'")}', '${inv.nombreUbicacion}', ${inv.cantidad_actual_ua}, '${inv.abreviatura}')" title="Ajustar Stock Rápido" class="text-orange-500 hover:text-orange-700 transition-transform hover:scale-110">🎯</button>
-                    <button onclick="abrirHistorialKardex('${inv.id_producto}', '${inv.nombreProducto.replace(/'/g, "\\'")}')" title="Ver Historial de Movimientos" class="text-indigo-500 hover:text-indigo-700 transition-transform hover:scale-110">📜</button>
+                    <button onclick="abrirAjusteRapido('${inv.id}', '${inv.id_producto}', '${inv.nombreProducto.replace(/'/g, "\\'").replace(/"/g, '&quot;')}', '${inv.nombreUbicacion}', ${inv.cantidad_actual_ua}, '${inv.abreviatura}')" title="Ajustar Stock Rápido" class="text-orange-500 hover:text-orange-700 transition-transform hover:scale-110">🎯</button>
+                    <button onclick="abrirHistorialKardex('${inv.id_producto}', '${inv.nombreProducto.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')" title="Ver Historial de Movimientos" class="text-indigo-500 hover:text-indigo-700 transition-transform hover:scale-110">📜</button>
                 </div>
             </td>
         </tr>`;
@@ -212,8 +212,57 @@ window.agregarASugerenciaInteligente = async function(idProd, nombre) {
 
 window.cambiarUbicacionSaldo = async function(idSaldo, nuevoIdUbicacionStr) {
     const idUbicacionFinal = nuevoIdUbicacionStr === 'NULL_UBI' ? null : nuevoIdUbicacionStr;
-    await clienteSupabase.from('inventario_saldos').update({ id_ubicacion: idUbicacionFinal, ultima_actualizacion: new Date() }).eq('id', idSaldo);
-    window.abrirInventarioSucursal(window.sucursalActivaID, window.sucursalActivaNombre); 
+    
+    try {
+        // 1. Primero, vemos qué producto y cuánta cantidad estamos intentando mover
+        const { data: saldoActual, error: errActual } = await clienteSupabase.from('inventario_saldos')
+            .select('id_producto, id_sucursal, cantidad_actual_ua')
+            .eq('id', idSaldo)
+            .single();
+            
+        if(errActual) throw errActual;
+
+        // 2. Revisamos si en la ubicación de DESTINO ya existe ese mismo producto
+        let query = clienteSupabase.from('inventario_saldos')
+            .select('id, cantidad_actual_ua')
+            .eq('id_producto', saldoActual.id_producto)
+            .eq('id_sucursal', saldoActual.id_sucursal);
+            
+        if (idUbicacionFinal) {
+            query = query.eq('id_ubicacion', idUbicacionFinal);
+        } else {
+            query = query.is('id_ubicacion', null);
+        }
+
+        const { data: saldoDestino } = await query.maybeSingle();
+
+        // 3. TOMAMOS LA DECISIÓN INTELIGENTE
+        if (saldoDestino) {
+            // SI YA EXISTE: Sumamos las cantidades (Fusión) y borramos la caja vacía
+            const nuevaCantidad = Number(saldoDestino.cantidad_actual_ua) + Number(saldoActual.cantidad_actual_ua);
+            
+            // Le sumamos el stock a la fila de destino
+            await clienteSupabase.from('inventario_saldos')
+                .update({ cantidad_actual_ua: nuevaCantidad, ultima_actualizacion: new Date() })
+                .eq('id', saldoDestino.id);
+                
+            // Eliminamos la fila original de donde sacamos el producto
+            await clienteSupabase.from('inventario_saldos').delete().eq('id', idSaldo);
+            
+        } else {
+            // SI NO EXISTE: Simplemente cambiamos la etiqueta de ubicación (lo que hacía antes)
+            await clienteSupabase.from('inventario_saldos')
+                .update({ id_ubicacion: idUbicacionFinal, ultima_actualizacion: new Date() })
+                .eq('id', idSaldo);
+        }
+
+        // 4. Recargamos la pantalla para ver la magia
+        window.abrirInventarioSucursal(window.sucursalActivaID, window.sucursalActivaNombre); 
+        
+    } catch (error) {
+        console.error("Error al transferir stock:", error);
+        alert("❌ Error al transferir el producto: " + error.message);
+    }
 }
 
 window.abrirModalConteoMasivo = async function() {
