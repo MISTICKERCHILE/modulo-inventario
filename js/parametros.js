@@ -148,29 +148,41 @@ function activarAcordeonesPermisos() {
 }
 
 // Inteligencia: Si apagas el maestro, apagas y bloqueas los hijos.
+// Inteligencia: Si apagas el maestro, apagas y bloqueas los hijos.
 window.sincronizarMaestroHijo = function(categoriaMaster) {
     const interruptorMaestro = document.querySelector(`.toggle-maestro[value="${categoriaMaster}"]`);
     if (!interruptorMaestro) return;
 
-    // Buscamos la lista de cables granulares asociados a esta categoría master
     const permisosHijosIds = MAPA_PERMISOS[categoriaMaster] || [];
     const maestroEncendido = interruptorMaestro.checked;
 
     permisosHijosIds.forEach(idHijo => {
         const inputHijo = document.querySelector(`.toggle-permiso[value="${idHijo}"]`);
-        if(inputHijo) {
-            // Si el maestro está apagado, apagamos y bloqueamos el hijo
+        if (inputHijo) {
+            const labelPadre = inputHijo.closest('.permiso-label');
+            
             if (!maestroEncendido) {
+                // Maestro OFF: Apagamos y bloqueamos el hijo
                 inputHijo.checked = false;
                 inputHijo.disabled = true;
-                // Le damos un aspecto visual de bloqueado a la cajita
-                inputHijo.closest('.permiso-label')?.classList.add('opacity-50', 'bg-slate-50', 'cursor-not-allowed');
-                inputHijo.closest('.permiso-label')?.classList.remove('cursor-pointer', 'bg-white');
+                if (labelPadre) {
+                    labelPadre.classList.add('opacity-50', 'bg-slate-50', 'cursor-not-allowed');
+                    labelPadre.classList.remove('cursor-pointer', 'bg-white');
+                }
             } else {
-                // Si el maestro está encendido, habilitamos el hijo para que el dueño decida
-                inputHijo.disabled = false;
-                 inputHijo.closest('.permiso-label')?.classList.remove('opacity-50', 'bg-slate-50', 'cursor-not-allowed');
-                 inputHijo.closest('.permiso-label')?.classList.add('cursor-pointer', 'bg-white');
+                // Maestro ON: Habilitamos el hijo (pero NO lo encendemos automáticamente, 
+                // dejamos que el usuario decida o que cargue lo que viene de BD)
+                
+                // Excepción: Si el usuario activo no es el Dueño, lo habilitamos. 
+                // Si es el Dueño, ya lo bloqueamos en 'seleccionarRol', así que no lo tocamos.
+                if (document.getElementById('nombre-rol-activo').innerText.toLowerCase() !== 'dueño') {
+                    inputHijo.disabled = false;
+                }
+                
+                if (labelPadre) {
+                    labelPadre.classList.remove('opacity-50', 'bg-slate-50', 'cursor-not-allowed');
+                    labelPadre.classList.add('cursor-pointer', 'bg-white');
+                }
             }
         }
     });
