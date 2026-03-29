@@ -212,8 +212,57 @@ window.agregarASugerenciaInteligente = async function(idProd, nombre) {
 
 window.cambiarUbicacionSaldo = async function(idSaldo, nuevoIdUbicacionStr) {
     const idUbicacionFinal = nuevoIdUbicacionStr === 'NULL_UBI' ? null : nuevoIdUbicacionStr;
-    await clienteSupabase.from('inventario_saldos').update({ id_ubicacion: idUbicacionFinal, ultima_actualizacion: new Date() }).eq('id', idSaldo);
-    window.abrirInventarioSucursal(window.sucursalActivaID, window.sucursalActivaNombre); 
+    
+    try {
+        // 1. Primero, vemos qué producto y cuánta cantidad estamos intentando mover
+        const { data: saldoActual, error: errActual } = await clienteSupabase.from('inventario_saldos')
+            .select('id_producto, id_sucursal, cantidad_actual_ua')
+            .eq('id', idSaldo)
+            .single();
+            
+        if(errActual) throw errActual;
+
+        // 2. Revisamos si en la ubicación de DESTINO ya existe ese mismo producto
+        let query = clienteSupabase.from('inventario_saldos')
+            .select('id, cantidad_actual_ua')
+            .eq('id_producto', saldoActual.id_producto)
+            .eq('id_sucursal', saldoActual.id_sucursal);
+            
+        if (idUbicacionFinal) {
+            query = query.eq('id_ubicacion', idUbicacionFinal);
+        } else {
+            query = query.is('id_ubicacion', null);
+        }
+
+        const { data: saldoDestino } = await query.maybeSingle();
+
+        // 3. TOMAMOS LA DECISIÓN INTELIGENTE
+        if (saldoDestino) {
+            // SI YA EXISTE: Sumamos las cantidades (Fusión) y borramos la caja vacía
+            const nuevaCantidad = Number(saldoDestino.cantidad_actual_ua) + Number(saldoActual.cantidad_actual_ua);
+            
+            // Le sumamos el stock a la fila de destino
+            await clienteSupabase.from('inventario_saldos')
+                .update({ cantidad_actual_ua: nuevaCantidad, ultima_actualizacion: new Date() })
+                .eq('id', saldoDestino.id);
+                
+            // Eliminamos la fila original de donde sacamos el producto
+            await clienteSupabase.from('inventario_saldos').delete().eq('id', idSaldo);
+            
+        } else {
+            // SI NO EXISTE: Simplemente cambiamos la etiqueta de ubicación (lo que hacía antes)
+            await clienteSupabase.from('inventario_saldos')
+                .update({ id_ubicacion: idUbicacionFinal, ultima_actualizacion: new Date() })
+                .eq('id', idSaldo);
+        }
+
+        // 4. Recargamos la pantalla para ver la magia
+        window.abrirInventarioSucursal(window.sucursalActivaID, window.sucursalActivaNombre); 
+        
+    } catch (error) {
+        console.error("Error al transferir stock:", error);
+        alert("❌ Error al transferir el producto: " + error.message);
+    }
 }
 
 window.abrirModalConteoMasivo = async function() {
