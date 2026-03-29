@@ -1,0 +1,103 @@
+<div class="w-full max-w-6xl mx-auto animate-fade-in">
+    
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b border-slate-200 pb-4">
+        <div>
+            <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2">🔐 Roles y Permisos</h2>
+            <p class="text-slate-500 text-sm mt-1">Administra el nivel de acceso de tu equipo al sistema.</p>
+        </div>
+        <button onclick="abrirModalNuevoRol()" class="w-full md:w-auto px-5 py-2.5 bg-slate-800 text-white rounded-lg font-bold shadow-md hover:bg-slate-900 transition-colors flex items-center justify-center gap-2">
+            <span>+</span> Crear Nuevo Rol
+        </button>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 h-fit">
+            <h3 class="font-bold text-slate-700 mb-4 text-sm uppercase tracking-wider">Roles de tu Empresa</h3>
+            <ul id="lista-roles-parametros" class="space-y-3">
+                <li class="p-3 bg-emerald-50 border border-emerald-300 rounded-lg cursor-pointer flex justify-between items-center shadow-sm">
+                    <span class="font-bold text-emerald-900">Dueño</span>
+                    <span class="text-[10px] bg-white px-2 py-1 rounded border border-emerald-200 text-emerald-700 font-bold">Todo el acceso</span>
+                </li>
+                <li class="p-3 bg-slate-50 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-100 flex justify-between items-center transition-colors">
+                    <span class="font-bold text-slate-700">Panadero</span>
+                    <span class="text-[10px] bg-white px-2 py-1 rounded border text-slate-500 font-bold">Ver permisos ➔</span>
+                </li>
+            </ul>
+        </div>
+
+        <div class="lg:col-span-2 bg-white p-5 md:p-6 rounded-xl shadow-sm border border-slate-200" id="panel-permisos-rol">
+            
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 border-b border-slate-100 pb-4 gap-4">
+                <div>
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Editando Permisos de:</p>
+                    <h3 class="font-black text-xl text-emerald-600" id="nombre-rol-activo">Panadero</h3>
+                </div>
+                <button id="btn-guardar-permisos" onclick="guardarPermisosRol()" class="px-6 py-2 bg-emerald-600 text-white rounded-lg font-bold shadow-md hover:bg-emerald-700 transition-colors w-full sm:w-auto">
+                    Guardar Cambios
+                </button>
+            </div>
+
+            <div class="space-y-6" id="contenedor-toggles-permisos">
+                
+                <div class="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                    <h4 class="font-bold text-slate-600 uppercase tracking-wider text-xs mb-4 flex items-center gap-2"><span>💰</span> Módulo Ventas</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <label class="flex items-center justify-between p-3 bg-white rounded-md border border-slate-200 cursor-pointer hover:border-emerald-300 transition-colors shadow-sm">
+                            <span class="font-bold text-slate-700 text-sm">Punto de Venta (POS)</span>
+                            <div class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" value="ventas" class="sr-only peer toggle-permiso">
+                                <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                            </div>
+                        </label>
+                        <label class="flex items-center justify-between p-3 bg-white rounded-md border border-slate-200 cursor-pointer hover:border-emerald-300 transition-colors shadow-sm">
+                            <span class="font-bold text-slate-700 text-sm">Cuentas por Cobrar</span>
+                            <div class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" value="cuentas_cobrar" class="sr-only peer toggle-permiso">
+                                <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                    <h4 class="font-bold text-slate-600 uppercase tracking-wider text-xs mb-4 flex items-center gap-2"><span>📦</span> Módulo Inventario</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <label class="flex items-center justify-between p-3 bg-white rounded-md border border-slate-200 cursor-pointer hover:border-emerald-300 transition-colors shadow-sm">
+                            <span class="font-bold text-slate-700 text-sm">Stock Actual</span>
+                            <div class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" value="inventario" class="sr-only peer toggle-permiso">
+                                <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                            </div>
+                        </label>
+                        <label class="flex items-center justify-between p-3 bg-white rounded-md border border-slate-200 cursor-pointer hover:border-emerald-300 transition-colors shadow-sm">
+                            <span class="font-bold text-slate-700 text-sm">Gestión de Recetas</span>
+                            <div class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" value="recetas" class="sr-only peer toggle-permiso">
+                                <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="modal-nuevo-rol" class="hidden fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center backdrop-blur-sm p-4">
+    <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-sm border border-slate-200">
+        <div class="flex justify-between items-center mb-4 border-b pb-3">
+            <h3 class="text-lg font-bold text-slate-800">Crear Nuevo Rol</h3>
+            <button onclick="cerrarModalNuevoRol()" class="text-slate-400 hover:text-slate-800 text-2xl font-bold">&times;</button>
+        </div>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-1">Nombre del Rol</label>
+                <input type="text" id="input-nombre-rol" placeholder="Ej: Cajero, Bodeguero..." class="w-full px-4 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
+            </div>
+            <button onclick="guardarNuevoRol()" class="w-full py-2.5 bg-emerald-600 text-white rounded-lg font-bold shadow-md hover:bg-emerald-700 transition-colors">
+                Guardar Rol
+            </button>
+        </div>
+    </div>
+</div>
