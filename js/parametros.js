@@ -1,15 +1,14 @@
 // ============================================================================
-// LÓGICA DE PARÁMETROS Y PERMISOS (VERSIÓN 3.0 - GRANULAR & ACORDEÓN)
+// LÓGICA DE PARÁMETROS Y PERMISOS (VERSIÓN 3.1)
 // ============================================================================
 
-// Mapa maestro de permisos granulares.
-// SOCIA: Aquí definimos "los cables" que conectarán tu HTML con la base de datos.
-// Si mañana agregas un sub-módulo, primero lo agregas aquí y luego en el HTML.
+// Mapa maestro de permisos. Conectamos los Acordeones con sus sub-ítems.
 const MAPA_PERMISOS = {
-    admin: ['admin_empresa', 'admin_seguridad', 'admin_sucursales'],
+    admin: ['admin_empresa', 'admin_seguridad'],
     ventas: ['ventas_pos', 'ventas_descuentos', 'ventas_cierre', 'ventas_cxc', 'ventas_cotizaciones', 'ventas_ranking'],
     inventario: ['inventario_stock', 'inventario_ajustes', 'inventario_pedidos', 'inventario_movimientos', 'inventario_recetas'],
-    general: ['general_reportes', 'general_catalogos']
+    reportes: ['reportes_valorizacion', 'reportes_kardex', 'reportes_historial'],
+    catalogos: ['catalogos_productos', 'catalogos_categorias', 'catalogos_unidades', 'catalogos_proveedores', 'catalogos_tipos_mov', 'catalogos_sucursales', 'catalogos_ubicaciones', 'catalogos_clientes']
 };
 
 window.rolActivoId = null;
