@@ -115,10 +115,10 @@ window.renderizarTablaInventario = function(datos) {
             </td>
             <td class="px-6 py-3 text-center">
                 <div class="flex justify-center items-center gap-4 text-lg">
-                    <button onclick="agregarASugerenciaInteligente('${inv.id_producto}', '${inv.nombreProducto.replace(/'/g, "\\'")}')" title="Agregar a Pedido" class="text-emerald-600 hover:text-emerald-800 transition-transform hover:scale-110">🛒</button>
+                    <button onclick="agregarASugerenciaInteligente('${inv.id_producto}', '${inv.nombreProducto.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')" title="Agregar a Pedido" class="text-emerald-600 hover:text-emerald-800 transition-transform hover:scale-110">🛒</button>
                     <button onclick="editarProductoFull('${inv.id_producto}')" title="Editar Detalles del Producto" class="text-blue-500 hover:text-blue-700 transition-transform hover:scale-110">✏️</button>
-                    <button onclick="abrirAjusteRapido('${inv.id}', '${inv.id_producto}', '${inv.nombreProducto.replace(/'/g, "\\'")}', '${inv.nombreUbicacion}', ${inv.cantidad_actual_ua}, '${inv.abreviatura}')" title="Ajustar Stock Rápido" class="text-orange-500 hover:text-orange-700 transition-transform hover:scale-110">🎯</button>
-                    <button onclick="abrirHistorialKardex('${inv.id_producto}', '${inv.nombreProducto.replace(/'/g, "\\'")}')" title="Ver Historial de Movimientos" class="text-indigo-500 hover:text-indigo-700 transition-transform hover:scale-110">📜</button>
+                    <button onclick="abrirAjusteRapido('${inv.id}', '${inv.id_producto}', '${inv.nombreProducto.replace(/'/g, "\\'").replace(/"/g, '&quot;')}', '${inv.nombreUbicacion}', ${inv.cantidad_actual_ua}, '${inv.abreviatura}')" title="Ajustar Stock Rápido" class="text-orange-500 hover:text-orange-700 transition-transform hover:scale-110">🎯</button>
+                    <button onclick="abrirHistorialKardex('${inv.id_producto}', '${inv.nombreProducto.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')" title="Ver Historial de Movimientos" class="text-indigo-500 hover:text-indigo-700 transition-transform hover:scale-110">📜</button>
                 </div>
             </td>
         </tr>`;
