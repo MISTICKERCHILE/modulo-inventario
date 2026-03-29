@@ -164,3 +164,109 @@ window.guardarNuevoRol = async function() {
         alert("Hubo un error al crear el rol.");
     }
 }
+
+// ==========================================
+// 2. SELECCIÓN Y CARGA DE PERMISOS (TOGGLES)
+// ==========================================
+
+window.seleccionarRol = async function(idRol, nombreRol, esPredeterminado) {
+    window.rolActivoId = idRol;
+    
+    // Cambiamos el título
+    const tituloDerecho = document.getElementById('nombre-rol-activo');
+    if(tituloDerecho) tituloDerecho.innerText = nombreRol;
+
+    // Resaltamos visualmente
+    document.querySelectorAll('#lista-roles-parametros li').forEach(li => {
+        li.classList.remove('ring-2', 'ring-emerald-500', 'shadow-md');
+    });
+    const liActivo = document.getElementById(`li-rol-${idRol}`);
+    if(liActivo) liActivo.classList.add('ring-2', 'ring-emerald-500', 'shadow-md');
+
+    const toggles = document.querySelectorAll('.toggle-permiso');
+    const btnGuardar = document.getElementById('btn-guardar-permisos');
+    
+    // Apagar todos los toggles por defecto antes de cargar
+    toggles.forEach(t => { t.checked = false; t.disabled = false; });
+
+    const esDueno = nombreRol.toLowerCase() === 'dueño' || nombreRol.toLowerCase() === 'dueno';
+
+    if (esDueno) {
+        toggles.forEach(t => { t.checked = true; t.disabled = true; });
+        if(btnGuardar) {
+            btnGuardar.disabled = true;
+            btnGuardar.classList.replace('bg-emerald-600', 'bg-slate-300');
+        }
+        return; 
+    } else {
+        if(btnGuardar) {
+            btnGuardar.disabled = false;
+            btnGuardar.classList.replace('bg-slate-300', 'bg-emerald-600');
+        }
+    }
+
+    // 🔍 MAGIA: Buscar los permisos guardados en Supabase
+    try {
+        const { data: permisos, error } = await clienteSupabase
+            .from('permisos_roles')
+            .select('modulo, puede_ver')
+            .eq('id_rol', idRol);
+
+        if (error) throw error;
+
+        // Si encontramos permisos en la BD, encendemos esos interruptores
+        if (permisos && permisos.length > 0) {
+            permisos.forEach(p => {
+                const toggle = document.querySelector(`.toggle-permiso[value="${p.modulo}"]`);
+                if (toggle && p.puede_ver) toggle.checked = true;
+            });
+        }
+    } catch (err) {
+        console.error("Error al cargar los permisos de Supabase:", err.message);
+    }
+};
+
+// ==========================================
+// 4. GUARDAR LOS PERMISOS EN LA BASE DE DATOS
+// ==========================================
+
+window.guardarPermisosRol = async function() {
+    if (!window.rolActivoId) {
+        return alert("Por favor, selecciona un rol de la lista primero.");
+    }
+
+    const btnGuardar = document.getElementById('btn-guardar-permisos');
+    btnGuardar.innerText = "Guardando..."; 
+    btnGuardar.disabled = true;
+
+    // Recolectar el estado de todos los interruptores
+    const toggles = document.querySelectorAll('.toggle-permiso');
+    const permisosToSave = [];
+
+    toggles.forEach(toggle => {
+        permisosToSave.push({
+            id_rol: window.rolActivoId,
+            modulo: toggle.value, // Ej: 'ventas', 'inventario'
+            puede_ver: toggle.checked // true o false
+        });
+    });
+
+    try {
+        // Truco de base de datos: Borramos los permisos viejos de este rol y metemos los nuevos limpios
+        await clienteSupabase.from('permisos_roles').delete().eq('id_rol', window.rolActivoId);
+        
+        if (permisosToSave.length > 0) {
+            const { error } = await clienteSupabase.from('permisos_roles').insert(permisosToSave);
+            if (error) throw error;
+        }
+
+        alert("✅ ¡Permisos guardados con éxito!");
+
+    } catch (err) {
+        console.error("Error al guardar permisos:", err.message);
+        alert("Hubo un error al guardar los permisos.");
+    } finally {
+        btnGuardar.innerText = "Guardar Cambios"; 
+        btnGuardar.disabled = false;
+    }
+};
