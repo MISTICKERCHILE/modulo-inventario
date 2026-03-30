@@ -151,5 +151,8 @@
     }
     .toggle-permiso:checked { background-color: #0f172a; border-color: #0f172a; }
     .toggle-permiso:checked::after { content: '✓'; color: white; display: block; text-align: center; font-size: 12px; line-height: 16px; font-weight: bold; }
-    .toggle-permiso:disabled { opacity: 0.4; cursor: not-allowed; background-color: #f8fafc; }
+    
+    /* El truco: Si está deshabilitado bajamos opacidad, pero si NO está chequeado lo ponemos gris */
+    .toggle-permiso:disabled { opacity: 0.5; cursor: not-allowed; }
+    .toggle-permiso:not(:checked):disabled { background-color: #f8fafc; }
 </style>

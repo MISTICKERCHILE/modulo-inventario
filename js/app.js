@@ -622,6 +622,64 @@ window.validarPasswordsInv = function() {
 }
 
 // ============================================================================
+// SISTEMA DE PERMISOS VISUALES (SIDEBAR Y MENÚS)
+// ============================================================================
+window.aplicarPermisosVisuales = async function() {
+    // 1. Si es el Dueño, encendemos todos los botones del menú y terminamos.
+    if (window.miRol === 'Dueño' || window.miRol === 'Administrador Supremo') {
+        document.querySelectorAll('aside button, aside a').forEach(btn => btn.classList.remove('hidden'));
+        return;
+    }
+    
+    // 2. Si no es el dueño, ocultamos TODOS los módulos operativos por defecto por seguridad.
+    const modulosOcultables = [
+        'btn-menu-dashboard_ventas', 'submenu-dashboard_ventas',
+        'btn-menu-dashboard', 'submenu-inventario',
+        'btn-menu-reportes', 'btn-menu-catalogos', 'btn-menu-parametros'
+    ];
+    modulosOcultables.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+    });
+
+    // 3. Vamos a buscar a Supabase qué SÍ puede ver este usuario según su Rol
+    try {
+        const { data: { user } } = await clienteSupabase.auth.getUser();
+        if (!user) return;
+
+        // Primero buscamos el ID del rol de este usuario en esta empresa
+        const { data: userData } = await clienteSupabase.from('usuarios_empresas')
+            .select('id_rol')
+            .eq('id_usuario', user.id)
+            .eq('id_empresa', window.miEmpresaId)
+            .single();
+
+        if (!userData || !userData.id_rol) return; // Si no tiene rol configurado, se queda con todo oculto
+
+        // Luego buscamos sus permisos exactos
+        const { data: permisos } = await clienteSupabase.from('permisos_roles')
+            .select('modulo')
+            .eq('id_rol', userData.id_rol)
+            .eq('puede_ver', true);
+
+        if (!permisos) return;
+
+        // 4. Encendemos los botones del menú lateral según lo que haya en la base de datos
+        permisos.forEach(p => {
+            // Reglas de mapeo: si tiene el permiso maestro, le mostramos el botón en el menú izquierdo
+            if (p.modulo === 'ventas') document.getElementById('btn-menu-dashboard_ventas')?.classList.remove('hidden');
+            if (p.modulo === 'inventario') document.getElementById('btn-menu-dashboard')?.classList.remove('hidden');
+            if (p.modulo === 'reportes') document.getElementById('btn-menu-reportes')?.classList.remove('hidden');
+            if (p.modulo === 'catalogos') document.getElementById('btn-menu-catalogos')?.classList.remove('hidden');
+            if (p.modulo === 'admin') document.getElementById('btn-menu-parametros')?.classList.remove('hidden');
+        });
+
+    } catch (error) {
+        console.error("Error aplicando permisos visuales:", error);
+    }
+};
+
+// ============================================================================
 // SISTEMA DE RECUPERACIÓN DE CONTRASEÑA
 // ============================================================================
 

@@ -115,28 +115,24 @@ window.seleccionarRol = async function(idRol, nombreRol) {
     const esDueno = nombreRol.toLowerCase() === 'dueño' || nombreRol.toLowerCase() === 'dueno';
 
     if (esDueno) {
-        // DUEÑO: TODO PRENDIDO Y BLOQUEADO VISUALMENTE
+        // DUEÑO: Todo prendido y bloqueado
         toggles.forEach(t => { t.checked = true; t.disabled = true; });
         maestros.forEach(t => { t.checked = true; t.disabled = true; });
-        if(btnGuardar) { btnGuardar.disabled = true; btnGuardar.innerText = "Acceso Total (Bloqueado)"; btnGuardar.classList.add('opacity-50', 'cursor-not-allowed'); }
+        
+        // Dejamos el botón normal, pero la alerta se lanzará al hacer clic
+        if(btnGuardar) { 
+            btnGuardar.disabled = false; 
+            btnGuardar.innerText = "Guardar Cambios"; 
+            btnGuardar.classList.remove('opacity-50', 'cursor-not-allowed'); 
+        }
         return; 
     } else {
-        if(btnGuardar) { btnGuardar.disabled = false; btnGuardar.innerText = "Guardar Cambios"; btnGuardar.classList.remove('opacity-50', 'cursor-not-allowed'); }
-    }
-
-    // Buscar configuración real
-    try {
-        const { data: permisos } = await clienteSupabase.from('permisos_roles').select('modulo, puede_ver').eq('id_rol', idRol);
-        if (permisos && permisos.length > 0) {
-            permisos.forEach(p => {
-                const maestro = document.querySelector(`.toggle-maestro[value="${p.modulo}"]`);
-                if(maestro && p.puede_ver) maestro.checked = true;
-                const granular = document.querySelector(`.toggle-permiso[value="${p.modulo}"]`);
-                if(granular && p.puede_ver) granular.checked = true;
-            });
+        if(btnGuardar) { 
+            btnGuardar.disabled = false; 
+            btnGuardar.innerText = "Guardar Cambios"; 
+            btnGuardar.classList.remove('opacity-50', 'cursor-not-allowed'); 
         }
-        maestros.forEach(m => window.sincronizarMaestroHijo(m.value));
-    } catch (err) { console.error(err); }
+    }
 };
 
 function activarAcordeonesPermisos() {
@@ -171,13 +167,17 @@ window.sincronizarMaestroHijo = function(categoriaMaster) {
 
 window.guardarPermisosRol = async function() {
     if (!window.rolActivoId) return;
+
+    // NUEVO: Validación estricta para el Dueño
+    const nombreRol = document.getElementById('nombre-rol-activo').innerText.toLowerCase();
+    if (nombreRol === 'dueño' || nombreRol === 'dueno') {
+        return alert("Al ser el dueño no puedes modificar los permisos otorgados.");
+    }
+
     const btn = document.getElementById('btn-guardar-permisos');
-    btn.innerText = "Guardando..."; btn.disabled = true;
-
-    const toSave = [];
-    document.querySelectorAll('.toggle-maestro').forEach(t => toSave.push({ id_rol: window.rolActivoId, modulo: t.value, puede_ver: t.checked }));
-    document.querySelectorAll('.toggle-permiso').forEach(t => toSave.push({ id_rol: window.rolActivoId, modulo: t.value, puede_ver: t.checked }));
-
+    btn.innerText = "Guardando..."; 
+    btn.disabled = true;
+    
     try {
         await clienteSupabase.from('permisos_roles').delete().eq('id_rol', window.rolActivoId);
         if (toSave.length > 0) await clienteSupabase.from('permisos_roles').insert(toSave);
