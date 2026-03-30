@@ -1,169 +1,155 @@
-<div class="w-full max-w-6xl mx-auto animate-fade-in pb-12">
+<div class="w-full max-w-5xl mx-auto animate-fade-in pb-12 font-sans text-slate-900">
     
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b border-slate-200 pb-4">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 pb-4 border-b border-slate-200">
         <div>
-            <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2">🔐 Roles y Permisos</h2>
-            <p class="text-slate-500 text-sm mt-1">Administra el nivel de acceso de tu equipo al sistema.</p>
+            <h2 class="text-2xl font-bold tracking-tight">Roles y Permisos</h2>
+            <p class="text-slate-500 text-sm mt-1">Configuración de acceso del personal.</p>
         </div>
-        <button onclick="abrirModalNuevoRol()" class="w-full md:w-auto px-5 py-2.5 bg-slate-800 text-white rounded-lg font-bold shadow-md hover:bg-slate-900 transition-colors flex items-center justify-center gap-2">
-            <span>+</span> Crear Nuevo Rol
+        <button onclick="abrirModalNuevoRol()" class="mt-4 md:mt-0 px-4 py-2 bg-slate-900 text-white rounded-md text-sm font-medium hover:bg-slate-800 transition-colors">
+            + Nuevo Rol
         </button>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 relative">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 relative">
         
-        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 h-fit lg:sticky lg:top-4">
-            <h3 class="font-bold text-slate-700 mb-4 text-sm uppercase tracking-wider">Roles de tu Empresa</h3>
-            <ul id="lista-roles-parametros" class="space-y-3">
-                </ul>
+        <div class="lg:col-span-4">
+            <div class="bg-white rounded-lg border border-slate-200 lg:sticky lg:top-4 overflow-hidden">
+                <div class="px-4 py-3 border-b border-slate-100 bg-slate-50/50">
+                    <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Perfiles</h3>
+                </div>
+                <ul id="lista-roles-parametros" class="divide-y divide-slate-100">
+                    </ul>
+            </div>
         </div>
 
-        <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden relative" id="panel-permisos-rol">
+        <div class="lg:col-span-8 bg-white rounded-lg border border-slate-200 overflow-hidden" id="panel-permisos-rol">
             
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-200 p-5 md:p-6 sticky top-0 bg-white z-10 shadow-sm">
+            <div class="flex justify-between items-center px-6 py-4 border-b border-slate-200 sticky top-0 bg-white z-10">
                 <div>
-                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Editando Permisos de:</p>
-                    <h3 class="font-black text-xl text-emerald-600" id="nombre-rol-activo">...</h3>
+                    <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Editando permisos de:</p>
+                    <h3 class="text-lg font-bold text-slate-900" id="nombre-rol-activo">...</h3>
                 </div>
-                <button id="btn-guardar-permisos" onclick="guardarPermisosRol()" class="mt-4 sm:mt-0 px-6 py-2.5 bg-emerald-600 text-white rounded-lg font-bold shadow-md hover:bg-emerald-700 transition-colors w-full sm:w-auto flex items-center justify-center gap-2">
-                    <span>💾</span> Guardar Cambios
+                <button id="btn-guardar-permisos" onclick="guardarPermisosRol()" class="px-4 py-2 bg-slate-900 text-white rounded-md text-sm font-medium hover:bg-slate-800 transition-colors">
+                    Guardar Cambios
                 </button>
             </div>
 
-            <div class="p-5 md:p-6 space-y-4" id="contenedor-acordeon-permisos">
+            <div class="p-6 space-y-6" id="contenedor-acordeon-permisos">
                 
-                <div class="border border-slate-100 rounded-lg overflow-hidden shadow-sm">
-                    <div class="bg-slate-50 px-5 py-4 flex items-center justify-between gap-4 border-b border-slate-200">
-                        <button class="flex-1 flex items-center gap-3 font-bold text-slate-800 text-left btn-acordeon" data-categoria="admin">
-                            <span class="text-lg">⚙️</span>
-                            <span>Administración y Entorno</span>
-                            <span class="text-xs font-mono text-slate-400 icono-flecha">+</span>
+                <div class="border border-slate-200 rounded-md">
+                    <div class="bg-slate-50 px-4 py-3 flex items-center justify-between border-b border-slate-200">
+                        <button class="flex-1 flex items-center font-semibold text-sm text-slate-800 text-left btn-acordeon" data-categoria="admin">
+                            Administración y Entorno <span class="ml-2 text-slate-400 font-normal icono-flecha">▼</span>
                         </button>
                         <div class="relative inline-flex items-center cursor-pointer">
                             <input type="checkbox" value="admin" class="sr-only peer toggle-maestro" onchange="sincronizarMaestroHijo(this.value)">
-                            <div class="w-10 h-5 bg-slate-200 peer peer-checked:bg-slate-800 rounded-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
+                            <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-slate-900 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
                         </div>
                     </div>
-                    <ul class="divide-y divide-slate-100 hidden bg-white pl-5 pr-5" id="conteo-admin">
-                        <li class="p-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-700 font-bold">Datos de Empresa</span><input type="checkbox" value="admin_empresa" class="toggle-permiso"></label></li>
-                        <li class="p-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-700 font-bold">Seguridad (Roles, Permisos y Usuarios)</span><input type="checkbox" value="admin_seguridad" class="toggle-permiso"></label></li>
+                    <ul class="divide-y divide-slate-100 bg-white px-4" id="conteo-admin">
+                        <li class="py-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-600">Datos de Empresa</span><input type="checkbox" value="admin_empresa" class="toggle-permiso"></label></li>
+                        <li class="py-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-600">Seguridad y Usuarios</span><input type="checkbox" value="admin_seguridad" class="toggle-permiso"></label></li>
                     </ul>
                 </div>
 
-                <div class="border border-slate-100 rounded-lg overflow-hidden shadow-sm">
-                    <div class="bg-slate-50 px-5 py-4 flex items-center justify-between gap-4 border-b border-slate-200">
-                        <button class="flex-1 flex items-center gap-3 font-bold text-slate-800 text-left btn-acordeon" data-categoria="ventas">
-                            <span class="text-lg">💰</span>
-                            <span>Módulo de Ventas y Caja</span>
-                            <span class="text-xs font-mono text-slate-400 icono-flecha">+</span>
+                <div class="border border-slate-200 rounded-md">
+                    <div class="bg-slate-50 px-4 py-3 flex items-center justify-between border-b border-slate-200">
+                        <button class="flex-1 flex items-center font-semibold text-sm text-slate-800 text-left btn-acordeon" data-categoria="ventas">
+                            Módulo de Ventas <span class="ml-2 text-slate-400 font-normal icono-flecha">▼</span>
                         </button>
                         <div class="relative inline-flex items-center cursor-pointer">
                             <input type="checkbox" value="ventas" class="sr-only peer toggle-maestro" onchange="sincronizarMaestroHijo(this.value)">
-                            <div class="w-10 h-5 bg-slate-200 peer peer-checked:bg-emerald-600 rounded-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
+                            <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-slate-900 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
                         </div>
                     </div>
-                    <ul class="divide-y divide-slate-100 hidden bg-white pl-5 pr-5" id="conteo-ventas">
-                        <li class="p-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-700 font-bold">Acceso a Punto de Venta (POS)</span><input type="checkbox" value="ventas_pos" class="toggle-permiso"></label></li>
-                        <li class="p-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-700 font-bold">Aplicar Descuentos Manuales en Caja</span><input type="checkbox" value="ventas_descuentos" class="toggle-permiso"></label></li>
-                        <li class="p-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-700 font-bold">Cerrar Caja y Arqueo (Z)</span><input type="checkbox" value="ventas_cierre" class="toggle-permiso"></label></li>
-                        <li class="p-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-700 font-bold">Ver Cuentas por Cobrar</span><input type="checkbox" value="ventas_cxc" class="toggle-permiso"></label></li>
-                        <li class="p-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-700 font-bold">Ver Cotizaciones y Reservas</span><input type="checkbox" value="ventas_cotizaciones" class="toggle-permiso"></label></li>
-                        <li class="p-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-700 font-bold">Ver Laboratorio y Ranking</span><input type="checkbox" value="ventas_ranking" class="toggle-permiso"></label></li>
+                    <ul class="divide-y divide-slate-100 bg-white px-4" id="conteo-ventas">
+                        <li class="py-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-600">Punto de Venta (POS)</span><input type="checkbox" value="ventas_pos" class="toggle-permiso"></label></li>
+                        <li class="py-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-600">Aplicar Descuentos</span><input type="checkbox" value="ventas_descuentos" class="toggle-permiso"></label></li>
+                        <li class="py-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-600">Cerrar Caja (Z)</span><input type="checkbox" value="ventas_cierre" class="toggle-permiso"></label></li>
+                        <li class="py-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-600">Cuentas por Cobrar</span><input type="checkbox" value="ventas_cxc" class="toggle-permiso"></label></li>
+                        <li class="py-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-600">Cotizaciones</span><input type="checkbox" value="ventas_cotizaciones" class="toggle-permiso"></label></li>
+                        <li class="py-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-600">Ranking</span><input type="checkbox" value="ventas_ranking" class="toggle-permiso"></label></li>
                     </ul>
                 </div>
 
-                <div class="border border-slate-100 rounded-lg overflow-hidden shadow-sm">
-                    <div class="bg-slate-50 px-5 py-4 flex items-center justify-between gap-4 border-b border-slate-200">
-                        <button class="flex-1 flex items-center gap-3 font-bold text-slate-800 text-left btn-acordeon" data-categoria="inventario">
-                            <span class="text-lg">📦</span>
-                            <span>Módulo de Inventario</span>
-                            <span class="text-xs font-mono text-slate-400 icono-flecha">+</span>
+                <div class="border border-slate-200 rounded-md">
+                    <div class="bg-slate-50 px-4 py-3 flex items-center justify-between border-b border-slate-200">
+                        <button class="flex-1 flex items-center font-semibold text-sm text-slate-800 text-left btn-acordeon" data-categoria="inventario">
+                            Módulo de Inventario <span class="ml-2 text-slate-400 font-normal icono-flecha">▼</span>
                         </button>
                         <div class="relative inline-flex items-center cursor-pointer">
                             <input type="checkbox" value="inventario" class="sr-only peer toggle-maestro" onchange="sincronizarMaestroHijo(this.value)">
-                            <div class="w-10 h-5 bg-slate-200 peer peer-checked:bg-emerald-600 rounded-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
+                            <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-slate-900 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
                         </div>
                     </div>
-                    <ul class="divide-y divide-slate-100 hidden bg-white pl-5 pr-5" id="conteo-inventario">
-                        <li class="p-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-700 font-bold">Stock Actual</span><input type="checkbox" value="inventario_stock" class="toggle-permiso"></label></li>
-                        <li class="p-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-700 font-bold">Ajustes de Stock Manuales</span><input type="checkbox" value="inventario_ajustes" class="toggle-permiso"></label></li>
-                        <li class="p-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-700 font-bold">Pedidos a Proveedores</span><input type="checkbox" value="inventario_pedidos" class="toggle-permiso"></label></li>
-                        <li class="p-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-700 font-bold">Movimientos de Inventario</span><input type="checkbox" value="inventario_movimientos" class="toggle-permiso"></label></li>
-                        <li class="p-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-700 font-bold">Recetas / Fichas Técnicas</span><input type="checkbox" value="inventario_recetas" class="toggle-permiso"></label></li>
+                    <ul class="divide-y divide-slate-100 bg-white px-4" id="conteo-inventario">
+                        <li class="py-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-600">Stock Actual</span><input type="checkbox" value="inventario_stock" class="toggle-permiso"></label></li>
+                        <li class="py-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-600">Ajustes de Stock</span><input type="checkbox" value="inventario_ajustes" class="toggle-permiso"></label></li>
+                        <li class="py-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-600">Pedidos a Proveedores</span><input type="checkbox" value="inventario_pedidos" class="toggle-permiso"></label></li>
+                        <li class="py-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-600">Movimientos</span><input type="checkbox" value="inventario_movimientos" class="toggle-permiso"></label></li>
+                        <li class="py-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-600">Recetas</span><input type="checkbox" value="inventario_recetas" class="toggle-permiso"></label></li>
                     </ul>
                 </div>
 
-                <div class="border border-slate-100 rounded-lg overflow-hidden shadow-sm">
-                    <div class="bg-slate-50 px-5 py-4 flex items-center justify-between gap-4 border-b border-slate-200">
-                        <button class="flex-1 flex items-center gap-3 font-bold text-slate-800 text-left btn-acordeon" data-categoria="reportes">
-                            <span class="text-lg">📊</span>
-                            <span>Reportes Globales</span>
-                            <span class="text-xs font-mono text-slate-400 icono-flecha">+</span>
+                <div class="border border-slate-200 rounded-md">
+                    <div class="bg-slate-50 px-4 py-3 flex items-center justify-between border-b border-slate-200">
+                        <button class="flex-1 flex items-center font-semibold text-sm text-slate-800 text-left btn-acordeon" data-categoria="reportes">
+                            Reportes Globales <span class="ml-2 text-slate-400 font-normal icono-flecha">▼</span>
                         </button>
                         <div class="relative inline-flex items-center cursor-pointer">
                             <input type="checkbox" value="reportes" class="sr-only peer toggle-maestro" onchange="sincronizarMaestroHijo(this.value)">
-                            <div class="w-10 h-5 bg-slate-200 peer peer-checked:bg-blue-600 rounded-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
+                            <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-slate-900 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
                         </div>
                     </div>
-                    <ul class="divide-y divide-slate-100 hidden bg-white pl-5 pr-5" id="conteo-reportes">
-                        <li class="p-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-700 font-bold">Valorización de Inventario</span><input type="checkbox" value="reportes_valorizacion" class="toggle-permiso"></label></li>
-                        <li class="p-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-700 font-bold">Movimientos Globales (Kardex)</span><input type="checkbox" value="reportes_kardex" class="toggle-permiso"></label></li>
-                        <li class="p-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-700 font-bold">Historial Compras y Producción</span><input type="checkbox" value="reportes_historial" class="toggle-permiso"></label></li>
+                    <ul class="divide-y divide-slate-100 bg-white px-4" id="conteo-reportes">
+                        <li class="py-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-600">Valorización</span><input type="checkbox" value="reportes_valorizacion" class="toggle-permiso"></label></li>
+                        <li class="py-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-600">Kardex</span><input type="checkbox" value="reportes_kardex" class="toggle-permiso"></label></li>
+                        <li class="py-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-600">Historial Compras</span><input type="checkbox" value="reportes_historial" class="toggle-permiso"></label></li>
                     </ul>
                 </div>
 
-                <div class="border border-slate-100 rounded-lg overflow-hidden shadow-sm">
-                    <div class="bg-slate-50 px-5 py-4 flex items-center justify-between gap-4 border-b border-slate-200">
-                        <button class="flex-1 flex items-center gap-3 font-bold text-slate-800 text-left btn-acordeon" data-categoria="catalogos">
-                            <span class="text-lg">⚙️</span>
-                            <span>Módulo de Catálogos</span>
-                            <span class="text-xs font-mono text-slate-400 icono-flecha">+</span>
+                <div class="border border-slate-200 rounded-md">
+                    <div class="bg-slate-50 px-4 py-3 flex items-center justify-between border-b border-slate-200">
+                        <button class="flex-1 flex items-center font-semibold text-sm text-slate-800 text-left btn-acordeon" data-categoria="catalogos">
+                            Catálogos <span class="ml-2 text-slate-400 font-normal icono-flecha">▼</span>
                         </button>
                         <div class="relative inline-flex items-center cursor-pointer">
                             <input type="checkbox" value="catalogos" class="sr-only peer toggle-maestro" onchange="sincronizarMaestroHijo(this.value)">
-                            <div class="w-10 h-5 bg-slate-200 peer peer-checked:bg-orange-500 rounded-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
+                            <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-slate-900 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
                         </div>
                     </div>
-                    <ul class="divide-y divide-slate-100 hidden bg-white pl-5 pr-5" id="conteo-catalogos">
-                        <li class="p-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-700 font-bold">Productos</span><input type="checkbox" value="catalogos_productos" class="toggle-permiso"></label></li>
-                        <li class="p-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-700 font-bold">Categorías</span><input type="checkbox" value="catalogos_categorias" class="toggle-permiso"></label></li>
-                        <li class="p-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-700 font-bold">Unidades de Medida</span><input type="checkbox" value="catalogos_unidades" class="toggle-permiso"></label></li>
-                        <li class="p-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-700 font-bold">Proveedores</span><input type="checkbox" value="catalogos_proveedores" class="toggle-permiso"></label></li>
-                        <li class="p-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-700 font-bold">Tipos de Movimiento</span><input type="checkbox" value="catalogos_tipos_mov" class="toggle-permiso"></label></li>
-                        <li class="p-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-700 font-bold">Sucursales</span><input type="checkbox" value="catalogos_sucursales" class="toggle-permiso"></label></li>
-                        <li class="p-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-700 font-bold">Ubicaciones Internas</span><input type="checkbox" value="catalogos_ubicaciones" class="toggle-permiso"></label></li>
-                        <li class="p-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-700 font-bold">Clientes (POS)</span><input type="checkbox" value="catalogos_clientes" class="toggle-permiso"></label></li>
+                    <ul class="divide-y divide-slate-100 bg-white px-4" id="conteo-catalogos">
+                        <li class="py-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-600">Productos</span><input type="checkbox" value="catalogos_productos" class="toggle-permiso"></label></li>
+                        <li class="py-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-600">Categorías y Unidades</span><input type="checkbox" value="catalogos_categorias" class="toggle-permiso"></label></li>
+                        <li class="py-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-600">Proveedores</span><input type="checkbox" value="catalogos_proveedores" class="toggle-permiso"></label></li>
+                        <li class="py-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-600">Sucursales y Ubicaciones</span><input type="checkbox" value="catalogos_sucursales" class="toggle-permiso"></label></li>
+                        <li class="py-3"><label class="flex items-center justify-between cursor-pointer permiso-label"><span class="text-sm text-slate-600">Clientes</span><input type="checkbox" value="catalogos_clientes" class="toggle-permiso"></label></li>
                     </ul>
                 </div>
-
             </div>
         </div>
     </div>
 </div>
 
-<div id="modal-nuevo-rol" class="hidden fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center backdrop-blur-sm p-4">
-    <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-sm border border-slate-200">
-        <div class="flex justify-between items-center mb-4 border-b pb-3">
-            <h3 class="text-lg font-bold text-slate-800">Crear Nuevo Rol</h3>
-            <button onclick="cerrarModalNuevoRol()" class="text-slate-400 hover:text-slate-800 text-2xl font-bold">&times;</button>
+<div id="modal-nuevo-rol" class="hidden fixed inset-0 bg-slate-900/40 z-[60] flex items-center justify-center backdrop-blur-sm p-4">
+    <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-base font-bold text-slate-900">Nuevo Rol</h3>
+            <button onclick="cerrarModalNuevoRol()" class="text-slate-400 hover:text-slate-900 text-xl">&times;</button>
         </div>
         <div class="space-y-4">
-            <div>
-                <label class="block text-sm font-bold text-slate-700 mb-1">Nombre del Rol</label>
-                <input type="text" id="input-nombre-rol" placeholder="Ej: Cajero, Panadero, Bodeguero..." class="w-full px-4 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-slate-700">
-            </div>
-            <button onclick="guardarNuevoRol()" class="w-full py-2.5 bg-emerald-600 text-white rounded-lg font-bold shadow-md hover:bg-emerald-700 transition-colors">
-                💾 Guardar Rol Nuevo
-            </button>
+            <input type="text" id="input-nombre-rol" placeholder="Nombre del rol..." class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900">
+            <button onclick="guardarNuevoRol()" class="w-full py-2 bg-slate-900 text-white rounded-md text-sm font-medium hover:bg-slate-800 transition-colors">Guardar</button>
         </div>
     </div>
 </div>
 
 <style>
+    /* Checkbox sobrio negro/gris */
     .toggle-permiso {
-        appearance: none; width: 20px; height: 20px; border: 2px solid #e2e8f0; border-radius: 4px; position: relative; cursor: pointer; transition: background-color 0.15s;
+        appearance: none; width: 18px; height: 18px; border: 1.5px solid #cbd5e1; border-radius: 4px; cursor: pointer; background-color: white; transition: all 0.2s;
     }
-    .toggle-permiso:checked { background-color: #10b981; border-color: #10b981; }
-    .toggle-permiso:checked::after { content: '✓'; color: white; position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; }
-    .toggle-permiso:disabled { opacity: 0.5; background-color: #f1f5f9; cursor: not-allowed; }
+    .toggle-permiso:checked { background-color: #0f172a; border-color: #0f172a; }
+    .toggle-permiso:checked::after { content: '✓'; color: white; display: block; text-align: center; font-size: 12px; line-height: 16px; font-weight: bold; }
+    .toggle-permiso:disabled { opacity: 0.4; cursor: not-allowed; background-color: #f8fafc; }
 </style>
