@@ -571,67 +571,6 @@ window.actualizarTopBar = function(nombreEmpresa, rolUsuario) {
     }
 }
 
-// ==========================================
-// MÓDULO DE PARÁMETROS Y PERMISOS (JSON)
-// ==========================================
-
-window.cargarParametros = async function() {
-    if (!window.miEmpresaId) return;
-    try {
-        const { data, error } = await clienteSupabase.from('empresas').select('configuracion').eq('id', window.miEmpresaId).single();
-        if (error) throw error;
-        
-        const config = data.configuracion || {};
-        const opPermisos = config.operador || { catalogos: true, recetas: true, reportes: true }; 
-        
-        document.getElementById('toggle-op-catalogos').checked = opPermisos.catalogos !== false;
-        document.getElementById('toggle-op-recetas').checked = opPermisos.recetas !== false;
-        document.getElementById('toggle-op-reportes').checked = opPermisos.reportes !== false;
-    } catch (err) {
-        console.error("Error al cargar parámetros:", err);
-    }
-};
-
-window.guardarParametros = async function() {
-    const configNueva = {
-        operador: {
-            catalogos: document.getElementById('toggle-op-catalogos').checked,
-            recetas: document.getElementById('toggle-op-recetas').checked,
-            reportes: document.getElementById('toggle-op-reportes').checked
-        }
-    };
-    
-    try {
-        await clienteSupabase.from('empresas').update({ configuracion: configNueva }).eq('id', window.miEmpresaId);
-        console.log("Parámetros guardados automáticamente");
-    } catch (err) {
-        alert("Error al guardar: " + err.message);
-    }
-};
-
-window.aplicarPermisosVisuales = async function() {
-    if (window.miRol === 'Dueño' || window.miRol === 'Admin' || window.miRol === 'Administrador') {
-        ['catalogos', 'recetas', 'reportes'].forEach(modulo => {
-            document.getElementById(`btn-menu-${modulo}`)?.classList.remove('hidden');
-        });
-        return;
-    }
-    
-    if (window.miRol === 'Operador') {
-        const { data } = await clienteSupabase.from('empresas').select('configuracion').eq('id', window.miEmpresaId).single();
-        const config = data?.configuracion || {};
-        const opPermisos = config.operador || { catalogos: true, recetas: true, reportes: true };
-        
-        const btnCat = document.getElementById('btn-menu-catalogos');
-        const btnRec = document.getElementById('btn-menu-recetas');
-        const btnRep = document.getElementById('btn-menu-reportes');
-        
-        if (btnCat) opPermisos.catalogos === false ? btnCat.classList.add('hidden') : btnCat.classList.remove('hidden');
-        if (btnRec) opPermisos.recetas === false ? btnRec.classList.add('hidden') : btnRec.classList.remove('hidden');
-        if (btnRep) opPermisos.reportes === false ? btnRep.classList.add('hidden') : btnRep.classList.remove('hidden');
-    }
-};
-
 // --- UTILIDAD: Mostrar/Ocultar Contraseñas y PIN ---
 window.togglePasswordVisibility = function(inputId) {
     const input = document.getElementById(inputId);
@@ -681,6 +620,64 @@ window.validarPasswordsInv = function() {
         msg.className = "col-span-2 text-[10px] font-bold mt-0 text-red-500";
     }
 }
+
+// ============================================================================
+// SISTEMA DE PERMISOS VISUALES (SIDEBAR Y MENÚS)
+// ============================================================================
+window.aplicarPermisosVisuales = async function() {
+    // 1. Si es el Dueño, encendemos todos los botones del menú y terminamos.
+    if (window.miRol === 'Dueño' || window.miRol === 'Administrador Supremo') {
+        document.querySelectorAll('aside button, aside a').forEach(btn => btn.classList.remove('hidden'));
+        return;
+    }
+    
+    // 2. Si no es el dueño, ocultamos TODOS los módulos operativos por defecto por seguridad.
+    const modulosOcultables = [
+        'btn-menu-dashboard_ventas', 'submenu-dashboard_ventas',
+        'btn-menu-dashboard', 'submenu-inventario',
+        'btn-menu-reportes', 'btn-menu-catalogos', 'btn-menu-parametros'
+    ];
+    modulosOcultables.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+    });
+
+    // 3. Vamos a buscar a Supabase qué SÍ puede ver este usuario según su Rol
+    try {
+        const { data: { user } } = await clienteSupabase.auth.getUser();
+        if (!user) return;
+
+        // Primero buscamos el ID del rol de este usuario en esta empresa
+        const { data: userData } = await clienteSupabase.from('usuarios_empresas')
+            .select('id_rol')
+            .eq('id_usuario', user.id)
+            .eq('id_empresa', window.miEmpresaId)
+            .single();
+
+        if (!userData || !userData.id_rol) return; // Si no tiene rol configurado, se queda con todo oculto
+
+        // Luego buscamos sus permisos exactos
+        const { data: permisos } = await clienteSupabase.from('permisos_roles')
+            .select('modulo')
+            .eq('id_rol', userData.id_rol)
+            .eq('puede_ver', true);
+
+        if (!permisos) return;
+
+        // 4. Encendemos los botones del menú lateral según lo que haya en la base de datos
+        permisos.forEach(p => {
+            // Reglas de mapeo: si tiene el permiso maestro, le mostramos el botón en el menú izquierdo
+            if (p.modulo === 'ventas') document.getElementById('btn-menu-dashboard_ventas')?.classList.remove('hidden');
+            if (p.modulo === 'inventario') document.getElementById('btn-menu-dashboard')?.classList.remove('hidden');
+            if (p.modulo === 'reportes') document.getElementById('btn-menu-reportes')?.classList.remove('hidden');
+            if (p.modulo === 'catalogos') document.getElementById('btn-menu-catalogos')?.classList.remove('hidden');
+            if (p.modulo === 'admin') document.getElementById('btn-menu-parametros')?.classList.remove('hidden');
+        });
+
+    } catch (error) {
+        console.error("Error aplicando permisos visuales:", error);
+    }
+};
 
 // ============================================================================
 // SISTEMA DE RECUPERACIÓN DE CONTRASEÑA
