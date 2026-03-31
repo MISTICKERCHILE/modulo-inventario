@@ -1,5 +1,5 @@
 // ============================================================================
-// LÓGICA DE PARÁMETROS Y PERMISOS (VERSIÓN 3.3 - FIX SOMBREADO Y TOGGLES)
+// LÓGICA DE PARÁMETROS Y PERMISOS (VERSIÓN 3.4 - FIX MAESTROS Y GUARDADO)
 // ============================================================================
 
 const MAPA_PERMISOS = {
@@ -11,6 +11,7 @@ const MAPA_PERMISOS = {
 };
 
 window.rolActivoId = null;
+let hayCambiosSinGuardar = false; // Variable para controlar el botón Guardar
 
 window.cargarParametros = async function() {
     if (!window.miEmpresaId) return;
@@ -30,22 +31,22 @@ window.cargarParametros = async function() {
 
         dibujarListaRoles(roles);
         activarAcordeonesPermisos();
-        activarEventosMaestros(); // Conectamos los interruptores maestros con su inteligencia
+        activarEscuchasDeCambios(); // Nueva función para detectar cambios
 
         const adminRole = roles.find(r => r.nombre === 'Admin');
         const colabRole = roles.find(r => r.nombre === 'Colaborador');
 
-        // FORZAR PERMISOS BASE SI ESTÁN EN BLANCO
+        // FORZAR PERMISOS BASE SI ESTÁN EN BLANCO (Solo se ejecuta 1 vez por empresa nueva)
         if (adminRole) {
             const { count } = await clienteSupabase.from('permisos_roles').select('*', { count: 'exact', head: true }).eq('id_rol', adminRole.id);
             if (count === 0) {
                 let permisosFuerza = [];
+                // Admin: Todo ON, incluyendo Administración (como pediste)
                 Object.keys(MAPA_PERMISOS).forEach(master => {
-                    if (master !== 'admin') {
-                        permisosFuerza.push({ id_rol: adminRole.id, modulo: master, puede_ver: true });
-                        MAPA_PERMISOS[master].forEach(hijo => permisosFuerza.push({ id_rol: adminRole.id, modulo: hijo, puede_ver: true }));
-                    }
+                    permisosFuerza.push({ id_rol: adminRole.id, modulo: master, puede_ver: true });
+                    MAPA_PERMISOS[master].forEach(hijo => permisosFuerza.push({ id_rol: adminRole.id, modulo: hijo, puede_ver: true }));
                 });
+                // Colaborador: Todo ON menos Admin y Recetas
                 Object.keys(MAPA_PERMISOS).forEach(master => {
                     if (master !== 'admin') {
                         permisosFuerza.push({ id_rol: colabRole.id, modulo: master, puede_ver: true });
@@ -69,7 +70,6 @@ window.cargarParametros = async function() {
 function dibujarListaRoles(roles) {
     const listaHtml = document.getElementById('lista-roles-parametros');
     if (!listaHtml) return;
-    // FIX SOMBREADO: Todos nacen en blanco, la función seleccionarRol se encargará de pintarlos
     listaHtml.innerHTML = roles.map(rol => {
         return `
             <li id="li-rol-${rol.id}" onclick="seleccionarRol('${rol.id}', '${rol.nombre}')" class="px-4 py-3 cursor-pointer flex justify-between items-center transition-colors bg-white hover:bg-slate-50 text-slate-700 border-l-4 border-transparent">
@@ -81,22 +81,22 @@ function dibujarListaRoles(roles) {
 
 window.seleccionarRol = async function(idRol, nombreRol) {
     window.rolActivoId = idRol;
+    hayCambiosSinGuardar = false; // Reseteamos al cambiar de rol
+    actualizarBotonGuardar(); // Actualiza estado visual del botón
+    
     document.getElementById('nombre-rol-activo').innerText = nombreRol;
     
-    // FIX SOMBREADO: Limpiamos todos los roles a color blanco
+    // Pintamos de negro SOLO el rol al que le hicimos clic
     document.querySelectorAll('#lista-roles-parametros li').forEach(li => {
         li.className = "px-4 py-3 cursor-pointer flex justify-between items-center transition-colors bg-white hover:bg-slate-50 text-slate-700 border-l-4 border-transparent";
     });
-    
-    // FIX SOMBREADO: Pintamos de negro SOLO el rol al que le hicimos clic
     const liActivo = document.getElementById(`li-rol-${idRol}`);
     if(liActivo) {
-        liActivo.className = "px-4 py-3 cursor-pointer flex justify-between items-center transition-colors bg-slate-900 text-white border-l-4 border-emerald-500 shadow-md";
+        liActivo.className = "px-4 py-3 cursor-pointer flex justify-between items-center transition-colors bg-slate-900 text-white border-l-4 border-emerald-500 shadow-sm";
     }
 
     const toggles = document.querySelectorAll('.toggle-permiso');
     const maestros = document.querySelectorAll('.toggle-maestro');
-    const btnGuardar = document.getElementById('btn-guardar-permisos');
     
     // Apagar todo visualmente antes de cargar
     toggles.forEach(t => { t.checked = false; t.disabled = false; });
@@ -109,7 +109,6 @@ window.seleccionarRol = async function(idRol, nombreRol) {
         // DUEÑO: Todo bloqueado en ON
         toggles.forEach(t => { t.checked = true; t.disabled = true; });
         maestros.forEach(t => { t.checked = true; t.disabled = true; });
-        if(btnGuardar) { btnGuardar.disabled = false; btnGuardar.innerText = "Guardar Cambios"; btnGuardar.classList.remove('opacity-50', 'cursor-not-allowed'); }
         return; 
     }
 
@@ -124,13 +123,13 @@ window.seleccionarRol = async function(idRol, nombreRol) {
                 if(granular && p.puede_ver) granular.checked = true;
             });
         }
-        // Aplicar bloqueos visuales según lo que cargó la BD (sin auto-encender)
+        // Aplicar bloqueos visuales según estado inicial
         maestros.forEach(m => window.sincronizarMaestroHijo(m.value, false));
     } catch (err) { console.error(err); }
 };
 
 // ==========================================
-// INTELIGENCIA DE ACORDEONES Y MAESTROS
+// INTELIGENCIA DE ACORDEONES, MAESTROS Y BOTÓN GUARDAR
 // ==========================================
 function activarAcordeonesPermisos() {
     document.querySelectorAll('.btn-acordeon').forEach(boton => {
@@ -143,17 +142,39 @@ function activarAcordeonesPermisos() {
     });
 }
 
-function activarEventosMaestros() {
-    // Escuchamos cuando el usuario hace clic manualmente en un interruptor Maestro
+function activarEscuchasDeCambios() {
+    // Escuchar Maestros
     document.querySelectorAll('.toggle-maestro').forEach(maestro => {
-        maestro.removeAttribute('onchange'); // Quitamos el onchange viejo del HTML por seguridad
         maestro.addEventListener('change', function() {
-            window.sincronizarMaestroHijo(this.value, true); // true = Fue un click manual, auto-enciende los hijos
+            hayCambiosSinGuardar = true;
+            actualizarBotonGuardar();
+            window.sincronizarMaestroHijo(this.value, true); // true = Fue click manual
+        });
+    });
+
+    // Escuchar Sub-Permisos (Hijos)
+    document.querySelectorAll('.toggle-permiso').forEach(hijo => {
+        hijo.addEventListener('change', function() {
+            hayCambiosSinGuardar = true;
+            actualizarBotonGuardar();
         });
     });
 }
 
-// FIX TOGGLES: Función que sincroniza maestros e hijos
+function actualizarBotonGuardar() {
+    const btnGuardar = document.getElementById('btn-guardar-permisos');
+    if (!btnGuardar) return;
+
+    if (hayCambiosSinGuardar) {
+        btnGuardar.disabled = false;
+        btnGuardar.classList.remove('opacity-50', 'cursor-not-allowed');
+    } else {
+        btnGuardar.disabled = true;
+        btnGuardar.classList.add('opacity-50', 'cursor-not-allowed');
+    }
+}
+
+// Lógica de Sincronización Maestro-Hijo
 window.sincronizarMaestroHijo = function(categoriaMaster, fueClickManual = false) {
     const maestro = document.querySelector(`.toggle-maestro[value="${categoriaMaster}"]`);
     if (!maestro) return;
@@ -166,18 +187,15 @@ window.sincronizarMaestroHijo = function(categoriaMaster, fueClickManual = false
         if (inputHijo) {
             const label = inputHijo.closest('.permiso-label');
             if (!isON) {
-                // Maestro APAGADO: Apagamos y bloqueamos hijos
                 inputHijo.checked = false; 
                 inputHijo.disabled = true;
                 if(label) label.classList.add('opacity-40', 'cursor-not-allowed');
             } else {
-                // Maestro ENCENDIDO: Desbloqueamos hijos
                 if (document.getElementById('nombre-rol-activo').innerText.toLowerCase() !== 'dueño') {
                     inputHijo.disabled = false;
                 }
                 if(label) label.classList.remove('opacity-40', 'cursor-not-allowed');
                 
-                // MAGIA: Si el usuario prendió el maestro con un clic, prendemos todos los hijos automáticamente
                 if (fueClickManual) {
                     inputHijo.checked = true;
                 }
@@ -207,9 +225,19 @@ window.guardarPermisosRol = async function() {
     try {
         await clienteSupabase.from('permisos_roles').delete().eq('id_rol', window.rolActivoId);
         if (toSave.length > 0) await clienteSupabase.from('permisos_roles').insert(toSave);
+        
+        // Exito
+        hayCambiosSinGuardar = false;
+        actualizarBotonGuardar();
+        
+        // Usamos una notificación pequeña en vez de un 'alert' invasivo si es posible, pero mantenemos alert por ahora por simplicidad
         alert("✅ Configuración guardada exitosamente.");
-    } catch (err) { alert("Error al guardar."); } 
-    finally { btn.innerText = "Guardar Cambios"; btn.disabled = false; }
+    } catch (err) { 
+        alert("Error al guardar."); 
+    } finally { 
+        btn.innerText = "Guardar Cambios"; 
+        if (hayCambiosSinGuardar) btn.disabled = false;
+    }
 };
 
 window.abrirModalNuevoRol = () => document.getElementById('modal-nuevo-rol').classList.remove('hidden');
