@@ -1,10 +1,14 @@
+// Esperamos a que la configuración esté lista
+const supabaseUrl = window.SUPABASE_CONFIG?.url;
+const supabaseKey = window.SUPABASE_CONFIG?.key;
 
-async function obtenerDatosSeguros(tabla) {
-  const respuesta = await fetch('/api/get-data', {
-    method: 'POST',
-    body: JSON.stringify({ table: tabla })
-  });
-  return await respuesta.json();
+if (!supabaseUrl || !supabaseKey) {
+    console.error("Error: No se cargaron las llaves de configuración.");
 }
 
-window.apiBuddy = { obtenerDatosSeguros };
+window.clienteSupabase = supabase.createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true
+  }
+});
