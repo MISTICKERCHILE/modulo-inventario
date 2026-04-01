@@ -8,11 +8,20 @@
     <link rel="icon" type="image/png" href="img/img/favicon.png">
 
     <script>
-        if (typeof process === 'undefined') { window.process = { env: { NODE_ENV: 'development' } }; }
+        window.tailwind = {
+            config: {
+                theme: { extend: {} }
+            }
+        }
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
+
+    <script src="/config.js"></script> 
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+    <script src="supabase.js"></script>
 </head>
 <body class="bg-slate-50 min-h-screen font-sans text-slate-800">
 
