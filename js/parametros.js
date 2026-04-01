@@ -1,9 +1,8 @@
 // ============================================================================
-// LÓGICA DE PARÁMETROS Y PERMISOS (VERSIÓN 3.5 - MAESTROS REPARADOS)
+// LÓGICA DE PARÁMETROS Y PERMISOS (VERSIÓN 4.0 - LA DEFINITIVA)
 // ============================================================================
 
 const MAPA_PERMISOS = {
-    // CORRECCIÓN: El maestro en el HTML se llama "admin", no "admin_empresa"
     admin: ['admin_empresa', 'admin_seguridad'],
     ventas: ['ventas_pos', 'ventas_descuentos', 'ventas_cierre', 'ventas_cxc', 'ventas_cotizaciones', 'ventas_ranking'],
     inventario: ['inventario_stock', 'inventario_ajustes', 'inventario_pedidos', 'inventario_movimientos', 'inventario_recetas'],
@@ -32,13 +31,12 @@ window.cargarParametros = async function() {
 
         dibujarListaRoles(roles);
         activarAcordeonesPermisos();
-        
-        // ¡AQUÍ ESTÁ LA MAGIA REPARADA!
         activarEscuchasDeCambios(); 
 
         const adminRole = roles.find(r => r.nombre === 'Admin');
         const colabRole = roles.find(r => r.nombre === 'Colaborador');
 
+        // FORZAR PERMISOS BASE SI ESTÁN EN BLANCO
         if (adminRole) {
             const { count } = await clienteSupabase.from('permisos_roles').select('*', { count: 'exact', head: true }).eq('id_rol', adminRole.id);
             if (count === 0) {
@@ -96,6 +94,7 @@ window.seleccionarRol = async function(idRol, nombreRol) {
 
     const toggles = document.querySelectorAll('.toggle-permiso');
     const maestros = document.querySelectorAll('.toggle-maestro');
+    const btnGuardar = document.getElementById('btn-guardar-permisos');
     
     toggles.forEach(t => { t.checked = false; t.disabled = false; });
     maestros.forEach(t => { t.checked = false; t.disabled = false; });
@@ -104,9 +103,19 @@ window.seleccionarRol = async function(idRol, nombreRol) {
     const esDueno = nombreRol.toLowerCase() === 'dueño' || nombreRol.toLowerCase() === 'dueno';
 
     if (esDueno) {
+        // DUEÑO: TODO PRENDIDO Y BLOQUEADO
         toggles.forEach(t => { t.checked = true; t.disabled = true; });
         maestros.forEach(t => { t.checked = true; t.disabled = true; });
+        if(btnGuardar) { 
+            btnGuardar.disabled = true; 
+            btnGuardar.innerText = "Acceso Total (Intocable)"; 
+            btnGuardar.classList.add('opacity-50', 'cursor-not-allowed'); 
+        }
         return; 
+    } else {
+        if(btnGuardar) { 
+            btnGuardar.innerText = "Guardar Cambios"; 
+        }
     }
 
     try {
@@ -119,42 +128,36 @@ window.seleccionarRol = async function(idRol, nombreRol) {
                 if(granular && p.puede_ver) granular.checked = true;
             });
         }
-        
-        // Bloqueamos los hijos visualmente solo si el maestro está apagado
-        maestros.forEach(m => {
-            if (!m.checked) window.sincronizarMaestroHijo(m.value, false);
-        });
-
+        maestros.forEach(m => window.sincronizarMaestroHijo(m.value, false));
     } catch (err) { console.error(err); }
 };
 
-// ==========================================
-// EL MOTOR REPARADO DE LOS BOTONES MAESTROS
-// ==========================================
+function activarAcordeonesPermisos() {
+    document.querySelectorAll('.btn-acordeon').forEach(boton => {
+        boton.onclick = function() {
+            const container = document.getElementById(`conteo-${this.dataset.categoria}`);
+            const icono = this.querySelector('.icono-flecha');
+            container.classList.toggle('hidden');
+            icono.innerText = container.classList.contains('hidden') ? '▼' : '▲';
+        }
+    });
+}
+
 function activarEscuchasDeCambios() {
-    // 1. Escuchar los interruptores MAESTROS
+    // Usamos onchange nativo para evitar duplicados en la SPA
     document.querySelectorAll('.toggle-maestro').forEach(maestro => {
-        // Removemos cualquier listener viejo para que no se duplique
-        const nuevoMaestro = maestro.cloneNode(true);
-        maestro.parentNode.replaceChild(nuevoMaestro, maestro);
-        
-        nuevoMaestro.addEventListener('change', function(e) {
-            console.log("Clic detectado en maestro:", this.value, "Estado:", this.checked);
+        maestro.onchange = function() {
             hayCambiosSinGuardar = true;
             actualizarBotonGuardar();
             window.sincronizarMaestroHijo(this.value, true);
-        });
+        };
     });
 
-    // 2. Escuchar los interruptores HIJOS
     document.querySelectorAll('.toggle-permiso').forEach(hijo => {
-        const nuevoHijo = hijo.cloneNode(true);
-        hijo.parentNode.replaceChild(nuevoHijo, hijo);
-
-        nuevoHijo.addEventListener('change', function(e) {
+        hijo.onchange = function() {
             hayCambiosSinGuardar = true;
             actualizarBotonGuardar();
-        });
+        };
     });
 }
 
@@ -171,7 +174,7 @@ function actualizarBotonGuardar() {
     }
 }
 
-window.sincronizarMaestroHijo = function(categoriaMaster, autoEncenderHijos = false) {
+window.sincronizarMaestroHijo = function(categoriaMaster, autoEncender = false) {
     const maestro = document.querySelector(`.toggle-maestro[value="${categoriaMaster}"]`);
     if (!maestro) return;
     
@@ -182,21 +185,17 @@ window.sincronizarMaestroHijo = function(categoriaMaster, autoEncenderHijos = fa
         const inputHijo = document.querySelector(`.toggle-permiso[value="${idHijo}"]`);
         if (inputHijo) {
             const label = inputHijo.closest('.permiso-label');
-            
             if (!isON) {
-                // APAGAR Y BLOQUEAR
                 inputHijo.checked = false; 
                 inputHijo.disabled = true;
                 if(label) label.classList.add('opacity-40', 'cursor-not-allowed');
             } else {
-                // ENCENDIDO: DESBLOQUEAR
                 if (document.getElementById('nombre-rol-activo').innerText.toLowerCase() !== 'dueño') {
                     inputHijo.disabled = false;
                 }
                 if(label) label.classList.remove('opacity-40', 'cursor-not-allowed');
                 
-                // Si el clic fue manual en el maestro, encendemos todos los hijos automáticamente
-                if (autoEncenderHijos) {
+                if (autoEncender) {
                     inputHijo.checked = true;
                 }
             }
@@ -204,9 +203,6 @@ window.sincronizarMaestroHijo = function(categoriaMaster, autoEncenderHijos = fa
     });
 }
 
-// ==========================================
-// GUARDAR PERMISOS
-// ==========================================
 window.guardarPermisosRol = async function() {
     if (!window.rolActivoId) return;
 
