@@ -15,20 +15,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     const urlParams = new URLSearchParams(window.location.search);
     const inviteId = urlParams.get('invite');
 
-    // RADAR DE RECUPERACIÓN DE CONTRASEÑA (Viene del enlace del correo)
+// RADAR DE RECUPERACIÓN DE CONTRASEÑA MEJORADO
     const hashData = window.location.hash;
-    if (hashData && hashData.includes('type=recovery')) {
-        setTimeout(() => {
-            // Escondemos todo lo normal
-            document.getElementById('dashboard-container').classList.add('hidden');
-            document.getElementById('login-container').classList.remove('hidden');
-            document.getElementById('auth-tabs').classList.add('hidden');
-            document.getElementById('form-login-view').classList.add('hidden');
-            
-            // Mostramos el formulario de crear nueva contraseña
-            document.getElementById('form-nueva-pass').classList.remove('hidden');
-        }, 50);
-        return; // Detenemos el resto de comprobaciones
+    if (hashData && (hashData.includes('type=recovery') || hashData.includes('access_token='))) {
+        // 1. Limpiamos la URL para que el usuario no vea ese código gigante
+        // Pero lo guardamos un segundo para confirmar que es recuperación
+        const esRecuperacion = hashData.includes('type=recovery');
+
+        if (esRecuperacion) {
+            setTimeout(() => {
+                // Escondemos preloader y login normal
+                document.getElementById('dashboard-container')?.classList.add('hidden');
+                document.getElementById('login-container')?.classList.remove('hidden');
+                
+                // Ocultamos pestañas y login, mostramos solo el de NUEVA PASS
+                document.getElementById('auth-tabs')?.classList.add('hidden');
+                document.getElementById('form-login-view')?.classList.add('hidden');
+                document.getElementById('form-nueva-pass')?.classList.remove('hidden');
+                
+                console.log("🛠️ Modo recuperación activado");
+            }, 100);
+            return; 
+        }
     }
     
     if (urlParams.get('registro') === 'true') {
@@ -763,7 +771,7 @@ document.getElementById('form-nueva-pass').addEventListener('submit', async (e) 
 
     alert("🎉 ¡Tu contraseña ha sido actualizada con éxito!");
     
-    // Lo mandamos al login limpiecito para que entre con su nueva clave
-    window.location.hash = ''; // Borramos el token de la URL
-    window.location.reload(); 
+    // ESTO ES LO NUEVO: Limpia la URL de basura y recarga para entrar
+    window.location.href = window.location.pathname; 
 });
+
