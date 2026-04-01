@@ -255,6 +255,13 @@ function renderizarCarrito() {
     }).join('');
 
     document.getElementById('pos-total-pagar').innerText = "$" + total.toLocaleString('es-CL');
+
+    // Novedad: Actualizar también los números del Botón Flotante Móvil
+    const cantTotalItems = window.carritoPos.reduce((acc, item) => acc + item.cantidad, 0);
+    const countMobile = document.getElementById('cart-count-mobile');
+    const totalMobile = document.getElementById('cart-total-mobile');
+    if(countMobile) countMobile.innerText = cantTotalItems;
+    if(totalMobile) totalMobile.innerText = "$" + total.toLocaleString('es-CL');
 }
 
 // Botones de + y - dentro del carrito
@@ -560,4 +567,14 @@ window.volverDashboardPOS = function() {
     
     // 2. Volvemos a mostrar el menú de los 3 botones gigantes
     document.getElementById('pos-dashboard').classList.remove('hidden');
+}
+
+// Mostrar/Ocultar el carrito en modo Teléfono
+window.toggleCarritoMobile = function() {
+    const sidebar = document.getElementById('pos-carrito-sidebar');
+    if(sidebar.classList.contains('translate-y-full')) {
+        sidebar.classList.remove('translate-y-full'); // Subir carrito
+    } else {
+        sidebar.classList.add('translate-y-full'); // Bajar carrito
+    }
 }
