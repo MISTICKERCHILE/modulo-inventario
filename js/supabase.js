@@ -1,14 +1,20 @@
-const urlConfig = window.SUPABASE_CONFIG?.url;
-const keyConfig = window.SUPABASE_CONFIG?.key;
 
-if (!urlConfig || !keyConfig) {
-    console.error("Error: No se cargaron las llaves de configuración desde Vercel.");
-}
+(function() {
+    
+    const urlConfig = window.SUPABASE_CONFIG?.url;
+    const keyConfig = window.SUPABASE_CONFIG?.key;
 
-// Creamos el cliente usando las llaves de la configuración dinámica
-window.clienteSupabase = supabase.createClient(urlConfig, keyConfig, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true
-  }
-});
+    if (!urlConfig || !keyConfig) {
+        console.warn("Aviso: Esperando configuración de Vercel...");
+    }
+
+    if (urlConfig && keyConfig && !window.clienteSupabase) {
+        window.clienteSupabase = supabase.createClient(urlConfig, keyConfig, {
+            auth: {
+                persistSession: true,
+                autoRefreshToken: true
+            }
+        });
+        console.log("✅ Supabase conectado con éxito en buddyerp.com");
+    }
+})();
