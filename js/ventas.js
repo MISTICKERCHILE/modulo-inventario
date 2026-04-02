@@ -624,22 +624,45 @@ window.cerrarEscanerCamara = function() {
     }
 }
 
-window.procesarEscaneoFisico = function(codigoDeBarras) {
-    // Buscamos el producto en la memoria que ya cargamos de Supabase
-    const productoEncontrado = window.productosPosMemoria.find(p => p.codigo_barras === codigoDeBarras);
+let modoEscanerActual = 'POS'; // Para saber si estamos cobrando o creando un producto
+
+// Le agregamos la variable "modo" (Por defecto es POS)
+window.abrirEscanerCamara = function(modo = 'POS') {
+    modoEscanerActual = modo;
+    document.getElementById('modal-escaner-camara').classList.remove('hidden');
     
-    if (productoEncontrado) {
-        // Hacemos que el celular vibre un poquito si es posible (Feedback táctil)
-        if (navigator.vibrate) navigator.vibrate(100);
-        
-        // Lo tiramos al carrito
-        agregarAlCarrito(productoEncontrado.id);
-        
-        // Mostramos un mensajito rápido tipo "toast"
-        alert(`✅ ¡Agregado: ${productoEncontrado.nombre}!`);
-        
-    } else {
-        if (navigator.vibrate) navigator.vibrate([200, 100, 200]); // Doble vibración de error
-        alert(`❌ Código "${codigoDeBarras}" no existe en el catálogo POS.`);
-    }
+    if (escanerCamara) { escanerCamara.clear(); }
+    
+    escanerCamara = new Html5Qrcode("lector-camara-pos");
+    const config = { fps: 10, qrbox: { width: 250, height: 100 } };
+    
+    escanerCamara.start({ facingMode: "environment" }, config, 
+        (textoDecodificado) => {
+            // ¡CÓDIGO LEYÓDO! Apagamos la cámara
+            cerrarEscanerCamara();
+            
+            // 🧠 DECISIÓN INTELIGENTE: ¿Qué hacemos con el código?
+            if (modoEscanerActual === 'PRODUCTO') {
+                // Si estamos creando un producto, lo pegamos en el formulario
+                document.getElementById('prod-codigo-barras').value = textoDecodificado;
+                if (navigator.vibrate) navigator.vibrate(100);
+                
+                // Efecto visual para que el usuario note que se pegó
+                const input = document.getElementById('prod-codigo-barras');
+                input.classList.add('bg-emerald-100', 'ring-2', 'ring-emerald-500');
+                setTimeout(() => input.classList.remove('bg-emerald-100', 'ring-2', 'ring-emerald-500'), 1000);
+                
+            } else {
+                // Si estamos en el POS, lo tiramos al carrito
+                procesarEscaneoFisico(textoDecodificado);
+            }
+        },
+        (mensajeError) => {
+            // Ignoramos errores de enfoque
+        }
+    ).catch(err => {
+        console.error("Error iniciando cámara:", err);
+        alert("❌ No se pudo acceder a la cámara. Revisa los permisos de tu navegador.");
+        cerrarEscanerCamara();
+    });
 }
