@@ -578,3 +578,68 @@ window.toggleCarritoMobile = function() {
         sidebar.classList.add('translate-y-full'); // Bajar carrito
     }
 }
+
+// ==========================================
+// ESCÁNER DE CÓDIGO DE BARRAS POR CÁMARA (MÓVIL)
+// ==========================================
+let escanerCamara = null;
+
+window.abrirEscanerCamara = function() {
+    document.getElementById('modal-escaner-camara').classList.remove('hidden');
+    
+    // Si ya hay una instancia, la limpiamos por precaución
+    if (escanerCamara) { escanerCamara.clear(); }
+    
+    // Inicializamos el lector en el div que creamos
+    escanerCamara = new Html5Qrcode("lector-camara-pos");
+    
+    // Configuramos para usar la cámara trasera y darle forma de rectángulo de código de barras
+    const config = { fps: 10, qrbox: { width: 250, height: 100 } };
+    
+    escanerCamara.start({ facingMode: "environment" }, config, 
+        (textoDecodificado) => {
+            // ¡LO LEYÓ! Apagamos la cámara instantáneamente
+            cerrarEscanerCamara();
+            
+            // Le pasamos el código exacto a nuestra función para que lo tire al carrito
+            procesarEscaneoFisico(textoDecodificado);
+        },
+        (mensajeError) => {
+            // Ignoramos los errores continuos mientras busca enfocar
+        }
+    ).catch(err => {
+        console.error("Error iniciando cámara:", err);
+        alert("❌ No se pudo acceder a la cámara. Revisa los permisos de tu navegador.");
+        cerrarEscanerCamara();
+    });
+}
+
+window.cerrarEscanerCamara = function() {
+    document.getElementById('modal-escaner-camara').classList.add('hidden');
+    if (escanerCamara) {
+        escanerCamara.stop().then(() => {
+            escanerCamara.clear();
+            escanerCamara = null;
+        }).catch(err => console.error("Error al detener cámara:", err));
+    }
+}
+
+window.procesarEscaneoFisico = function(codigoDeBarras) {
+    // Buscamos el producto en la memoria que ya cargamos de Supabase
+    const productoEncontrado = window.productosPosMemoria.find(p => p.codigo_barras === codigoDeBarras);
+    
+    if (productoEncontrado) {
+        // Hacemos que el celular vibre un poquito si es posible (Feedback táctil)
+        if (navigator.vibrate) navigator.vibrate(100);
+        
+        // Lo tiramos al carrito
+        agregarAlCarrito(productoEncontrado.id);
+        
+        // Mostramos un mensajito rápido tipo "toast"
+        alert(`✅ ¡Agregado: ${productoEncontrado.nombre}!`);
+        
+    } else {
+        if (navigator.vibrate) navigator.vibrate([200, 100, 200]); // Doble vibración de error
+        alert(`❌ Código "${codigoDeBarras}" no existe en el catálogo POS.`);
+    }
+}

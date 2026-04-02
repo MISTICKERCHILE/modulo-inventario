@@ -82,13 +82,18 @@
         
         <div class="flex-1 flex flex-col h-full overflow-hidden relative z-10 pb-24 md:pb-0">
             
-            <div class="bg-white px-4 py-3 flex items-center justify-between border-b shadow-sm shrink-0">
+            <div class="bg-white px-4 py-3 flex items-center justify-between border-b shadow-sm shrink-0 gap-2">
                 <button onclick="volverAlPosDashboard()" class="text-slate-500 hover:text-slate-800 font-bold px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors flex items-center gap-2 outline-none">
                     <span class="text-xl">←</span> <span class="hidden sm:inline">Volver</span>
                 </button>
-                <div class="flex-1 max-w-lg mx-4 relative">
-                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-lg">🔍</span>
-                    <input type="text" oninput="buscarProductoPOS(this.value)" placeholder="Buscar o escanear código de barras..." class="w-full pl-10 pr-4 py-3 border-2 border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none transition-all font-medium text-slate-700 shadow-inner">
+                <div class="flex-1 max-w-lg flex items-center gap-2 relative">
+                    <div class="relative flex-1">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-lg">🔍</span>
+                        <input type="text" id="pos-input-buscador" oninput="buscarProductoPOS(this.value)" placeholder="Buscar o escanear código..." class="w-full pl-10 pr-4 py-3 border-2 border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none transition-all font-medium text-slate-700 shadow-inner">
+                    </div>
+                    <button onclick="abrirEscanerCamara()" class="md:hidden bg-slate-800 text-white p-3 rounded-xl shadow-md hover:bg-slate-700 active:scale-95 transition-all outline-none">
+                        <span class="text-xl">📷</span>
+                    </button>
                 </div>
             </div>
 
@@ -218,5 +223,16 @@
                 <button onclick="document.getElementById('modal-guardar-cuenta').classList.add('hidden')" class="flex-1 py-3 text-slate-600 font-bold hover:bg-slate-100 rounded-xl transition-colors">Cancelar</button>
                 <button onclick="confirmarGuardarCuenta()" class="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md transition-colors">Guardar</button>
             </div>
+        </div>
+    </div>
+
+    <div id="modal-escaner-camara" class="hidden fixed inset-0 bg-black/95 z-[100] flex flex-col items-center justify-center p-4">
+        <button onclick="cerrarEscanerCamara()" class="absolute top-6 right-6 text-white hover:text-red-400 text-5xl font-bold outline-none">&times;</button>
+        <div class="text-center mb-6">
+            <h3 class="text-white font-black text-2xl tracking-widest uppercase mb-2">Escáner POS</h3>
+            <p class="text-emerald-400 font-bold text-sm">Apunta la cámara al código de barras</p>
+        </div>
+        <div id="lector-camara-pos" class="w-full max-w-sm rounded-3xl overflow-hidden shadow-[0_0_30px_rgba(52,211,153,0.3)] border-4 border-emerald-500/50 relative">
+             <div class="absolute inset-0 border-y-2 border-red-500/50 top-1/2 transform -translate-y-1/2 h-10 z-10 pointer-events-none animate-pulse"></div>
         </div>
     </div>
