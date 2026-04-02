@@ -51,16 +51,43 @@ function actualizarPuntosPin() {
     });
 }
 
-function validarPin() {
-    // Aquí luego cruzaremos con Supabase. Por ahora usamos el 1234.
-    if(pinActual === PIN_CORRECTO) {
-        entrarAlPos();
-    } else {
-        // PIN Incorrecto: Animación roja
-        const dots = document.querySelectorAll('.pin-dot');
-        dots.forEach(dot => dot.classList.replace('bg-emerald-400', 'bg-red-500'));
-        setTimeout(borrarTodoElPin, 500);
+window.validarPin = async function() {
+    try {
+        const { data: authData } = await clienteSupabase.auth.getUser();
+        if (!authData.user) throw new Error("No hay sesión activa");
+
+        // Usamos pin_seguridad como me indicaste
+        const { data: perfil } = await clienteSupabase
+            .from('perfiles')
+            .select('pin_seguridad')
+            .eq('id_usuario', authData.user.id)
+            .single();
+
+        // Si no encuentra el perfil o no tiene PIN, usa 1234 por defecto
+        const pinReal = (perfil && perfil.pin_seguridad) ? perfil.pin_seguridad.toString() : "1234";
+
+        if(pinActual === pinReal) {
+            entrarAlPos();
+        } else {
+            errorPinAnimation();
+        }
+    } catch (error) {
+        console.error("Error validando PIN:", error);
+        errorPinAnimation();
     }
+}
+
+function errorPinAnimation() {
+    const dots = document.querySelectorAll('.pin-dot');
+    dots.forEach(dot => dot.classList.replace('bg-emerald-400', 'bg-red-500'));
+    setTimeout(borrarTodoElPin, 500);
+}
+
+// Separé la animación de error para que quede más limpio
+function errorPinAnimation() {
+    const dots = document.querySelectorAll('.pin-dot');
+    dots.forEach(dot => dot.classList.replace('bg-emerald-400', 'bg-red-500'));
+    setTimeout(borrarTodoElPin, 500);
 }
 
 // === NAVEGACIÓN DENTRO DEL POS ===
@@ -120,9 +147,11 @@ window.volverAlPosDashboard = function() {
 }
 
 window.cerrarTurno = function() {
-    if(confirm("¿Seguro que deseas iniciar el cierre de caja?")) {
-        alert("Iniciando arqueo de caja...");
-        // Esto lo programaremos luego
+    if(confirm("⚠️ ¿Estás seguro que deseas realizar el Cierre de Caja?\n\nEsto finalizará tu turno actual y cerrará tu sesión por seguridad.")) {
+        // Aquí a futuro abriremos el "Modal de Arqueo de Caja" (Contar billetes).
+        // Por ahora, aplicamos la regla estricta: Se cierra la sesión.
+        alert("Cierre de caja registrado. Cerrando sesión...");
+        window.cerrarSesion(); 
     }
 }
 
@@ -634,7 +663,18 @@ window.abrirEscanerCamara = function(modo = 'POS') {
     if (escanerCamara) { escanerCamara.clear(); }
     
     escanerCamara = new Html5Qrcode("lector-camara-pos");
-    const config = { fps: 10, qrbox: { width: 250, height: 100 } };
+    const config = { 
+        fps: 15, 
+        qrbox: { width: 300, height: 120 },
+        formatsToSupport: [
+            Html5QrcodeSupportedFormats.EAN_13,
+            Html5QrcodeSupportedFormats.EAN_8,
+            Html5QrcodeSupportedFormats.UPC_A,
+            Html5QrcodeSupportedFormats.UPC_E,
+            Html5QrcodeSupportedFormats.CODE_128,
+            Html5QrcodeSupportedFormats.QR_CODE
+        ]
+    };
     
     escanerCamara.start({ facingMode: "environment" }, config, 
         (textoDecodificado) => {

@@ -8,6 +8,13 @@ window.miRol = null;
 // Variable global para atrapar la invitación
 window.invitacionPendiente = null; 
 
+// 🛑 TRAMPA PARA EL BOTÓN ATRÁS DEL CELULAR (Evita salidas accidentales)
+history.pushState(null, null, window.location.href);
+window.addEventListener('popstate', function(event) {
+    history.pushState(null, null, window.location.href);
+    console.log("Navegación bloqueada. Usa los botones de BuddyERP.");
+});
+
 // ============================================================================
 // DETECTOR INTELIGENTE DE ENLACES Y SEMÁFORO
 // ============================================================================
