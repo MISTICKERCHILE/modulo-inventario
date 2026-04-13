@@ -515,7 +515,7 @@ window.confirmarVentaPOS = async function() {
         if(estadoVenta === 'POR_COBRAR') {
             alert("📓 Venta anotada en la cuenta del cliente (Crédito). Stock actualizado.");
         } else {
-            alert("✅ ¡Venta registrada y pagada con éxito! Revisa tu Ranking.");
+            alert("✅ ¡Venta registrada y pagada con éxito!");
         }
         
         window.carritoPos = []; 
