@@ -432,40 +432,87 @@ window.calcularVuelto = function() {
     document.getElementById('checkout-vuelto').innerText = "$" + vuelto.toLocaleString('es-CL');
 }
 
+// LA FUNCIÓN CONFIRMAR VENTA (¡Versión Unificada Definitiva!)
 window.confirmarVentaPOS = async function() {
     if(!checkoutMetodoPago) return alert("Selecciona un método de pago.");
+    if(window.carritoPos.length === 0) return alert("El carrito está vacío.");
     
     const btn = document.getElementById('btn-confirmar-venta');
     btn.innerText = "⏳ Procesando...";
     btn.disabled = true;
 
     try {
-        // 1. Payload limpio usando tu variable global segura
+        const estadoVenta = checkoutMetodoPago === 'CREDITO' ? 'POR_COBRAR' : 'COMPLETADA';
+
+        // 1. Cabecera unificada en la tabla: VENTAS
         const payloadVenta = {
             id_empresa: window.miEmpresaId,
             total: checkoutTotalVenta,
             metodo_pago: checkoutMetodoPago,
-            estado: 'COMPLETADA'
+            estado: estadoVenta,
+            cajero: window.usuarioActual,
+            origen: 'POS' // 👈 ¡ESTO CONECTA CON TU RANKING MÁGICAMENTE!
         };
 
-        // 2. Guardar en la tabla
-        const { data: ventaGuardada, error } = await clienteSupabase
-            .from('pos_ventas')
+        // Guardamos en 'ventas' (NO en 'pos_ventas')
+        const { data: ventaGuardada, error: errorVenta } = await clienteSupabase
+            .from('ventas')
             .insert([payloadVenta])
             .select('id')
             .single();
 
-        if (error) throw error;
+        if (errorVenta) throw errorVenta;
 
-        // 3. Éxito absoluto
-        alert("✅ ¡Venta registrada con éxito!");
+        // 2. Detalles en 'ventas_detalles'
+        const detallesVenta = window.carritoPos.map(item => ({
+            id_venta: ventaGuardada.id,
+            id_producto: item.id,
+            cantidad: item.cantidad,
+            precio_unitario: item.precio,
+            subtotal: item.cantidad * item.precio
+        }));
+
+        const { error: errorDetalles } = await clienteSupabase.from('ventas_detalles').insert(detallesVenta);
+        if (errorDetalles) throw errorDetalles;
+
+        // 3. Bajar Stock
+        for (const item of window.carritoPos) {
+            const productoMemoria = window.productosPosMemoria.find(p => p.id === item.id);
+            if (productoMemoria && productoMemoria.control_stock === true) {
+                const { data: saldoActual } = await clienteSupabase
+                    .from('inventario_saldos')
+                    .select('id, cantidad_actual_ua')
+                    .eq('id_producto', item.id)
+                    .limit(1)
+                    .single();
+
+                if (saldoActual) {
+                    await clienteSupabase
+                        .from('inventario_saldos')
+                        .update({ 
+                            cantidad_actual_ua: saldoActual.cantidad_actual_ua - item.cantidad, 
+                            ultima_actualizacion: new Date().toISOString() 
+                        })
+                        .eq('id', saldoActual.id);
+                }
+            }
+        }
+
+        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+        
+        if(estadoVenta === 'POR_COBRAR') {
+            alert("📓 Venta anotada en la cuenta del cliente (Crédito). Stock actualizado.");
+        } else {
+            alert("✅ ¡Venta registrada y pagada con éxito! Revisa tu Ranking.");
+        }
+        
         window.carritoPos = []; 
         renderizarCarrito();    
         cerrarCheckout();       
 
     } catch(error) {
         console.error("Error al registrar venta:", error);
-        alert("Error al registrar venta: " + (error.message || "Desconocido"));
+        alert("❌ Error al registrar venta: " + (error.message || "Contacta a soporte."));
     } finally {
         btn.innerText = "CONFIRMAR PAGO";
         btn.disabled = false;
