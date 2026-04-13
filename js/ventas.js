@@ -444,17 +444,29 @@ window.confirmarVentaPOS = async function() {
     try {
         const estadoVenta = checkoutMetodoPago === 'CREDITO' ? 'POR_COBRAR' : 'COMPLETADA';
 
-        // 1. Cabecera unificada en la tabla: VENTAS
+        // 🔍 NUEVO: Buscamos la sucursal de la empresa para asignarla a la venta
+        const { data: sucursal } = await clienteSupabase
+            .from('sucursales')
+            .select('id')
+            .eq('id_empresa', window.miEmpresaId)
+            .limit(1)
+            .single();
+
+        if (!sucursal) {
+            throw new Error("No tienes ninguna sucursal creada en el sistema. Ve a Catálogos y crea una primero.");
+        }
+
+        // 1. Cabecera en la tabla: ventas (Ahora con id_sucursal)
         const payloadVenta = {
             id_empresa: window.miEmpresaId,
+            id_sucursal: sucursal.id, // 👈 ¡EL FIX ESTÁ AQUÍ!
             total: checkoutTotalVenta,
             metodo_pago: checkoutMetodoPago,
             estado: estadoVenta,
             cajero: window.usuarioActual,
-            origen: 'POS' // 👈 ¡ESTO CONECTA CON TU RANKING MÁGICAMENTE!
+            origen: 'POS'
         };
 
-        // Guardamos en 'ventas' (NO en 'pos_ventas')
         const { data: ventaGuardada, error: errorVenta } = await clienteSupabase
             .from('ventas')
             .insert([payloadVenta])
@@ -463,7 +475,7 @@ window.confirmarVentaPOS = async function() {
 
         if (errorVenta) throw errorVenta;
 
-        // 2. Detalles en 'ventas_detalles'
+        // 2. Detalles en ventas_detalles
         const detallesVenta = window.carritoPos.map(item => ({
             id_venta: ventaGuardada.id,
             id_producto: item.id,
