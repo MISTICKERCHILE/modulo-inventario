@@ -706,3 +706,63 @@ window.abrirEscanerCamara = function(modo = 'POS') {
         cerrarEscanerCamara();
     });
 }
+
+// ==========================================
+// CONTROL DE ACCESO ERP Y SALIDA DE CAJA
+// ==========================================
+
+// 1. Ir al ERP con contraseña de Admin (Redirección inteligente)
+window.solicitarAccesoERP = async function(vistaDestino = 'home') {
+    document.getElementById('pos-dropdown-menu').classList.add('hidden');
+    
+    const pin = prompt("🔒 Ingresa tu PIN de Administrador/Dueño para ir al panel ERP:");
+    
+    if (!pin) return;
+
+    try {
+        const { data: perfil } = await clienteSupabase
+            .from('perfiles')
+            .select('id_usuario')
+            .eq('pin_seguridad', pin)
+            .maybeSingle();
+
+        if (perfil) {
+            alert("✅ Acceso autorizado.");
+            window.salirDePOS(); // Quitamos el modo "Pantalla Completa" del POS
+            
+            // Si eligió un botón específico, lo mandamos a esa vista del ERP
+            if(vistaDestino !== 'home') {
+                window.cambiarVista(vistaDestino);
+            }
+        } else {
+            alert("❌ PIN Incorrecto o no tienes permisos de Administrador.");
+        }
+    } catch (error) {
+        console.error("Error validando admin:", error);
+    }
+}
+
+// 2. Abrir Modal de Salida
+window.abrirModalSalidaPOS = function() {
+    document.getElementById('pos-dropdown-menu').classList.add('hidden');
+    document.getElementById('modal-salida-pos').classList.remove('hidden');
+}
+
+// 3. Tomar Descanso (Pausa)
+window.pausarTurno = function() {
+    document.getElementById('modal-salida-pos').classList.add('hidden');
+    alert("☕ Pausa registrada en RRHH. La caja se bloqueará.");
+    // Aquí bloqueamos la pantalla devolviéndolo a la pantalla del PIN inicial
+    document.getElementById('pos-dashboard-screen').classList.add('hidden');
+    document.getElementById('pos-dashboard-screen').classList.remove('flex');
+    document.getElementById('pos-pin-screen').classList.remove('hidden');
+    document.getElementById('pos-pin-screen').classList.add('flex');
+    window.borrarTodoElPin();
+}
+
+// 4. Iniciar Cierre Real
+window.iniciarCierreDeCaja = function() {
+    document.getElementById('modal-salida-pos').classList.add('hidden');
+    // Esto conectará con la Opción B: Pantalla de arqueo de caja que diseñaremos.
+    alert("Iniciando Asistente de Cierre de Caja... (Próximo desarrollo)");
+}

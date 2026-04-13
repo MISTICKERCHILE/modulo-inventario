@@ -730,6 +730,32 @@
                 <button type="button" onclick="document.getElementById('modal-detalles-ventas').classList.add('hidden')" class="px-6 py-2 bg-slate-100 text-slate-700 font-bold rounded hover:bg-slate-200">Cerrar</button>
             </div>
         </div>
+
+        <div id="modal-salida-pos" class="hidden fixed inset-0 bg-slate-900/80 z-[100] flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden p-6 text-center border-t-4 border-slate-800">
+            <h2 class="text-2xl font-black text-slate-800 mb-2">¿Qué deseas hacer?</h2>
+            <p class="text-sm text-slate-500 mb-6">Selecciona una opción para salir de la caja registradora.</p>
+            
+            <div class="space-y-3">
+                <button onclick="pausarTurno()" class="w-full p-4 border-2 border-orange-200 bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-xl font-bold flex flex-col items-center justify-center gap-1 transition-colors">
+                    <span class="text-2xl">☕</span>
+                    <span>Tomar un Descanso (Pausa)</span>
+                    <span class="text-[10px] font-normal text-orange-600">Bloquea la caja y registra tu tiempo de break.</span>
+                </button>
+
+                <button onclick="iniciarCierreDeCaja()" class="w-full p-4 border-2 border-red-200 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl font-bold flex flex-col items-center justify-center gap-1 transition-colors">
+                    <span class="text-2xl">💰</span>
+                    <span>Cierre de Caja Final</span>
+                    <span class="text-[10px] font-normal text-red-600">Termina el día, cuenta los billetes y cierra el turno.</span>
+                </button>
+            </div>
+
+            <button onclick="document.getElementById('modal-salida-pos').classList.add('hidden')" class="mt-6 text-slate-400 hover:text-slate-700 font-bold text-sm">
+                Cancelar y Volver a Vender
+            </button>
+        </div>
+    </div>   
+
     </div>
 
     <script src="/config.js"></script> 

@@ -44,12 +44,26 @@
                 <span class="text-sm font-bold text-slate-700 bg-slate-100 px-4 py-2 rounded-full border border-slate-200" id="pos-nombre-cajero">Cajero</span>
                 
                 <button onclick="togglePosMenu()" class="text-slate-500 hover:bg-slate-200 px-2 py-1 rounded-md text-2xl font-bold transition-colors outline-none">⋮</button>
-                <div id="pos-dropdown-menu" class="hidden absolute right-0 top-12 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-slate-200 z-50 overflow-hidden">
-                    <button class="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 font-bold border-b border-slate-100">⚙️ Configurar Menú</button>
-                    <button class="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 font-bold border-b border-slate-100">👥 Configurar Usuarios</button>
-                    <button class="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 font-bold border-b border-slate-100">📊 Ver Resumen Ventas</button>
-                    <button onclick="cerrarTurno()" class="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 font-black uppercase">
-                        🔒 Cierre de Caja y Salir
+                <div id="pos-dropdown-menu" class="hidden absolute right-0 top-12 mt-2 w-64 bg-white rounded-xl shadow-2xl border border-slate-200 z-50 overflow-hidden">
+                    
+                    <button onclick="solicitarAccesoERP('home')" class="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 font-bold border-b border-slate-100 flex items-center gap-2">
+                        <span>💻</span> Ir al Panel ERP (General)
+                    </button>
+
+                    <button onclick="solicitarAccesoERP('catalogos')" class="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 font-bold border-b border-slate-100 flex items-center gap-2">
+                        <span>⚙️</span> Configurar Menú
+                    </button>
+                    
+                    <button onclick="solicitarAccesoERP('parametros')" class="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 font-bold border-b border-slate-100 flex items-center gap-2">
+                        <span>👥</span> Configurar Usuarios
+                    </button>
+                    
+                    <button onclick="solicitarAccesoERP('reportes')" class="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 font-bold border-b border-slate-100 flex items-center gap-2">
+                        <span>📊</span> Ver Resumen Ventas
+                    </button>
+                    
+                    <button onclick="abrirModalSalidaPOS()" class="w-full text-left px-4 py-4 text-sm text-red-600 hover:bg-red-50 font-black uppercase flex items-center gap-2 border-t border-slate-100">
+                        <span>🔒</span> Cierre de Caja y Salir
                     </button>
                 </div>
             </div>
