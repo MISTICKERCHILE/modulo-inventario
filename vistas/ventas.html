@@ -136,7 +136,9 @@
                     <button class="text-xs text-blue-600 font-bold hover:underline flex items-center gap-1 mt-0.5">👤 Asignar Cliente (Opcional)</button>
                 </div>
                 <button onclick="toggleCarritoMobile()" class="md:hidden text-slate-400 hover:text-slate-800 text-3xl font-bold px-2">&times;</button>
-                <button class="hidden md:block text-slate-400 hover:text-slate-800 text-2xl font-bold px-2 pb-2">⋮</button>
+                <button onclick="document.getElementById('pos-dropdown-menu').classList.toggle('hidden')" class="text-slate-400 hover:bg-slate-100 hover:text-slate-800 text-2xl font-bold px-3 py-1 rounded-xl outline-none transition-colors">
+                    ⋮
+                </button>
             </div>
 
             <div class="flex-1 overflow-y-auto p-2" id="pos-cart-list">

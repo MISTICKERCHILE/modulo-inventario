@@ -444,22 +444,20 @@ window.confirmarVentaPOS = async function() {
     try {
         const estadoVenta = checkoutMetodoPago === 'CREDITO' ? 'POR_COBRAR' : 'COMPLETADA';
 
-        // 🔍 NUEVO: Buscamos la sucursal de la empresa para asignarla a la venta
+        // 1. Buscamos sucursal (BLINDADO CON maybeSingle)
         const { data: sucursal } = await clienteSupabase
             .from('sucursales')
             .select('id')
             .eq('id_empresa', window.miEmpresaId)
             .limit(1)
-            .single();
+            .maybeSingle();
 
-        if (!sucursal) {
-            throw new Error("No tienes ninguna sucursal creada en el sistema. Ve a Catálogos y crea una primero.");
-        }
+        if (!sucursal) throw new Error("No tienes ninguna sucursal creada en el sistema.");
 
-        // 1. Cabecera en la tabla: ventas (Ahora con id_sucursal)
+        // 2. Cabecera (Tabla: ventas)
         const payloadVenta = {
             id_empresa: window.miEmpresaId,
-            id_sucursal: sucursal.id, // 👈 ¡EL FIX ESTÁ AQUÍ!
+            id_sucursal: sucursal.id,
             total: checkoutTotalVenta,
             metodo_pago: checkoutMetodoPago,
             estado: estadoVenta,
@@ -475,7 +473,7 @@ window.confirmarVentaPOS = async function() {
 
         if (errorVenta) throw errorVenta;
 
-        // 2. Detalles en ventas_detalles
+        // 3. Detalles (Tabla: ventas_detalles)
         const detallesVenta = window.carritoPos.map(item => ({
             id_venta: ventaGuardada.id,
             id_producto: item.id,
@@ -487,16 +485,17 @@ window.confirmarVentaPOS = async function() {
         const { error: errorDetalles } = await clienteSupabase.from('ventas_detalles').insert(detallesVenta);
         if (errorDetalles) throw errorDetalles;
 
-        // 3. Bajar Stock
+        // 4. Bajar Stock (BLINDADO CON maybeSingle)
         for (const item of window.carritoPos) {
             const productoMemoria = window.productosPosMemoria.find(p => p.id === item.id);
             if (productoMemoria && productoMemoria.control_stock === true) {
+                
                 const { data: saldoActual } = await clienteSupabase
                     .from('inventario_saldos')
                     .select('id, cantidad_actual_ua')
                     .eq('id_producto', item.id)
                     .limit(1)
-                    .single();
+                    .maybeSingle();
 
                 if (saldoActual) {
                     await clienteSupabase
@@ -506,17 +505,16 @@ window.confirmarVentaPOS = async function() {
                             ultima_actualizacion: new Date().toISOString() 
                         })
                         .eq('id', saldoActual.id);
+                } else {
+                    console.warn(`Producto sin registro en inventario. Se vendió igual.`);
                 }
             }
         }
 
         if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
         
-        if(estadoVenta === 'POR_COBRAR') {
-            alert("📓 Venta anotada en la cuenta del cliente (Crédito). Stock actualizado.");
-        } else {
-            alert("✅ ¡Venta registrada y pagada con éxito!");
-        }
+        if(estadoVenta === 'POR_COBRAR') alert("📓 Venta anotada en la cuenta (Crédito).");
+        else alert("✅ ¡Venta registrada y pagada con éxito!");
         
         window.carritoPos = []; 
         renderizarCarrito();    
@@ -524,7 +522,7 @@ window.confirmarVentaPOS = async function() {
 
     } catch(error) {
         console.error("Error al registrar venta:", error);
-        alert("❌ Error al registrar venta: " + (error.message || "Contacta a soporte."));
+        alert("❌ Error: " + (error.message || "Contacta a soporte."));
     } finally {
         btn.innerText = "CONFIRMAR PAGO";
         btn.disabled = false;
