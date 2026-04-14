@@ -819,9 +819,72 @@ window.pausarTurno = function() {
     window.borrarTodoElPin();
 }
 
-// 4. Iniciar Cierre Real
-window.iniciarCierreDeCaja = function() {
+// Variables globales de cierre
+let esperadoEfectivo = 0;
+let esperadoTarjetas = 0;
+let esperadoTransf = 0; // NUEVO
+
+window.iniciarCierreDeCaja = async function() {
     document.getElementById('modal-salida-pos').classList.add('hidden');
-    // Esto conectará con la Opción B: Pantalla de arqueo de caja que diseñaremos.
-    alert("Iniciando Asistente de Cierre de Caja... (Próximo desarrollo)");
+    document.getElementById('cierre-cajero-nombre').innerText = window.usuarioActual;
+
+    // Valores simulados (luego los sacaremos de la BD)
+    esperadoEfectivo = 25000; 
+    esperadoTarjetas = 45000;
+    esperadoTransf = 15000; // NUEVO
+
+    document.getElementById('cierre-esperado-efectivo').innerText = `$${esperadoEfectivo.toLocaleString('es-CL')}`;
+    document.getElementById('cierre-esperado-tarjeta').innerText = `$${esperadoTarjetas.toLocaleString('es-CL')}`;
+    document.getElementById('cierre-esperado-transf').innerText = `$${esperadoTransf.toLocaleString('es-CL')}`; // NUEVO
+    
+    document.getElementById('cierre-real-efectivo').value = '';
+    document.getElementById('cierre-real-tarjeta').value = '';
+    document.getElementById('cierre-real-transf').value = ''; // NUEVO
+    document.getElementById('cierre-notas').value = '';
+    
+    calcularDiferenciaCaja(); 
+    document.getElementById('modal-cierre-caja').classList.remove('hidden');
+}
+
+window.calcularDiferenciaCaja = function() {
+    const realEf = Number(document.getElementById('cierre-real-efectivo').value) || 0;
+    const realTa = Number(document.getElementById('cierre-real-tarjeta').value) || 0;
+    const realTr = Number(document.getElementById('cierre-real-transf').value) || 0; // NUEVO
+
+    const totalEsperado = esperadoEfectivo + esperadoTarjetas + esperadoTransf;
+    const totalReal = realEf + realTa + realTr;
+    const diferencia = totalReal - totalEsperado;
+
+    const panel = document.getElementById('cierre-resultado-panel');
+    const montoTexto = document.getElementById('cierre-diferencia-monto');
+    const descTexto = document.getElementById('cierre-diferencia-texto');
+
+    montoTexto.innerText = `$${Math.abs(diferencia).toLocaleString('es-CL')}`;
+    panel.classList.remove('border-emerald-400', 'bg-emerald-50', 'border-red-400', 'bg-red-50', 'border-slate-200', 'bg-slate-50');
+    montoTexto.classList.remove('text-emerald-700', 'text-red-700', 'text-slate-800');
+
+    if (diferencia === 0 && totalEsperado > 0) {
+        panel.classList.add('border-emerald-400', 'bg-emerald-50');
+        montoTexto.classList.add('text-emerald-700');
+        descTexto.innerText = "✅ Caja Cuadrada Perfectamente";
+    } else if (diferencia > 0) {
+        panel.classList.add('border-slate-200', 'bg-slate-50');
+        montoTexto.classList.add('text-slate-800');
+        descTexto.innerText = "⚠️ Sobra dinero en caja";
+    } else if (diferencia < 0) {
+        panel.classList.add('border-red-400', 'bg-red-50');
+        montoTexto.classList.add('text-red-700');
+        descTexto.innerText = "❌ Falta dinero (Descuadre)";
+    } else {
+        panel.classList.add('border-slate-200', 'bg-slate-50');
+        montoTexto.classList.add('text-slate-800');
+        descTexto.innerText = "Ingresa los montos contados";
+    }
+}
+
+// EL BOTÓN FINAL PARA CERRAR TURNO
+window.confirmarCierreCaja = function() {
+    // Aquí a futuro guardaremos el "Reporte de Cierre" en Supabase
+    alert("🔒 ¡Cierre de caja registrado exitosamente!\n\nBuen trabajo hoy. Cerrando sesión...");
+    window.cerrarSesion();
 }

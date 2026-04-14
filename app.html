@@ -801,6 +801,23 @@
                     </div>
                 </div>
 
+                <div class="bg-purple-50 rounded-2xl p-4 border border-purple-100 relative">
+                    <div class="absolute -top-3 left-4 bg-purple-500 text-white text-[10px] font-black uppercase px-3 py-1 rounded-full tracking-widest shadow-sm">📱 Transferencias</div>
+                    
+                    <div class="flex justify-between items-end mt-2 mb-3">
+                        <p class="text-sm font-bold text-purple-700">El sistema calculó:</p>
+                        <p class="text-xl font-black text-purple-900" id="cierre-esperado-transf">$0</p>
+                    </div>
+                    
+                    <div class="bg-white p-3 rounded-xl shadow-inner border border-purple-200">
+                        <label class="block text-xs font-bold text-slate-500 mb-1 uppercase">Suma de Transferencias reales:</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-bold text-lg">$</span>
+                            <input type="number" id="cierre-real-transf" oninput="calcularDiferenciaCaja()" placeholder="0" class="w-full pl-8 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-2xl font-black text-slate-800 focus:ring-2 focus:ring-purple-500 outline-none transition-all">
+                        </div>
+                    </div>
+                </div>
+
                 <div id="cierre-resultado-panel" class="p-4 rounded-xl border-2 border-slate-200 bg-slate-50 text-center transition-colors">
                     <p class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Diferencia Total</p>
                     <p id="cierre-diferencia-monto" class="text-3xl font-black text-slate-800">$0</p>
