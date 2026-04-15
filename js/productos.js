@@ -249,7 +249,7 @@ window.renderizarTablaProductos = function() {
 
             const labelReceta = p.tiene_receta 
                 ? '<span class="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold border border-blue-200">Con Receta</span>' 
-                : '<span class="text-gray-400 text-xs italic">Simple</span>';
+                : '<span class="text-gray-400 text-xs italic">Buddy</span>';
 
             return `
             <tr class="hover:bg-slate-50 border-b transition-colors cursor-pointer group" onclick="toggleFilaProducto('acciones-${p.id}')">
