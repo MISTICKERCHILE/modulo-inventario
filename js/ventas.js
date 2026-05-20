@@ -5,6 +5,7 @@ const PIN_CORRECTO = "1234"; // En el futuro lo leeremos de Supabase
 window.turnoActual = null;
 window.cajeroActivo = null; // Para saber quién está operando la caja ahora mismo
 window.metodosPagoMemoria = []; // Guardará las formas de pago de la empresa
+window.estadoCierreActual = []; // Memoria de la calculadora
 
 window.cargarVentas = function() {
     console.log("💰 Cargando Módulo POS...");
@@ -981,53 +982,47 @@ let esperadoTarjetas = 0;
 let esperadoTransf = 0; // NUEVO
 
 window.iniciarCierreDeCaja = async function() {
-    if (!window.turnoActual) {
-        alert("No hay un turno activo para cerrar.");
-        return;
-    }
+    if (!window.turnoActual) return alert("❌ No hay un turno activo para cerrar.");
 
     document.getElementById('modal-salida-pos').classList.add('hidden');
-    document.getElementById('cierre-cajero-nombre').innerText = window.usuarioActual;
+    document.getElementById('cierre-cajero-nombre').innerText = window.cajeroActivo ? window.cajeroActivo.nombre : 'Cajero';
 
     try {
-        // 1. Consultar las ventas REALES de este turno (Desde fecha_apertura hasta AHORA)
+        // 1. Consultar ventas
         const { data: ventasTurno, error } = await clienteSupabase
             .from('ventas')
             .select('total, metodo_pago')
             .eq('id_empresa', window.miEmpresaId)
             .gte('created_at', window.turnoActual.fecha_apertura)
-            .in('estado', ['COMPLETADA']); // Solo sumamos ventas pagadas
+            .in('estado', ['COMPLETADA']);
 
         if (error) throw error;
 
-        // 2. Sumarizar por método de pago
-        let sumaEfectivo = 0;
-        let sumaTarjetas = 0;
-        let sumaTransf = 0;
+        // 2. Armar las cajas matemáticas para cada método configurado
+        window.estadoCierreActual = window.metodosPagoMemoria.map(mp => {
+            // Buscamos las ventas que coincidan EXACTAMENTE con el nombre del método (Ej: "Efectivo Pesos")
+            const totalEsperado = (ventasTurno || [])
+                .filter(v => v.metodo_pago === mp.nombre)
+                .reduce((sum, v) => sum + Number(v.total), 0);
 
-        (ventasTurno || []).forEach(v => {
-            if (v.metodo_pago === 'EFECTIVO') sumaEfectivo += Number(v.total);
-            if (v.metodo_pago === 'TARJETA') sumaTarjetas += Number(v.total);
-            if (v.metodo_pago === 'TRANSFERENCIA') sumaTransf += Number(v.total);
+            // Si el tipo es EFECTIVO, le sumamos el fondo de caja con el que abrió
+            let fondoCaja = 0;
+            if (mp.tipo === 'EFECTIVO') {
+                fondoCaja = Number(window.turnoActual.monto_inicial_efe) || 0;
+            }
+
+            return {
+                id: mp.id,
+                nombre: mp.nombre,
+                tipo: mp.tipo,
+                esperado: totalEsperado + fondoCaja,
+                real: 0,
+                diferencia: 0
+            };
         });
 
-        // 3. Asignar los valores REALES al cuadre
-        // El esperado en efectivo es lo que se vendió + el monto inicial (sencillo)
-        esperadoEfectivo = sumaEfectivo + Number(window.turnoActual.monto_inicial_efectivo);
-        esperadoTarjetas = sumaTarjetas;
-        esperadoTransf = sumaTransf;
-
-        // 4. Mostrar en la UI
-        document.getElementById('cierre-esperado-efectivo').innerText = `$${esperadoEfectivo.toLocaleString('es-CL')}`;
-        document.getElementById('cierre-esperado-tarjeta').innerText = `$${esperadoTarjetas.toLocaleString('es-CL')}`;
-        document.getElementById('cierre-esperado-transf').innerText = `$${esperadoTransf.toLocaleString('es-CL')}`;
-        
-        document.getElementById('cierre-real-efectivo').value = '';
-        document.getElementById('cierre-real-tarjeta').value = '';
-        document.getElementById('cierre-real-transf').value = '';
-        document.getElementById('cierre-notas').value = '';
-        
-        calcularDiferenciaCaja(); 
+        // 3. Dibujar la Calculadora y abrir Modal
+        renderizarCalculadoraCierre();
         document.getElementById('modal-cierre-caja').classList.remove('hidden');
 
     } catch (error) {
@@ -1036,75 +1031,84 @@ window.iniciarCierreDeCaja = async function() {
     }
 }
 
-window.calcularDiferenciaCaja = function() {
-    const realEf = Number(document.getElementById('cierre-real-efectivo').value) || 0;
-    const realTa = Number(document.getElementById('cierre-real-tarjeta').value) || 0;
-    const realTr = Number(document.getElementById('cierre-real-transf').value) || 0; // NUEVO
+// NUEVA FUNCIÓN: Dibuja las cajas según los métodos disponibles
+window.renderizarCalculadoraCierre = function() {
+    const container = document.getElementById('cierre-dinamico-container');
+    
+    container.innerHTML = window.estadoCierreActual.map(item => {
+        let color = 'slate'; let icono = '🪙';
+        if (item.tipo === 'EFECTIVO') { color = 'emerald'; icono = '💵'; }
+        if (item.tipo === 'TARJETA') { color = 'blue'; icono = '💳'; }
+        if (item.tipo === 'TRANSFERENCIA') { color = 'purple'; icono = '📱'; }
 
-    const totalEsperado = esperadoEfectivo + esperadoTarjetas + esperadoTransf;
-    const totalReal = realEf + realTa + realTr;
-    const diferencia = totalReal - totalEsperado;
+        return `
+        <div class="bg-${color}-50 rounded-2xl p-4 border border-${color}-100 relative">
+            <div class="absolute -top-3 left-4 bg-${color}-500 text-white text-[10px] font-black uppercase px-3 py-1 rounded-full shadow-sm">${icono} ${item.nombre}</div>
+            <div class="flex justify-between items-end mt-2 mb-3">
+                <p class="text-sm font-bold text-${color}-700">El sistema calculó:</p>
+                <p class="text-xl font-black text-${color}-900">$${item.esperado.toLocaleString('es-CL')}</p>
+            </div>
+            <div class="bg-white p-3 rounded-xl shadow-inner border border-${color}-200">
+                <label class="block text-xs font-bold text-slate-500 mb-1 uppercase">Suma real contada:</label>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-bold text-lg">$</span>
+                    <input type="number" id="cierre-real-${item.id}" oninput="calcularDiferenciaCaja()" placeholder="0" class="w-full pl-8 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-2xl font-black text-slate-800 focus:ring-2 focus:ring-${color}-500 outline-none transition-all">
+                </div>
+            </div>
+        </div>
+        `;
+    }).join('');
+
+    calcularDiferenciaCaja(); // Cálculo inicial
+}
+
+window.calcularDiferenciaCaja = function() {
+    let totalDiferencia = 0;
+
+    window.estadoCierreActual.forEach(item => {
+        const inputReal = document.getElementById(`cierre-real-${item.id}`);
+        const valorReal = inputReal ? Number(inputReal.value) || 0 : 0;
+        item.real = valorReal;
+        item.diferencia = valorReal - item.esperado;
+        totalDiferencia += item.diferencia;
+    });
 
     const panel = document.getElementById('cierre-resultado-panel');
     const montoTexto = document.getElementById('cierre-diferencia-monto');
     const descTexto = document.getElementById('cierre-diferencia-texto');
 
-    montoTexto.innerText = `$${Math.abs(diferencia).toLocaleString('es-CL')}`;
+    montoTexto.innerText = `$${Math.abs(totalDiferencia).toLocaleString('es-CL')}`;
     panel.classList.remove('border-emerald-400', 'bg-emerald-50', 'border-red-400', 'bg-red-50', 'border-slate-200', 'bg-slate-50');
     montoTexto.classList.remove('text-emerald-700', 'text-red-700', 'text-slate-800');
 
-    if (diferencia === 0 && totalEsperado > 0) {
+    if (totalDiferencia === 0) {
         panel.classList.add('border-emerald-400', 'bg-emerald-50');
         montoTexto.classList.add('text-emerald-700');
         descTexto.innerText = "✅ Caja Cuadrada Perfectamente";
-    } else if (diferencia > 0) {
+    } else if (totalDiferencia > 0) {
         panel.classList.add('border-slate-200', 'bg-slate-50');
         montoTexto.classList.add('text-slate-800');
         descTexto.innerText = "⚠️ Sobra dinero en caja";
-    } else if (diferencia < 0) {
+    } else if (totalDiferencia < 0) {
         panel.classList.add('border-red-400', 'bg-red-50');
         montoTexto.classList.add('text-red-700');
         descTexto.innerText = "❌ Falta dinero (Descuadre)";
-    } else {
-        panel.classList.add('border-slate-200', 'bg-slate-50');
-        montoTexto.classList.add('text-slate-800');
-        descTexto.innerText = "Ingresa los montos contados";
     }
 }
 
-// EL BOTÓN FINAL PARA CERRAR TURNO
 window.confirmarCierreCaja = async function() {
     if (!window.turnoActual) return alert("❌ No hay un turno activo para cerrar.");
 
-    // Solución blindada: Buscamos el botón por su texto, sin importar el color
     const btn = Array.from(document.querySelectorAll('#modal-cierre-caja button')).find(b => b.textContent.includes('Cerrar'));
     const textoOriginal = btn ? btn.innerText : "Cerrar Turno";
-    if (btn) {
-        btn.innerText = "⏳ Cerrando...";
-        btn.disabled = true;
-    }
-
-    // Tomamos lo que el cajero digitó que contó físicamente
-    const realEf = Number(document.getElementById('cierre-real-efectivo').value) || 0;
-    const realTa = Number(document.getElementById('cierre-real-tarjeta').value) || 0;
-    
-    // Calculamos diferencias finales
-    const difEfectivo = realEf - esperadoEfectivo;
-    const difTarjetas = realTa - esperadoTarjetas;
+    if (btn) { btn.innerText = "⏳ Cerrando..."; btn.disabled = true; }
 
     try {
-        // Armamos el paquete. 
-        // NOTA: No estoy incluyendo las Transferencias aquí aún para que no te dé error 
-        // si no has creado las columnas "ventas_transf_sistema" en Supabase.
+        // Guardamos todo el desglose dinámico en la nueva columna JSONB
         const payloadCierre = {
             fecha_cierre: new Date().toISOString(),
             cerrado_por: window.cajeroActivo.id,
-            ventas_efectivo_sistema: esperadoEfectivo, 
-            ventas_tarjetas_sistema: esperadoTarjetas, 
-            efectivo_declarado: realEf, 
-            tarjetas_declaradas: realTa, 
-            diferencia_efectivo: difEfectivo,
-            diferencia_tarjetas: difTarjetas,
+            desglose_cierre: window.estadoCierreActual, // ⚡ Aquí está la magia JSON
             estado: 'CERRADO'
         };
 
@@ -1115,29 +1119,23 @@ window.confirmarCierreCaja = async function() {
 
         if (error) throw error;
 
-        // Limpiamos la memoria
         window.turnoActual = null;
         window.cajeroActivo = null;
 
-        alert("🔒 ¡Cierre de caja registrado exitosamente!\n\nEl turno ha finalizado.");
+        alert("🔒 ¡Cierre de caja registrado exitosamente!");
 
-        // Cerramos modal y bloqueamos la pantalla devolviéndolo al PIN
         document.getElementById('modal-cierre-caja').classList.add('hidden');
         document.getElementById('pos-dashboard-screen').classList.add('hidden');
         document.getElementById('pos-dashboard-screen').classList.remove('flex');
-        
         document.getElementById('pos-pin-screen').classList.remove('hidden');
         document.getElementById('pos-pin-screen').classList.add('flex');
         window.borrarTodoElPin();
 
     } catch (error) {
         console.error("Error guardando cierre:", error);
-        alert("❌ Ocurrió un error al intentar cerrar la caja. Revisa la consola.");
+        alert("❌ Ocurrió un error al intentar cerrar la caja.");
     } finally {
-        if (btn) {
-            btn.innerText = textoOriginal;
-            btn.disabled = false;
-        }
+        if (btn) { btn.innerText = textoOriginal; btn.disabled = false; }
     }
 }
 
