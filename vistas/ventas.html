@@ -2,7 +2,7 @@
     
     <div id="pos-pin-screen" class="flex-1 flex flex-col items-center justify-center bg-slate-900 text-white p-4">
         <div class="text-center mb-8">
-            <h2 class="text-3xl font-black text-emerald-400 mb-2">Simple POS</h2>
+            <h2 class="text-3xl font-black text-emerald-400 mb-2">Buddy POS</h2>
             <p class="text-slate-400">Ingresa tu PIN de operador</p>
         </div>
         
@@ -33,7 +33,7 @@
         <header class="bg-white border-b px-6 py-4 flex justify-between items-center shadow-sm shrink-0">
             <div class="flex items-center gap-2">
                 <span class="text-2xl text-emerald-600">⚡</span>
-                <h1 class="text-xl font-black text-slate-800 tracking-tight">Simple <span class="text-emerald-600">POS</span></h1>
+                <h1 class="text-xl font-black text-slate-800 tracking-tight">Buddy <span class="text-emerald-600">POS</span></h1>
             </div>
             
             <div class="text-sm font-bold text-slate-500 uppercase tracking-widest" id="pos-fecha-actual">
@@ -44,11 +44,27 @@
                 <span class="text-sm font-bold text-slate-700 bg-slate-100 px-4 py-2 rounded-full border border-slate-200" id="pos-nombre-cajero">Cajero</span>
                 
                 <button onclick="togglePosMenu()" class="text-slate-500 hover:bg-slate-200 px-2 py-1 rounded-md text-2xl font-bold transition-colors outline-none">⋮</button>
-                <div id="pos-dropdown-menu" class="hidden absolute right-0 top-12 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-slate-200 z-50 overflow-hidden">
-                    <button class="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 font-bold border-b border-slate-100">⚙️ Configurar Menú</button>
-                    <button class="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 font-bold border-b border-slate-100">👥 Configurar Usuarios</button>
-                    <button class="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 font-bold border-b border-slate-100">📊 Ver Resumen Ventas</button>
-                    <button onclick="cerrarTurno()" class="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 font-black uppercase">🔒 Cierre Ventas Diarias</button>
+                <div id="pos-dropdown-menu" class="hidden absolute right-0 top-12 mt-2 w-64 bg-white rounded-xl shadow-2xl border border-slate-200 z-50 overflow-hidden">
+                    
+                    <button onclick="solicitarAccesoERP('home')" class="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 font-bold border-b border-slate-100 flex items-center gap-2">
+                        <span>💻</span> Ir al Panel ERP (General)
+                    </button>
+
+                    <button onclick="solicitarAccesoERP('catalogos')" class="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 font-bold border-b border-slate-100 flex items-center gap-2">
+                        <span>⚙️</span> Configurar Menú
+                    </button>
+                    
+                    <button onclick="solicitarAccesoERP('parametros')" class="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 font-bold border-b border-slate-100 flex items-center gap-2">
+                        <span>👥</span> Configurar Usuarios
+                    </button>
+                    
+                    <button onclick="solicitarAccesoERP('reportes')" class="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 font-bold border-b border-slate-100 flex items-center gap-2">
+                        <span>📊</span> Ver Resumen Ventas
+                    </button>
+                    
+                    <button onclick="abrirModalSalidaPOS()" class="w-full text-left px-4 py-4 text-sm text-red-600 hover:bg-red-50 font-black uppercase flex items-center gap-2 border-t border-slate-100">
+                        <span>🔒</span> Cierre de Caja y Salir
+                    </button>
                 </div>
             </div>
         </header>
@@ -80,57 +96,49 @@
 
     <div id="pos-nueva-venta-screen" class="hidden flex-1 bg-slate-100 flex-col md:flex-row overflow-hidden relative">
         
-        <div class="flex-1 flex flex-col h-full overflow-hidden relative z-10">
+        <div class="flex-1 flex flex-col h-full overflow-hidden relative z-10 pb-24 md:pb-0">
             
-            <div class="bg-white px-4 py-3 flex items-center justify-between border-b shadow-sm shrink-0">
-                <button onclick="volverAlPosDashboard()" class="text-slate-500 hover:text-slate-800 font-bold px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors flex items-center gap-2">
+            <div class="bg-white px-4 py-3 flex items-center justify-between border-b shadow-sm shrink-0 gap-2">
+                <button onclick="volverAlPosDashboard()" class="text-slate-500 hover:text-slate-800 font-bold px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors flex items-center gap-2 outline-none">
                     <span class="text-xl">←</span> <span class="hidden sm:inline">Volver</span>
                 </button>
-                <div class="flex-1 max-w-lg mx-4 relative">
-                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-lg">🔍</span>
-                    <input type="text" oninput="buscarProductoPOS(this.value)" placeholder="Buscar o escanear código de barras..." class="w-full pl-10 pr-4 py-3 border-2 border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none transition-all font-medium text-slate-700">
+                <div class="flex-1 max-w-lg flex items-center gap-2 relative">
+                    <div class="relative flex-1">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-lg">🔍</span>
+                        <input type="text" id="pos-input-buscador" oninput="buscarProductoPOS(this.value)" placeholder="Buscar o escanear código..." class="w-full pl-10 pr-4 py-3 border-2 border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none transition-all font-medium text-slate-700 shadow-inner">
+                    </div>
+                    <button onclick="abrirEscanerCamara()" class="md:hidden bg-slate-800 text-white p-3 rounded-xl shadow-md hover:bg-slate-700 active:scale-95 transition-all outline-none">
+                        <span class="text-xl">📷</span>
+                    </button>
                 </div>
             </div>
 
             <div class="bg-white border-b px-4 py-3 flex gap-2 overflow-x-auto shrink-0 shadow-sm z-10" style="scrollbar-width: none;" id="pos-categorias-container">
-                <button class="px-5 py-2 bg-emerald-100 text-emerald-800 font-black rounded-xl whitespace-nowrap border-2 border-emerald-200">Todas</button>
-                <button class="px-5 py-2 text-slate-600 font-bold hover:bg-slate-100 rounded-xl whitespace-nowrap transition-colors border-2 border-transparent">Bebidas</button>
-                <button class="px-5 py-2 text-slate-600 font-bold hover:bg-slate-100 rounded-xl whitespace-nowrap transition-colors border-2 border-transparent">Postres</button>
-                <button class="px-5 py-2 text-slate-600 font-bold hover:bg-slate-100 rounded-xl whitespace-nowrap transition-colors border-2 border-transparent">Platos Principales</button>
+                <p class="text-slate-400 font-bold text-sm">Cargando categorías...</p>
             </div>
 
             <div class="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-100/50">
                 <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4" id="pos-productos-grid">
-                    
-                    <div class="bg-white p-4 rounded-2xl shadow-sm hover:shadow-md hover:border-emerald-400 border-2 border-transparent cursor-pointer transition-all flex flex-col h-36 relative group select-none overflow-hidden">
-                        <div class="absolute top-0 right-0 w-16 h-16 bg-emerald-50 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-150 z-0"></div>
-                        <h3 class="font-bold text-slate-800 leading-tight relative z-10 line-clamp-2">Hamburguesa Doble Queso</h3>
-                        <div class="mt-auto flex justify-between items-end relative z-10">
-                            <span class="font-black text-emerald-600 text-lg">$6.500</span>
-                            <div class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center font-black group-hover:bg-emerald-500 group-hover:text-white transition-colors text-xl">+</div>
-                        </div>
                     </div>
-                    
-                    <div class="bg-white p-4 rounded-2xl shadow-sm hover:shadow-md hover:border-emerald-400 border-2 border-transparent cursor-pointer transition-all flex flex-col h-36 relative group select-none overflow-hidden">
-                        <h3 class="font-bold text-slate-800 leading-tight relative z-10 line-clamp-2">Lata Coca-Cola 350ml</h3>
-                        <div class="mt-auto flex justify-between items-end relative z-10">
-                            <span class="font-black text-emerald-600 text-lg">$1.500</span>
-                            <div class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center font-black group-hover:bg-emerald-500 group-hover:text-white transition-colors text-xl">+</div>
-                        </div>
-                    </div>
-
-                </div>
             </div>
+
+            <button onclick="toggleCarritoMobile()" class="md:hidden absolute bottom-4 left-4 right-4 bg-slate-800 text-white rounded-2xl py-4 px-6 font-black text-lg shadow-2xl z-40 flex justify-between items-center border-b-4 border-slate-900 active:translate-y-1 transition-all">
+                <span class="flex items-center gap-2"><span class="text-2xl">🛒</span> Carrito (<span id="cart-count-mobile">0</span>)</span>
+                <span id="cart-total-mobile" class="text-emerald-400 bg-slate-700/50 px-3 py-1 rounded-lg">$0</span>
+            </button>
         </div>
 
-        <div class="w-full md:w-[400px] bg-white border-l-2 border-slate-200 flex flex-col h-full shadow-2xl z-20 shrink-0">
+        <div id="pos-carrito-sidebar" class="fixed inset-0 z-50 bg-white transform translate-y-full transition-transform duration-300 md:translate-y-0 md:relative md:w-[400px] border-l-2 border-slate-200 flex flex-col h-full shadow-2xl shrink-0">
             
             <div class="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center shrink-0">
                 <div>
                     <h2 class="font-black text-slate-800 text-lg">Cuenta #001</h2>
                     <button class="text-xs text-blue-600 font-bold hover:underline flex items-center gap-1 mt-0.5">👤 Asignar Cliente (Opcional)</button>
                 </div>
-                <button class="text-slate-400 hover:text-slate-800 text-2xl font-bold px-2 pb-2">⋮</button>
+                <button onclick="toggleCarritoMobile()" class="md:hidden text-slate-400 hover:text-slate-800 text-3xl font-bold px-2">&times;</button>
+                <button onclick="document.getElementById('pos-dropdown-menu').classList.toggle('hidden')" class="text-slate-400 hover:bg-slate-100 hover:text-slate-800 text-2xl font-bold px-3 py-1 rounded-xl outline-none transition-colors">
+                    ⋮
+                </button>
             </div>
 
             <div class="flex-1 overflow-y-auto p-2" id="pos-cart-list">
@@ -166,6 +174,7 @@
             </div>
         </div>
     </div>
+
     <div id="pos-checkout-modal" class="hidden fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center backdrop-blur-sm p-4">
         <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col">
             
@@ -234,3 +243,117 @@
             </div>
         </div>
     </div>
+
+    <div id="modal-escaner-camara" class="hidden fixed inset-0 bg-black/95 z-[100] flex flex-col items-center justify-center p-4">
+        <button onclick="cerrarEscanerCamara()" class="absolute top-6 right-6 text-white hover:text-red-400 text-5xl font-bold outline-none">&times;</button>
+        <div class="text-center mb-6">
+            <h3 class="text-white font-black text-2xl tracking-widest uppercase mb-2">Escáner POS</h3>
+            <p class="text-emerald-400 font-bold text-sm">Apunta la cámara al código de barras</p>
+        </div>
+        <div id="lector-camara-pos" class="w-full max-w-sm rounded-3xl overflow-hidden shadow-[0_0_30px_rgba(52,211,153,0.3)] border-4 border-emerald-500/50 relative">
+             <div class="absolute inset-0 border-y-2 border-red-500/50 top-1/2 transform -translate-y-1/2 h-10 z-10 pointer-events-none animate-pulse"></div>
+        </div>
+    </div>
+
+    <div id="modal-salida-pos" class="hidden fixed inset-0 bg-slate-900/80 z-[100] flex items-center justify-center backdrop-blur-sm p-4">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden p-6 text-center border-t-4 border-slate-800">
+        <h2 class="text-2xl font-black text-slate-800 mb-2">¿Qué deseas hacer?</h2>
+        <p class="text-sm text-slate-500 mb-6">Selecciona una opción para salir de la caja registradora.</p>
+        
+        <div class="space-y-3">
+            <button onclick="pausarTurno()" class="w-full p-4 border-2 border-orange-200 bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-xl font-bold flex flex-col items-center justify-center gap-1 transition-colors outline-none">
+                <span class="text-2xl">☕</span>
+                <span>Tomar un Descanso (Pausa)</span>
+                <span class="text-[10px] font-normal text-orange-600">Bloquea la caja y registra tu tiempo de break.</span>
+            </button>
+
+            <button onclick="iniciarCierreDeCaja()" class="w-full p-4 border-2 border-red-200 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl font-bold flex flex-col items-center justify-center gap-1 transition-colors outline-none">
+                <span class="text-2xl">💰</span>
+                <span>Cierre de Caja Final</span>
+                <span class="text-[10px] font-normal text-red-600">Termina el día, cuenta los billetes y cierra el turno.</span>
+            </button>
+        </div>
+
+        <button onclick="document.getElementById('modal-salida-pos').classList.add('hidden')" class="mt-6 text-slate-400 hover:text-slate-700 font-bold text-sm outline-none">
+            Cancelar y Volver a Vender
+        </button>
+    </div>
+</div>
+
+<div id="modal-cierre-caja" class="hidden fixed inset-0 bg-slate-900/90 z-[100] flex items-center justify-center backdrop-blur-sm p-4">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border-t-8 border-slate-800 flex flex-col max-h-[90vh]">
+        
+        <div class="p-6 border-b border-slate-100 flex justify-between items-start bg-slate-50">
+            <div>
+                <h2 class="text-2xl font-black text-slate-800 tracking-tight">Cierre de Caja</h2>
+                <p class="text-sm font-bold text-slate-500 mt-1">Cajero: <span id="cierre-cajero-nombre" class="text-slate-700">...</span></p>
+            </div>
+            <button onclick="document.getElementById('modal-cierre-caja').classList.add('hidden')" class="text-slate-400 hover:text-red-500 text-3xl font-bold leading-none outline-none">&times;</button>
+        </div>
+
+        <div class="p-6 overflow-y-auto space-y-6">
+            <div class="bg-emerald-50 rounded-2xl p-4 border border-emerald-100 relative">
+                <div class="absolute -top-3 left-4 bg-emerald-500 text-white text-[10px] font-black uppercase px-3 py-1 rounded-full tracking-widest shadow-sm">💵 Efectivo</div>
+                <div class="flex justify-between items-end mt-2 mb-3">
+                    <p class="text-sm font-bold text-emerald-700">El sistema calculó:</p>
+                    <p class="text-xl font-black text-emerald-900" id="cierre-esperado-efectivo">$0</p>
+                </div>
+                <div class="bg-white p-3 rounded-xl shadow-inner border border-emerald-200">
+                    <label class="block text-xs font-bold text-slate-500 mb-1 uppercase">Billetes/Monedas contadas:</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-bold text-lg">$</span>
+                        <input type="number" id="cierre-real-efectivo" oninput="calcularDiferenciaCaja()" placeholder="0" class="w-full pl-8 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-2xl font-black text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-blue-50 rounded-2xl p-4 border border-blue-100 relative">
+                <div class="absolute -top-3 left-4 bg-blue-500 text-white text-[10px] font-black uppercase px-3 py-1 rounded-full tracking-widest shadow-sm">💳 Tarjetas</div>
+                <div class="flex justify-between items-end mt-2 mb-3">
+                    <p class="text-sm font-bold text-blue-700">Vouchers calculados:</p>
+                    <p class="text-xl font-black text-blue-900" id="cierre-esperado-tarjeta">$0</p>
+                </div>
+                <div class="bg-white p-3 rounded-xl shadow-inner border border-blue-200">
+                    <label class="block text-xs font-bold text-slate-500 mb-1 uppercase">Suma de Vouchers reales:</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-bold text-lg">$</span>
+                        <input type="number" id="cierre-real-tarjeta" oninput="calcularDiferenciaCaja()" placeholder="0" class="w-full pl-8 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-2xl font-black text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-purple-50 rounded-2xl p-4 border border-purple-100 relative">
+                <div class="absolute -top-3 left-4 bg-purple-500 text-white text-[10px] font-black uppercase px-3 py-1 rounded-full tracking-widest shadow-sm">📱 Transferencias</div>
+                <div class="flex justify-between items-end mt-2 mb-3">
+                    <p class="text-sm font-bold text-purple-700">El sistema calculó:</p>
+                    <p class="text-xl font-black text-purple-900" id="cierre-esperado-transf">$0</p>
+                </div>
+                <div class="bg-white p-3 rounded-xl shadow-inner border border-purple-200">
+                    <label class="block text-xs font-bold text-slate-500 mb-1 uppercase">Suma de Transferencias reales:</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-bold text-lg">$</span>
+                        <input type="number" id="cierre-real-transf" oninput="calcularDiferenciaCaja()" placeholder="0" class="w-full pl-8 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-2xl font-black text-slate-800 focus:ring-2 focus:ring-purple-500 outline-none transition-all">
+                    </div>
+                </div>
+            </div>
+
+            <div id="cierre-resultado-panel" class="p-4 rounded-xl border-2 border-slate-200 bg-slate-50 text-center transition-colors">
+                <p class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Diferencia Total</p>
+                <p id="cierre-diferencia-monto" class="text-3xl font-black text-slate-800">$0</p>
+                <p id="cierre-diferencia-texto" class="text-sm font-bold text-slate-500 mt-1">Caja Cuadrada Perfectamente</p>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-500 mb-1 uppercase">Observaciones (Opcional):</label>
+                <textarea id="cierre-notas" rows="2" placeholder="Ej: Se usaron $2.000 para pagar el gas..." class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-slate-500 outline-none resize-none"></textarea>
+            </div>
+        </div>
+
+        <div class="p-4 border-t border-slate-100 bg-white grid grid-cols-2 gap-3 shrink-0">
+            <button onclick="document.getElementById('modal-cierre-caja').classList.add('hidden')" class="px-4 py-4 font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">Cancelar</button>
+            <button onclick="confirmarCierreCaja()" id="btn-finalizar-cierre" class="px-4 py-4 font-black text-white bg-slate-800 hover:bg-slate-900 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2">
+                <span>🔒</span> Cerrar Turno
+            </button>
+        </div>
+    </div>
+</div>

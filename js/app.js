@@ -8,6 +8,13 @@ window.miRol = null;
 // Variable global para atrapar la invitación
 window.invitacionPendiente = null; 
 
+// 🛑 TRAMPA PARA EL BOTÓN ATRÁS DEL CELULAR (Evita salidas accidentales)
+history.pushState(null, null, window.location.href);
+window.addEventListener('popstate', function(event) {
+    history.pushState(null, null, window.location.href);
+    console.log("Navegación bloqueada. Usa los botones de BuddyERP.");
+});
+
 // ============================================================================
 // DETECTOR INTELIGENTE DE ENLACES Y SEMÁFORO
 // ============================================================================
@@ -296,7 +303,7 @@ document.getElementById('form-register-invite').addEventListener('submit', async
         btnFinal.innerText = "Unirme al Equipo 🚀"; btnFinal.disabled = false;
         // ESCUDO ANTI-FANTASMAS: Si Supabase dice que ya existe
         if (authErr.message.includes("already registered")) {
-            return alert("⚠️ Detectamos que este correo ya tiene una cuenta registrada en Simple ERP. \n\nPor favor, recarga la página, ve a la pestaña 'Entrar' e inicia sesión con tu contraseña. El sistema te vinculará a la empresa automáticamente.");
+            return alert("⚠️ Detectamos que este correo ya tiene una cuenta registrada en Buddy ERP. \n\nPor favor, recarga la página, ve a la pestaña 'Entrar' e inicia sesión con tu contraseña. El sistema te vinculará a la empresa automáticamente.");
         }
         return alert("❌ Error: " + authErr.message);
     }
@@ -558,7 +565,7 @@ window.actualizarTopBar = function(nombreEmpresa, rolUsuario) {
     // 1. Actualiza el título superior izquierdo
     const mainTitle = document.getElementById('main-app-title');
     if(mainTitle && nombreEmpresa) {
-        mainTitle.innerText = `Simple - ${nombreEmpresa}`;
+        mainTitle.innerText = `Buddy - ${nombreEmpresa}`;
     }
 
     // 2. Actualiza el nombre de la empresa al lado de la campanita

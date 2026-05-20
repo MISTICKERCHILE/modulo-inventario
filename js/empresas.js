@@ -242,7 +242,7 @@ window.copiarEnlaceInvitacion = function() {
     const rol = document.getElementById('vu-rol').value;
     
     // Armamos el mensaje bonito
-    const mensaje = `👋 ¡Hola! Te invito a unirte al equipo de *${nombreEmpresa}* en Simple ERP como ${rol}.\n\nIngresa a este enlace seguro para crear tu cuenta y contraseña:\n${inputLink}\n\n¡Nos vemos adentro! 🚀`;
+    const mensaje = `👋 ¡Hola! Te invito a unirte al equipo de *${nombreEmpresa}* en Buddy ERP como ${rol}.\n\nIngresa a este enlace seguro para crear tu cuenta y contraseña:\n${inputLink}\n\n¡Nos vemos adentro! 🚀`;
     
     // Lo copiamos al portapapeles
     navigator.clipboard.writeText(mensaje).then(() => {

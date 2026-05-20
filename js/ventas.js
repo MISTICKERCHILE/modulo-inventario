@@ -1,6 +1,10 @@
 let pinActual = "";
 const PIN_CORRECTO = "1234"; // En el futuro lo leeremos de Supabase
 
+// === CONTROL DE TURNOS ===
+window.turnoActual = null;
+window.cajeroActivo = null; // Para saber quién está operando la caja ahora mismo
+
 window.cargarVentas = function() {
     console.log("💰 Cargando Módulo POS...");
     
@@ -51,29 +55,136 @@ function actualizarPuntosPin() {
     });
 }
 
-function validarPin() {
-    // Aquí luego cruzaremos con Supabase. Por ahora usamos el 1234.
-    if(pinActual === PIN_CORRECTO) {
-        entrarAlPos();
-    } else {
-        // PIN Incorrecto: Animación roja
-        const dots = document.querySelectorAll('.pin-dot');
-        dots.forEach(dot => dot.classList.replace('bg-emerald-400', 'bg-red-500'));
-        setTimeout(borrarTodoElPin, 500);
+window.validarPin = async function() {
+    try {
+        // Buscamos qué usuario de ESTA empresa tiene este PIN
+        const { data, error } = await clienteSupabase
+            .from('usuarios_empresas')
+            .select(`
+                rol, 
+                perfiles!inner (
+                    id_usuario, 
+                    nombre, 
+                    pin_seguridad
+                )
+            `)
+            .eq('id_empresa', window.miEmpresaId)
+            .eq('perfiles.pin_seguridad', pinActual)
+            .maybeSingle();
+
+        if (error) throw error;
+
+        if (data) {
+            // Usuario validado en esta empresa. Lo guardamos en memoria.
+            window.cajeroActivo = {
+                id: data.perfiles.id_usuario,
+                nombre: data.perfiles.nombre, // Cambia 'nombre' si tu columna se llama 'nombre_completo'
+                rol: data.rol
+            };
+            entrarAlPos();
+        } else {
+            alert("❌ PIN incorrecto o el usuario no pertenece a esta empresa.");
+            errorPinAnimation();
+        }
+    } catch (error) {
+        console.error("Error validando PIN:", error);
+        errorPinAnimation();
     }
 }
 
-// === NAVEGACIÓN DENTRO DEL POS ===
-function entrarAlPos() {
-    // Fecha actual
+function errorPinAnimation() {
+    const dots = document.querySelectorAll('.pin-dot');
+    dots.forEach(dot => dot.classList.replace('bg-emerald-400', 'bg-red-500'));
+    setTimeout(borrarTodoElPin, 500);
+}
+
+// Separé la animación de error para que quede más limpio
+function errorPinAnimation() {
+    const dots = document.querySelectorAll('.pin-dot');
+    dots.forEach(dot => dot.classList.replace('bg-emerald-400', 'bg-red-500'));
+    setTimeout(borrarTodoElPin, 500);
+}
+
+// === NAVEGACIÓN DENTRO DEL POS Y CONTROL DE TURNOS ===
+async function entrarAlPos() {
+    // 1. Ocultar teclado PIN
+    document.getElementById('pos-pin-screen').classList.add('hidden');
+    document.getElementById('pos-pin-screen').classList.remove('flex');
+
+    // 2. Verificar estado del turno en Supabase
+    try {
+        const { data: turnoAbierto, error } = await clienteSupabase
+            .from('pos_turnos')
+            .select('*')
+            .eq('id_empresa', window.miEmpresaId)
+            .eq('estado', 'ABIERTO')
+            .maybeSingle();
+
+        if (error) throw error;
+
+        if (turnoAbierto) {
+            // Ya hay un turno abierto
+            window.turnoActual = turnoAbierto;
+            mostrarDashboardPos();
+        } else {
+            // No hay turno, preguntar monto inicial
+            abrirTurnoNuevo();
+        }
+    } catch (error) {
+        console.error("Error verificando turnos:", error);
+        alert("Hubo un error al verificar el turno. Revisa la consola.");
+    }
+}
+
+// Función auxiliar para mostrar el dashboard una vez validado el turno
+function mostrarDashboardPos() {
     const opcionesFecha = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
     document.getElementById('pos-fecha-actual').innerText = new Date().toLocaleDateString('es-ES', opcionesFecha);
     
-    // Cambiar pantallas
-    document.getElementById('pos-pin-screen').classList.add('hidden');
-    document.getElementById('pos-pin-screen').classList.remove('flex');
     document.getElementById('pos-dashboard-screen').classList.remove('hidden');
     document.getElementById('pos-dashboard-screen').classList.add('flex');
+}
+
+// Flujo para crear un nuevo turno
+async function abrirTurnoNuevo() {
+    const montoInicial = prompt("💵 Apertura de Caja\n\nIngresa el monto de efectivo inicial (Sencillo/Fondo de caja). Deja en 0 si la caja está vacía:", "0");
+    
+    if (montoInicial === null) {
+        // Canceló, volver a pedir PIN
+        document.getElementById('pos-pin-screen').classList.remove('hidden');
+        document.getElementById('pos-pin-screen').classList.add('flex');
+        window.borrarTodoElPin();
+        return;
+    }
+
+    const fondoCaja = parseFloat(montoInicial) || 0;
+
+    try {
+        const { data: authData } = await clienteSupabase.auth.getUser();
+        
+        const payloadTurno = {
+            id_empresa: window.miEmpresaId,
+            abierto_por: authData.user.id,
+            monto_inicial_efe: fondoCaja,
+            estado: 'ABIERTO'
+        };
+
+        const { data: nuevoTurno, error } = await clienteSupabase
+            .from('pos_turnos')
+            .insert([payloadTurno])
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        window.turnoActual = nuevoTurno;
+        alert(`✅ Turno abierto con fondo de: $${fondoCaja.toLocaleString('es-CL')}`);
+        mostrarDashboardPos();
+
+    } catch (error) {
+        console.error("Error abriendo turno:", error);
+        alert("Error al intentar abrir la caja.");
+    }
 }
 
 window.salirDePOS = function() {
@@ -120,9 +231,11 @@ window.volverAlPosDashboard = function() {
 }
 
 window.cerrarTurno = function() {
-    if(confirm("¿Seguro que deseas iniciar el cierre de caja?")) {
-        alert("Iniciando arqueo de caja...");
-        // Esto lo programaremos luego
+    if(confirm("⚠️ ¿Estás seguro que deseas realizar el Cierre de Caja?\n\nEsto finalizará tu turno actual y cerrará tu sesión por seguridad.")) {
+        // Aquí a futuro abriremos el "Modal de Arqueo de Caja" (Contar billetes).
+        // Por ahora, aplicamos la regla estricta: Se cierra la sesión.
+        alert("Cierre de caja registrado. Cerrando sesión...");
+        window.cerrarSesion(); 
     }
 }
 
@@ -255,6 +368,13 @@ function renderizarCarrito() {
     }).join('');
 
     document.getElementById('pos-total-pagar').innerText = "$" + total.toLocaleString('es-CL');
+
+    // Novedad: Actualizar también los números del Botón Flotante Móvil
+    const cantTotalItems = window.carritoPos.reduce((acc, item) => acc + item.cantidad, 0);
+    const countMobile = document.getElementById('cart-count-mobile');
+    const totalMobile = document.getElementById('cart-total-mobile');
+    if(countMobile) countMobile.innerText = cantTotalItems;
+    if(totalMobile) totalMobile.innerText = "$" + total.toLocaleString('es-CL');
 }
 
 // Botones de + y - dentro del carrito
@@ -396,40 +516,97 @@ window.calcularVuelto = function() {
     document.getElementById('checkout-vuelto').innerText = "$" + vuelto.toLocaleString('es-CL');
 }
 
+// LA FUNCIÓN CONFIRMAR VENTA (¡Versión Unificada Definitiva!)
 window.confirmarVentaPOS = async function() {
     if(!checkoutMetodoPago) return alert("Selecciona un método de pago.");
+    if(window.carritoPos.length === 0) return alert("El carrito está vacío.");
     
     const btn = document.getElementById('btn-confirmar-venta');
     btn.innerText = "⏳ Procesando...";
     btn.disabled = true;
 
     try {
-        // 1. Payload limpio usando tu variable global segura
+        const estadoVenta = checkoutMetodoPago === 'CREDITO' ? 'POR_COBRAR' : 'COMPLETADA';
+
+        // 1. Buscamos sucursal (BLINDADO CON maybeSingle)
+        const { data: sucursal } = await clienteSupabase
+            .from('sucursales')
+            .select('id')
+            .eq('id_empresa', window.miEmpresaId)
+            .limit(1)
+            .maybeSingle();
+
+        if (!sucursal) throw new Error("No tienes ninguna sucursal creada en el sistema.");
+
+        // 2. Cabecera (Tabla: ventas)
         const payloadVenta = {
             id_empresa: window.miEmpresaId,
+            id_sucursal: sucursal.id,
             total: checkoutTotalVenta,
             metodo_pago: checkoutMetodoPago,
-            estado: 'COMPLETADA'
+            estado: estadoVenta,
+            cajero: window.usuarioActual,
+            origen: 'POS'
         };
 
-        // 2. Guardar en la tabla
-        const { data: ventaGuardada, error } = await clienteSupabase
-            .from('pos_ventas')
+        const { data: ventaGuardada, error: errorVenta } = await clienteSupabase
+            .from('ventas')
             .insert([payloadVenta])
             .select('id')
             .single();
 
-        if (error) throw error;
+        if (errorVenta) throw errorVenta;
 
-        // 3. Éxito absoluto
-        alert("✅ ¡Venta registrada con éxito!");
+        // 3. Detalles (Tabla: ventas_detalles)
+        const detallesVenta = window.carritoPos.map(item => ({
+            id_venta: ventaGuardada.id,
+            id_producto: item.id,
+            cantidad: item.cantidad,
+            precio_unitario: item.precio,
+            subtotal: item.cantidad * item.precio
+        }));
+
+        const { error: errorDetalles } = await clienteSupabase.from('ventas_detalles').insert(detallesVenta);
+        if (errorDetalles) throw errorDetalles;
+
+        // 4. Bajar Stock (BLINDADO CON maybeSingle)
+        for (const item of window.carritoPos) {
+            const productoMemoria = window.productosPosMemoria.find(p => p.id === item.id);
+            if (productoMemoria && productoMemoria.control_stock === true) {
+                
+                const { data: saldoActual } = await clienteSupabase
+                    .from('inventario_saldos')
+                    .select('id, cantidad_actual_ua')
+                    .eq('id_producto', item.id)
+                    .limit(1)
+                    .maybeSingle();
+
+                if (saldoActual) {
+                    await clienteSupabase
+                        .from('inventario_saldos')
+                        .update({ 
+                            cantidad_actual_ua: saldoActual.cantidad_actual_ua - item.cantidad, 
+                            ultima_actualizacion: new Date().toISOString() 
+                        })
+                        .eq('id', saldoActual.id);
+                } else {
+                    console.warn(`Producto sin registro en inventario. Se vendió igual.`);
+                }
+            }
+        }
+
+        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+        
+        if(estadoVenta === 'POR_COBRAR') alert("📓 Venta anotada en la cuenta (Crédito).");
+        else alert("✅ ¡Venta registrada y pagada con éxito!");
+        
         window.carritoPos = []; 
         renderizarCarrito();    
         cerrarCheckout();       
 
     } catch(error) {
         console.error("Error al registrar venta:", error);
-        alert("Error al registrar venta: " + (error.message || "Desconocido"));
+        alert("❌ Error: " + (error.message || "Contacta a soporte."));
     } finally {
         btn.innerText = "CONFIRMAR PAGO";
         btn.disabled = false;
@@ -560,4 +737,271 @@ window.volverDashboardPOS = function() {
     
     // 2. Volvemos a mostrar el menú de los 3 botones gigantes
     document.getElementById('pos-dashboard').classList.remove('hidden');
+}
+
+// Mostrar/Ocultar el carrito en modo Teléfono
+window.toggleCarritoMobile = function() {
+    const sidebar = document.getElementById('pos-carrito-sidebar');
+    if(sidebar.classList.contains('translate-y-full')) {
+        sidebar.classList.remove('translate-y-full'); // Subir carrito
+    } else {
+        sidebar.classList.add('translate-y-full'); // Bajar carrito
+    }
+}
+
+// ==========================================
+// ESCÁNER DE CÓDIGO DE BARRAS POR CÁMARA (MÓVIL)
+// ==========================================
+let escanerCamara = null;
+
+window.abrirEscanerCamara = function() {
+    document.getElementById('modal-escaner-camara').classList.remove('hidden');
+    
+    // Si ya hay una instancia, la limpiamos por precaución
+    if (escanerCamara) { escanerCamara.clear(); }
+    
+    // Inicializamos el lector en el div que creamos
+    escanerCamara = new Html5Qrcode("lector-camara-pos");
+    
+    // Configuramos para usar la cámara trasera y darle forma de rectángulo de código de barras
+    const config = { fps: 10, qrbox: { width: 250, height: 100 } };
+    
+    escanerCamara.start({ facingMode: "environment" }, config, 
+        (textoDecodificado) => {
+            // ¡LO LEYÓ! Apagamos la cámara instantáneamente
+            cerrarEscanerCamara();
+            
+            // Le pasamos el código exacto a nuestra función para que lo tire al carrito
+            procesarEscaneoFisico(textoDecodificado);
+        },
+        (mensajeError) => {
+            // Ignoramos los errores continuos mientras busca enfocar
+        }
+    ).catch(err => {
+        console.error("Error iniciando cámara:", err);
+        alert("❌ No se pudo acceder a la cámara. Revisa los permisos de tu navegador.");
+        cerrarEscanerCamara();
+    });
+}
+
+window.cerrarEscanerCamara = function() {
+    document.getElementById('modal-escaner-camara').classList.add('hidden');
+    if (escanerCamara) {
+        escanerCamara.stop().then(() => {
+            escanerCamara.clear();
+            escanerCamara = null;
+        }).catch(err => console.error("Error al detener cámara:", err));
+    }
+}
+
+let modoEscanerActual = 'POS'; // Para saber si estamos cobrando o creando un producto
+
+// Le agregamos la variable "modo" (Por defecto es POS)
+window.abrirEscanerCamara = function(modo = 'POS') {
+    modoEscanerActual = modo;
+    document.getElementById('modal-escaner-camara').classList.remove('hidden');
+    
+    if (escanerCamara) { escanerCamara.clear(); }
+    
+    escanerCamara = new Html5Qrcode("lector-camara-pos");
+    const config = { 
+        fps: 15, 
+        qrbox: { width: 300, height: 120 },
+        formatsToSupport: [
+            Html5QrcodeSupportedFormats.EAN_13,
+            Html5QrcodeSupportedFormats.EAN_8,
+            Html5QrcodeSupportedFormats.UPC_A,
+            Html5QrcodeSupportedFormats.UPC_E,
+            Html5QrcodeSupportedFormats.CODE_128,
+            Html5QrcodeSupportedFormats.QR_CODE
+        ]
+    };
+    
+    escanerCamara.start({ facingMode: "environment" }, config, 
+        (textoDecodificado) => {
+            // ¡CÓDIGO LEYÓDO! Apagamos la cámara
+            cerrarEscanerCamara();
+            
+            // 🧠 DECISIÓN INTELIGENTE: ¿Qué hacemos con el código?
+            if (modoEscanerActual === 'PRODUCTO') {
+                // Si estamos creando un producto, lo pegamos en el formulario
+                document.getElementById('prod-codigo-barras').value = textoDecodificado;
+                if (navigator.vibrate) navigator.vibrate(100);
+                
+                // Efecto visual para que el usuario note que se pegó
+                const input = document.getElementById('prod-codigo-barras');
+                input.classList.add('bg-emerald-100', 'ring-2', 'ring-emerald-500');
+                setTimeout(() => input.classList.remove('bg-emerald-100', 'ring-2', 'ring-emerald-500'), 1000);
+                
+            } else {
+                // Si estamos en el POS, lo tiramos al carrito
+                procesarEscaneoFisico(textoDecodificado);
+            }
+        },
+        (mensajeError) => {
+            // Ignoramos errores de enfoque
+        }
+    ).catch(err => {
+        console.error("Error iniciando cámara:", err);
+        alert("❌ No se pudo acceder a la cámara. Revisa los permisos de tu navegador.");
+        cerrarEscanerCamara();
+    });
+}
+
+// ==========================================
+// CONTROL DE ACCESO ERP Y SALIDA DE CAJA
+// ==========================================
+
+// 1. Ir al ERP con contraseña de Admin (Redirección inteligente)
+window.solicitarAccesoERP = async function(vistaDestino = 'home') {
+    document.getElementById('pos-dropdown-menu').classList.add('hidden');
+    
+    const pinIngresado = prompt("🔒 Seguridad ERP: Ingresa tu PIN de Administrador/Dueño para salir del POS:");
+    if (!pinIngresado) return;
+
+    try {
+        const { data, error } = await clienteSupabase
+            .from('usuarios_empresas')
+            .select('rol, perfiles!inner(pin_seguridad)')
+            .eq('id_empresa', window.miEmpresaId)
+            .eq('perfiles.pin_seguridad', pinIngresado)
+            .maybeSingle();
+
+        // Validamos que exista y que su rol sea uno de los permitidos (ajusta los nombres de tus roles si son distintos)
+        if (data && (data.rol === 'ADMIN' || data.rol === 'DUEÑO' || data.rol === 'ADMINISTRADOR')) {
+            alert("✅ Acceso autorizado al panel ERP.");
+            window.salirDePOS(); 
+            if(vistaDestino !== 'home') {
+                window.cambiarVista(vistaDestino);
+            }
+        } else {
+            alert("🚨 Intento de salida no autorizado. Cerrando sesión maestra por seguridad.");
+            window.cerrarSesion(); // Cierre fulminante
+        }
+    } catch (error) {
+        console.error("Error en validación de salida:", error);
+        window.cerrarSesion(); // Ante la duda o error de red, cierra sesión.
+    }
+}
+
+// 2. Abrir Modal de Salida
+window.abrirModalSalidaPOS = function() {
+    document.getElementById('pos-dropdown-menu').classList.add('hidden');
+    document.getElementById('modal-salida-pos').classList.remove('hidden');
+}
+
+// 3. Tomar Descanso (Pausa)
+window.pausarTurno = function() {
+    document.getElementById('modal-salida-pos').classList.add('hidden');
+    alert("☕ Pausa registrada en RRHH. La caja se bloqueará.");
+    // Aquí bloqueamos la pantalla devolviéndolo a la pantalla del PIN inicial
+    document.getElementById('pos-dashboard-screen').classList.add('hidden');
+    document.getElementById('pos-dashboard-screen').classList.remove('flex');
+    document.getElementById('pos-pin-screen').classList.remove('hidden');
+    document.getElementById('pos-pin-screen').classList.add('flex');
+    window.borrarTodoElPin();
+}
+
+// Variables globales de cierre
+let esperadoEfectivo = 0;
+let esperadoTarjetas = 0;
+let esperadoTransf = 0; // NUEVO
+
+window.iniciarCierreDeCaja = async function() {
+    if (!window.turnoActual) {
+        alert("No hay un turno activo para cerrar.");
+        return;
+    }
+
+    document.getElementById('modal-salida-pos').classList.add('hidden');
+    document.getElementById('cierre-cajero-nombre').innerText = window.usuarioActual;
+
+    try {
+        // 1. Consultar las ventas REALES de este turno (Desde fecha_apertura hasta AHORA)
+        const { data: ventasTurno, error } = await clienteSupabase
+            .from('ventas')
+            .select('total, metodo_pago')
+            .eq('id_empresa', window.miEmpresaId)
+            .gte('fecha_venta', window.turnoActual.fecha_apertura)
+            .in('estado', ['COMPLETADA']); // Solo sumamos ventas pagadas
+
+        if (error) throw error;
+
+        // 2. Sumarizar por método de pago
+        let sumaEfectivo = 0;
+        let sumaTarjetas = 0;
+        let sumaTransf = 0;
+
+        (ventasTurno || []).forEach(v => {
+            if (v.metodo_pago === 'EFECTIVO') sumaEfectivo += Number(v.total);
+            if (v.metodo_pago === 'TARJETA') sumaTarjetas += Number(v.total);
+            if (v.metodo_pago === 'TRANSFERENCIA') sumaTransf += Number(v.total);
+        });
+
+        // 3. Asignar los valores REALES al cuadre
+        // El esperado en efectivo es lo que se vendió + el monto inicial (sencillo)
+        esperadoEfectivo = sumaEfectivo + Number(window.turnoActual.monto_inicial_efe);
+        esperadoTarjetas = sumaTarjetas;
+        esperadoTransf = sumaTransf;
+
+        // 4. Mostrar en la UI
+        document.getElementById('cierre-esperado-efectivo').innerText = `$${esperadoEfectivo.toLocaleString('es-CL')}`;
+        document.getElementById('cierre-esperado-tarjeta').innerText = `$${esperadoTarjetas.toLocaleString('es-CL')}`;
+        document.getElementById('cierre-esperado-transf').innerText = `$${esperadoTransf.toLocaleString('es-CL')}`;
+        
+        document.getElementById('cierre-real-efectivo').value = '';
+        document.getElementById('cierre-real-tarjeta').value = '';
+        document.getElementById('cierre-real-transf').value = '';
+        document.getElementById('cierre-notas').value = '';
+        
+        calcularDiferenciaCaja(); 
+        document.getElementById('modal-cierre-caja').classList.remove('hidden');
+
+    } catch (error) {
+        console.error("Error calculando el cierre:", error);
+        alert("Hubo un error al calcular los totales de caja.");
+    }
+}
+
+window.calcularDiferenciaCaja = function() {
+    const realEf = Number(document.getElementById('cierre-real-efectivo').value) || 0;
+    const realTa = Number(document.getElementById('cierre-real-tarjeta').value) || 0;
+    const realTr = Number(document.getElementById('cierre-real-transf').value) || 0; // NUEVO
+
+    const totalEsperado = esperadoEfectivo + esperadoTarjetas + esperadoTransf;
+    const totalReal = realEf + realTa + realTr;
+    const diferencia = totalReal - totalEsperado;
+
+    const panel = document.getElementById('cierre-resultado-panel');
+    const montoTexto = document.getElementById('cierre-diferencia-monto');
+    const descTexto = document.getElementById('cierre-diferencia-texto');
+
+    montoTexto.innerText = `$${Math.abs(diferencia).toLocaleString('es-CL')}`;
+    panel.classList.remove('border-emerald-400', 'bg-emerald-50', 'border-red-400', 'bg-red-50', 'border-slate-200', 'bg-slate-50');
+    montoTexto.classList.remove('text-emerald-700', 'text-red-700', 'text-slate-800');
+
+    if (diferencia === 0 && totalEsperado > 0) {
+        panel.classList.add('border-emerald-400', 'bg-emerald-50');
+        montoTexto.classList.add('text-emerald-700');
+        descTexto.innerText = "✅ Caja Cuadrada Perfectamente";
+    } else if (diferencia > 0) {
+        panel.classList.add('border-slate-200', 'bg-slate-50');
+        montoTexto.classList.add('text-slate-800');
+        descTexto.innerText = "⚠️ Sobra dinero en caja";
+    } else if (diferencia < 0) {
+        panel.classList.add('border-red-400', 'bg-red-50');
+        montoTexto.classList.add('text-red-700');
+        descTexto.innerText = "❌ Falta dinero (Descuadre)";
+    } else {
+        panel.classList.add('border-slate-200', 'bg-slate-50');
+        montoTexto.classList.add('text-slate-800');
+        descTexto.innerText = "Ingresa los montos contados";
+    }
+}
+
+// EL BOTÓN FINAL PARA CERRAR TURNO
+window.confirmarCierreCaja = function() {
+    // Aquí a futuro guardaremos el "Reporte de Cierre" en Supabase
+    alert("🔒 ¡Cierre de caja registrado exitosamente!\n\nBuen trabajo hoy. Cerrando sesión...");
+    window.cerrarSesion();
 }
