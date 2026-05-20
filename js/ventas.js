@@ -4,6 +4,7 @@ const PIN_CORRECTO = "1234"; // En el futuro lo leeremos de Supabase
 // === CONTROL DE TURNOS ===
 window.turnoActual = null;
 window.cajeroActivo = null; // Para saber quién está operando la caja ahora mismo
+window.metodosPagoMemoria = []; // Guardará las formas de pago de la empresa
 
 window.cargarVentas = function() {
     console.log("💰 Cargando Módulo POS...");
@@ -89,6 +90,8 @@ window.validarPin = async function() {
             rol: acceso.rol
         };
         
+        cargarMetodosPagoPOS();
+
         entrarAlPos();
 
     } catch (error) {
@@ -489,27 +492,31 @@ window.cerrarCheckout = function() {
     document.getElementById('pos-checkout-modal').classList.add('hidden');
 }
 
-window.seleccionarMetodoPago = function(metodo) {
-    checkoutMetodoPago = metodo;
-    document.getElementById('btn-confirmar-venta').disabled = false; // Habilitar botón de confirmar
+window.seleccionarMetodoPago = function(idMetodo) {
+    // Buscamos el objeto completo del método seleccionado
+    const metodoElegido = window.metodosPagoMemoria.find(m => m.id === idMetodo);
+    if(!metodoElegido) return;
 
-    // Limpiar todos los botones
+    checkoutMetodoPago = metodoElegido; // Guardamos el objeto completo, no solo el string
+    document.getElementById('btn-confirmar-venta').disabled = false; 
+
+    // Limpiar todos los botones (quitar bordes de colores)
     const botones = document.querySelectorAll('.metodo-pago-btn');
-    botones.forEach(btn => btn.classList.remove('ring-4', 'ring-emerald-400', 'bg-emerald-50'));
+    botones.forEach(btn => btn.classList.remove('ring-4', 'ring-emerald-400', 'bg-emerald-50', 'ring-blue-400', 'bg-blue-50', 'ring-purple-400', 'bg-purple-50'));
     
-    // Pintar de verde el botón seleccionado
-    let btnActivo;
-    if(metodo === 'EFECTIVO') btnActivo = document.getElementById('btn-pago-efectivo');
-    if(metodo === 'TARJETA') btnActivo = document.getElementById('btn-pago-tarjeta');
-    if(metodo === 'TRANSFERENCIA') btnActivo = document.getElementById('btn-pago-transf');
-    
-    if(btnActivo) btnActivo.classList.add('ring-4', 'ring-emerald-400', 'bg-emerald-50');
+    // Pintar de verde/azul/morado el botón seleccionado
+    const btnActivo = document.getElementById(`btn-pago-${idMetodo}`);
+    if(btnActivo) {
+        if(metodoElegido.tipo === 'EFECTIVO') btnActivo.classList.add('ring-4', 'ring-emerald-400', 'bg-emerald-50');
+        else if(metodoElegido.tipo === 'TARJETA') btnActivo.classList.add('ring-4', 'ring-blue-400', 'bg-blue-50');
+        else btnActivo.classList.add('ring-4', 'ring-purple-400', 'bg-purple-50');
+    }
 
-    // Mostrar u ocultar la calculadora de vuelto
+    // Mostrar u ocultar la calculadora de vuelto SI ES EFECTIVO
     const seccionEfectivo = document.getElementById('checkout-seccion-efectivo');
-    if(metodo === 'EFECTIVO') {
+    if(metodoElegido.tipo === 'EFECTIVO') {
         seccionEfectivo.classList.remove('hidden');
-        setTimeout(() => document.getElementById('checkout-recibido').focus(), 100); // Autofocus para escribir rápido
+        setTimeout(() => document.getElementById('checkout-recibido').focus(), 100); 
     } else {
         seccionEfectivo.classList.add('hidden');
     }
@@ -1083,4 +1090,52 @@ window.confirmarCierreCaja = async function() {
             btn.disabled = false;
         }
     }
+}
+
+// 1. Ir a buscar los métodos a Supabase
+window.cargarMetodosPagoPOS = async function() {
+    try {
+        const { data, error } = await clienteSupabase
+            .from('metodos_pago')
+            .select('*')
+            .eq('id_empresa', window.miEmpresaId)
+            .eq('activo', true)
+            .order('nombre');
+
+        if (error) throw error;
+        
+        window.metodosPagoMemoria = data || [];
+        renderizarMetodosPagoPOS();
+    } catch (error) {
+        console.error("Error cargando métodos de pago:", error);
+    }
+}
+
+// 2. Dibujar los botones en el HTML con colores según su tipo
+window.renderizarMetodosPagoPOS = function() {
+    const contenedor = document.getElementById('contenedor-metodos-pago');
+    if (!contenedor) return;
+
+    if (window.metodosPagoMemoria.length === 0) {
+        contenedor.innerHTML = '<p class="text-xs text-red-500 col-span-full font-bold text-center">⚠️ No hay métodos de pago configurados.</p>';
+        return;
+    }
+
+    contenedor.innerHTML = window.metodosPagoMemoria.map(mp => {
+        // Asignar colores e íconos dinámicamente según el tipo base
+        let colorClass = 'border-slate-200 text-slate-600 hover:border-slate-500 hover:bg-slate-50';
+        let icono = '🪙';
+        
+        if (mp.tipo === 'EFECTIVO') { colorClass = 'border-slate-200 text-slate-600 hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700'; icono = '💵'; }
+        if (mp.tipo === 'TARJETA') { colorClass = 'border-slate-200 text-slate-600 hover:border-blue-500 hover:bg-blue-50 hover:text-blue-700'; icono = '💳'; }
+        if (mp.tipo === 'TRANSFERENCIA') { colorClass = 'border-slate-200 text-slate-600 hover:border-purple-500 hover:bg-purple-50 hover:text-purple-700'; icono = '📱'; }
+
+        return `
+            <button onclick="seleccionarMetodoPago('${mp.id}')" id="btn-pago-${mp.id}" class="metodo-pago-btn py-3 px-2 rounded-xl border-2 font-bold transition-all flex flex-col items-center gap-1 ${colorClass}">
+                <span class="text-2xl">${icono}</span> 
+                <span class="text-xs text-center leading-tight truncate w-full">${mp.nombre}</span>
+                <span class="text-[9px] bg-slate-100 text-slate-400 px-2 rounded-full">${mp.moneda}</span>
+            </button>
+        `;
+    }).join('');
 }
