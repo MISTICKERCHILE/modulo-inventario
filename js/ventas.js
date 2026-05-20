@@ -685,7 +685,11 @@ window.confirmarGuardarCuenta = async function() {
 }
 
 window.mostrarPantallaCuentas = function() {
-    document.getElementById('pos-dashboard').classList.add('hidden');
+    // CORRECCIÓN: Ocultamos la pantalla contenedora correcta
+    document.getElementById('pos-dashboard-screen').classList.add('hidden');
+    document.getElementById('pos-dashboard-screen').classList.remove('flex');
+    
+    // Mostramos la pantalla de cuentas
     document.getElementById('pos-cuentas-screen').classList.remove('hidden');
     renderizarCuentasGuardadas();
 }
@@ -1183,4 +1187,13 @@ window.renderizarMetodosPagoPOS = function() {
             </button>
         `;
     }).join('');
+}
+
+window.volverDashboardPOS = function() {
+    // Ocultamos la pantalla de las cuentas
+    document.getElementById('pos-cuentas-screen').classList.add('hidden');
+    
+    // Volvemos a mostrar el menú de los 3 botones gigantes
+    document.getElementById('pos-dashboard-screen').classList.remove('hidden');
+    document.getElementById('pos-dashboard-screen').classList.add('flex');
 }
