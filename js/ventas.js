@@ -169,7 +169,7 @@ async function abrirTurnoNuevo() {
         const payloadTurno = {
             id_empresa: window.miEmpresaId,
             abierto_por: window.cajeroActivo.id, 
-            monto_inicial_efe: fondoCaja,
+            monto_inicial_efectivo: fondoCaja,
             estado: 'ABIERTO'
         };
 
