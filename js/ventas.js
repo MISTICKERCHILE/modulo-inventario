@@ -551,7 +551,7 @@ window.confirmarVentaPOS = async function() {
             total: checkoutTotalVenta,
             metodo_pago: checkoutMetodoPago,
             estado: estadoVenta,
-            cajero: window.usuarioActual,
+            cajero: window.cajeroActivo.id, 
             origen: 'POS'
         };
 
@@ -1017,8 +1017,61 @@ window.calcularDiferenciaCaja = function() {
 }
 
 // EL BOTÓN FINAL PARA CERRAR TURNO
-window.confirmarCierreCaja = function() {
-    // Aquí a futuro guardaremos el "Reporte de Cierre" en Supabase
-    alert("🔒 ¡Cierre de caja registrado exitosamente!\n\nBuen trabajo hoy. Cerrando sesión...");
-    window.cerrarSesion();
+window.confirmarCierreCaja = async function() {
+    if (!window.turnoActual) return alert("❌ No hay un turno activo para cerrar.");
+
+    const btn = document.querySelector('#modal-cierre-caja button.bg-emerald-600');
+    const textoOriginal = btn.innerText;
+    btn.innerText = "⏳ Cerrando...";
+    btn.disabled = true;
+
+    // Tomamos lo que el cajero digitó que contó físicamente
+    const realEf = Number(document.getElementById('cierre-real-efectivo').value) || 0;
+    const realTa = Number(document.getElementById('cierre-real-tarjeta').value) || 0;
+    
+    // Calculamos diferencias finales
+    const difEfectivo = realEf - esperadoEfectivo;
+    const difTarjetas = realTa - esperadoTarjetas;
+
+    try {
+        // Guardamos todo en la base de datos
+        const { error } = await clienteSupabase
+            .from('pos_turnos')
+            .update({
+                fecha_cierre: new Date().toISOString(),
+                cerrado_por: window.cajeroActivo.id,
+                ventas_efectivo_sistema: esperadoEfectivo, // Lo que la BD calculó
+                ventas_tarjetas_sistema: esperadoTarjetas, // Lo que la BD calculó
+                efectivo_declarado: realEf, // Lo que el cajero contó
+                tarjetas_declaradas: realTa, // Lo que el cajero contó
+                diferencia_efectivo: difEfectivo,
+                diferencia_tarjetas: difTarjetas,
+                estado: 'CERRADO'
+            })
+            .eq('id', window.turnoActual.id);
+
+        if (error) throw error;
+
+        // Limpiamos la memoria
+        window.turnoActual = null;
+        window.cajeroActivo = null;
+
+        alert("🔒 ¡Cierre de caja registrado exitosamente!\n\nEl turno ha finalizado.");
+
+        // Cerramos modal y bloqueamos la pantalla devolviéndolo al PIN
+        document.getElementById('modal-cierre-caja').classList.add('hidden');
+        document.getElementById('pos-dashboard-screen').classList.add('hidden');
+        document.getElementById('pos-dashboard-screen').classList.remove('flex');
+        
+        document.getElementById('pos-pin-screen').classList.remove('hidden');
+        document.getElementById('pos-pin-screen').classList.add('flex');
+        window.borrarTodoElPin();
+
+    } catch (error) {
+        console.error("Error guardando cierre:", error);
+        alert("❌ Ocurrió un error al intentar cerrar la caja. Revisa la consola.");
+    } finally {
+        btn.innerText = textoOriginal;
+        btn.disabled = false;
+    }
 }
