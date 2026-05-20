@@ -1,6 +1,9 @@
 let pinActual = "";
 const PIN_CORRECTO = "1234"; // En el futuro lo leeremos de Supabase
 
+// === CONTROL DE TURNOS ===
+window.turnoActual = null;
+
 window.cargarVentas = function() {
     console.log("💰 Cargando Módulo POS...");
     
@@ -90,17 +93,86 @@ function errorPinAnimation() {
     setTimeout(borrarTodoElPin, 500);
 }
 
-// === NAVEGACIÓN DENTRO DEL POS ===
-function entrarAlPos() {
-    // Fecha actual
+// === NAVEGACIÓN DENTRO DEL POS Y CONTROL DE TURNOS ===
+async function entrarAlPos() {
+    // 1. Ocultar teclado PIN
+    document.getElementById('pos-pin-screen').classList.add('hidden');
+    document.getElementById('pos-pin-screen').classList.remove('flex');
+
+    // 2. Verificar estado del turno en Supabase
+    try {
+        const { data: turnoAbierto, error } = await clienteSupabase
+            .from('turnos')
+            .select('*')
+            .eq('id_empresa', window.miEmpresaId)
+            .eq('estado', 'ABIERTO')
+            .maybeSingle();
+
+        if (error) throw error;
+
+        if (turnoAbierto) {
+            // Ya hay un turno abierto
+            window.turnoActual = turnoAbierto;
+            mostrarDashboardPos();
+        } else {
+            // No hay turno, preguntar monto inicial
+            abrirTurnoNuevo();
+        }
+    } catch (error) {
+        console.error("Error verificando turnos:", error);
+        alert("Hubo un error al verificar el turno. Revisa la consola.");
+    }
+}
+
+// Función auxiliar para mostrar el dashboard una vez validado el turno
+function mostrarDashboardPos() {
     const opcionesFecha = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
     document.getElementById('pos-fecha-actual').innerText = new Date().toLocaleDateString('es-ES', opcionesFecha);
     
-    // Cambiar pantallas
-    document.getElementById('pos-pin-screen').classList.add('hidden');
-    document.getElementById('pos-pin-screen').classList.remove('flex');
     document.getElementById('pos-dashboard-screen').classList.remove('hidden');
     document.getElementById('pos-dashboard-screen').classList.add('flex');
+}
+
+// Flujo para crear un nuevo turno
+async function abrirTurnoNuevo() {
+    const montoInicial = prompt("💵 Apertura de Caja\n\nIngresa el monto de efectivo inicial (Sencillo/Fondo de caja). Deja en 0 si la caja está vacía:", "0");
+    
+    if (montoInicial === null) {
+        // Canceló, volver a pedir PIN
+        document.getElementById('pos-pin-screen').classList.remove('hidden');
+        document.getElementById('pos-pin-screen').classList.add('flex');
+        window.borrarTodoElPin();
+        return;
+    }
+
+    const fondoCaja = parseFloat(montoInicial) || 0;
+
+    try {
+        const { data: authData } = await clienteSupabase.auth.getUser();
+        
+        const payloadTurno = {
+            id_empresa: window.miEmpresaId,
+            abierto_por: authData.user.id,
+            monto_inicial_efe: fondoCaja,
+            estado: 'ABIERTO'
+        };
+
+        const { data: nuevoTurno, error } = await clienteSupabase
+            .from('turnos')
+            .insert([payloadTurno])
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        window.turnoActual = nuevoTurno;
+        alert(`✅ Turno abierto con fondo de: $${fondoCaja.toLocaleString('es-CL')}`);
+        mostrarDashboardPos();
+
+    } catch (error) {
+        console.error("Error abriendo turno:", error);
+        alert("Error al intentar abrir la caja.");
+    }
 }
 
 window.salirDePOS = function() {
@@ -823,25 +895,59 @@ let esperadoTarjetas = 0;
 let esperadoTransf = 0; // NUEVO
 
 window.iniciarCierreDeCaja = async function() {
+    if (!window.turnoActual) {
+        alert("No hay un turno activo para cerrar.");
+        return;
+    }
+
     document.getElementById('modal-salida-pos').classList.add('hidden');
     document.getElementById('cierre-cajero-nombre').innerText = window.usuarioActual;
 
-    // Valores simulados (luego los sacaremos de la BD)
-    esperadoEfectivo = 25000; 
-    esperadoTarjetas = 45000;
-    esperadoTransf = 15000; // NUEVO
+    try {
+        // 1. Consultar las ventas REALES de este turno (Desde fecha_apertura hasta AHORA)
+        const { data: ventasTurno, error } = await clienteSupabase
+            .from('ventas')
+            .select('total, metodo_pago')
+            .eq('id_empresa', window.miEmpresaId)
+            .gte('fecha_venta', window.turnoActual.fecha_apertura)
+            .in('estado', ['COMPLETADA']); // Solo sumamos ventas pagadas
 
-    document.getElementById('cierre-esperado-efectivo').innerText = `$${esperadoEfectivo.toLocaleString('es-CL')}`;
-    document.getElementById('cierre-esperado-tarjeta').innerText = `$${esperadoTarjetas.toLocaleString('es-CL')}`;
-    document.getElementById('cierre-esperado-transf').innerText = `$${esperadoTransf.toLocaleString('es-CL')}`; // NUEVO
-    
-    document.getElementById('cierre-real-efectivo').value = '';
-    document.getElementById('cierre-real-tarjeta').value = '';
-    document.getElementById('cierre-real-transf').value = ''; // NUEVO
-    document.getElementById('cierre-notas').value = '';
-    
-    calcularDiferenciaCaja(); 
-    document.getElementById('modal-cierre-caja').classList.remove('hidden');
+        if (error) throw error;
+
+        // 2. Sumarizar por método de pago
+        let sumaEfectivo = 0;
+        let sumaTarjetas = 0;
+        let sumaTransf = 0;
+
+        (ventasTurno || []).forEach(v => {
+            if (v.metodo_pago === 'EFECTIVO') sumaEfectivo += Number(v.total);
+            if (v.metodo_pago === 'TARJETA') sumaTarjetas += Number(v.total);
+            if (v.metodo_pago === 'TRANSFERENCIA') sumaTransf += Number(v.total);
+        });
+
+        // 3. Asignar los valores REALES al cuadre
+        // El esperado en efectivo es lo que se vendió + el monto inicial (sencillo)
+        esperadoEfectivo = sumaEfectivo + Number(window.turnoActual.monto_inicial_efe);
+        esperadoTarjetas = sumaTarjetas;
+        esperadoTransf = sumaTransf;
+
+        // 4. Mostrar en la UI
+        document.getElementById('cierre-esperado-efectivo').innerText = `$${esperadoEfectivo.toLocaleString('es-CL')}`;
+        document.getElementById('cierre-esperado-tarjeta').innerText = `$${esperadoTarjetas.toLocaleString('es-CL')}`;
+        document.getElementById('cierre-esperado-transf').innerText = `$${esperadoTransf.toLocaleString('es-CL')}`;
+        
+        document.getElementById('cierre-real-efectivo').value = '';
+        document.getElementById('cierre-real-tarjeta').value = '';
+        document.getElementById('cierre-real-transf').value = '';
+        document.getElementById('cierre-notas').value = '';
+        
+        calcularDiferenciaCaja(); 
+        document.getElementById('modal-cierre-caja').classList.remove('hidden');
+
+    } catch (error) {
+        console.error("Error calculando el cierre:", error);
+        alert("Hubo un error al calcular los totales de caja.");
+    }
 }
 
 window.calcularDiferenciaCaja = function() {
