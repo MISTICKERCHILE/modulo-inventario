@@ -57,35 +57,40 @@ function actualizarPuntosPin() {
 
 window.validarPin = async function() {
     try {
-        // Buscamos qué usuario de ESTA empresa tiene este PIN
-        const { data, error } = await clienteSupabase
-            .from('usuarios_empresas')
-            .select(`
-                rol, 
-                perfiles!inner (
-                    id_usuario, 
-                    nombre, 
-                    pin_seguridad
-                )
-            `)
-            .eq('id_empresa', window.miEmpresaId)
-            .eq('perfiles.pin_seguridad', pinActual)
+        // PASO 1: Buscar de quién es el PIN en la tabla 'perfiles'
+        const { data: perfil, error: errPerfil } = await clienteSupabase
+            .from('perfiles')
+            .select('id_usuario, nombre') // Si tu columna se llama distinto (ej: nombre_completo), cámbialo aquí
+            .eq('pin_seguridad', pinActual)
             .maybeSingle();
 
-        if (error) throw error;
-
-        if (data) {
-            // Usuario validado en esta empresa. Lo guardamos en memoria.
-            window.cajeroActivo = {
-                id: data.perfiles.id_usuario,
-                nombre: data.perfiles.nombre, // Cambia 'nombre' si tu columna se llama 'nombre_completo'
-                rol: data.rol
-            };
-            entrarAlPos();
-        } else {
-            alert("❌ PIN incorrecto o el usuario no pertenece a esta empresa.");
-            errorPinAnimation();
+        if (errPerfil || !perfil) {
+            alert("❌ PIN incorrecto.");
+            return errorPinAnimation();
         }
+
+        // PASO 2: Verificar si esa persona existe en 'usuarios_empresas' para ESTA empresa
+        const { data: acceso, error: errAcceso } = await clienteSupabase
+            .from('usuarios_empresas')
+            .select('rol')
+            .eq('id_empresa', window.miEmpresaId)
+            .eq('id_usuario', perfil.id_usuario)
+            .maybeSingle();
+
+        if (errAcceso || !acceso) {
+            alert("❌ El usuario no tiene acceso a esta empresa.");
+            return errorPinAnimation();
+        }
+
+        // PASO 3: Éxito. Guardamos al cajero en memoria y entramos al POS
+        window.cajeroActivo = {
+            id: perfil.id_usuario,
+            nombre: perfil.nombre, 
+            rol: acceso.rol
+        };
+        
+        entrarAlPos();
+
     } catch (error) {
         console.error("Error validando PIN:", error);
         errorPinAnimation();
@@ -860,27 +865,38 @@ window.solicitarAccesoERP = async function(vistaDestino = 'home') {
     if (!pinIngresado) return;
 
     try {
-        const { data, error } = await clienteSupabase
-            .from('usuarios_empresas')
-            .select('rol, perfiles!inner(pin_seguridad)')
-            .eq('id_empresa', window.miEmpresaId)
-            .eq('perfiles.pin_seguridad', pinIngresado)
+        // PASO 1: Ver de quién es este PIN
+        const { data: perfil } = await clienteSupabase
+            .from('perfiles')
+            .select('id_usuario')
+            .eq('pin_seguridad', pinIngresado)
             .maybeSingle();
 
-        // Validamos que exista y que su rol sea uno de los permitidos (ajusta los nombres de tus roles si son distintos)
-        if (data && (data.rol === 'ADMIN' || data.rol === 'DUEÑO' || data.rol === 'ADMINISTRADOR')) {
+        if (!perfil) {
+            alert("🚨 PIN incorrecto. Cerrando sesión por seguridad...");
+            return window.cerrarSesion();
+        }
+
+        // PASO 2: Ver qué rol tiene en esta empresa
+        const { data: acceso } = await clienteSupabase
+            .from('usuarios_empresas')
+            .select('rol')
+            .eq('id_empresa', window.miEmpresaId)
+            .eq('id_usuario', perfil.id_usuario)
+            .maybeSingle();
+
+        // NOTA: Ajusta 'ADMIN' o 'DUEÑO' según cómo los escribas exactamente en tu base de datos
+        if (acceso && (acceso.rol === 'ADMIN' || acceso.rol === 'DUEÑO' || acceso.rol === 'Administrador')) {
             alert("✅ Acceso autorizado al panel ERP.");
             window.salirDePOS(); 
-            if(vistaDestino !== 'home') {
-                window.cambiarVista(vistaDestino);
-            }
+            if(vistaDestino !== 'home') window.cambiarVista(vistaDestino);
         } else {
-            alert("🚨 Intento de salida no autorizado. Cerrando sesión maestra por seguridad.");
-            window.cerrarSesion(); // Cierre fulminante
+            alert("🚨 No tienes permisos para salir del POS. Cerrando sesión...");
+            window.cerrarSesion();
         }
     } catch (error) {
         console.error("Error en validación de salida:", error);
-        window.cerrarSesion(); // Ante la duda o error de red, cierra sesión.
+        window.cerrarSesion();
     }
 }
 
