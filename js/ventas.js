@@ -152,7 +152,7 @@ function mostrarDashboardPos() {
 
 // Flujo para crear un nuevo turno
 async function abrirTurnoNuevo() {
-    const montoInicial = prompt("💵 Apertura de Caja\n\nIngresa el monto de efectivo inicial (Sencillo/Fondo de caja). Deja en 0 si la caja está vacía:", "0");
+    const montoInicial = prompt(`💵 Apertura de Caja (${window.cajeroActivo.nombre})\n\nIngresa el monto de efectivo inicial (Sencillo/Fondo de caja). Deja en 0 si la caja está vacía:`, "0");
     
     if (montoInicial === null) {
         // Canceló, volver a pedir PIN
@@ -165,11 +165,10 @@ async function abrirTurnoNuevo() {
     const fondoCaja = parseFloat(montoInicial) || 0;
 
     try {
-        const { data: authData } = await clienteSupabase.auth.getUser();
-        
+        // AHORA USAMOS EL ID DEL CAJERO (window.cajeroActivo.id) EN LUGAR DE LA SESIÓN MAESTRA
         const payloadTurno = {
             id_empresa: window.miEmpresaId,
-            abierto_por: authData.user.id,
+            abierto_por: window.cajeroActivo.id, 
             monto_inicial_efe: fondoCaja,
             estado: 'ABIERTO'
         };
@@ -183,12 +182,14 @@ async function abrirTurnoNuevo() {
         if (error) throw error;
 
         window.turnoActual = nuevoTurno;
-        alert(`✅ Turno abierto con fondo de: $${fondoCaja.toLocaleString('es-CL')}`);
+        alert(`✅ Turno abierto por ${window.cajeroActivo.nombre} con fondo de: $${fondoCaja.toLocaleString('es-CL')}`);
+        
+        // Llamar a la función que muestra los 3 botones gigantes
         mostrarDashboardPos();
 
     } catch (error) {
         console.error("Error abriendo turno:", error);
-        alert("Error al intentar abrir la caja.");
+        alert("Error al intentar abrir la caja. Revisa la consola.");
     }
 }
 
@@ -956,7 +957,7 @@ window.iniciarCierreDeCaja = async function() {
 
         // 3. Asignar los valores REALES al cuadre
         // El esperado en efectivo es lo que se vendió + el monto inicial (sencillo)
-        esperadoEfectivo = sumaEfectivo + Number(window.turnoActual.monto_inicial_efe);
+        esperadoEfectivo = sumaEfectivo + Number(window.turnoActual.monto_inicial_efectivo);
         esperadoTarjetas = sumaTarjetas;
         esperadoTransf = sumaTransf;
 
