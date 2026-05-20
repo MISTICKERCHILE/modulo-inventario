@@ -539,7 +539,7 @@ window.confirmarVentaPOS = async function() {
     btn.disabled = true;
 
     try {
-        const estadoVenta = checkoutMetodoPago === 'CREDITO' ? 'POR_COBRAR' : 'COMPLETADA';
+        const estadoVenta = checkoutMetodoPago.tipo === 'CREDITO' ? 'POR_COBRAR' : 'COMPLETADA';
 
         // 1. Buscamos sucursal (BLINDADO CON maybeSingle)
         const { data: sucursal } = await clienteSupabase
@@ -556,7 +556,7 @@ window.confirmarVentaPOS = async function() {
             id_empresa: window.miEmpresaId,
             id_sucursal: sucursal.id,
             total: checkoutTotalVenta,
-            metodo_pago: checkoutMetodoPago,
+            metodo_pago: checkoutMetodoPago.nombre,
             estado: estadoVenta,
             cajero: window.cajeroActivo.id, 
             origen: 'POS'
