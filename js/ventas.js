@@ -939,7 +939,7 @@ window.iniciarCierreDeCaja = async function() {
             .from('ventas')
             .select('total, metodo_pago')
             .eq('id_empresa', window.miEmpresaId)
-            .gte('fecha_venta', window.turnoActual.fecha_apertura)
+            .gte('created_at', window.turnoActual.fecha_apertura)
             .in('estado', ['COMPLETADA']); // Solo sumamos ventas pagadas
 
         if (error) throw error;
