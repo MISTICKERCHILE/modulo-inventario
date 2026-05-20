@@ -3,6 +3,7 @@ const PIN_CORRECTO = "1234"; // En el futuro lo leeremos de Supabase
 
 // === CONTROL DE TURNOS ===
 window.turnoActual = null;
+window.cajeroActivo = null; // Para saber quién está operando la caja ahora mismo
 
 window.cargarVentas = function() {
     console.log("💰 Cargando Módulo POS...");
@@ -56,22 +57,33 @@ function actualizarPuntosPin() {
 
 window.validarPin = async function() {
     try {
-        const { data: authData } = await clienteSupabase.auth.getUser();
-        if (!authData.user) throw new Error("No hay sesión activa");
+        // Buscamos qué usuario de ESTA empresa tiene este PIN
+        const { data, error } = await clienteSupabase
+            .from('usuarios_empresas')
+            .select(`
+                rol, 
+                perfiles!inner (
+                    id_usuario, 
+                    nombre, 
+                    pin_seguridad
+                )
+            `)
+            .eq('id_empresa', window.miEmpresaId)
+            .eq('perfiles.pin_seguridad', pinActual)
+            .maybeSingle();
 
-        // Usamos pin_seguridad como me indicaste
-        const { data: perfil } = await clienteSupabase
-            .from('perfiles')
-            .select('pin_seguridad')
-            .eq('id_usuario', authData.user.id)
-            .single();
+        if (error) throw error;
 
-        // Si no encuentra el perfil o no tiene PIN, usa 1234 por defecto
-        const pinReal = (perfil && perfil.pin_seguridad) ? perfil.pin_seguridad.toString() : "1234";
-
-        if(pinActual === pinReal) {
+        if (data) {
+            // Usuario validado en esta empresa. Lo guardamos en memoria.
+            window.cajeroActivo = {
+                id: data.perfiles.id_usuario,
+                nombre: data.perfiles.nombre, // Cambia 'nombre' si tu columna se llama 'nombre_completo'
+                rol: data.rol
+            };
             entrarAlPos();
         } else {
+            alert("❌ PIN incorrecto o el usuario no pertenece a esta empresa.");
             errorPinAnimation();
         }
     } catch (error) {
@@ -844,30 +856,31 @@ window.abrirEscanerCamara = function(modo = 'POS') {
 window.solicitarAccesoERP = async function(vistaDestino = 'home') {
     document.getElementById('pos-dropdown-menu').classList.add('hidden');
     
-    const pin = prompt("🔒 Ingresa tu PIN de Administrador/Dueño para ir al panel ERP:");
-    
-    if (!pin) return;
+    const pinIngresado = prompt("🔒 Seguridad ERP: Ingresa tu PIN de Administrador/Dueño para salir del POS:");
+    if (!pinIngresado) return;
 
     try {
-        const { data: perfil } = await clienteSupabase
-            .from('perfiles')
-            .select('id_usuario')
-            .eq('pin_seguridad', pin)
+        const { data, error } = await clienteSupabase
+            .from('usuarios_empresas')
+            .select('rol, perfiles!inner(pin_seguridad)')
+            .eq('id_empresa', window.miEmpresaId)
+            .eq('perfiles.pin_seguridad', pinIngresado)
             .maybeSingle();
 
-        if (perfil) {
-            alert("✅ Acceso autorizado.");
-            window.salirDePOS(); // Quitamos el modo "Pantalla Completa" del POS
-            
-            // Si eligió un botón específico, lo mandamos a esa vista del ERP
+        // Validamos que exista y que su rol sea uno de los permitidos (ajusta los nombres de tus roles si son distintos)
+        if (data && (data.rol === 'ADMIN' || data.rol === 'DUEÑO' || data.rol === 'ADMINISTRADOR')) {
+            alert("✅ Acceso autorizado al panel ERP.");
+            window.salirDePOS(); 
             if(vistaDestino !== 'home') {
                 window.cambiarVista(vistaDestino);
             }
         } else {
-            alert("❌ PIN Incorrecto o no tienes permisos de Administrador.");
+            alert("🚨 Intento de salida no autorizado. Cerrando sesión maestra por seguridad.");
+            window.cerrarSesion(); // Cierre fulminante
         }
     } catch (error) {
-        console.error("Error validando admin:", error);
+        console.error("Error en validación de salida:", error);
+        window.cerrarSesion(); // Ante la duda o error de red, cierra sesión.
     }
 }
 
