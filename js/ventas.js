@@ -630,40 +630,58 @@ window.confirmarVentaPOS = async function() {
 // LÓGICA DE CUENTAS GUARDADAS / MESAS
 // ==========================================
 
+// ==========================================
+// LÓGICA DE CUENTAS GUARDADAS / MESAS (CLOUD)
+// ==========================================
+window.cuentasAbiertasMemoria = []; // Variable global rápida
+
 window.abrirModalGuardarCuenta = function() {
     if(window.carritoPos.length === 0) {
-        alert("⚠️ El carrito está vacío. Agrega productos para poder guardar la cuenta.");
-        return;
+        return alert("⚠️ El carrito está vacío. Agrega productos para guardar la cuenta.");
     }
     document.getElementById('input-nombre-cuenta').value = '';
     document.getElementById('modal-guardar-cuenta').classList.remove('hidden');
     setTimeout(() => document.getElementById('input-nombre-cuenta').focus(), 100);
 }
 
-window.confirmarGuardarCuenta = function() {
+window.confirmarGuardarCuenta = async function() {
     const nombre = document.getElementById('input-nombre-cuenta').value.trim() || 'Cuenta sin nombre';
+    const totalCarrito = window.carritoPos.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
     
-    // Usamos la memoria del navegador atada a la empresa actual
-    const key = `cuentas_pos_${window.miEmpresaId}`;
-    let cuentasGuardadas = JSON.parse(localStorage.getItem(key)) || [];
-    
-    // Armamos el paquete de la cuenta
-    const nuevaCuenta = {
-        id: 'CTA-' + Date.now(),
-        nombre: nombre,
-        fecha: new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
-        carrito: [...window.carritoPos], // Clonamos el carrito exacto
-        total: checkoutTotalVenta || window.carritoPos.reduce((sum, item) => sum + (item.precio * item.cantidad), 0)
-    };
-    
-    cuentasGuardadas.push(nuevaCuenta);
-    localStorage.setItem(key, JSON.stringify(cuentasGuardadas));
-    
-    // Limpiamos la caja para el siguiente cliente
-    document.getElementById('modal-guardar-cuenta').classList.add('hidden');
-    window.carritoPos = [];
-    renderizarCarrito();
-    alert(`✅ La cuenta de "${nombre}" ha sido guardada en espera.`);
+    const btn = document.querySelector('#modal-guardar-cuenta button.bg-blue-600');
+    btn.innerText = "Guardando...";
+    btn.disabled = true;
+
+    try {
+        const payloadCuenta = {
+            id_empresa: window.miEmpresaId,
+            nombre: nombre,
+            carrito: window.carritoPos, // Supabase lo convierte mágicamente a JSONB
+            total: totalCarrito,
+            creado_por: window.cajeroActivo.id
+        };
+
+        const { error } = await clienteSupabase
+            .from('pos_cuentas_abiertas')
+            .insert([payloadCuenta]);
+
+        if (error) throw error;
+        
+        // Limpiamos la caja para el siguiente cliente
+        document.getElementById('modal-guardar-cuenta').classList.add('hidden');
+        window.carritoPos = [];
+        renderizarCarrito();
+        
+        if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
+        alert(`☁️ Cuenta "${nombre}" guardada en la nube.`);
+
+    } catch (error) {
+        console.error("Error guardando cuenta:", error);
+        alert("❌ Ocurrió un error guardando la cuenta.");
+    } finally {
+        btn.innerText = "Guardar";
+        btn.disabled = false;
+    }
 }
 
 window.mostrarPantallaCuentas = function() {
@@ -672,64 +690,91 @@ window.mostrarPantallaCuentas = function() {
     renderizarCuentasGuardadas();
 }
 
-window.renderizarCuentasGuardadas = function() {
-    const key = `cuentas_pos_${window.miEmpresaId}`;
-    let cuentasGuardadas = JSON.parse(localStorage.getItem(key)) || [];
+window.renderizarCuentasGuardadas = async function() {
     const grid = document.getElementById('grid-cuentas-guardadas');
+    grid.innerHTML = '<p class="col-span-full text-center text-slate-400 font-bold py-10 animate-pulse">Cargando cuentas desde la nube...</p>';
     
-    if(cuentasGuardadas.length === 0) {
-        grid.innerHTML = '<div class="col-span-full flex flex-col items-center justify-center text-slate-400 mt-20"><span class="text-6xl mb-4">🍃</span><p class="font-bold text-xl">No hay cuentas en espera</p></div>';
-        return;
+    try {
+        // Consultar cuentas de esta empresa ordenadas por la más reciente
+        const { data, error } = await clienteSupabase
+            .from('pos_cuentas_abiertas')
+            .select('*')
+            .eq('id_empresa', window.miEmpresaId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        window.cuentasAbiertasMemoria = data || [];
+
+        if(window.cuentasAbiertasMemoria.length === 0) {
+            grid.innerHTML = '<div class="col-span-full flex flex-col items-center justify-center text-slate-400 mt-20"><span class="text-6xl mb-4">🍃</span><p class="font-bold text-xl">No hay cuentas en espera</p></div>';
+            return;
+        }
+        
+        grid.innerHTML = window.cuentasAbiertasMemoria.map(cta => {
+            const horaStr = new Date(cta.created_at).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+            return `
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col gap-3 relative hover:shadow-md transition-shadow">
+                <button onclick="eliminarCuentaGuardada('${cta.id}')" class="absolute top-3 right-3 text-slate-300 hover:text-red-500 font-bold transition-colors text-lg" title="Eliminar/Cancelar Cuenta">✕</button>
+                <div class="flex items-center gap-2 text-blue-600 mb-1 pr-6">
+                    <span class="text-xl">📝</span>
+                    <h3 class="font-black text-lg text-slate-800 uppercase truncate">${cta.nombre}</h3>
+                </div>
+                <p class="text-xs text-slate-400 font-bold">Hora: ${horaStr}</p>
+                <p class="text-sm font-bold text-slate-600">${cta.carrito.length} tipo(s) de productos</p>
+                
+                <div class="mt-auto pt-4 border-t border-slate-100 flex justify-between items-center">
+                    <span class="font-black text-xl text-emerald-600">$${Number(cta.total).toLocaleString('es-CL')}</span>
+                    <button onclick="cargarCuentaEnPOS('${cta.id}')" class="px-4 py-2 bg-blue-100 text-blue-700 font-black rounded-xl hover:bg-blue-600 hover:text-white transition-colors">
+                        Cobrar →
+                    </button>
+                </div>
+            </div>
+            `;
+        }).join('');
+
+    } catch (error) {
+        console.error("Error listando cuentas:", error);
+        grid.innerHTML = '<p class="col-span-full text-center text-red-400 font-bold py-10">❌ Error cargando las cuentas de la nube.</p>';
     }
-    
-    grid.innerHTML = cuentasGuardadas.map(cta => `
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col gap-3 relative hover:shadow-md transition-shadow">
-            <button onclick="eliminarCuentaGuardada('${cta.id}')" class="absolute top-3 right-3 text-slate-300 hover:text-red-500 font-bold transition-colors text-lg" title="Eliminar/Cancelar Cuenta">✕</button>
-            <div class="flex items-center gap-2 text-blue-600 mb-1 pr-6">
-                <span class="text-xl">📝</span>
-                <h3 class="font-black text-lg text-slate-800 uppercase truncate">${cta.nombre}</h3>
-            </div>
-            <p class="text-xs text-slate-400 font-bold">Hora: ${cta.fecha}</p>
-            <p class="text-sm font-bold text-slate-600">${cta.carrito.length} tipo(s) de productos</p>
-            
-            <div class="mt-auto pt-4 border-t border-slate-100 flex justify-between items-center">
-                <span class="font-black text-xl text-emerald-600">$${cta.total.toLocaleString('es-CL')}</span>
-                <button onclick="cargarCuentaEnPOS('${cta.id}')" class="px-4 py-2 bg-blue-100 text-blue-700 font-black rounded-xl hover:bg-blue-600 hover:text-white transition-colors">
-                    Cobrar →
-                </button>
-            </div>
-        </div>
-    `).join('');
 }
 
-window.cargarCuentaEnPOS = function(idCuenta) {
-    const key = `cuentas_pos_${window.miEmpresaId}`;
-    let cuentasGuardadas = JSON.parse(localStorage.getItem(key)) || [];
-    const index = cuentasGuardadas.findIndex(c => c.id === idCuenta);
+window.cargarCuentaEnPOS = async function(idCuenta) {
+    // Buscamos la cuenta en nuestra memoria rápida
+    const cuenta = window.cuentasAbiertasMemoria.find(c => c.id === idCuenta);
+    if(!cuenta) return;
     
-    if(index > -1) {
-        // Traspasamos los productos de nuevo a la caja registradora
-        window.carritoPos = cuentasGuardadas[index].carrito;
+    try {
+        // 1. Traspasamos los productos de nuevo a la caja registradora
+        window.carritoPos = cuenta.carrito;
         
-        // Eliminamos la cuenta de "En espera" porque ya la estamos atendiendo
-        cuentasGuardadas.splice(index, 1);
-        localStorage.setItem(key, JSON.stringify(cuentasGuardadas));
+        // 2. Eliminamos la cuenta de la nube, porque ya se abrió y se está atendiendo en el POS
+        await clienteSupabase.from('pos_cuentas_abiertas').delete().eq('id', idCuenta);
         
-        // Cambiamos de pantalla: De Cuentas -> a Nueva Venta
+        // 3. Cambiamos de pantalla: De Cuentas -> a Nueva Venta (Caja)
         document.getElementById('pos-cuentas-screen').classList.add('hidden');
-        document.getElementById('pos-nueva-venta').classList.remove('hidden');
+        document.getElementById('pos-dashboard-screen').classList.add('hidden'); // Ocultar dashboard si estaba de fondo
+        document.getElementById('pos-nueva-venta-screen').classList.remove('hidden');
+        document.getElementById('pos-nueva-venta-screen').classList.add('flex');
         
+        // Cargar catálogo si no estaba cargado y pintar carrito
+        cargarCatalogoPOS();
         renderizarCarrito();
+
+    } catch (error) {
+        console.error("Error al cargar la cuenta:", error);
+        alert("Error de conexión al intentar abrir la cuenta.");
     }
 }
 
-window.eliminarCuentaGuardada = function(idCuenta) {
-    if(confirm('🗑️ ¿Estás seguro que quieres CANCELAR esta cuenta? Los productos no se cobrarán.')) {
-        const key = `cuentas_pos_${window.miEmpresaId}`;
-        let cuentasGuardadas = JSON.parse(localStorage.getItem(key)) || [];
-        cuentasGuardadas = cuentasGuardadas.filter(c => c.id !== idCuenta);
-        localStorage.setItem(key, JSON.stringify(cuentasGuardadas));
-        renderizarCuentasGuardadas();
+window.eliminarCuentaGuardada = async function(idCuenta) {
+    if(confirm('🗑️ ¿Estás seguro que quieres ELIMINAR esta cuenta? Los productos no se cobrarán.')) {
+        try {
+            await clienteSupabase.from('pos_cuentas_abiertas').delete().eq('id', idCuenta);
+            renderizarCuentasGuardadas(); // Refrescar la pantalla de cuentas
+        } catch (error) {
+            console.error("Error eliminando cuenta:", error);
+            alert("No se pudo eliminar la cuenta de la nube.");
+        }
     }
 }
 
