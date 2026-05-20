@@ -102,7 +102,7 @@ async function entrarAlPos() {
     // 2. Verificar estado del turno en Supabase
     try {
         const { data: turnoAbierto, error } = await clienteSupabase
-            .from('turnos')
+            .from('pos_turnos')
             .select('*')
             .eq('id_empresa', window.miEmpresaId)
             .eq('estado', 'ABIERTO')
@@ -158,7 +158,7 @@ async function abrirTurnoNuevo() {
         };
 
         const { data: nuevoTurno, error } = await clienteSupabase
-            .from('turnos')
+            .from('pos_turnos')
             .insert([payloadTurno])
             .select()
             .single();
