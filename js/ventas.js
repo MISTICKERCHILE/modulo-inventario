@@ -1020,10 +1020,13 @@ window.calcularDiferenciaCaja = function() {
 window.confirmarCierreCaja = async function() {
     if (!window.turnoActual) return alert("❌ No hay un turno activo para cerrar.");
 
-    const btn = document.querySelector('#modal-cierre-caja button.bg-emerald-600');
-    const textoOriginal = btn.innerText;
-    btn.innerText = "⏳ Cerrando...";
-    btn.disabled = true;
+    // Solución blindada: Buscamos el botón por su texto, sin importar el color
+    const btn = Array.from(document.querySelectorAll('#modal-cierre-caja button')).find(b => b.textContent.includes('Cerrar'));
+    const textoOriginal = btn ? btn.innerText : "Cerrar Turno";
+    if (btn) {
+        btn.innerText = "⏳ Cerrando...";
+        btn.disabled = true;
+    }
 
     // Tomamos lo que el cajero digitó que contó físicamente
     const realEf = Number(document.getElementById('cierre-real-efectivo').value) || 0;
@@ -1034,20 +1037,24 @@ window.confirmarCierreCaja = async function() {
     const difTarjetas = realTa - esperadoTarjetas;
 
     try {
-        // Guardamos todo en la base de datos
+        // Armamos el paquete. 
+        // NOTA: No estoy incluyendo las Transferencias aquí aún para que no te dé error 
+        // si no has creado las columnas "ventas_transf_sistema" en Supabase.
+        const payloadCierre = {
+            fecha_cierre: new Date().toISOString(),
+            cerrado_por: window.cajeroActivo.id,
+            ventas_efectivo_sistema: esperadoEfectivo, 
+            ventas_tarjetas_sistema: esperadoTarjetas, 
+            efectivo_declarado: realEf, 
+            tarjetas_declaradas: realTa, 
+            diferencia_efectivo: difEfectivo,
+            diferencia_tarjetas: difTarjetas,
+            estado: 'CERRADO'
+        };
+
         const { error } = await clienteSupabase
             .from('pos_turnos')
-            .update({
-                fecha_cierre: new Date().toISOString(),
-                cerrado_por: window.cajeroActivo.id,
-                ventas_efectivo_sistema: esperadoEfectivo, // Lo que la BD calculó
-                ventas_tarjetas_sistema: esperadoTarjetas, // Lo que la BD calculó
-                efectivo_declarado: realEf, // Lo que el cajero contó
-                tarjetas_declaradas: realTa, // Lo que el cajero contó
-                diferencia_efectivo: difEfectivo,
-                diferencia_tarjetas: difTarjetas,
-                estado: 'CERRADO'
-            })
+            .update(payloadCierre)
             .eq('id', window.turnoActual.id);
 
         if (error) throw error;
@@ -1071,7 +1078,9 @@ window.confirmarCierreCaja = async function() {
         console.error("Error guardando cierre:", error);
         alert("❌ Ocurrió un error al intentar cerrar la caja. Revisa la consola.");
     } finally {
-        btn.innerText = textoOriginal;
-        btn.disabled = false;
+        if (btn) {
+            btn.innerText = textoOriginal;
+            btn.disabled = false;
+        }
     }
 }
