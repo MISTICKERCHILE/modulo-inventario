@@ -1292,3 +1292,67 @@ window.actualizarUIClientePOS = function() {
         btnCliente.innerHTML = `👤 Asignar Cliente (Opcional)`;
     }
 }
+
+// --- CREACIÓN RÁPIDA DE CLIENTES DESDE EL POS ---
+window.abrirModalNuevoClientePOS = function() {
+    document.getElementById('input-nc-nombre').value = '';
+    document.getElementById('input-nc-doc').value = '';
+    document.getElementById('input-nc-tel').value = '';
+    document.getElementById('input-nc-correo').value = '';
+    document.getElementById('modal-nuevo-cliente-pos').classList.remove('hidden');
+    setTimeout(() => document.getElementById('input-nc-nombre').focus(), 100);
+}
+
+window.cerrarModalNuevoClientePOS = function() {
+    document.getElementById('modal-nuevo-cliente-pos').classList.add('hidden');
+}
+
+window.guardarNuevoClientePOS = async function() {
+    const nombre = document.getElementById('input-nc-nombre').value.trim();
+    const doc = document.getElementById('input-nc-doc').value.trim();
+    const tel = document.getElementById('input-nc-tel').value.trim();
+    const correo = document.getElementById('input-nc-correo').value.trim();
+    const direccion = document.getElementById('input-nc-dir').value.trim(); // ⚡ Capturamos dirección
+
+    if (!nombre) return alert("⚠️ El nombre del cliente es obligatorio.");
+
+    const btn = document.getElementById('btn-guardar-cliente-pos');
+    btn.innerText = "⏳ Guardando...";
+    btn.disabled = true;
+
+    try {
+        // Insertamos en la tabla clientes incluyendo la columna 'direccion' que vimos en tu Supabase
+        const { data, error } = await clienteSupabase
+            .from('clientes')
+            .insert([{
+                id_empresa: window.miEmpresaId,
+                nombre: nombre,
+                documento: doc || null,
+                telefono: tel || null,
+                correo: correo || null,
+                direccion: direccion || null // ⚡ Enviamos a la BD
+            }])
+            .select('id, nombre')
+            .single();
+
+        if (error) throw error;
+
+        // Limpiamos los campos del modal rápido para la próxima vez
+        document.getElementById('input-nc-nombre').value = '';
+        document.getElementById('input-nc-doc').value = '';
+        document.getElementById('input-nc-tel').value = '';
+        document.getElementById('input-nc-correo').value = '';
+        document.getElementById('input-nc-dir').value = '';
+
+        cerrarModalNuevoClientePOS();
+        window.seleccionarClientePOS(data.id, data.nombre);
+        buscarClientePOS('');
+
+    } catch (error) {
+        console.error("Error al crear cliente:", error);
+        alert("❌ Ocurrió un error al guardar el cliente.");
+    } finally {
+        btn.innerText = "Guardar y Seleccionar";
+        btn.disabled = false;
+    }
+}
