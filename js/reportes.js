@@ -27,64 +27,58 @@ window.repComSortAsc = false;
 window.repComPag = 1;
 window.repComLimit = 50;
 
+// --- ESTADO GLOBAL VENTAS ---
+window.repVenData = [];
+window.repVenSearch = '';
+window.repVenFechaIn = '';
+window.repVenFechaFin = '';
+window.repVenSortCol = 'fechaObj';
+window.repVenSortAsc = false;
+window.repVenPag = 1;
+window.repVenLimit = 50;
+
 window.prodsGlobalesReportes = [];
 window.catGlobalesReportes = [];
 window.ubisGlobalesReportes = [];
 window.tabActivaReportes = 'valorizacion';
 
 window.cargarReportes = async function() {
-    window.cambiarTabReportes('valorizacion'); 
-    
-    // Carga masiva paralela
-    const [{data: prods, error: errP}, {data: saldos}, {data: ubis}, {data: cats}] = await Promise.all([
-        clienteSupabase.from('productos').select('id, nombre, id_categoria, ultimo_costo_uc, cant_en_ua_de_uc, created_at, id_unidad_almacenamiento(abreviatura)').eq('id_empresa', window.miEmpresaId).order('nombre'),
-        clienteSupabase.from('inventario_saldos').select('id_producto, cantidad_actual_ua').eq('id_empresa', window.miEmpresaId),
-        clienteSupabase.from('ubicaciones_internas').select('id, nombre').eq('id_empresa', window.miEmpresaId),
-        clienteSupabase.from('categorias').select('id, nombre').eq('id_empresa', window.miEmpresaId)
-    ]);
+   window.cambiarTabReportes = function(tab) {
+        window.tabActivaReportes = tab;
+        const btnVal = document.getElementById('tab-rep-valorizacion');
+        const btnKar = document.getElementById('tab-rep-kardex');
+        const btnCom = document.getElementById('tab-rep-compras');
+        const btnVen = document.getElementById('tab-rep-ventas'); // NUEVO
+        
+        const secVal = document.getElementById('seccion-rep-valorizacion');
+        const secKar = document.getElementById('seccion-rep-kardex');
+        const secCom = document.getElementById('seccion-rep-compras');
+        const secVen = document.getElementById('seccion-rep-ventas'); // NUEVO
+        const kpis = document.getElementById('rep-kpis-container'); 
 
-    if (errP) return alert("Error cargando productos: " + errP.message); 
+        [btnVal, btnKar, btnCom, btnVen].forEach(b => {
+            if(b) b.className = "px-6 py-3 font-medium text-slate-500 hover:text-slate-700 transition-colors whitespace-nowrap";
+        });
+        [secVal, secKar, secCom, secVen].forEach(s => {
+            if(s) s.classList.add('hidden');
+        });
 
-    window.prodsGlobalesReportes = prods || [];
-    window.ubisGlobalesReportes = ubis || [];
-    window.catGlobalesReportes = cats || [];
+        const activeClass = "px-6 py-3 font-medium border-b-2 border-emerald-600 text-emerald-600 bg-emerald-50/50 transition-colors whitespace-nowrap";
 
-    // Poblar combo de categorías
-    const selCat = document.getElementById('filtro-cat-rep-val');
-    if(selCat) {
-        selCat.innerHTML = '<option value="TODOS">Todas las Categorías</option>' + 
-            window.catGlobalesReportes.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
-    }
-
-    const stockPorProducto = {};
-    (saldos || []).forEach(s => {
-        if (!stockPorProducto[s.id_producto]) stockPorProducto[s.id_producto] = 0;
-        stockPorProducto[s.id_producto] += Number(s.cantidad_actual_ua);
-    });
-
-    let valorTotalGlobal = 0, itemsConStock = 0;
-    window.repValData = [];
-
-    window.prodsGlobalesReportes.forEach(p => {
-        const stockFisicoUA = stockPorProducto[p.id] || 0;
-        if (stockFisicoUA > 0) {
-            itemsConStock++;
-            const divisor = p.cant_en_ua_de_uc > 0 ? p.cant_en_ua_de_uc : 1;
-            const costoPorUA = (p.ultimo_costo_uc || 0) / divisor;
-            const valorTotalProd = stockFisicoUA * costoPorUA;
-            valorTotalGlobal += valorTotalProd;
-            
-            window.repValData.push({
-                id: p.id,
-                nombre: p.nombre,
-                idCat: p.id_categoria,
-                abrev: p.id_unidad_almacenamiento?.abreviatura || 'UA',
-                stock: stockFisicoUA,
-                costo: costoPorUA,
-                valorTotal: valorTotalProd
-            });
+        if(tab === 'valorizacion') {
+            btnVal.className = activeClass; secVal.classList.remove('hidden'); kpis.classList.remove('hidden');
+        } else if(tab === 'kardex') {
+            btnKar.className = activeClass; secKar.classList.remove('hidden'); kpis.classList.add('hidden');
+            if(window.repKarData.length === 0) window.cargarKardexGlobalBD();
+        } else if(tab === 'compras') {
+            btnCom.className = activeClass; secCom.classList.remove('hidden'); kpis.classList.add('hidden');
+            if(window.repComData.length === 0) window.cargarHistorialComprasBD();
+        } else if(tab === 'ventas') {
+            // NUEVA PESTAÑA
+            btnVen.className = activeClass; secVen.classList.remove('hidden'); kpis.classList.add('hidden');
+            if(window.repVenData.length === 0) window.cargarResumenVentasBD();
         }
-    });
+    }
 
     document.getElementById('rep-kpi-valor').innerText = `$${valorTotalGlobal.toLocaleString('es-CL', {minimumFractionDigits: 0, maximumFractionDigits: 0})}`;
     document.getElementById('rep-kpi-prods').innerText = window.prodsGlobalesReportes.length;
@@ -414,6 +408,150 @@ window.acc_renderRepCom = function() {
     document.getElementById('info-pag-rep-com').innerText = `Mostrando ${total===0?0:inicio+1} a ${Math.min(inicio+window.repComLimit, total)} de ${total}`;
     document.getElementById('btn-prev-rep-com').disabled = window.repComPag === 1;
     document.getElementById('btn-next-rep-com').disabled = window.repComPag === maxPag || total === 0;
+}
+
+// ================= VENTAS LOGIC =================
+window.cargarResumenVentasBD = async function() {
+    const tbody = document.getElementById('lista-historial-ventas');
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-16 animate-pulse text-slate-500 font-bold">⏳ Analizando ventas...</td></tr>';
+    
+    // Traemos ventas y unimos con el nombre del cliente
+    const { data, error } = await clienteSupabase.from('ventas')
+        .select('id, created_at, total, metodo_pago, estado, clientes(nombre)')
+        .eq('id_empresa', window.miEmpresaId)
+        .order('created_at', {ascending: false});
+
+    if(error) return console.error(error);
+
+    const hoyStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
+    const mesActual = new Date().getMonth();
+    const añoActual = new Date().getFullYear();
+
+    let totalHoy = 0, totalMes = 0;
+    const metodoCount = {};
+
+    window.repVenData = (data||[]).map(v => {
+        const dObj = new Date(v.created_at);
+        const monto = Number(v.total) || 0;
+        
+        // Sumar a KPIs solo si la venta no está anulada
+        if(v.estado !== 'ANULADA') {
+            const fLoc = dObj.toLocaleDateString('en-CA');
+            if(fLoc === hoyStr) totalHoy += monto;
+            if(dObj.getMonth() === mesActual && dObj.getFullYear() === añoActual) totalMes += monto;
+
+            // Agrupar métodos de pago
+            const mp = v.metodo_pago || 'Desconocido';
+            metodoCount[mp] = (metodoCount[mp] || 0) + monto;
+        }
+
+        return {
+            id: v.id,
+            fechaObj: dObj,
+            cliente: v.clientes?.nombre || 'Consumidor Final',
+            metodo: v.metodo_pago || 'N/A',
+            total: monto,
+            estado: v.estado || 'COMPLETADA'
+        };
+    });
+    
+    // Pintar KPIs
+    document.getElementById('kpi-ventas-hoy').innerText = `$${totalHoy.toLocaleString('es-CL')}`;
+    document.getElementById('kpi-ventas-mes').innerText = `$${totalMes.toLocaleString('es-CL')}`;
+    
+    const divMetodos = document.getElementById('kpi-metodos-pago');
+    const mpArr = Object.keys(metodoCount).sort((a,b) => metodoCount[b] - metodoCount[a]);
+    if(mpArr.length === 0) divMetodos.innerHTML = '<span class="text-xs text-slate-400">Sin datos aún</span>';
+    else {
+        divMetodos.innerHTML = mpArr.slice(0,5).map(m => `
+            <div class="bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
+                <span class="text-[10px] font-bold text-slate-500 uppercase block">${m}</span>
+                <span class="text-sm font-black text-slate-700">$${metodoCount[m].toLocaleString('es-CL')}</span>
+            </div>
+        `).join('');
+    }
+
+    window.acc_renderRepVen();
+}
+
+window.acc_filtrarRepVen = function() {
+    window.repVenSearch = document.getElementById('busqueda-rep-ven').value.toLowerCase().trim();
+    window.repVenFechaIn = document.getElementById('fecha-inicio-ven').value;
+    window.repVenFechaFin = document.getElementById('fecha-fin-ven').value;
+    window.repVenPag = 1;
+    window.acc_renderRepVen();
+}
+window.acc_pagRepVen = function() {
+    window.repVenLimit = parseInt(document.getElementById('pag-size-rep-ven').value);
+    window.repVenPag = 1;
+    window.acc_renderRepVen();
+}
+window.acc_sortRepVen = function(col) {
+    if(window.repVenSortCol === col) window.repVenSortAsc = !window.repVenSortAsc;
+    else { window.repVenSortCol = col; window.repVenSortAsc = true; }
+    window.acc_renderRepVen();
+}
+window.acc_cambiarPagVen = function(dir) {
+    window.repVenPag += dir;
+    window.acc_renderRepVen();
+}
+window.acc_renderRepVen = function() {
+    const lista = document.getElementById('lista-historial-ventas');
+    if(!lista) return;
+
+    let filtrados = [...window.repVenData];
+    
+    if(window.repVenSearch) filtrados = filtrados.filter(t => t.cliente.toLowerCase().includes(window.repVenSearch) || t.id.toLowerCase().includes(window.repVenSearch));
+    if(window.repVenFechaIn) {
+        const dIn = new Date(window.repVenFechaIn); dIn.setHours(0,0,0,0);
+        filtrados = filtrados.filter(t => t.fechaObj >= dIn);
+    }
+    if(window.repVenFechaFin) {
+        const dFin = new Date(window.repVenFechaFin); dFin.setHours(23,59,59,999);
+        filtrados = filtrados.filter(t => t.fechaObj <= dFin);
+    }
+
+    filtrados.sort((a, b) => {
+        let vA = a[window.repVenSortCol]; let vB = b[window.repVenSortCol];
+        if(typeof vA === 'string') return window.repVenSortAsc ? vA.localeCompare(vB) : vB.localeCompare(vA);
+        return window.repVenSortAsc ? (vA - vB) : (vB - vA);
+    });
+
+    const total = filtrados.length;
+    const maxPag = Math.ceil(total / window.repVenLimit) || 1;
+    if(window.repVenPag > maxPag) window.repVenPag = maxPag;
+    if(window.repVenPag < 1) window.repVenPag = 1;
+
+    const inicio = (window.repVenPag - 1) * window.repVenLimit;
+    const itemsPagina = filtrados.slice(inicio, inicio + window.repVenLimit);
+
+    if(itemsPagina.length === 0) {
+        lista.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-slate-400 italic">No hay ventas registradas con estos filtros.</td></tr>';
+    } else {
+        lista.innerHTML = itemsPagina.map(v => {
+            const fStr = v.fechaObj && !isNaN(v.fechaObj.getTime()) ? v.fechaObj.toLocaleDateString('es-CL') + ' ' + v.fechaObj.toLocaleTimeString('es-CL', {hour:'2-digit', minute:'2-digit'}) : '-';
+            
+            let estColor = 'bg-slate-100 text-slate-600';
+            if (v.estado === 'COMPLETADA') estColor = 'bg-emerald-100 text-emerald-700';
+            if (v.estado === 'POR_COBRAR') estColor = 'bg-orange-100 text-orange-700';
+            if (v.estado === 'ANULADA') estColor = 'bg-red-100 text-red-700';
+            
+            let estBadge = `<span class="${estColor} px-2 py-1 rounded text-[10px] uppercase font-bold tracking-wider">${v.estado.replace('_', ' ')}</span>`;
+
+            return `
+            <tr class="hover:bg-slate-50 transition-colors border-b border-slate-100">
+                <td class="px-6 py-3 text-slate-500 font-medium text-xs whitespace-nowrap">${fStr}</td>
+                <td class="px-6 py-3 font-bold text-slate-800">${v.cliente}</td>
+                <td class="px-6 py-3"><span class="bg-slate-100 text-slate-600 border border-slate-200 px-2 py-1 rounded text-xs font-bold">${v.metodo}</span></td>
+                <td class="px-6 py-3 text-center">${estBadge}</td>
+                <td class="px-6 py-3 text-right font-mono text-emerald-600 text-lg font-black">$${v.total.toLocaleString('es-CL')}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    document.getElementById('info-pag-rep-ven').innerText = `Mostrando ${total===0?0:inicio+1} a ${Math.min(inicio+window.repVenLimit, total)} de ${total}`;
+    document.getElementById('btn-prev-rep-ven').disabled = window.repVenPag === 1;
+    document.getElementById('btn-next-rep-ven').disabled = window.repVenPag === maxPag || total === 0;
 }
 
 // ================= MOTOR DE IMPRESIÓN GLOBAL =================
