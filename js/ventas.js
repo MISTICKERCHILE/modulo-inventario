@@ -23,97 +23,6 @@ window.cargarVentas = function() {
     borrarTodoElPin();
 }
 
-// === LÓGICA DEL TECLADO PIN ===
-window.teclearPin = function(numero) {
-    if(pinActual.length < 4) {
-        pinActual += numero.toString();
-        actualizarPuntosPin();
-    }
-    
-    if(pinActual.length === 4) {
-        validarPin();
-    }
-}
-
-window.borrarPin = function() {
-    pinActual = pinActual.slice(0, -1);
-    actualizarPuntosPin();
-}
-
-window.borrarTodoElPin = function() {
-    pinActual = "";
-    actualizarPuntosPin();
-}
-
-function actualizarPuntosPin() {
-    const dots = document.querySelectorAll('.pin-dot');
-    dots.forEach((dot, index) => {
-        if(index < pinActual.length) {
-            dot.classList.replace('bg-slate-700', 'bg-emerald-400');
-        } else {
-            dot.classList.replace('bg-emerald-400', 'bg-slate-700');
-            dot.classList.replace('bg-red-500', 'bg-slate-700'); // Por si estaba en rojo de error
-        }
-    });
-}
-
-window.validarPin = async function() {
-    try {
-        // PASO 1: Buscar de quién es el PIN en la tabla 'perfiles'
-        const { data: perfil, error: errPerfil } = await clienteSupabase
-            .from('perfiles')
-            .select('id_usuario, nombre') // Si tu columna se llama distinto (ej: nombre_completo), cámbialo aquí
-            .eq('pin_seguridad', pinActual)
-            .maybeSingle();
-
-        if (errPerfil || !perfil) {
-            alert("❌ PIN incorrecto.");
-            return errorPinAnimation();
-        }
-
-        // PASO 2: Verificar si esa persona existe en 'usuarios_empresas' para ESTA empresa
-        const { data: acceso, error: errAcceso } = await clienteSupabase
-            .from('usuarios_empresas')
-            .select('rol')
-            .eq('id_empresa', window.miEmpresaId)
-            .eq('id_usuario', perfil.id_usuario)
-            .maybeSingle();
-
-        if (errAcceso || !acceso) {
-            alert("❌ El usuario no tiene acceso a esta empresa.");
-            return errorPinAnimation();
-        }
-
-        // PASO 3: Éxito. Guardamos al cajero en memoria y entramos al POS
-        window.cajeroActivo = {
-            id: perfil.id_usuario,
-            nombre: perfil.nombre, 
-            rol: acceso.rol
-        };
-        
-        cargarMetodosPagoPOS();
-
-        entrarAlPos();
-
-    } catch (error) {
-        console.error("Error validando PIN:", error);
-        errorPinAnimation();
-    }
-}
-
-function errorPinAnimation() {
-    const dots = document.querySelectorAll('.pin-dot');
-    dots.forEach(dot => dot.classList.replace('bg-emerald-400', 'bg-red-500'));
-    setTimeout(borrarTodoElPin, 500);
-}
-
-// Separé la animación de error para que quede más limpio
-function errorPinAnimation() {
-    const dots = document.querySelectorAll('.pin-dot');
-    dots.forEach(dot => dot.classList.replace('bg-emerald-400', 'bg-red-500'));
-    setTimeout(borrarTodoElPin, 500);
-}
-
 // === NAVEGACIÓN DENTRO DEL POS Y CONTROL DE TURNOS ===
 async function entrarAlPos() {
     // 1. Ocultar teclado PIN
@@ -197,84 +106,172 @@ async function abrirTurnoNuevo() {
     }
 }
 
-window.salirDePOS = function() {
-    // Restaurar layout ERP
-    document.getElementById('pos-wrapper').classList.add('hidden');
-    document.getElementById('pos-wrapper').classList.remove('flex');
+// ==========================================
+// 1. LÓGICA DEL PIN Y ADUANA DE SEGURIDAD
+// ==========================================
+window.pinActual = "";
+window.motivoPinPOS = 'login'; // Puede ser: 'login', 'home', 'catalogos', 'parametros', 'reportes'
+
+window.teclearPin = function(numero) {
+    if(window.pinActual.length < 4) {
+        window.pinActual += numero.toString();
+        actualizarPuntosPin();
+    }
     
-    document.getElementById('sidebar-menu').classList.remove('hidden');
-    document.querySelector('header').classList.remove('hidden');
-    document.getElementById('main-content').classList.remove('p-0', 'md:p-0');
-
-    // Volver a la vista Home del ERP
-    window.cambiarVista('home');
+    if(window.pinActual.length === 4) {
+        setTimeout(() => window.validarPin(), 100);
+    }
 }
 
-// === MENÚ DE 3 PUNTITOS ===
-window.togglePosMenu = function() {
-    document.getElementById('pos-dropdown-menu').classList.toggle('hidden');
+window.borrarPin = function() {
+    window.pinActual = window.pinActual.slice(0, -1);
+    actualizarPuntosPin();
 }
 
-// Entrar a la caja registradora
-window.iniciarNuevaVenta = function() {
-    // Ocultar el dashboard del POS
-    document.getElementById('pos-dashboard-screen').classList.add('hidden');
+window.borrarTodoElPin = function() {
+    window.pinActual = "";
+    actualizarPuntosPin();
+}
+
+function actualizarPuntosPin() {
+    const dots = document.querySelectorAll('.pin-dot');
+    dots.forEach((dot, index) => {
+        if(index < window.pinActual.length) {
+            dot.classList.remove('bg-slate-700', 'bg-red-500');
+            dot.classList.add('bg-emerald-400');
+        } else {
+            dot.classList.remove('bg-emerald-400', 'bg-red-500');
+            dot.classList.add('bg-slate-700');
+        }
+    });
+}
+
+function errorPinAnimation() {
+    const dots = document.querySelectorAll('.pin-dot');
+    dots.forEach(dot => {
+        dot.classList.remove('bg-emerald-400', 'bg-slate-700');
+        dot.classList.add('bg-red-500');
+    });
+    setTimeout(window.borrarTodoElPin, 500);
+}
+
+// ⚡ PREPARAR LA ADUANA (Cuando hacen clic en el menú)
+window.solicitarAccesoERP = function(destino) {
+    window.motivoPinPOS = destino; 
+    document.getElementById('pos-dropdown-menu').classList.add('hidden'); 
+    
+    // Escondemos la caja y mostramos el PIN
+    document.getElementById('pos-dashboard-screen').classList.add('hidden'); 
     document.getElementById('pos-dashboard-screen').classList.remove('flex');
     
-    // Mostrar la pantalla de Nueva Venta (Caja)
-    document.getElementById('pos-nueva-venta-screen').classList.remove('hidden');
-    document.getElementById('pos-nueva-venta-screen').classList.add('flex');
-
-    // (Agrega esta línea al final de iniciarNuevaVenta)
-    cargarCatalogoPOS();
+    window.borrarTodoElPin();
+    
+    document.getElementById('pos-pin-screen').classList.remove('hidden');
+    document.getElementById('pos-pin-screen').classList.add('flex');
 }
 
-// Volver al dashboard del POS
-window.volverAlPosDashboard = function() {
-    // Ocultar la Caja
-    document.getElementById('pos-nueva-venta-screen').classList.add('hidden');
-    document.getElementById('pos-nueva-venta-screen').classList.remove('flex');
+// ⚡ EL CEREBRO: VALIDA EN TU BD REAL Y REDIRIGE
+window.validarPin = async function() {
+    try {
+        // PASO 1: Buscar de quién es el PIN en 'perfiles'
+        const { data: perfil, error: errPerfil } = await clienteSupabase
+            .from('perfiles')
+            .select('id_usuario, nombre') 
+            .eq('pin_seguridad', window.pinActual)
+            .maybeSingle();
+
+        if (errPerfil || !perfil) {
+            return errorPinAnimation();
+        }
+
+        // PASO 2: Verificar si esa persona existe en 'usuarios_empresas'
+        const { data: acceso, error: errAcceso } = await clienteSupabase
+            .from('usuarios_empresas')
+            .select('rol')
+            .eq('id_empresa', window.miEmpresaId)
+            .eq('id_usuario', perfil.id_usuario)
+            .maybeSingle();
+
+        if (errAcceso || !acceso) {
+            alert("❌ El usuario no tiene acceso a esta empresa.");
+            return errorPinAnimation();
+        }
+
+        const nombreRol = (acceso.rol || '').toLowerCase();
+        const esAdminODueno = nombreRol.includes('admin') || nombreRol.includes('dueño') || nombreRol.includes('dueno');
+
+        // ESCENARIO 1: Solo quería Iniciar su Turno de Caja (Login normal)
+        if (window.motivoPinPOS === 'login') {
+            window.cajeroActivo = {
+                id: perfil.id_usuario,
+                nombre: perfil.nombre, 
+                rol: acceso.rol
+            };
+            document.getElementById('pos-nombre-cajero').innerText = perfil.nombre;
+            
+            if (typeof cargarMetodosPagoPOS === "function") cargarMetodosPagoPOS();
+            window.abrirDashboardPOS();
+            return;
+        }
+
+        // ESCENARIO 2: Funciones Administrativas (Requiere Rol Admin/Dueño)
+        if (!esAdminODueno) {
+            alert("🔒 Acceso Denegado: Necesitas permisos de Administrador para salir de la caja o modificar configuración.");
+            window.motivoPinPOS = 'login';
+            window.abrirDashboardPOS();
+            return;
+        }
+
+        // ESCENARIO 3: Es Admin y pasó la aduana. ¿A dónde iba?
+        if (window.motivoPinPOS === 'home') {
+            window.motivoPinPOS = 'login';
+            window.salirDePOS(); 
+        } 
+        else if (window.motivoPinPOS === 'catalogos') {
+            alert("Abriendo organizador de menú... (Lo armaremos en pos-admin.js)");
+            window.abrirDashboardPOS(); 
+        }
+        else if (window.motivoPinPOS === 'parametros') {
+            alert("Abriendo configuración de usuarios... (Lo armaremos en pos-admin.js)");
+            window.abrirDashboardPOS();
+        }
+        else if (window.motivoPinPOS === 'reportes') {
+            alert("Abriendo Resumen de Ventas... (Lo armaremos en pos-admin.js)");
+            window.abrirDashboardPOS();
+        }
+
+        window.motivoPinPOS = 'login'; // Reset de seguridad
+
+    } catch (error) {
+        console.error("Error validando PIN:", error);
+        errorPinAnimation();
+    }
+}
+
+// Vuelve al menú de 3 botones gigantes del POS
+window.abrirDashboardPOS = function() {
+    window.borrarTodoElPin();
+    document.getElementById('pos-pin-screen').classList.add('hidden');
+    document.getElementById('pos-pin-screen').classList.remove('flex');
     
-    // Mostrar el dashboard
     document.getElementById('pos-dashboard-screen').classList.remove('hidden');
     document.getElementById('pos-dashboard-screen').classList.add('flex');
 }
 
-window.cerrarTurno = function() {
-    if(confirm("⚠️ ¿Estás seguro que deseas realizar el Cierre de Caja?\n\nEsto finalizará tu turno actual y cerrará tu sesión por seguridad.")) {
-        // Aquí a futuro abriremos el "Modal de Arqueo de Caja" (Contar billetes).
-        // Por ahora, aplicamos la regla estricta: Se cierra la sesión.
-        alert("Cierre de caja registrado. Cerrando sesión...");
-        window.cerrarSesion(); 
-    }
-}
+// Botón "CERRAR" en la pantalla del PIN (Cierra el POS y vuelve al ERP)
+window.salirDePOS = function() {
+    document.getElementById('pos-wrapper').classList.add('hidden');
+    document.getElementById('pos-wrapper').classList.remove('flex');
+    
+    const sidebar = document.getElementById('sidebar-menu');
+    const header = document.querySelector('header');
+    const main = document.getElementById('main-content');
+    
+    if(sidebar) sidebar.classList.remove('hidden');
+    if(header) header.classList.remove('hidden');
+    if(main) main.classList.remove('p-0', 'md:p-0');
 
-// ==========================================
-// LÓGICA DE LA CAJA REGISTRADORA (CARRITO)
-// ==========================================
-window.productosPosMemoria = [];
-window.carritoPos = [];
-
-// Esta función trae los productos de la BD
-async function cargarCatalogoPOS() {
-    document.getElementById('pos-productos-grid').innerHTML = '<p class="col-span-full text-center text-slate-400 font-bold mt-10 animate-pulse">Cargando catálogo...</p>';
-
-    // Solo trae los productos de esta empresa que tienen "vender_en_pos" = true
-    const { data: prods, error } = await clienteSupabase
-        .from('productos')
-        .select('*, categorias(nombre)')
-        .eq('id_empresa', window.miEmpresaId)
-        .eq('vender_en_pos', true)
-        .order('nombre');
-
-    if (error) {
-        console.error("Error cargando catálogo POS:", error);
-        return;
-    }
-
-    window.productosPosMemoria = prods || [];
-    renderizarCategoriasPOS();
-    renderizarProductosPOS('TODOS');
+    window.cambiarVista('home');
 }
 
 // Dibuja los botones de arriba (Bebidas, Postres, etc.) dinámicamente
