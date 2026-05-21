@@ -43,42 +43,58 @@ window.ubisGlobalesReportes = [];
 window.tabActivaReportes = 'valorizacion';
 
 window.cargarReportes = async function() {
-   window.cambiarTabReportes = function(tab) {
-        window.tabActivaReportes = tab;
-        const btnVal = document.getElementById('tab-rep-valorizacion');
-        const btnKar = document.getElementById('tab-rep-kardex');
-        const btnCom = document.getElementById('tab-rep-compras');
-        const btnVen = document.getElementById('tab-rep-ventas'); // NUEVO
-        
-        const secVal = document.getElementById('seccion-rep-valorizacion');
-        const secKar = document.getElementById('seccion-rep-kardex');
-        const secCom = document.getElementById('seccion-rep-compras');
-        const secVen = document.getElementById('seccion-rep-ventas'); // NUEVO
-        const kpis = document.getElementById('rep-kpis-container'); 
+    window.cambiarTabReportes('valorizacion'); 
+    
+    // Carga masiva paralela a Supabase (¡Esto se te había borrado!)
+    const [{data: prods, error: errP}, {data: saldos}, {data: ubis}, {data: cats}] = await Promise.all([
+        clienteSupabase.from('productos').select('id, nombre, id_categoria, ultimo_costo_uc, cant_en_ua_de_uc, created_at, id_unidad_almacenamiento(abreviatura)').eq('id_empresa', window.miEmpresaId).order('nombre'),
+        clienteSupabase.from('inventario_saldos').select('id_producto, cantidad_actual_ua').eq('id_empresa', window.miEmpresaId),
+        clienteSupabase.from('ubicaciones_internas').select('id, nombre').eq('id_empresa', window.miEmpresaId),
+        clienteSupabase.from('categorias').select('id, nombre').eq('id_empresa', window.miEmpresaId)
+    ]);
 
-        [btnVal, btnKar, btnCom, btnVen].forEach(b => {
-            if(b) b.className = "px-6 py-3 font-medium text-slate-500 hover:text-slate-700 transition-colors whitespace-nowrap";
-        });
-        [secVal, secKar, secCom, secVen].forEach(s => {
-            if(s) s.classList.add('hidden');
-        });
+    if (errP) return alert("Error cargando productos: " + errP.message); 
 
-        const activeClass = "px-6 py-3 font-medium border-b-2 border-emerald-600 text-emerald-600 bg-emerald-50/50 transition-colors whitespace-nowrap";
+    window.prodsGlobalesReportes = prods || [];
+    window.ubisGlobalesReportes = ubis || [];
+    window.catGlobalesReportes = cats || [];
 
-        if(tab === 'valorizacion') {
-            btnVal.className = activeClass; secVal.classList.remove('hidden'); kpis.classList.remove('hidden');
-        } else if(tab === 'kardex') {
-            btnKar.className = activeClass; secKar.classList.remove('hidden'); kpis.classList.add('hidden');
-            if(window.repKarData.length === 0) window.cargarKardexGlobalBD();
-        } else if(tab === 'compras') {
-            btnCom.className = activeClass; secCom.classList.remove('hidden'); kpis.classList.add('hidden');
-            if(window.repComData.length === 0) window.cargarHistorialComprasBD();
-        } else if(tab === 'ventas') {
-            // NUEVA PESTAÑA
-            btnVen.className = activeClass; secVen.classList.remove('hidden'); kpis.classList.add('hidden');
-            if(window.repVenData.length === 0) window.cargarResumenVentasBD();
-        }
+    // Poblar combo de categorías
+    const selCat = document.getElementById('filtro-cat-rep-val');
+    if(selCat) {
+        selCat.innerHTML = '<option value="TODOS">Todas las Categorías</option>' + 
+            window.catGlobalesReportes.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
     }
+
+    const stockPorProducto = {};
+    (saldos || []).forEach(s => {
+        if (!stockPorProducto[s.id_producto]) stockPorProducto[s.id_producto] = 0;
+        stockPorProducto[s.id_producto] += Number(s.cantidad_actual_ua);
+    });
+
+    let valorTotalGlobal = 0, itemsConStock = 0;
+    window.repValData = [];
+
+    window.prodsGlobalesReportes.forEach(p => {
+        const stockFisicoUA = stockPorProducto[p.id] || 0;
+        if (stockFisicoUA > 0) {
+            itemsConStock++;
+            const divisor = p.cant_en_ua_de_uc > 0 ? p.cant_en_ua_de_uc : 1;
+            const costoPorUA = (p.ultimo_costo_uc || 0) / divisor;
+            const valorTotalProd = stockFisicoUA * costoPorUA;
+            valorTotalGlobal += valorTotalProd; // ¡Aquí está la variable que faltaba!
+            
+            window.repValData.push({
+                id: p.id,
+                nombre: p.nombre,
+                idCat: p.id_categoria,
+                abrev: p.id_unidad_almacenamiento?.abreviatura || 'UA',
+                stock: stockFisicoUA,
+                costo: costoPorUA,
+                valorTotal: valorTotalProd
+            });
+        }
+    });
 
     document.getElementById('rep-kpi-valor').innerText = `$${valorTotalGlobal.toLocaleString('es-CL', {minimumFractionDigits: 0, maximumFractionDigits: 0})}`;
     document.getElementById('rep-kpi-prods').innerText = window.prodsGlobalesReportes.length;
@@ -87,30 +103,40 @@ window.cargarReportes = async function() {
     window.acc_renderRepVal();
 }
 
+// ESTA FUNCIÓN AHORA SÍ ESTÁ AFUERA, DONDE PERTENECE
 window.cambiarTabReportes = function(tab) {
     window.tabActivaReportes = tab;
     const btnVal = document.getElementById('tab-rep-valorizacion');
     const btnKar = document.getElementById('tab-rep-kardex');
     const btnCom = document.getElementById('tab-rep-compras');
+    const btnVen = document.getElementById('tab-rep-ventas');
+    
     const secVal = document.getElementById('seccion-rep-valorizacion');
     const secKar = document.getElementById('seccion-rep-kardex');
     const secCom = document.getElementById('seccion-rep-compras');
+    const secVen = document.getElementById('seccion-rep-ventas');
     const kpis = document.getElementById('rep-kpis-container'); 
 
-    [btnVal, btnKar, btnCom].forEach(b => b.className = "px-6 py-3 font-medium text-slate-500 hover:text-slate-700 transition-colors whitespace-nowrap");
-    [secVal, secKar, secCom].forEach(s => s.classList.add('hidden'));
+    [btnVal, btnKar, btnCom, btnVen].forEach(b => {
+        if(b) b.className = "px-6 py-3 font-medium text-slate-500 hover:text-slate-700 transition-colors whitespace-nowrap";
+    });
+    [secVal, secKar, secCom, secVen].forEach(s => {
+        if(s) s.classList.add('hidden');
+    });
+
+    const activeClass = "px-6 py-3 font-medium border-b-2 border-emerald-600 text-emerald-600 bg-emerald-50/50 transition-colors whitespace-nowrap";
 
     if(tab === 'valorizacion') {
-        btnVal.className = "px-6 py-3 font-medium border-b-2 border-emerald-600 text-emerald-600 bg-emerald-50/50 transition-colors whitespace-nowrap";
-        secVal.classList.remove('hidden'); kpis.classList.remove('hidden');
+        btnVal.className = activeClass; secVal.classList.remove('hidden'); kpis.classList.remove('hidden');
     } else if(tab === 'kardex') {
-        btnKar.className = "px-6 py-3 font-medium border-b-2 border-emerald-600 text-emerald-600 bg-emerald-50/50 transition-colors whitespace-nowrap";
-        secKar.classList.remove('hidden'); kpis.classList.add('hidden');
+        btnKar.className = activeClass; secKar.classList.remove('hidden'); kpis.classList.add('hidden');
         if(window.repKarData.length === 0) window.cargarKardexGlobalBD();
     } else if(tab === 'compras') {
-        btnCom.className = "px-6 py-3 font-medium border-b-2 border-emerald-600 text-emerald-600 bg-emerald-50/50 transition-colors whitespace-nowrap";
-        secCom.classList.remove('hidden'); kpis.classList.add('hidden');
+        btnCom.className = activeClass; secCom.classList.remove('hidden'); kpis.classList.add('hidden');
         if(window.repComData.length === 0) window.cargarHistorialComprasBD();
+    } else if(tab === 'ventas') {
+        btnVen.className = activeClass; secVen.classList.remove('hidden'); kpis.classList.add('hidden');
+        if(window.repVenData.length === 0) window.cargarResumenVentasBD();
     }
 }
 
