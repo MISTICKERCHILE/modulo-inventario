@@ -598,6 +598,7 @@ window.confirmarVentaPOS = async function() {
 
         // 4. Limpiamos carrito y cerramos checkout (UNA SOLA VEZ)
         window.carritoPos = [];
+        window.removerClientePOS();
         cerrarCheckout();
         renderizarCarrito();
         
@@ -1213,4 +1214,81 @@ window.volverDashboardPOS = function() {
     // Volvemos a mostrar el menú de los 3 botones gigantes
     document.getElementById('pos-dashboard-screen').classList.remove('hidden');
     document.getElementById('pos-dashboard-screen').classList.add('flex');
+}
+
+// ==========================================
+// LÓGICA DE CLIENTES EN EL POS
+// ==========================================
+window.clienteSeleccionadoPOS = null; 
+
+window.abrirModalClientesPOS = function() {
+    document.getElementById('modal-clientes-pos').classList.remove('hidden');
+    document.getElementById('input-buscar-cliente-pos').value = '';
+    setTimeout(() => document.getElementById('input-buscar-cliente-pos').focus(), 100);
+    buscarClientePOS(''); // Cargar los primeros 20 por defecto
+}
+
+window.cerrarModalClientesPOS = function() {
+    document.getElementById('modal-clientes-pos').classList.add('hidden');
+}
+
+window.buscarClientePOS = async function(termino) {
+    const lista = document.getElementById('lista-clientes-pos');
+    lista.innerHTML = '<p class="text-center text-slate-400 font-bold text-sm py-8 animate-pulse">Buscando...</p>';
+
+    try {
+        let query = clienteSupabase
+            .from('clientes')
+            .select('id, nombre, documento_identidad')
+            .eq('id_empresa', window.miEmpresaId)
+            .order('nombre')
+            .limit(20);
+        
+        if (termino.trim() !== '') {
+            query = query.ilike('nombre', `%${termino}%`);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+            lista.innerHTML = '<div class="text-center py-8"><span class="text-4xl">🤷‍♂️</span><p class="text-slate-400 font-bold text-sm mt-2">No encontramos clientes con ese nombre.</p></div>';
+            return;
+        }
+
+        lista.innerHTML = data.map(c => `
+            <button onclick="seleccionarClientePOS('${c.id}', '${c.nombre}')" class="w-full text-left p-4 hover:bg-white border-b border-slate-200/60 flex flex-col transition-colors rounded-lg mb-1 group">
+                <span class="font-black text-slate-700 text-sm group-hover:text-blue-600 transition-colors">${c.nombre}</span>
+                <span class="text-xs font-bold text-slate-400 mt-0.5">RUT/DNI: ${c.documento_identidad || 'No registrado'}</span>
+            </button>
+        `).join('');
+    } catch (error) {
+        console.error("Error buscando clientes:", error);
+        lista.innerHTML = '<p class="text-center text-red-400 font-bold text-sm py-4">❌ Error al buscar en la base de datos.</p>';
+    }
+}
+
+window.seleccionarClientePOS = function(id, nombre) {
+    window.clienteSeleccionadoPOS = { id, nombre };
+    cerrarModalClientesPOS();
+    actualizarUIClientePOS();
+}
+
+window.removerClientePOS = function() {
+    window.clienteSeleccionadoPOS = null;
+    actualizarUIClientePOS();
+}
+
+window.actualizarUIClientePOS = function() {
+    const btnCliente = document.getElementById('btn-asignar-cliente');
+    if (!btnCliente) return;
+
+    if (window.clienteSeleccionadoPOS) {
+        btnCliente.innerHTML = `
+            <span class="text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded shadow-sm">👤 ${window.clienteSeleccionadoPOS.nombre}</span>
+            <span onclick="removerClientePOS(); event.stopPropagation();" class="text-red-400 hover:text-red-600 hover:bg-red-50 px-2 py-0.5 rounded text-sm transition-colors" title="Quitar cliente">✖</span>
+        `;
+    } else {
+        btnCliente.innerHTML = `👤 Asignar Cliente (Opcional)`;
+    }
 }
