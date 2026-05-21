@@ -649,9 +649,10 @@ window.confirmarGuardarCuenta = async function() {
         const payloadCuenta = {
             id_empresa: window.miEmpresaId,
             nombre: nombre,
-            carrito: window.carritoPos, // Supabase lo convierte mágicamente a JSONB
+            carrito: window.carritoPos, 
             total: totalCarrito,
-            creado_por: window.cajeroActivo.id
+            creado_por: window.cajeroActivo.id,
+            cajero_nombre: window.cajeroActivo.nombre 
         };
 
         const { error } = await clienteSupabase
@@ -716,7 +717,10 @@ window.renderizarCuentasGuardadas = async function() {
                     <span class="text-xl">📝</span>
                     <h3 class="font-black text-lg text-slate-800 uppercase truncate">${cta.nombre}</h3>
                 </div>
-                <p class="text-xs text-slate-400 font-bold">Hora: ${horaStr}</p>
+                <div class="flex justify-between items-center text-xs font-bold text-slate-400">
+                    <p>🕒 Hora: ${horaStr}</p>
+                    <p class="bg-slate-100 px-2 py-1 rounded-md text-slate-500">👤 ${cta.cajero_nombre || 'Sin registrar'}</p>
+                </div>
                 <p class="text-sm font-bold text-slate-600">${cta.carrito.length} tipo(s) de productos</p>
                 
                 <div class="mt-auto pt-4 border-t border-slate-100 flex justify-between items-center">
@@ -977,6 +981,29 @@ window.iniciarCierreDeCaja = async function() {
     if (!window.turnoActual) return alert("❌ No hay un turno activo para cerrar.");
 
     document.getElementById('modal-salida-pos').classList.add('hidden');
+
+    // ⚡ CANDADO DE SEGURIDAD: VERIFICAR CUENTAS ABIERTAS ANTES DE DEJARLO PASAR
+    try {
+        const { count, error: errCuentas } = await clienteSupabase
+            .from('pos_cuentas_abiertas')
+            .select('*', { count: 'exact', head: true })
+            .eq('id_empresa', window.miEmpresaId);
+
+        if (errCuentas) throw errCuentas;
+
+        if (count > 0) {
+            const confirmar = confirm(`⚠️ ALERTA DE SEGURIDAD\n\nTienes ${count} cuenta(s) en espera (Mesas/Comandas sin cobrar).\n¿Estás absolutamente seguro de que deseas cerrar tu caja y dejarle esta deuda/responsabilidad al siguiente turno?`);
+            if (!confirmar) {
+                // Si el cajero se arrepiente, lo devolvemos al POS
+                document.getElementById('modal-salida-pos').classList.remove('hidden');
+                return; 
+            }
+        }
+    } catch (error) {
+        console.error("Error validando cuentas en espera:", error);
+    }
+    // ⚡ FIN DEL CANDADO
+
     document.getElementById('cierre-cajero-nombre').innerText = window.cajeroActivo ? window.cajeroActivo.nombre : 'Cajero';
 
     try {
