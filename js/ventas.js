@@ -227,9 +227,8 @@ window.validarPin = async function() {
             window.salirDePOS(); 
         } 
         else if (window.motivoPinPOS === 'catalogos') {
-            alert("Abriendo organizador de menú... (Lo armaremos en pos-admin.js)");
             window.motivoPinPOS = 'login';
-            window.mostrarDashboardPos(); 
+            window.abrirPosAdminMenu(); // <-- Llamada al nuevo archivo
         }
         else if (window.motivoPinPOS === 'parametros') {
             alert("Abriendo configuración de usuarios... (Lo armaremos en pos-admin.js)");

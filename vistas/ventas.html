@@ -92,6 +92,28 @@
                 <span class="text-6xl font-black opacity-50 group-hover:opacity-100 transition-opacity">👤</span>
             </button>
         </div>
+        
+        <div id="pos-admin-menu-screen" class="hidden h-full flex-col bg-slate-100 absolute inset-0 z-[60]">
+        <header class="bg-white px-6 py-4 flex justify-between items-center shadow-sm border-b shrink-0">
+            <button onclick="cerrarPosAdminMenu()" class="text-slate-500 hover:text-slate-800 font-bold px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors flex items-center gap-2 outline-none">
+                <span class="text-xl">←</span> Volver a Caja
+            </button>
+            <h2 class="text-xl font-black text-slate-800 tracking-tight">⚙️ Configurar Menú</h2>
+            <button onclick="guardarOrdenMenu()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2 rounded-xl font-bold shadow-md transition-transform active:scale-95">
+                💾 Guardar Orden
+            </button>
+        </header>
+
+        <div class="flex-1 overflow-y-auto p-6 flex justify-center">
+            <div class="w-full max-w-2xl bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-fit">
+                <h3 class="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4">Orden de Categorías</h3>
+                <p class="text-xs text-slate-400 mb-4">Usa las flechas para decidir en qué orden aparecen los botones arriba en la caja.</p>
+                
+                <div id="lista-admin-categorias" class="space-y-2">
+                    <p class="text-center py-4 text-slate-400 font-bold animate-pulse">Cargando...</p>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div id="pos-nueva-venta-screen" class="hidden flex-1 bg-slate-100 flex-col md:flex-row overflow-hidden relative">
