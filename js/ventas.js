@@ -1239,7 +1239,7 @@ window.buscarClientePOS = async function(termino) {
     try {
         let query = clienteSupabase
             .from('clientes')
-            .select('id, nombre, documento_identidad')
+            .select('id, nombre, documento')
             .eq('id_empresa', window.miEmpresaId)
             .order('nombre')
             .limit(20);
@@ -1259,7 +1259,7 @@ window.buscarClientePOS = async function(termino) {
         lista.innerHTML = data.map(c => `
             <button onclick="seleccionarClientePOS('${c.id}', '${c.nombre}')" class="w-full text-left p-4 hover:bg-white border-b border-slate-200/60 flex flex-col transition-colors rounded-lg mb-1 group">
                 <span class="font-black text-slate-700 text-sm group-hover:text-blue-600 transition-colors">${c.nombre}</span>
-                <span class="text-xs font-bold text-slate-400 mt-0.5">RUT/DNI: ${c.documento_identidad || 'No registrado'}</span>
+                <span class="text-xs font-bold text-slate-400 mt-0.5">RUT/DNI: ${c.documento || 'No registrado'}</span>
             </button>
         `).join('');
     } catch (error) {
