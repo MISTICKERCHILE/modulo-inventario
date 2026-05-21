@@ -494,12 +494,18 @@ window.cerrarCheckout = function() {
 }
 
 window.seleccionarMetodoPago = function(idMetodo) {
-    // Buscamos el objeto completo del método seleccionado
     const metodoElegido = window.metodosPagoMemoria.find(m => m.id === idMetodo);
     if(!metodoElegido) return;
 
-    checkoutMetodoPago = metodoElegido; // Guardamos el objeto completo, no solo el string
-    document.getElementById('btn-confirmar-venta').disabled = false; 
+    // --- CANDADO DE SEGURIDAD PARA CRÉDITO ---
+    if (metodoElegido.tipo === 'CREDITO' && (!window.clienteSeleccionadoPOS || window.clienteSeleccionadoPOS.id === 'anonimo')) {
+        alert("⚠️ No puedes vender al Crédito/Fiado a un cliente Anónimo.\n\nPor favor, asigna o crea un cliente en el carrito primero.");
+        return;
+    }
+    // ------------------------------------------
+
+    checkoutMetodoPago = metodoElegido; 
+    document.getElementById('btn-confirmar-venta').disabled = false;
 
     // Limpiar todos los botones (quitar bordes de colores)
     const botones = document.querySelectorAll('.metodo-pago-btn');
@@ -536,93 +542,79 @@ window.confirmarVentaPOS = async function() {
     if(window.carritoPos.length === 0) return alert("El carrito está vacío.");
     
     const btn = document.getElementById('btn-confirmar-venta');
+    const textoOriginal = btn.innerText; // <-- Agregado para que no de error al final
     btn.innerText = "⏳ Procesando...";
     btn.disabled = true;
 
     try {
+        // Evaluamos el estado antes para poder usarlo tanto en BD como en las alertas
         const estadoVenta = checkoutMetodoPago.tipo === 'CREDITO' ? 'POR_COBRAR' : 'COMPLETADA';
 
-        // 1. Buscamos sucursal (BLINDADO CON maybeSingle)
-        const { data: sucursal } = await clienteSupabase
-            .from('sucursales')
-            .select('id')
-            .eq('id_empresa', window.miEmpresaId)
-            .limit(1)
-            .maybeSingle();
-
-        if (!sucursal) throw new Error("No tienes ninguna sucursal creada en el sistema.");
-
-        // 2. Cabecera (Tabla: ventas)
+        // 1. Armamos el payload de la venta base
         const payloadVenta = {
             id_empresa: window.miEmpresaId,
-            id_sucursal: sucursal.id,
+            id_sucursal: null, // Nota: Si estás usando sucursales dinámicas, asegúrate de pasar el ID correcto aquí
             total: checkoutTotalVenta,
             metodo_pago: checkoutMetodoPago.nombre,
             estado: estadoVenta,
-            cajero: window.cajeroActivo.id, 
-            origen: 'POS'
+            cajero: window.cajeroActivo.id,
+            origen: 'POS',
+            id_cliente: window.clienteSeleccionadoPOS ? window.clienteSeleccionadoPOS.id : null
         };
 
+        // 2. Insertamos la venta en Supabase
         const { data: ventaGuardada, error: errorVenta } = await clienteSupabase
             .from('ventas')
             .insert([payloadVenta])
-            .select('id')
+            .select()
             .single();
 
         if (errorVenta) throw errorVenta;
 
-        // 3. Detalles (Tabla: ventas_detalles)
-        const detallesVenta = window.carritoPos.map(item => ({
-            id_venta: ventaGuardada.id,
-            id_producto: item.id,
-            cantidad: item.cantidad,
-            precio_unitario: item.precio,
-            subtotal: item.cantidad * item.precio
-        }));
+        // 3. 🚀 SI EL TIPO DE PAGO ES CRÉDITO, CREAMOS LA DEUDA
+        if (checkoutMetodoPago.tipo === 'CREDITO') {
+            const fechaVence = new Date();
+            fechaVence.setDate(fechaVence.getDate() + 30); // 30 días de crédito por defecto
 
-        const { error: errorDetalles } = await clienteSupabase.from('ventas_detalles').insert(detallesVenta);
-        if (errorDetalles) throw errorDetalles;
+            const payloadCuentasPorCobrar = {
+                id_empresa: window.miEmpresaId,
+                id_venta: ventaGuardada.id,
+                id_cliente: window.clienteSeleccionadoPOS.id,
+                monto_deuda: checkoutTotalVenta,
+                monto_pagado: 0,
+                estado: 'Pendiente',
+                fecha_vencimiento: fechaVence.toISOString().split('T')[0] // Formato YYYY-MM-DD
+            };
 
-        // 4. Bajar Stock (BLINDADO CON maybeSingle)
-        for (const item of window.carritoPos) {
-            const productoMemoria = window.productosPosMemoria.find(p => p.id === item.id);
-            if (productoMemoria && productoMemoria.control_stock === true) {
-                
-                const { data: saldoActual } = await clienteSupabase
-                    .from('inventario_saldos')
-                    .select('id, cantidad_actual_ua')
-                    .eq('id_producto', item.id)
-                    .limit(1)
-                    .maybeSingle();
+            const { error: errorCxC } = await clienteSupabase
+                .from('cuentas_por_cobrar')
+                .insert([payloadCuentasPorCobrar]);
 
-                if (saldoActual) {
-                    await clienteSupabase
-                        .from('inventario_saldos')
-                        .update({ 
-                            cantidad_actual_ua: saldoActual.cantidad_actual_ua - item.cantidad, 
-                            ultima_actualizacion: new Date().toISOString() 
-                        })
-                        .eq('id', saldoActual.id);
-                } else {
-                    console.warn(`Producto sin registro en inventario. Se vendió igual.`);
-                }
+            if (errorCxC) {
+                console.error("Error al registrar en cuentas por cobrar:", errorCxC);
+                alert("⚠️ La venta se guardó, pero hubo un error al registrar la deuda en cuentas por cobrar.");
             }
         }
 
+        // 4. Limpiamos carrito y cerramos checkout (UNA SOLA VEZ)
+        window.carritoPos = [];
+        cerrarCheckout();
+        renderizarCarrito();
+        
+        // 5. Retroalimentación visual y háptica
         if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
         
-        if(estadoVenta === 'POR_COBRAR') alert("📓 Venta anotada en la cuenta (Crédito).");
-        else alert("✅ ¡Venta registrada y pagada con éxito!");
-        
-        window.carritoPos = []; 
-        renderizarCarrito();    
-        cerrarCheckout();       
+        if (estadoVenta === 'POR_COBRAR') {
+            alert("📓 Venta anotada en la cuenta (Crédito).");
+        } else {
+            alert("✅ ¡Venta registrada y pagada con éxito!");
+        }
 
-    } catch(error) {
-        console.error("Error al registrar venta:", error);
-        alert("❌ Error: " + (error.message || "Contacta a soporte."));
+    } catch (error) {
+        console.error("Error procesando la venta:", error);
+        alert("❌ Error: " + (error.message || "No se pudo procesar la venta."));
     } finally {
-        btn.innerText = "CONFIRMAR PAGO";
+        btn.innerText = textoOriginal;
         btn.disabled = false;
     }
 }

@@ -282,7 +282,10 @@ window.cargarMetodosPagoParametros = async function() {
             <tr class="hover:bg-slate-50 transition-colors">
                 <td class="px-6 py-4 font-black text-slate-800">${icono} ${mp.nombre}</td>
                 <td class="px-6 py-4"><span class="bg-slate-100 text-slate-600 px-3 py-1 rounded-md text-xs font-bold border border-slate-200">${mp.tipo}</span></td>
-                <td class="px-6 py-4 font-bold text-slate-500">${mp.moneda}</td>
+                <td class="px-6 py-4">
+                    <span class="font-bold text-slate-600">${mp.moneda}</span>
+                    ${mp.tasa_cambio !== 1 ? `<span class="block text-[10px] text-blue-500 font-bold mt-0.5">Tasa: ×${mp.tasa_cambio}</span>` : ''}
+                </td>
                 <td class="px-6 py-4 text-center">
                     <button onclick="eliminarMetodoPago('${mp.id}')" class="text-red-400 hover:text-red-600 font-bold text-sm px-3 py-1 bg-red-50 hover:bg-red-100 rounded-md transition-colors">Ocultar / Borrar</button>
                 </td>
@@ -308,12 +311,15 @@ window.guardarNuevoMetodoPago = async function() {
     const nombre = document.getElementById('input-mp-nombre').value.trim();
     const tipo = document.getElementById('select-mp-tipo').value;
     const moneda = document.getElementById('select-mp-moneda').value;
+    
+    // Tomamos la tasa directamente, si la borraron, por defecto es 1
+    const tasaInput = parseFloat(document.getElementById('input-mp-tasa').value);
+    const tasaCambio = tasaInput > 0 ? tasaInput : 1;
 
     if (!nombre) return alert("⚠️ Debes ingresar un nombre para el método de pago.");
 
     const btn = document.getElementById('btn-guardar-mp');
-    btn.innerText = "⏳ Guardando..."; 
-    btn.disabled = true;
+    btn.innerText = "⏳ Guardando..."; btn.disabled = true;
 
     try {
         const { error } = await clienteSupabase
@@ -322,19 +328,32 @@ window.guardarNuevoMetodoPago = async function() {
                 id_empresa: window.miEmpresaId,
                 nombre: nombre,
                 tipo: tipo,
-                moneda: moneda
+                moneda: moneda,
+                tasa_cambio: tasaCambio
             }]);
 
         if (error) throw error;
         
         cerrarModalNuevoMetodoPago();
-        cargarMetodosPagoParametros(); // Recargar la tabla dinámicamente
+        cargarMetodosPagoParametros(); 
     } catch (error) {
         console.error("Error al guardar método:", error);
         alert("❌ Error al guardar el método de pago.");
     } finally {
-        btn.innerText = "Guardar Método"; 
-        btn.disabled = false;
+        btn.innerText = "Guardar Método"; btn.disabled = false;
+    }
+}
+
+window.verificarMonedaExtranjera = function() {
+    const moneda = document.getElementById('select-mp-moneda').value;
+    const divTasa = document.getElementById('div-tasa-cambio');
+    
+    if (moneda !== 'CLP') {
+        divTasa.classList.remove('hidden');
+        document.getElementById('input-mp-tasa').focus();
+    } else {
+        divTasa.classList.add('hidden');
+        document.getElementById('input-mp-tasa').value = ''; // Limpiamos si vuelve a CLP
     }
 }
 
