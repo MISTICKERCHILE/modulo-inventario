@@ -16,6 +16,11 @@ let hayCambiosSinGuardar = false;
 window.cargarParametros = async function() {
     if (!window.miEmpresaId) return;
 
+    // --- NUEVAS LLAMADAS ---
+    cargarMetodosPagoParametros();
+    cargarAjusteStock();
+    // -----------------------
+
     try {
         let { data: roles } = await clienteSupabase.from('roles').select('*').eq('id_empresa', window.miEmpresaId).order('created_at', { ascending: true });
         
@@ -240,4 +245,150 @@ window.guardarNuevoRol = async () => {
     if (!n) return;
     await clienteSupabase.from('roles').insert([{ id_empresa: window.miEmpresaId, nombre: n, es_predeterminado: false }]);
     cerrarModalNuevoRol(); window.cargarParametros(); 
+}
+
+// ============================================================================
+// LÓGICA DE MÉTODOS DE PAGO Y AJUSTES DE INVENTARIO
+// ============================================================================
+
+// --- 1. MÉTODOS DE PAGO ---
+window.cargarMetodosPagoParametros = async function() {
+    try {
+        const { data, error } = await clienteSupabase
+            .from('metodos_pago')
+            .select('*')
+            .eq('id_empresa', window.miEmpresaId)
+            .eq('activo', true)
+            .order('created_at', { ascending: true });
+
+        if (error) throw error;
+        
+        const tbody = document.getElementById('tabla-metodos-pago');
+        if (!tbody) return;
+
+        if (!data || data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-8 text-center text-slate-400 font-bold">Aún no hay métodos de pago configurados.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = data.map(mp => {
+            let icono = '🪙';
+            if (mp.tipo === 'EFECTIVO') icono = '💵';
+            if (mp.tipo === 'TARJETA') icono = '💳';
+            if (mp.tipo === 'TRANSFERENCIA') icono = '📱';
+            if (mp.tipo === 'CREDITO') icono = '📝';
+
+            return `
+            <tr class="hover:bg-slate-50 transition-colors">
+                <td class="px-6 py-4 font-black text-slate-800">${icono} ${mp.nombre}</td>
+                <td class="px-6 py-4"><span class="bg-slate-100 text-slate-600 px-3 py-1 rounded-md text-xs font-bold border border-slate-200">${mp.tipo}</span></td>
+                <td class="px-6 py-4 font-bold text-slate-500">${mp.moneda}</td>
+                <td class="px-6 py-4 text-center">
+                    <button onclick="eliminarMetodoPago('${mp.id}')" class="text-red-400 hover:text-red-600 font-bold text-sm px-3 py-1 bg-red-50 hover:bg-red-100 rounded-md transition-colors">Ocultar / Borrar</button>
+                </td>
+            </tr>
+            `;
+        }).join('');
+
+    } catch (error) {
+        console.error("Error cargando métodos:", error);
+    }
+}
+
+window.abrirModalNuevoMetodoPago = () => {
+    document.getElementById('input-mp-nombre').value = '';
+    document.getElementById('modal-nuevo-metodo').classList.remove('hidden');
+}
+
+window.cerrarModalNuevoMetodoPago = () => {
+    document.getElementById('modal-nuevo-metodo').classList.add('hidden');
+}
+
+window.guardarNuevoMetodoPago = async function() {
+    const nombre = document.getElementById('input-mp-nombre').value.trim();
+    const tipo = document.getElementById('select-mp-tipo').value;
+    const moneda = document.getElementById('select-mp-moneda').value;
+
+    if (!nombre) return alert("⚠️ Debes ingresar un nombre para el método de pago.");
+
+    const btn = document.getElementById('btn-guardar-mp');
+    btn.innerText = "⏳ Guardando..."; 
+    btn.disabled = true;
+
+    try {
+        const { error } = await clienteSupabase
+            .from('metodos_pago')
+            .insert([{
+                id_empresa: window.miEmpresaId,
+                nombre: nombre,
+                tipo: tipo,
+                moneda: moneda
+            }]);
+
+        if (error) throw error;
+        
+        cerrarModalNuevoMetodoPago();
+        cargarMetodosPagoParametros(); // Recargar la tabla dinámicamente
+    } catch (error) {
+        console.error("Error al guardar método:", error);
+        alert("❌ Error al guardar el método de pago.");
+    } finally {
+        btn.innerText = "Guardar Método"; 
+        btn.disabled = false;
+    }
+}
+
+window.eliminarMetodoPago = async function(id) {
+    if (!confirm("🗑️ ¿Seguro que deseas eliminar este método de pago?\n\nNota: Los historiales de ventas anteriores con este método no se borrarán, solo dejará de aparecer como opción en la caja.")) return;
+
+    try {
+        // Hacemos un "Soft Delete" (solo lo desactivamos) para que la contabilidad antigua no explote
+        const { error } = await clienteSupabase
+            .from('metodos_pago')
+            .update({ activo: false })
+            .eq('id', id);
+
+        if (error) throw error;
+        cargarMetodosPagoParametros(); // Recargar la tabla dinámicamente
+    } catch (error) {
+        console.error("Error eliminando método:", error);
+        alert("❌ Error al eliminar.");
+    }
+}
+
+// --- 2. AJUSTES DE STOCK ---
+window.cargarAjusteStock = async function() {
+    try {
+        const { data, error } = await clienteSupabase
+            .from('empresas')
+            .select('venta_sin_stock')
+            .eq('id', window.miEmpresaId)
+            .single();
+
+        if (error) throw error;
+        
+        const toggle = document.getElementById('toggle-vender-sin-stock');
+        if (toggle) toggle.checked = data.venta_sin_stock === true;
+    } catch (error) {
+        console.error("Error cargando ajuste de stock:", error);
+    }
+}
+
+window.guardarParametroVentaSinStock = async function(valor) {
+    try {
+        const { error } = await clienteSupabase
+            .from('empresas')
+            .update({ venta_sin_stock: valor })
+            .eq('id', window.miEmpresaId);
+
+        if (error) throw error;
+        
+        // Pequeño aviso visual opcional
+        console.log(`Configuración actualizada: Vender sin stock = ${valor}`);
+    } catch (error) {
+        console.error("Error guardando stock:", error);
+        alert("❌ Error al actualizar la configuración en la nube.");
+        // Revertir el toggle visualmente si falló
+        document.getElementById('toggle-vender-sin-stock').checked = !valor;
+    }
 }
