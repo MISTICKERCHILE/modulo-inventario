@@ -13,18 +13,18 @@ window.cargarVentas = function() {
     // Ocultar el layout principal del ERP (Sidebar y Main content)
     document.getElementById('sidebar-menu').classList.add('hidden');
     document.querySelector('header').classList.add('hidden');
-    document.getElementById('main-content').classList.add('p-0', 'md:p-0'); // Quitar padding para que ocupe todo
+    document.getElementById('main-content').classList.add('p-0', 'md:p-0'); 
     
     // Mostrar el contenedor POS
     document.getElementById('pos-wrapper').classList.remove('hidden');
     document.getElementById('pos-wrapper').classList.add('flex');
 
     // Resetear PIN
-    borrarTodoElPin();
+    window.borrarTodoElPin();
 }
 
 // === NAVEGACIÓN DENTRO DEL POS Y CONTROL DE TURNOS ===
-async function entrarAlPos() {
+window.entrarAlPos = async function() {
     // 1. Ocultar teclado PIN
     document.getElementById('pos-pin-screen').classList.add('hidden');
     document.getElementById('pos-pin-screen').classList.remove('flex');
@@ -43,10 +43,10 @@ async function entrarAlPos() {
         if (turnoAbierto) {
             // Ya hay un turno abierto
             window.turnoActual = turnoAbierto;
-            mostrarDashboardPos();
+            window.mostrarDashboardPos();
         } else {
             // No hay turno, preguntar monto inicial
-            abrirTurnoNuevo();
+            window.abrirTurnoNuevo();
         }
     } catch (error) {
         console.error("Error verificando turnos:", error);
@@ -55,16 +55,22 @@ async function entrarAlPos() {
 }
 
 // Función auxiliar para mostrar el dashboard una vez validado el turno
-function mostrarDashboardPos() {
+window.mostrarDashboardPos = function() {
+    // Esconder PIN si estuviera visible
+    document.getElementById('pos-pin-screen').classList.add('hidden');
+    document.getElementById('pos-pin-screen').classList.remove('flex');
+
+    // Imprimir la fecha actual arriba
     const opcionesFecha = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
-    document.getElementById('pos-fecha-actual').innerText = new Date().toLocaleDateString('es-ES', opcionesFecha);
+    document.getElementById('pos-fecha-actual').innerText = new Date().toLocaleDateString('es-ES', opcionesFecha).toUpperCase();
     
+    // Mostrar Dashboard
     document.getElementById('pos-dashboard-screen').classList.remove('hidden');
     document.getElementById('pos-dashboard-screen').classList.add('flex');
 }
 
 // Flujo para crear un nuevo turno
-async function abrirTurnoNuevo() {
+window.abrirTurnoNuevo = async function() {
     const montoInicial = prompt(`💵 Apertura de Caja (${window.cajeroActivo.nombre})\n\nIngresa el monto de efectivo inicial (Sencillo/Fondo de caja). Deja en 0 si la caja está vacía:`, "0");
     
     if (montoInicial === null) {
@@ -78,7 +84,6 @@ async function abrirTurnoNuevo() {
     const fondoCaja = parseFloat(montoInicial) || 0;
 
     try {
-        // AHORA USAMOS EL ID DEL CAJERO (window.cajeroActivo.id) EN LUGAR DE LA SESIÓN MAESTRA
         const payloadTurno = {
             id_empresa: window.miEmpresaId,
             abierto_por: window.cajeroActivo.id, 
@@ -97,8 +102,7 @@ async function abrirTurnoNuevo() {
         window.turnoActual = nuevoTurno;
         alert(`✅ Turno abierto por ${window.cajeroActivo.nombre} con fondo de: $${fondoCaja.toLocaleString('es-CL')}`);
         
-        // Llamar a la función que muestra los 3 botones gigantes
-        mostrarDashboardPos();
+        window.mostrarDashboardPos();
 
     } catch (error) {
         console.error("Error abriendo turno:", error);
@@ -110,14 +114,13 @@ async function abrirTurnoNuevo() {
 // 1. LÓGICA DEL PIN Y ADUANA DE SEGURIDAD
 // ==========================================
 window.pinActual = "";
-window.motivoPinPOS = 'login'; // Puede ser: 'login', 'home', 'catalogos', 'parametros', 'reportes'
+window.motivoPinPOS = 'login'; // 'login', 'home', 'catalogos', 'parametros', 'reportes'
 
 window.teclearPin = function(numero) {
     if(window.pinActual.length < 4) {
         window.pinActual += numero.toString();
-        actualizarPuntosPin();
+        window.actualizarPuntosPin();
     }
-    
     if(window.pinActual.length === 4) {
         setTimeout(() => window.validarPin(), 100);
     }
@@ -125,15 +128,15 @@ window.teclearPin = function(numero) {
 
 window.borrarPin = function() {
     window.pinActual = window.pinActual.slice(0, -1);
-    actualizarPuntosPin();
+    window.actualizarPuntosPin();
 }
 
 window.borrarTodoElPin = function() {
     window.pinActual = "";
-    actualizarPuntosPin();
+    window.actualizarPuntosPin();
 }
 
-function actualizarPuntosPin() {
+window.actualizarPuntosPin = function() {
     const dots = document.querySelectorAll('.pin-dot');
     dots.forEach((dot, index) => {
         if(index < window.pinActual.length) {
@@ -146,7 +149,7 @@ function actualizarPuntosPin() {
     });
 }
 
-function errorPinAnimation() {
+window.errorPinAnimation = function() {
     const dots = document.querySelectorAll('.pin-dot');
     dots.forEach(dot => {
         dot.classList.remove('bg-emerald-400', 'bg-slate-700');
@@ -160,7 +163,6 @@ window.solicitarAccesoERP = function(destino) {
     window.motivoPinPOS = destino; 
     document.getElementById('pos-dropdown-menu').classList.add('hidden'); 
     
-    // Escondemos la caja y mostramos el PIN
     document.getElementById('pos-dashboard-screen').classList.add('hidden'); 
     document.getElementById('pos-dashboard-screen').classList.remove('flex');
     
@@ -173,18 +175,14 @@ window.solicitarAccesoERP = function(destino) {
 // ⚡ EL CEREBRO: VALIDA EN TU BD REAL Y REDIRIGE
 window.validarPin = async function() {
     try {
-        // PASO 1: Buscar de quién es el PIN en 'perfiles'
         const { data: perfil, error: errPerfil } = await clienteSupabase
             .from('perfiles')
             .select('id_usuario, nombre') 
             .eq('pin_seguridad', window.pinActual)
             .maybeSingle();
 
-        if (errPerfil || !perfil) {
-            return errorPinAnimation();
-        }
+        if (errPerfil || !perfil) return window.errorPinAnimation();
 
-        // PASO 2: Verificar si esa persona existe en 'usuarios_empresas'
         const { data: acceso, error: errAcceso } = await clienteSupabase
             .from('usuarios_empresas')
             .select('rol')
@@ -194,13 +192,13 @@ window.validarPin = async function() {
 
         if (errAcceso || !acceso) {
             alert("❌ El usuario no tiene acceso a esta empresa.");
-            return errorPinAnimation();
+            return window.errorPinAnimation();
         }
 
         const nombreRol = (acceso.rol || '').toLowerCase();
         const esAdminODueno = nombreRol.includes('admin') || nombreRol.includes('dueño') || nombreRol.includes('dueno');
 
-        // ESCENARIO 1: Solo quería Iniciar su Turno de Caja (Login normal)
+        // ESCENARIO 1: Solo quería Iniciar su Turno de Caja
         if (window.motivoPinPOS === 'login') {
             window.cajeroActivo = {
                 id: perfil.id_usuario,
@@ -210,7 +208,8 @@ window.validarPin = async function() {
             document.getElementById('pos-nombre-cajero').innerText = perfil.nombre;
             
             if (typeof cargarMetodosPagoPOS === "function") cargarMetodosPagoPOS();
-            window.abrirDashboardPOS();
+            
+            window.entrarAlPos(); // RESTAURADO: Chequea turno y muestra fecha
             return;
         }
 
@@ -218,7 +217,7 @@ window.validarPin = async function() {
         if (!esAdminODueno) {
             alert("🔒 Acceso Denegado: Necesitas permisos de Administrador para salir de la caja o modificar configuración.");
             window.motivoPinPOS = 'login';
-            window.abrirDashboardPOS();
+            window.mostrarDashboardPos(); // Lo devuelve al dashboard de la caja
             return;
         }
 
@@ -229,33 +228,24 @@ window.validarPin = async function() {
         } 
         else if (window.motivoPinPOS === 'catalogos') {
             alert("Abriendo organizador de menú... (Lo armaremos en pos-admin.js)");
-            window.abrirDashboardPOS(); 
+            window.motivoPinPOS = 'login';
+            window.mostrarDashboardPos(); 
         }
         else if (window.motivoPinPOS === 'parametros') {
             alert("Abriendo configuración de usuarios... (Lo armaremos en pos-admin.js)");
-            window.abrirDashboardPOS();
+            window.motivoPinPOS = 'login';
+            window.mostrarDashboardPos();
         }
         else if (window.motivoPinPOS === 'reportes') {
             alert("Abriendo Resumen de Ventas... (Lo armaremos en pos-admin.js)");
-            window.abrirDashboardPOS();
+            window.motivoPinPOS = 'login';
+            window.mostrarDashboardPos();
         }
-
-        window.motivoPinPOS = 'login'; // Reset de seguridad
 
     } catch (error) {
         console.error("Error validando PIN:", error);
-        errorPinAnimation();
+        window.errorPinAnimation();
     }
-}
-
-// Vuelve al menú de 3 botones gigantes del POS
-window.abrirDashboardPOS = function() {
-    window.borrarTodoElPin();
-    document.getElementById('pos-pin-screen').classList.add('hidden');
-    document.getElementById('pos-pin-screen').classList.remove('flex');
-    
-    document.getElementById('pos-dashboard-screen').classList.remove('hidden');
-    document.getElementById('pos-dashboard-screen').classList.add('flex');
 }
 
 // Botón "CERRAR" en la pantalla del PIN (Cierra el POS y vuelve al ERP)
@@ -274,8 +264,57 @@ window.salirDePOS = function() {
     window.cambiarVista('home');
 }
 
-// Dibuja los botones de arriba (Bebidas, Postres, etc.) dinámicamente
-function renderizarCategoriasPOS() {
+// === MENÚ DE 3 PUNTITOS (RESTAURADO) ===
+window.togglePosMenu = function() {
+    document.getElementById('pos-dropdown-menu').classList.toggle('hidden');
+}
+
+// ==========================================
+// 2. NAVEGACIÓN DE CAJA Y CATÁLOGO
+// ==========================================
+
+window.iniciarNuevaVenta = function() {
+    document.getElementById('pos-dashboard-screen').classList.add('hidden');
+    document.getElementById('pos-dashboard-screen').classList.remove('flex');
+    
+    document.getElementById('pos-nueva-venta-screen').classList.remove('hidden');
+    document.getElementById('pos-nueva-venta-screen').classList.add('flex');
+
+    window.cargarCatalogoPOS();
+}
+
+window.volverAlPosDashboard = function() {
+    document.getElementById('pos-nueva-venta-screen').classList.add('hidden');
+    document.getElementById('pos-nueva-venta-screen').classList.remove('flex');
+    
+    document.getElementById('pos-dashboard-screen').classList.remove('hidden');
+    document.getElementById('pos-dashboard-screen').classList.add('flex');
+}
+
+window.productosPosMemoria = [];
+window.carritoPos = [];
+
+window.cargarCatalogoPOS = async function() {
+    document.getElementById('pos-productos-grid').innerHTML = '<p class="col-span-full text-center text-slate-400 font-bold mt-10 animate-pulse">Cargando catálogo...</p>';
+
+    const { data: prods, error } = await clienteSupabase
+        .from('productos')
+        .select('*, categorias(nombre)')
+        .eq('id_empresa', window.miEmpresaId)
+        .eq('vender_en_pos', true)
+        .order('nombre');
+
+    if (error) {
+        console.error("Error cargando catálogo POS:", error);
+        return;
+    }
+
+    window.productosPosMemoria = prods || [];
+    window.renderizarCategoriasPOS();
+    window.renderizarProductosPOS('TODOS');
+}
+
+window.renderizarCategoriasPOS = function() {
     const catMap = new Map();
     window.productosPosMemoria.forEach(p => {
         if (p.id_categoria && p.categorias) {
@@ -295,7 +334,6 @@ function renderizarCategoriasPOS() {
     contenedor.innerHTML = html;
 }
 
-// Pinta los botones gigantes de los productos
 window.renderizarProductosPOS = function(idCategoria) {
     let filtrados = window.productosPosMemoria;
     if (idCategoria !== 'TODOS') {
@@ -320,7 +358,6 @@ window.renderizarProductosPOS = function(idCategoria) {
     `).join('');
 }
 
-// Agrega items a la columna derecha (El Ticket)
 window.agregarAlCarrito = function(idProducto) {
     const prod = window.productosPosMemoria.find(p => p.id === idProducto);
     if(!prod) return;
@@ -336,11 +373,10 @@ window.agregarAlCarrito = function(idProducto) {
             cantidad: 1
         });
     }
-    renderizarCarrito();
+    window.renderizarCarrito();
 }
 
-// Actualiza el Ticket Visualmente
-function renderizarCarrito() {
+window.renderizarCarrito = function() {
     const list = document.getElementById('pos-cart-list');
     if (window.carritoPos.length === 0) {
         list.innerHTML = `
@@ -376,7 +412,6 @@ function renderizarCarrito() {
 
     document.getElementById('pos-total-pagar').innerText = "$" + total.toLocaleString('es-CL');
 
-    // Novedad: Actualizar también los números del Botón Flotante Móvil
     const cantTotalItems = window.carritoPos.reduce((acc, item) => acc + item.cantidad, 0);
     const countMobile = document.getElementById('cart-count-mobile');
     const totalMobile = document.getElementById('cart-total-mobile');
@@ -384,15 +419,14 @@ function renderizarCarrito() {
     if(totalMobile) totalMobile.innerText = "$" + total.toLocaleString('es-CL');
 }
 
-// Botones de + y - dentro del carrito
 window.modificarCantCarrito = function(idProducto, delta) {
     const index = window.carritoPos.findIndex(item => item.id === idProducto);
     if(index > -1) {
         window.carritoPos[index].cantidad += delta;
         if(window.carritoPos[index].cantidad <= 0) {
-            window.carritoPos.splice(index, 1); // Lo elimina si llega a 0
+            window.carritoPos.splice(index, 1);
         }
-        renderizarCarrito();
+        window.renderizarCarrito();
     }
 }
 
@@ -405,13 +439,10 @@ window.buscarProductoPOS = function(texto) {
     const grid = document.getElementById('pos-productos-grid');
     
     if (term === '') {
-        // Si borran el texto, volvemos a mostrar todo (o la categoría seleccionada)
-        // Por ahora, para simplificar, mostramos 'TODOS'
-        renderizarProductosPOS('TODOS');
+        window.renderizarProductosPOS('TODOS');
         return;
     }
 
-    // Buscamos por nombre O por código de barras exacto
     const filtrados = window.productosPosMemoria.filter(p => {
         const matchNombre = p.nombre.toLowerCase().includes(term);
         const matchCodigo = p.codigo_barras && p.codigo_barras.toLowerCase() === term;
@@ -423,24 +454,20 @@ window.buscarProductoPOS = function(texto) {
         return;
     }
 
-    // Si el cajero escaneó un código de barras exacto y hay SOLO 1 resultado, lo agregamos al carrito automáticamente!
     const posibleEscaneo = window.productosPosMemoria.find(p => p.codigo_barras && p.codigo_barras.toLowerCase() === term);
     
     if (posibleEscaneo && filtrados.length === 1) {
-        agregarAlCarrito(posibleEscaneo.id);
+        window.agregarAlCarrito(posibleEscaneo.id);
         
-        // Limpiamos el buscador rápido para el siguiente escaneo
         const inputBuscador = document.querySelector('input[placeholder="Buscar o escanear código de barras..."]');
         if(inputBuscador) {
             inputBuscador.value = '';
-            // Le devolvemos el foco para que pueda seguir escaneando sin usar el mouse
             setTimeout(() => inputBuscador.focus(), 10); 
         }
-        renderizarProductosPOS('TODOS'); // Restauramos la vista
-        return; // Salimos para no dibujar la grilla filtrada
+        window.renderizarProductosPOS('TODOS'); 
+        return; 
     }
 
-    // Si es una búsqueda normal por nombre, dibujamos los resultados
     grid.innerHTML = filtrados.map(p => `
         <div onclick="agregarAlCarrito('${p.id}')" class="bg-white p-4 rounded-2xl shadow-sm hover:shadow-md hover:border-emerald-400 border-2 border-transparent cursor-pointer transition-all flex flex-col h-36 relative group select-none overflow-hidden">
             <div class="absolute top-0 right-0 w-16 h-16 bg-emerald-50 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-150 z-0"></div>
@@ -465,24 +492,20 @@ window.abrirCheckout = function() {
         return;
     }
 
-    // 1. Calcular total actual sumando el carrito
     checkoutTotalVenta = window.carritoPos.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
     document.getElementById('checkout-total').innerText = "$" + checkoutTotalVenta.toLocaleString('es-CL');
     
-    // 2. Resetear el modal para que esté limpio
     checkoutMetodoPago = '';
     document.getElementById('checkout-recibido').value = '';
     document.getElementById('checkout-vuelto').innerText = '$0';
     document.getElementById('checkout-seccion-efectivo').classList.add('hidden');
     document.getElementById('btn-confirmar-venta').disabled = true;
 
-    // Quitar color verde de los botones de pago por si había uno seleccionado antes
     const botones = document.querySelectorAll('.metodo-pago-btn');
     botones.forEach(btn => {
         btn.classList.remove('ring-4', 'ring-emerald-400', 'bg-emerald-50');
     });
 
-    // 3. Mostrar el modal
     document.getElementById('pos-checkout-modal').classList.remove('hidden');
 }
 
@@ -494,21 +517,17 @@ window.seleccionarMetodoPago = function(idMetodo) {
     const metodoElegido = window.metodosPagoMemoria.find(m => m.id === idMetodo);
     if(!metodoElegido) return;
 
-    // --- CANDADO DE SEGURIDAD PARA CRÉDITO ---
     if (metodoElegido.tipo === 'CREDITO' && (!window.clienteSeleccionadoPOS || window.clienteSeleccionadoPOS.id === 'anonimo')) {
         alert("⚠️ No puedes vender al Crédito/Fiado a un cliente Anónimo.\n\nPor favor, asigna o crea un cliente en el carrito primero.");
         return;
     }
-    // ------------------------------------------
 
     checkoutMetodoPago = metodoElegido; 
     document.getElementById('btn-confirmar-venta').disabled = false;
 
-    // Limpiar todos los botones (quitar bordes de colores)
     const botones = document.querySelectorAll('.metodo-pago-btn');
     botones.forEach(btn => btn.classList.remove('ring-4', 'ring-emerald-400', 'bg-emerald-50', 'ring-blue-400', 'bg-blue-50', 'ring-purple-400', 'bg-purple-50'));
     
-    // Pintar de verde/azul/morado el botón seleccionado
     const btnActivo = document.getElementById(`btn-pago-${idMetodo}`);
     if(btnActivo) {
         if(metodoElegido.tipo === 'EFECTIVO') btnActivo.classList.add('ring-4', 'ring-emerald-400', 'bg-emerald-50');
@@ -516,7 +535,6 @@ window.seleccionarMetodoPago = function(idMetodo) {
         else btnActivo.classList.add('ring-4', 'ring-purple-400', 'bg-purple-50');
     }
 
-    // Mostrar u ocultar la calculadora de vuelto SI ES EFECTIVO
     const seccionEfectivo = document.getElementById('checkout-seccion-efectivo');
     if(metodoElegido.tipo === 'EFECTIVO') {
         seccionEfectivo.classList.remove('hidden');
@@ -529,28 +547,25 @@ window.seleccionarMetodoPago = function(idMetodo) {
 window.calcularVuelto = function() {
     const recibido = parseFloat(document.getElementById('checkout-recibido').value) || 0;
     let vuelto = recibido - checkoutTotalVenta;
-    if(vuelto < 0) vuelto = 0; // No mostramos vueltos negativos
+    if(vuelto < 0) vuelto = 0; 
     document.getElementById('checkout-vuelto').innerText = "$" + vuelto.toLocaleString('es-CL');
 }
 
-// LA FUNCIÓN CONFIRMAR VENTA (¡Versión Unificada Definitiva!)
 window.confirmarVentaPOS = async function() {
     if(!checkoutMetodoPago) return alert("Selecciona un método de pago.");
     if(window.carritoPos.length === 0) return alert("El carrito está vacío.");
     
     const btn = document.getElementById('btn-confirmar-venta');
-    const textoOriginal = btn.innerText; // <-- Agregado para que no de error al final
+    const textoOriginal = btn.innerText; 
     btn.innerText = "⏳ Procesando...";
     btn.disabled = true;
 
     try {
-        // Evaluamos el estado antes para poder usarlo tanto en BD como en las alertas
         const estadoVenta = checkoutMetodoPago.tipo === 'CREDITO' ? 'POR_COBRAR' : 'COMPLETADA';
 
-        // 1. Armamos el payload de la venta base
         const payloadVenta = {
             id_empresa: window.miEmpresaId,
-            id_sucursal: null, // Nota: Si estás usando sucursales dinámicas, asegúrate de pasar el ID correcto aquí
+            id_sucursal: null, 
             total: checkoutTotalVenta,
             metodo_pago: checkoutMetodoPago.nombre,
             estado: estadoVenta,
@@ -559,7 +574,6 @@ window.confirmarVentaPOS = async function() {
             id_cliente: window.clienteSeleccionadoPOS ? window.clienteSeleccionadoPOS.id : null
         };
 
-        // 2. Insertamos la venta en Supabase
         const { data: ventaGuardada, error: errorVenta } = await clienteSupabase
             .from('ventas')
             .insert([payloadVenta])
@@ -568,10 +582,9 @@ window.confirmarVentaPOS = async function() {
 
         if (errorVenta) throw errorVenta;
 
-        // 3. 🚀 SI EL TIPO DE PAGO ES CRÉDITO, CREAMOS LA DEUDA
         if (checkoutMetodoPago.tipo === 'CREDITO') {
             const fechaVence = new Date();
-            fechaVence.setDate(fechaVence.getDate() + 30); // 30 días de crédito por defecto
+            fechaVence.setDate(fechaVence.getDate() + 30);
 
             const payloadCuentasPorCobrar = {
                 id_empresa: window.miEmpresaId,
@@ -580,7 +593,7 @@ window.confirmarVentaPOS = async function() {
                 monto_deuda: checkoutTotalVenta,
                 monto_pagado: 0,
                 estado: 'Pendiente',
-                fecha_vencimiento: fechaVence.toISOString().split('T')[0] // Formato YYYY-MM-DD
+                fecha_vencimiento: fechaVence.toISOString().split('T')[0] 
             };
 
             const { error: errorCxC } = await clienteSupabase
@@ -593,13 +606,11 @@ window.confirmarVentaPOS = async function() {
             }
         }
 
-        // 4. Limpiamos carrito y cerramos checkout (UNA SOLA VEZ)
         window.carritoPos = [];
         window.removerClientePOS();
-        cerrarCheckout();
-        renderizarCarrito();
+        window.cerrarCheckout();
+        window.renderizarCarrito();
         
-        // 5. Retroalimentación visual y háptica
         if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
         
         if (estadoVenta === 'POR_COBRAR') {
@@ -620,11 +631,7 @@ window.confirmarVentaPOS = async function() {
 // ==========================================
 // LÓGICA DE CUENTAS GUARDADAS / MESAS
 // ==========================================
-
-// ==========================================
-// LÓGICA DE CUENTAS GUARDADAS / MESAS (CLOUD)
-// ==========================================
-window.cuentasAbiertasMemoria = []; // Variable global rápida
+window.cuentasAbiertasMemoria = []; 
 
 window.abrirModalGuardarCuenta = function() {
     if(window.carritoPos.length === 0) {
@@ -659,10 +666,9 @@ window.confirmarGuardarCuenta = async function() {
 
         if (error) throw error;
         
-        // Limpiamos la caja para el siguiente cliente
         document.getElementById('modal-guardar-cuenta').classList.add('hidden');
         window.carritoPos = [];
-        renderizarCarrito();
+        window.renderizarCarrito();
         
         if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
         alert(`☁️ Cuenta "${nombre}" guardada en la nube.`);
@@ -677,13 +683,11 @@ window.confirmarGuardarCuenta = async function() {
 }
 
 window.mostrarPantallaCuentas = function() {
-    // CORRECCIÓN: Ocultamos la pantalla contenedora correcta
     document.getElementById('pos-dashboard-screen').classList.add('hidden');
     document.getElementById('pos-dashboard-screen').classList.remove('flex');
     
-    // Mostramos la pantalla de cuentas
     document.getElementById('pos-cuentas-screen').classList.remove('hidden');
-    renderizarCuentasGuardadas();
+    window.renderizarCuentasGuardadas();
 }
 
 window.renderizarCuentasGuardadas = async function() {
@@ -691,7 +695,6 @@ window.renderizarCuentasGuardadas = async function() {
     grid.innerHTML = '<p class="col-span-full text-center text-slate-400 font-bold py-10 animate-pulse">Cargando cuentas desde la nube...</p>';
     
     try {
-        // Consultar cuentas de esta empresa ordenadas por la más reciente
         const { data, error } = await clienteSupabase
             .from('pos_cuentas_abiertas')
             .select('*')
@@ -738,26 +741,20 @@ window.renderizarCuentasGuardadas = async function() {
 }
 
 window.cargarCuentaEnPOS = async function(idCuenta) {
-    // Buscamos la cuenta en nuestra memoria rápida
     const cuenta = window.cuentasAbiertasMemoria.find(c => c.id === idCuenta);
     if(!cuenta) return;
     
     try {
-        // 1. Traspasamos los productos de nuevo a la caja registradora
         window.carritoPos = cuenta.carrito;
-        
-        // 2. Eliminamos la cuenta de la nube, porque ya se abrió y se está atendiendo en el POS
         await clienteSupabase.from('pos_cuentas_abiertas').delete().eq('id', idCuenta);
         
-        // 3. Cambiamos de pantalla: De Cuentas -> a Nueva Venta (Caja)
         document.getElementById('pos-cuentas-screen').classList.add('hidden');
-        document.getElementById('pos-dashboard-screen').classList.add('hidden'); // Ocultar dashboard si estaba de fondo
+        document.getElementById('pos-dashboard-screen').classList.add('hidden'); 
         document.getElementById('pos-nueva-venta-screen').classList.remove('hidden');
         document.getElementById('pos-nueva-venta-screen').classList.add('flex');
         
-        // Cargar catálogo si no estaba cargado y pintar carrito
-        cargarCatalogoPOS();
-        renderizarCarrito();
+        window.cargarCatalogoPOS();
+        window.renderizarCarrito();
 
     } catch (error) {
         console.error("Error al cargar la cuenta:", error);
@@ -769,7 +766,7 @@ window.eliminarCuentaGuardada = async function(idCuenta) {
     if(confirm('🗑️ ¿Estás seguro que quieres ELIMINAR esta cuenta? Los productos no se cobrarán.')) {
         try {
             await clienteSupabase.from('pos_cuentas_abiertas').delete().eq('id', idCuenta);
-            renderizarCuentasGuardadas(); // Refrescar la pantalla de cuentas
+            window.renderizarCuentasGuardadas(); 
         } catch (error) {
             console.error("Error eliminando cuenta:", error);
             alert("No se pudo eliminar la cuenta de la nube.");
@@ -778,82 +775,26 @@ window.eliminarCuentaGuardada = async function(idCuenta) {
 }
 
 window.volverDashboardPOS = function() {
-    // Ocultamos la pantalla de cuentas
     document.getElementById('pos-cuentas-screen').classList.add('hidden');
-    
-    // Mostramos el menú principal (Asegúrate de que tu menú de los 3 botones grandes tenga el id="pos-dashboard")
-    const dashboard = document.getElementById('pos-dashboard');
-    if(dashboard) {
-        dashboard.classList.remove('hidden');
-    }
+    document.getElementById('pos-dashboard-screen').classList.remove('hidden');
+    document.getElementById('pos-dashboard-screen').classList.add('flex');
 }
 
-window.volverDashboardPOS = function() {
-    // 1. Ocultamos la pantalla de las cuentas
-    document.getElementById('pos-cuentas-screen').classList.add('hidden');
-    
-    // 2. Volvemos a mostrar el menú de los 3 botones gigantes
-    document.getElementById('pos-dashboard').classList.remove('hidden');
-}
-
-// Mostrar/Ocultar el carrito en modo Teléfono
 window.toggleCarritoMobile = function() {
     const sidebar = document.getElementById('pos-carrito-sidebar');
     if(sidebar.classList.contains('translate-y-full')) {
-        sidebar.classList.remove('translate-y-full'); // Subir carrito
+        sidebar.classList.remove('translate-y-full'); 
     } else {
-        sidebar.classList.add('translate-y-full'); // Bajar carrito
+        sidebar.classList.add('translate-y-full'); 
     }
 }
 
 // ==========================================
-// ESCÁNER DE CÓDIGO DE BARRAS POR CÁMARA (MÓVIL)
+// ESCÁNER DE CÓDIGO DE BARRAS POR CÁMARA
 // ==========================================
 let escanerCamara = null;
+let modoEscanerActual = 'POS'; 
 
-window.abrirEscanerCamara = function() {
-    document.getElementById('modal-escaner-camara').classList.remove('hidden');
-    
-    // Si ya hay una instancia, la limpiamos por precaución
-    if (escanerCamara) { escanerCamara.clear(); }
-    
-    // Inicializamos el lector en el div que creamos
-    escanerCamara = new Html5Qrcode("lector-camara-pos");
-    
-    // Configuramos para usar la cámara trasera y darle forma de rectángulo de código de barras
-    const config = { fps: 10, qrbox: { width: 250, height: 100 } };
-    
-    escanerCamara.start({ facingMode: "environment" }, config, 
-        (textoDecodificado) => {
-            // ¡LO LEYÓ! Apagamos la cámara instantáneamente
-            cerrarEscanerCamara();
-            
-            // Le pasamos el código exacto a nuestra función para que lo tire al carrito
-            procesarEscaneoFisico(textoDecodificado);
-        },
-        (mensajeError) => {
-            // Ignoramos los errores continuos mientras busca enfocar
-        }
-    ).catch(err => {
-        console.error("Error iniciando cámara:", err);
-        alert("❌ No se pudo acceder a la cámara. Revisa los permisos de tu navegador.");
-        cerrarEscanerCamara();
-    });
-}
-
-window.cerrarEscanerCamara = function() {
-    document.getElementById('modal-escaner-camara').classList.add('hidden');
-    if (escanerCamara) {
-        escanerCamara.stop().then(() => {
-            escanerCamara.clear();
-            escanerCamara = null;
-        }).catch(err => console.error("Error al detener cámara:", err));
-    }
-}
-
-let modoEscanerActual = 'POS'; // Para saber si estamos cobrando o creando un producto
-
-// Le agregamos la variable "modo" (Por defecto es POS)
 window.abrirEscanerCamara = function(modo = 'POS') {
     modoEscanerActual = modo;
     document.getElementById('modal-escaner-camara').classList.remove('hidden');
@@ -876,93 +817,49 @@ window.abrirEscanerCamara = function(modo = 'POS') {
     
     escanerCamara.start({ facingMode: "environment" }, config, 
         (textoDecodificado) => {
-            // ¡CÓDIGO LEYÓDO! Apagamos la cámara
-            cerrarEscanerCamara();
+            window.cerrarEscanerCamara();
             
-            // 🧠 DECISIÓN INTELIGENTE: ¿Qué hacemos con el código?
             if (modoEscanerActual === 'PRODUCTO') {
-                // Si estamos creando un producto, lo pegamos en el formulario
                 document.getElementById('prod-codigo-barras').value = textoDecodificado;
                 if (navigator.vibrate) navigator.vibrate(100);
-                
-                // Efecto visual para que el usuario note que se pegó
                 const input = document.getElementById('prod-codigo-barras');
                 input.classList.add('bg-emerald-100', 'ring-2', 'ring-emerald-500');
                 setTimeout(() => input.classList.remove('bg-emerald-100', 'ring-2', 'ring-emerald-500'), 1000);
-                
             } else {
-                // Si estamos en el POS, lo tiramos al carrito
                 procesarEscaneoFisico(textoDecodificado);
             }
         },
         (mensajeError) => {
-            // Ignoramos errores de enfoque
         }
     ).catch(err => {
         console.error("Error iniciando cámara:", err);
         alert("❌ No se pudo acceder a la cámara. Revisa los permisos de tu navegador.");
-        cerrarEscanerCamara();
+        window.cerrarEscanerCamara();
     });
 }
 
-// ==========================================
-// CONTROL DE ACCESO ERP Y SALIDA DE CAJA
-// ==========================================
-
-// 1. Ir al ERP con contraseña de Admin (Redirección inteligente)
-window.solicitarAccesoERP = async function(vistaDestino = 'home') {
-    document.getElementById('pos-dropdown-menu').classList.add('hidden');
-    
-    const pinIngresado = prompt("🔒 Seguridad ERP: Ingresa tu PIN de Administrador/Dueño para salir del POS:");
-    if (!pinIngresado) return;
-
-    try {
-        // PASO 1: Ver de quién es este PIN
-        const { data: perfil } = await clienteSupabase
-            .from('perfiles')
-            .select('id_usuario')
-            .eq('pin_seguridad', pinIngresado)
-            .maybeSingle();
-
-        if (!perfil) {
-            alert("🚨 PIN incorrecto. Cerrando sesión por seguridad...");
-            return window.cerrarSesion();
-        }
-
-        // PASO 2: Ver qué rol tiene en esta empresa
-        const { data: acceso } = await clienteSupabase
-            .from('usuarios_empresas')
-            .select('rol')
-            .eq('id_empresa', window.miEmpresaId)
-            .eq('id_usuario', perfil.id_usuario)
-            .maybeSingle();
-
-        // NOTA: Ajusta 'ADMIN' o 'DUEÑO' según cómo los escribas exactamente en tu base de datos
-        if (acceso && (acceso.rol === 'ADMIN' || acceso.rol === 'DUEÑO' || acceso.rol === 'Administrador')) {
-            alert("✅ Acceso autorizado al panel ERP.");
-            window.salirDePOS(); 
-            if(vistaDestino !== 'home') window.cambiarVista(vistaDestino);
-        } else {
-            alert("🚨 No tienes permisos para salir del POS. Cerrando sesión...");
-            window.cerrarSesion();
-        }
-    } catch (error) {
-        console.error("Error en validación de salida:", error);
-        window.cerrarSesion();
+window.cerrarEscanerCamara = function() {
+    document.getElementById('modal-escaner-camara').classList.add('hidden');
+    if (escanerCamara) {
+        escanerCamara.stop().then(() => {
+            escanerCamara.clear();
+            escanerCamara = null;
+        }).catch(err => console.error("Error al detener cámara:", err));
     }
 }
 
-// 2. Abrir Modal de Salida
+// ==========================================
+// SALIDA Y CIERRE DE CAJA
+// ==========================================
 window.abrirModalSalidaPOS = function() {
     document.getElementById('pos-dropdown-menu').classList.add('hidden');
     document.getElementById('modal-salida-pos').classList.remove('hidden');
 }
 
-// 3. Tomar Descanso (Pausa)
 window.pausarTurno = function() {
     document.getElementById('modal-salida-pos').classList.add('hidden');
     alert("☕ Pausa registrada en RRHH. La caja se bloqueará.");
-    // Aquí bloqueamos la pantalla devolviéndolo a la pantalla del PIN inicial
+    
     document.getElementById('pos-dashboard-screen').classList.add('hidden');
     document.getElementById('pos-dashboard-screen').classList.remove('flex');
     document.getElementById('pos-pin-screen').classList.remove('hidden');
@@ -970,17 +867,15 @@ window.pausarTurno = function() {
     window.borrarTodoElPin();
 }
 
-// Variables globales de cierre
 let esperadoEfectivo = 0;
 let esperadoTarjetas = 0;
-let esperadoTransf = 0; // NUEVO
+let esperadoTransf = 0; 
 
 window.iniciarCierreDeCaja = async function() {
     if (!window.turnoActual) return alert("❌ No hay un turno activo para cerrar.");
 
     document.getElementById('modal-salida-pos').classList.add('hidden');
 
-    // ⚡ CANDADO DE SEGURIDAD: VERIFICAR CUENTAS ABIERTAS ANTES DE DEJARLO PASAR
     try {
         const { count, error: errCuentas } = await clienteSupabase
             .from('pos_cuentas_abiertas')
@@ -992,7 +887,6 @@ window.iniciarCierreDeCaja = async function() {
         if (count > 0) {
             const confirmar = confirm(`⚠️ ALERTA DE SEGURIDAD\n\nTienes ${count} cuenta(s) en espera (Mesas/Comandas sin cobrar).\n¿Estás absolutamente seguro de que deseas cerrar tu caja y dejarle esta deuda/responsabilidad al siguiente turno?`);
             if (!confirmar) {
-                // Si el cajero se arrepiente, lo devolvemos al POS
                 document.getElementById('modal-salida-pos').classList.remove('hidden');
                 return; 
             }
@@ -1000,12 +894,10 @@ window.iniciarCierreDeCaja = async function() {
     } catch (error) {
         console.error("Error validando cuentas en espera:", error);
     }
-    // ⚡ FIN DEL CANDADO
 
     document.getElementById('cierre-cajero-nombre').innerText = window.cajeroActivo ? window.cajeroActivo.nombre : 'Cajero';
 
     try {
-        // 1. Consultar ventas
         const { data: ventasTurno, error } = await clienteSupabase
             .from('ventas')
             .select('total, metodo_pago')
@@ -1015,17 +907,14 @@ window.iniciarCierreDeCaja = async function() {
 
         if (error) throw error;
 
-        // 2. Armar las cajas matemáticas para cada método configurado
         window.estadoCierreActual = window.metodosPagoMemoria.map(mp => {
-            // Buscamos las ventas que coincidan EXACTAMENTE con el nombre del método (Ej: "Efectivo Pesos")
             const totalEsperado = (ventasTurno || [])
                 .filter(v => v.metodo_pago === mp.nombre)
                 .reduce((sum, v) => sum + Number(v.total), 0);
 
-            // Si el tipo es EFECTIVO, le sumamos el fondo de caja con el que abrió
             let fondoCaja = 0;
             if (mp.tipo === 'EFECTIVO') {
-                fondoCaja = Number(window.turnoActual.monto_inicial_efe) || 0;
+                fondoCaja = Number(window.turnoActual.monto_inicial_efectivo) || 0;
             }
 
             return {
@@ -1038,8 +927,7 @@ window.iniciarCierreDeCaja = async function() {
             };
         });
 
-        // 3. Dibujar la Calculadora y abrir Modal
-        renderizarCalculadoraCierre();
+        window.renderizarCalculadoraCierre();
         document.getElementById('modal-cierre-caja').classList.remove('hidden');
 
     } catch (error) {
@@ -1048,7 +936,6 @@ window.iniciarCierreDeCaja = async function() {
     }
 }
 
-// NUEVA FUNCIÓN: Dibuja las cajas según los métodos disponibles
 window.renderizarCalculadoraCierre = function() {
     const container = document.getElementById('cierre-dinamico-container');
     
@@ -1076,7 +963,7 @@ window.renderizarCalculadoraCierre = function() {
         `;
     }).join('');
 
-    calcularDiferenciaCaja(); // Cálculo inicial
+    window.calcularDiferenciaCaja(); 
 }
 
 window.calcularDiferenciaCaja = function() {
@@ -1121,11 +1008,10 @@ window.confirmarCierreCaja = async function() {
     if (btn) { btn.innerText = "⏳ Cerrando..."; btn.disabled = true; }
 
     try {
-        // Guardamos todo el desglose dinámico en la nueva columna JSONB
         const payloadCierre = {
             fecha_cierre: new Date().toISOString(),
             cerrado_por: window.cajeroActivo.id,
-            desglose_cierre: window.estadoCierreActual, // ⚡ Aquí está la magia JSON
+            desglose_cierre: window.estadoCierreActual, 
             estado: 'CERRADO'
         };
 
@@ -1156,7 +1042,6 @@ window.confirmarCierreCaja = async function() {
     }
 }
 
-// 1. Ir a buscar los métodos a Supabase
 window.cargarMetodosPagoPOS = async function() {
     try {
         const { data, error } = await clienteSupabase
@@ -1169,13 +1054,12 @@ window.cargarMetodosPagoPOS = async function() {
         if (error) throw error;
         
         window.metodosPagoMemoria = data || [];
-        renderizarMetodosPagoPOS();
+        window.renderizarMetodosPagoPOS();
     } catch (error) {
         console.error("Error cargando métodos de pago:", error);
     }
 }
 
-// 2. Dibujar los botones en el HTML con colores según su tipo
 window.renderizarMetodosPagoPOS = function() {
     const contenedor = document.getElementById('contenedor-metodos-pago');
     if (!contenedor) return;
@@ -1186,7 +1070,6 @@ window.renderizarMetodosPagoPOS = function() {
     }
 
     contenedor.innerHTML = window.metodosPagoMemoria.map(mp => {
-        // Asignar colores e íconos dinámicamente según el tipo base
         let colorClass = 'border-slate-200 text-slate-600 hover:border-slate-500 hover:bg-slate-50';
         let icono = '🪙';
         
@@ -1204,15 +1087,6 @@ window.renderizarMetodosPagoPOS = function() {
     }).join('');
 }
 
-window.volverDashboardPOS = function() {
-    // Ocultamos la pantalla de las cuentas
-    document.getElementById('pos-cuentas-screen').classList.add('hidden');
-    
-    // Volvemos a mostrar el menú de los 3 botones gigantes
-    document.getElementById('pos-dashboard-screen').classList.remove('hidden');
-    document.getElementById('pos-dashboard-screen').classList.add('flex');
-}
-
 // ==========================================
 // LÓGICA DE CLIENTES EN EL POS
 // ==========================================
@@ -1222,7 +1096,7 @@ window.abrirModalClientesPOS = function() {
     document.getElementById('modal-clientes-pos').classList.remove('hidden');
     document.getElementById('input-buscar-cliente-pos').value = '';
     setTimeout(() => document.getElementById('input-buscar-cliente-pos').focus(), 100);
-    buscarClientePOS(''); // Cargar los primeros 20 por defecto
+    window.buscarClientePOS(''); 
 }
 
 window.cerrarModalClientesPOS = function() {
@@ -1267,13 +1141,13 @@ window.buscarClientePOS = async function(termino) {
 
 window.seleccionarClientePOS = function(id, nombre) {
     window.clienteSeleccionadoPOS = { id, nombre };
-    cerrarModalClientesPOS();
-    actualizarUIClientePOS();
+    window.cerrarModalClientesPOS();
+    window.actualizarUIClientePOS();
 }
 
 window.removerClientePOS = function() {
     window.clienteSeleccionadoPOS = null;
-    actualizarUIClientePOS();
+    window.actualizarUIClientePOS();
 }
 
 window.actualizarUIClientePOS = function() {
@@ -1290,12 +1164,12 @@ window.actualizarUIClientePOS = function() {
     }
 }
 
-// --- CREACIÓN RÁPIDA DE CLIENTES DESDE EL POS ---
 window.abrirModalNuevoClientePOS = function() {
     document.getElementById('input-nc-nombre').value = '';
     document.getElementById('input-nc-doc').value = '';
     document.getElementById('input-nc-tel').value = '';
     document.getElementById('input-nc-correo').value = '';
+    document.getElementById('input-nc-dir').value = '';
     document.getElementById('modal-nuevo-cliente-pos').classList.remove('hidden');
     setTimeout(() => document.getElementById('input-nc-nombre').focus(), 100);
 }
@@ -1309,7 +1183,7 @@ window.guardarNuevoClientePOS = async function() {
     const doc = document.getElementById('input-nc-doc').value.trim();
     const tel = document.getElementById('input-nc-tel').value.trim();
     const correo = document.getElementById('input-nc-correo').value.trim();
-    const direccion = document.getElementById('input-nc-dir').value.trim(); // ⚡ Capturamos dirección
+    const direccion = document.getElementById('input-nc-dir').value.trim();
 
     if (!nombre) return alert("⚠️ El nombre del cliente es obligatorio.");
 
@@ -1318,7 +1192,6 @@ window.guardarNuevoClientePOS = async function() {
     btn.disabled = true;
 
     try {
-        // Insertamos en la tabla clientes incluyendo la columna 'direccion' que vimos en tu Supabase
         const { data, error } = await clienteSupabase
             .from('clientes')
             .insert([{
@@ -1327,23 +1200,22 @@ window.guardarNuevoClientePOS = async function() {
                 documento: doc || null,
                 telefono: tel || null,
                 correo: correo || null,
-                direccion: direccion || null // ⚡ Enviamos a la BD
+                direccion: direccion || null 
             }])
             .select('id, nombre')
             .single();
 
         if (error) throw error;
 
-        // Limpiamos los campos del modal rápido para la próxima vez
         document.getElementById('input-nc-nombre').value = '';
         document.getElementById('input-nc-doc').value = '';
         document.getElementById('input-nc-tel').value = '';
         document.getElementById('input-nc-correo').value = '';
         document.getElementById('input-nc-dir').value = '';
 
-        cerrarModalNuevoClientePOS();
+        window.cerrarModalNuevoClientePOS();
         window.seleccionarClientePOS(data.id, data.nombre);
-        buscarClientePOS('');
+        window.buscarClientePOS('');
 
     } catch (error) {
         console.error("Error al crear cliente:", error);
