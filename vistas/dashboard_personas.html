@@ -1,0 +1,95 @@
+<div class="h-full flex flex-col p-2 md:p-6 bg-slate-50 overflow-y-auto space-y-6 animate-fade-in relative">
+    
+    <div class="bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-2xl p-6 md:p-8 shadow-sm text-white flex flex-col justify-center">
+        <h1 class="text-3xl md:text-4xl font-black mb-2" id="hr-saludo-banner">¡Hola!</h1>
+        <p class="text-emerald-50 font-medium text-sm md:text-base">Aquí tienes el resumen en tiempo real de tu equipo. 👋</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        <div class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm flex flex-col relative overflow-hidden group">
+            <div class="flex justify-between items-start mb-4">
+                <div class="bg-blue-50 w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow-inner">🏪</div>
+                <h2 class="text-4xl font-black text-slate-800" id="hr-kpi-sucursales">...</h2>
+            </div>
+            <h3 class="font-bold text-slate-800 text-lg mb-1">Estado de Sucursales</h3>
+            <p class="text-sm text-slate-500 font-medium mb-4">Sucursales Operando</p>
+            <div class="mt-auto bg-slate-100 rounded-lg p-2 text-center text-xs font-bold text-slate-600 truncate" id="hr-kpi-sucursales-detalle">
+                Calculando...
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm flex flex-col relative overflow-hidden group">
+            <div class="flex justify-between items-start mb-4">
+                <div class="bg-blue-50 w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow-inner">👥</div>
+                <h2 class="text-4xl font-black text-slate-800" id="hr-kpi-personas">...</h2>
+            </div>
+            <h3 class="font-bold text-slate-800 text-lg mb-1">Personas por Sucursal</h3>
+            <p class="text-sm text-slate-500 font-medium mb-4">Personas Presentes (Total Today)</p>
+            <div class="mt-auto bg-slate-100 rounded-lg p-2 text-center text-xs font-bold text-slate-600 truncate" id="hr-kpi-personas-detalle">
+                Calculando...
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm flex flex-col relative overflow-hidden group">
+            <div class="flex justify-between items-start mb-4">
+                <div class="bg-red-50 w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow-inner relative">
+                    <span class="absolute -top-1 -right-1 flex h-3 w-3">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                    </span>
+                    💌
+                </div>
+                <h2 class="text-4xl font-black text-slate-800" id="hr-kpi-solicitudes">...</h2>
+            </div>
+            <h3 class="font-bold text-slate-800 text-lg mb-1">Solicitudes Pendientes</h3>
+            <p class="text-sm text-slate-500 font-medium mb-4">Solicitudes Sin Respuesta (Dependientes de ti)</p>
+            <div class="mt-auto bg-slate-100 rounded-lg p-2 text-center text-xs font-bold text-slate-600 truncate" id="hr-kpi-solicitudes-detalle">
+                Calculando...
+            </div>
+        </div>
+    </div>
+
+    <div>
+        <h3 class="text-lg font-bold text-slate-700 mb-4 flex items-center gap-2">⚡ Accesos Rápidos</h3>
+        <div class="grid grid-cols-2 md:grid-cols-6 gap-4">
+            
+            <button onclick="cambiarVista('hr_calendario')" class="bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl p-4 flex flex-col items-center justify-center text-center transition-transform hover:scale-105 shadow-sm min-h-[120px]">
+                <span class="text-3xl mb-2">📅</span>
+                <span class="font-bold text-sm">Hoy</span>
+                <span class="text-[10px] font-medium opacity-80 mt-1">Resumen Diario</span>
+            </button>
+
+            <button onclick="cambiarVista('hr_colaboradores')" class="bg-white border border-slate-100 hover:border-emerald-200 hover:shadow-md rounded-2xl p-4 flex flex-col items-center justify-center text-center transition-all min-h-[120px] group">
+                <span class="text-3xl mb-2 group-hover:scale-110 transition-transform">👤</span>
+                <span class="font-bold text-sm text-slate-800">Nuevo Colaborador</span>
+                <span class="text-[10px] font-medium text-slate-500 mt-1">Añadir Miembro</span>
+            </button>
+
+            <button onclick="alert('Módulo de Sueldos en construcción 🚧')" class="bg-white border border-slate-100 hover:border-emerald-200 hover:shadow-md rounded-2xl p-4 flex flex-col items-center justify-center text-center transition-all min-h-[120px] group">
+                <span class="text-3xl mb-2 group-hover:scale-110 transition-transform">💵</span>
+                <span class="font-bold text-sm text-slate-800">Sueldos</span>
+                <span class="text-[10px] font-medium text-slate-500 mt-1">Ver Nómina</span>
+            </button>
+
+            <button onclick="cambiarVista('hr_documentos')" class="bg-white border border-slate-100 hover:border-emerald-200 hover:shadow-md rounded-2xl p-4 flex flex-col items-center justify-center text-center transition-all min-h-[120px] group">
+                <span class="text-3xl mb-2 group-hover:scale-110 transition-transform">📂</span>
+                <span class="font-bold text-sm text-slate-800">Documentos</span>
+                <span class="text-[10px] font-medium text-slate-500 mt-1">Gestionar Archivos</span>
+            </button>
+
+            <button onclick="cambiarVista('hr_formacion')" class="bg-white border border-slate-100 hover:border-emerald-200 hover:shadow-md rounded-2xl p-4 flex flex-col items-center justify-center text-center transition-all min-h-[120px] group">
+                <span class="text-3xl mb-2 group-hover:scale-110 transition-transform">📜</span>
+                <span class="font-bold text-sm text-slate-800">Capacitación</span>
+                <span class="text-[10px] font-medium text-slate-500 mt-1">Seguimiento de Cursos</span>
+            </button>
+
+            <button onclick="cambiarVista('hr_solicitudes')" class="bg-white border border-slate-100 hover:border-emerald-200 hover:shadow-md rounded-2xl p-4 flex flex-col items-center justify-center text-center transition-all min-h-[120px] group">
+                <span class="text-3xl mb-2 group-hover:scale-110 transition-transform">🛎️</span>
+                <span class="font-bold text-sm text-slate-800">Permisos</span>
+                <span class="text-[10px] font-medium text-slate-500 mt-1">Solicitudes de Ausencia</span>
+            </button>
+
+        </div>
+    </div>
+</div>
