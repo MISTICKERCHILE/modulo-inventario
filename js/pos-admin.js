@@ -1,39 +1,51 @@
+// --- NAVEGACIÓN SEGURA ---
+window.volverAlDashboardDesdeAdmin = function() {
+    // Ocultar todas las pantallas de admin
+    document.getElementById('pos-admin-menu-screen')?.classList.add('hidden');
+    document.getElementById('pos-admin-menu-screen')?.classList.remove('flex');
+    
+    document.getElementById('pos-admin-usuarios-screen')?.classList.add('hidden');
+    document.getElementById('pos-admin-usuarios-screen')?.classList.remove('flex');
+    
+    document.getElementById('pos-admin-resumen-screen')?.classList.add('hidden');
+    document.getElementById('pos-admin-resumen-screen')?.classList.remove('flex');
+
+    // Mostrar dashboard principal de la caja
+    document.getElementById('pos-dashboard-screen')?.classList.remove('hidden');
+    document.getElementById('pos-dashboard-screen')?.classList.add('flex');
+}
+
 // ==========================================
-// ADMINISTRACIÓN DEL POS (MENÚ, USUARIOS, REPORTES Z)
+// CONFIGURACIÓN DE MENÚ
 // ==========================================
 window.categoriasMenuMemoria = [];
 
 window.abrirPosAdminMenu = async function() {
-    // 1. Ocultar el dashboard y mostrar esta pantalla
     document.getElementById('pos-dashboard-screen').classList.add('hidden');
     document.getElementById('pos-dashboard-screen').classList.remove('flex');
-    
     document.getElementById('pos-admin-menu-screen').classList.remove('hidden');
     document.getElementById('pos-admin-menu-screen').classList.add('flex');
-
-    // 2. Cargar las categorías
-    await cargarCategoriasParaAdmin();
+    await window.cargarCategoriasParaAdmin();
 }
 
 window.cerrarPosAdminMenu = function() {
-    document.getElementById('pos-admin-menu-screen').classList.add('hidden');
-    document.getElementById('pos-admin-menu-screen').classList.remove('flex');
-    window.abrirDashboardPOS(); // Te devuelve al inicio
+    window.volverAlDashboardDesdeAdmin();
 }
 
-async function cargarCategoriasParaAdmin() {
+window.cargarCategoriasParaAdmin = async function() {
     const lista = document.getElementById('lista-admin-categorias');
     try {
         const { data, error } = await clienteSupabase
             .from('categorias')
-            .select('id, nombre') // Si tienes columna 'orden', agrégala aquí
+            .select('id, nombre, orden') 
             .eq('id_empresa', window.miEmpresaId)
-            .order('nombre'); // Temporalmente ordenado alfabéticamente
+            .order('orden', { ascending: true }) // Ordenamos por la nueva columna
+            .order('nombre', { ascending: true }); 
 
         if (error) throw error;
         
         window.categoriasMenuMemoria = data || [];
-        renderizarListaCategoriasAdmin();
+        window.renderizarListaCategoriasAdmin();
         
     } catch (err) {
         console.error("Error:", err);
@@ -41,7 +53,7 @@ async function cargarCategoriasParaAdmin() {
     }
 }
 
-function renderizarListaCategoriasAdmin() {
+window.renderizarListaCategoriasAdmin = function() {
     const lista = document.getElementById('lista-admin-categorias');
     if (window.categoriasMenuMemoria.length === 0) {
         lista.innerHTML = '<p class="text-slate-400 italic">No tienes categorías creadas.</p>';
@@ -60,42 +72,34 @@ function renderizarListaCategoriasAdmin() {
 }
 
 window.moverCategoriaMenu = function(index, direccion) {
-    // direccion: -1 (subir), 1 (bajar)
     const nuevoIndex = index + direccion;
     if (nuevoIndex < 0 || nuevoIndex >= window.categoriasMenuMemoria.length) return;
-
-    // Intercambiar posiciones en el array
     const temp = window.categoriasMenuMemoria[index];
     window.categoriasMenuMemoria[index] = window.categoriasMenuMemoria[nuevoIndex];
     window.categoriasMenuMemoria[nuevoIndex] = temp;
-
-    renderizarListaCategoriasAdmin();
+    window.renderizarListaCategoriasAdmin();
 }
 
 window.guardarOrdenMenu = async function() {
     const btn = document.querySelector('#pos-admin-menu-screen button.bg-emerald-600');
-    btn.innerText = "⏳ Guardando...";
-    btn.disabled = true;
+    if(btn) { btn.innerText = "⏳ Guardando..."; btn.disabled = true; }
 
     try {
-        // Actualizamos cada categoría con su nuevo índice (posición)
         const promesas = window.categoriasMenuMemoria.map((cat, index) => {
             return clienteSupabase.from('categorias').update({ orden: index }).eq('id', cat.id);
         });
 
-        await Promise.all(promesas); // Esperamos a que todas se guarden
+        await Promise.all(promesas); 
         
         alert("✅ Orden actualizado correctamente.");
         window.cerrarPosAdminMenu();
-        // Recargar el menú de la caja para que los cambios se vean de inmediato
         if(typeof window.cargarCatalogoPOS === 'function') window.cargarCatalogoPOS();
 
     } catch (error) {
         console.error("Error guardando orden:", error);
         alert("❌ Ocurrió un error al guardar el orden.");
     } finally {
-        btn.innerText = "💾 Guardar Orden";
-        btn.disabled = false;
+        if(btn) { btn.innerText = "💾 Guardar Orden"; btn.disabled = false; }
     }
 }
 
@@ -107,29 +111,42 @@ window.abrirPosAdminUsuarios = function() {
     document.getElementById('pos-dashboard-screen').classList.remove('flex');
     document.getElementById('pos-admin-usuarios-screen').classList.remove('hidden');
     document.getElementById('pos-admin-usuarios-screen').classList.add('flex');
-    cargarUsuariosPOSAdmin();
+    window.cargarUsuariosPOSAdmin();
 }
 
 window.cerrarPosAdminUsuarios = function() {
-    document.getElementById('pos-admin-usuarios-screen').classList.add('hidden');
-    document.getElementById('pos-admin-usuarios-screen').classList.remove('flex');
-    window.abrirDashboardPOS();
+    window.volverAlDashboardDesdeAdmin();
 }
 
-async function cargarUsuariosPOSAdmin() {
+window.cargarUsuariosPOSAdmin = async function() {
     const contenedor = document.getElementById('lista-admin-usuarios');
     try {
-        // Traemos a los usuarios que pertenecen a esta empresa cruzando con sus perfiles
-        const { data, error } = await clienteSupabase
+        // ⚡ SOLUCIÓN AL PGRST200: Hacemos dos consultas separadas (infalible)
+        const { data: accesos, error: errAccesos } = await clienteSupabase
             .from('usuarios_empresas')
-            .select('rol, perfiles(id_usuario, nombre, pin_seguridad)')
+            .select('id_usuario, rol')
             .eq('id_empresa', window.miEmpresaId);
 
-        if (error) throw error;
+        if (errAccesos) throw errAccesos;
+        if (!accesos || accesos.length === 0) {
+            contenedor.innerHTML = '<p class="col-span-full text-slate-400 text-center">No hay usuarios en esta empresa.</p>';
+            return;
+        }
 
-        contenedor.innerHTML = data.map(u => {
-            const perfil = u.perfiles;
+        // Consultamos los perfiles usando los IDs obtenidos
+        const idsUsuarios = accesos.map(a => a.id_usuario);
+        const { data: perfiles, error: errPerfiles } = await clienteSupabase
+            .from('perfiles')
+            .select('id_usuario, nombre, pin_seguridad')
+            .in('id_usuario', idsUsuarios);
+
+        if (errPerfiles) throw errPerfiles;
+
+        // Pintamos uniendo la info
+        contenedor.innerHTML = accesos.map(acceso => {
+            const perfil = perfiles.find(p => p.id_usuario === acceso.id_usuario);
             if(!perfil) return '';
+            
             const pinVisual = perfil.pin_seguridad ? '••••' : 'SIN PIN';
             const colorPin = perfil.pin_seguridad ? 'text-emerald-600 bg-emerald-50' : 'text-red-600 bg-red-50';
 
@@ -137,7 +154,7 @@ async function cargarUsuariosPOSAdmin() {
             <div class="border border-slate-200 rounded-xl p-4 flex justify-between items-center bg-slate-50">
                 <div>
                     <h4 class="font-black text-slate-800">${perfil.nombre || 'Usuario'}</h4>
-                    <p class="text-xs font-bold text-slate-400 uppercase">${u.rol}</p>
+                    <p class="text-xs font-bold text-slate-400 uppercase">${acceso.rol}</p>
                 </div>
                 <div class="flex items-center gap-3">
                     <span class="font-mono font-bold px-2 py-1 rounded text-sm ${colorPin}">${pinVisual}</span>
@@ -168,7 +185,7 @@ window.cambiarPinUsuarioPOS = async function(idUsuario) {
 
         if (error) throw error;
         alert("✅ PIN actualizado exitosamente.");
-        cargarUsuariosPOSAdmin(); // Recargar la lista
+        window.cargarUsuariosPOSAdmin(); 
     } catch (err) {
         console.error("Error actualizando PIN:", err);
         alert("❌ No se pudo actualizar el PIN.");
@@ -187,9 +204,7 @@ window.abrirPosAdminResumen = function() {
 }
 
 window.cerrarPosAdminResumen = function() {
-    document.getElementById('pos-admin-resumen-screen').classList.add('hidden');
-    document.getElementById('pos-admin-resumen-screen').classList.remove('flex');
-    window.abrirDashboardPOS();
+    window.volverAlDashboardDesdeAdmin();
 }
 
 window.cargarResumenPOS = async function() {
@@ -199,11 +214,9 @@ window.cargarResumenPOS = async function() {
     }
 
     try {
-        // 1. Mostrar hora de apertura
         const dApertura = new Date(window.turnoActual.fecha_apertura);
         document.getElementById('resumen-hora-apertura').innerText = dApertura.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
 
-        // 2. Traer Ventas del Turno
         const { data: ventas, error: errVentas } = await clienteSupabase
             .from('ventas')
             .select('total, metodo_pago')
@@ -213,13 +226,11 @@ window.cargarResumenPOS = async function() {
 
         if (errVentas) throw errVentas;
 
-        // 3. Traer Cuentas Pendientes
         const { count: cuentasPendientes } = await clienteSupabase
             .from('pos_cuentas_abiertas')
             .select('*', { count: 'exact', head: true })
             .eq('id_empresa', window.miEmpresaId);
 
-        // 4. Calcular Totales
         let totalGeneral = 0;
         const desglose = {};
 
@@ -229,12 +240,10 @@ window.cargarResumenPOS = async function() {
             desglose[v.metodo_pago] = (desglose[v.metodo_pago] || 0) + m;
         });
 
-        // 5. Pintar KPIs
         document.getElementById('resumen-total-monto').innerText = `$${totalGeneral.toLocaleString('es-CL')}`;
         document.getElementById('resumen-total-tickets').innerText = (ventas || []).length;
         document.getElementById('resumen-cuentas-pendientes').innerText = cuentasPendientes || 0;
 
-        // 6. Pintar Desglose
         const listaMetodos = document.getElementById('lista-resumen-metodos');
         if (Object.keys(desglose).length === 0) {
             listaMetodos.innerHTML = '<p class="text-slate-400 italic">No hay ventas registradas en este turno aún.</p>';
