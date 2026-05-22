@@ -209,7 +209,7 @@ window.validarPin = async function() {
             
             if (typeof cargarMetodosPagoPOS === "function") cargarMetodosPagoPOS();
             
-            window.entrarAlPos(); // RESTAURADO: Chequea turno y muestra fecha
+            window.entrarAlPos(); 
             return;
         }
 
@@ -228,15 +228,15 @@ window.validarPin = async function() {
         } 
         else if (window.motivoPinPOS === 'catalogos') {
             window.motivoPinPOS = 'login';
-            window.abrirPosAdminMenu(); // Llama a Categorías
+            if (typeof window.abrirPosAdminMenu === 'function') window.abrirPosAdminMenu();
         }
         else if (window.motivoPinPOS === 'parametros') {
             window.motivoPinPOS = 'login';
-            window.abrirPosAdminUsuarios(); // Llama a Usuarios/PINes
+            if (typeof window.abrirPosAdminUsuarios === 'function') window.abrirPosAdminUsuarios();
         }
         else if (window.motivoPinPOS === 'reportes') {
             window.motivoPinPOS = 'login';
-            window.abrirPosAdminResumen(); // Llama a Resumen Z
+            if (typeof window.abrirPosAdminResumen === 'function') window.abrirPosAdminResumen();
         }
 
     } catch (error) {
