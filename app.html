@@ -398,6 +398,28 @@
                     </button>
                 </div>
 
+                <button onclick="cambiarVista('dashboard_personas')" id="btn-menu-dashboard_personas" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors">
+                    <span>👥</span> <span class="menu-texto">Módulo Personas</span>
+                </button>
+
+                <div id="submenu-dashboard_personas" class="space-y-1 mt-1 border-l-2 border-slate-700 ml-4 pl-2 hidden">
+                    <button onclick="cambiarVista('hr_calendario')" id="btn-menu-hr_calendario" class="w-full flex items-center text-left gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
+                        <span class="shrink-0">📅</span> <span class="menu-texto leading-tight">Calendario</span>
+                    </button>
+                    <button onclick="cambiarVista('hr_colaboradores')" id="btn-menu-hr_colaboradores" class="w-full flex items-center text-left gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
+                        <span class="shrink-0">👨‍💼</span> <span class="menu-texto leading-tight">Colaboradores</span>
+                    </button>
+                    <button onclick="cambiarVista('hr_documentos')" id="btn-menu-hr_documentos" class="w-full flex items-center text-left gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
+                        <span class="shrink-0">📁</span> <span class="menu-texto leading-tight">Documentos</span>
+                    </button>
+                    <button onclick="cambiarVista('hr_formacion')" id="btn-menu-hr_formacion" class="w-full flex items-center text-left gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
+                        <span class="shrink-0">🎓</span> <span class="menu-texto leading-tight">Formación</span>
+                    </button>
+                    <button onclick="cambiarVista('hr_solicitudes')" id="btn-menu-hr_solicitudes" class="w-full flex items-center text-left gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
+                        <span class="shrink-0">📝</span> <span class="menu-texto leading-tight">Solicitudes</span>
+                    </button>
+                </div>
+
                 <div class="my-2 border-t border-slate-700"></div>
                 <div class="px-4 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">General</div>
 

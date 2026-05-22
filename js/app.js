@@ -482,6 +482,18 @@ window.cambiarVista = async function(vista) {
         }
     }
 
+    // 👉 NUEVO: Mostrar u ocultar el submenú de Personas inteligentemente
+    const vistasPersonas = ['dashboard_personas', 'hr_calendario', 'hr_colaboradores', 'hr_documentos', 'hr_formacion', 'hr_solicitudes'];
+    const submenuPersonas = document.getElementById('submenu-dashboard_personas');
+    
+    if (submenuPersonas) {
+        if (vistasPersonas.includes(vista)) {
+            submenuPersonas.classList.remove('hidden');
+        } else {
+            submenuPersonas.classList.add('hidden');
+        }
+    }
+
     const main = document.getElementById('main-content');
     // Reemplazamos el texto aburrido por tu GIF personalizado
     main.innerHTML = `
