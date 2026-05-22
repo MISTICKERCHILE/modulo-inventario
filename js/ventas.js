@@ -228,17 +228,15 @@ window.validarPin = async function() {
         } 
         else if (window.motivoPinPOS === 'catalogos') {
             window.motivoPinPOS = 'login';
-            window.abrirPosAdminMenu(); // <-- Llamada al nuevo archivo
+            window.abrirPosAdminMenu(); // Llama a Categorías
         }
         else if (window.motivoPinPOS === 'parametros') {
-            alert("Abriendo configuración de usuarios... (Lo armaremos en pos-admin.js)");
             window.motivoPinPOS = 'login';
-            window.mostrarDashboardPos();
+            window.abrirPosAdminUsuarios(); // Llama a Usuarios/PINes
         }
         else if (window.motivoPinPOS === 'reportes') {
-            alert("Abriendo Resumen de Ventas... (Lo armaremos en pos-admin.js)");
             window.motivoPinPOS = 'login';
-            window.mostrarDashboardPos();
+            window.abrirPosAdminResumen(); // Llama a Resumen Z
         }
 
     } catch (error) {
