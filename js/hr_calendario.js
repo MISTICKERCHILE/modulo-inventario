@@ -2,28 +2,38 @@ window.plantillasTurnosMemoria = [];
 window.modoVistaCalendarioActual = 'semana';
 
 // ============================================================================
-// MANEJO DE PESTAÑAS INTERNES Y CONTROLES VISTA
+// NAVEGACIÓN PRINCIPAL: CALENDARIO vs CONFIGURACIÓN
 // ============================================================================
-window.cambiarTabCalendario = function(tab) {
-    const tabVisor = document.getElementById('hr-tab-visor');
-    const tabConfig = document.getElementById('hr-tab-config');
+window.toggleConfiguracionHR = function(mostrarConfig) {
     const panelVisor = document.getElementById('hr-panel-visor');
     const panelConfig = document.getElementById('hr-panel-config');
     const controlesCal = document.getElementById('hr-controles-calendario');
+    const btnEntrar = document.getElementById('hr-btn-entrar-config');
+    const btnVolver = document.getElementById('hr-btn-volver-cal');
+    const titulo = document.getElementById('hr-cal-titulo');
+    const sub = document.getElementById('hr-cal-sub');
 
-    if (tab === 'visor') {
-        tabVisor.className = 'py-3 font-bold text-sm border-b-2 border-emerald-600 text-emerald-600 outline-none transition-all';
-        tabConfig.className = 'py-3 font-bold text-sm border-b-2 border-transparent text-slate-400 hover:text-slate-600 transition-all';
-        panelVisor.classList.remove('hidden');
-        panelConfig.classList.add('hidden');
-        controlesCal.classList.remove('hidden');
-    } else {
-        tabConfig.className = 'py-3 font-bold text-sm border-b-2 border-blue-600 text-blue-600 outline-none transition-all';
-        tabVisor.className = 'py-3 font-bold text-sm border-b-2 border-transparent text-slate-400 hover:text-slate-600 transition-all';
-        panelConfig.classList.remove('hidden');
+    if (mostrarConfig) {
+        // MODO CONFIGURACIÓN
         panelVisor.classList.add('hidden');
+        panelConfig.classList.remove('hidden');
         controlesCal.classList.add('hidden');
+        btnEntrar.classList.add('hidden');
+        btnVolver.classList.remove('hidden');
+        titulo.innerText = '⚙️ Configuración Operativa';
+        sub.innerText = 'Administra los horarios de sucursales, plantillas de turnos y feriados';
+        
+        // Disparamos la carga de datos de las tablas de configuración
         window.cargarPlantillasTurnos();
+    } else {
+        // MODO CALENDARIO
+        panelConfig.classList.add('hidden');
+        panelVisor.classList.remove('hidden');
+        btnVolver.classList.add('hidden');
+        controlesCal.classList.remove('hidden');
+        btnEntrar.classList.remove('hidden');
+        titulo.innerText = '📅 Calendario Operativo';
+        sub.innerText = 'Control de turnos y asistencia del personal';
     }
 };
 
