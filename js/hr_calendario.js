@@ -86,10 +86,28 @@ window.cargarPlantillasTurnos = async function() {
     }
 };
 
-window.abrirModalTurnoPlantilla = function() {
+window.abrirModalTurnoPlantilla = async function() {
     document.getElementById('form-hr-turno-plantilla').reset();
     document.getElementById('hr-id-turno-plantilla').value = '';
+    
+    const contSucursales = document.getElementById('hr-turno-sucursales');
+    contSucursales.innerHTML = '<p class="text-xs text-slate-500">Cargando sucursales...</p>';
+    
     document.getElementById('modal-hr-turno-plantilla').classList.remove('hidden');
+
+    try {
+        const { data: sucursales, error } = await clienteSupabase.from('sucursales').select('id, nombre').eq('id_empresa', window.miEmpresaId);
+        if (error) throw error;
+        
+        contSucursales.innerHTML = sucursales.map(s => `
+            <label class="flex items-center gap-2 p-2 border border-slate-200 rounded-md bg-white cursor-pointer hover:bg-emerald-50 transition-colors">
+                <input type="checkbox" name="hr-chk-sucursal-turno" value="${s.id}" class="w-4 h-4 accent-emerald-600">
+                <span class="text-xs font-bold text-slate-700">${s.nombre}</span>
+            </label>
+        `).join('');
+    } catch (err) {
+        contSucursales.innerHTML = '<p class="text-xs text-red-500 font-bold">Error cargando sucursales</p>';
+    }
 };
 
 window.cerrarModalTurnoPlantilla = function() {
@@ -101,6 +119,16 @@ window.guardarTurnoPlantilla = async function(e) {
     const btn = document.getElementById('btn-guardar-plantilla-turno');
     btn.disabled = true; btn.innerText = "Guardando...";
 
+    // Recolectar sucursales seleccionadas
+    const checkboxes = document.querySelectorAll('input[name="hr-chk-sucursal-turno"]:checked');
+    const sucursalesArr = Array.from(checkboxes).map(cb => cb.value);
+
+    if (sucursalesArr.length === 0) {
+        alert("Debes seleccionar al menos una sucursal para este turno.");
+        btn.disabled = false; btn.innerText = "Guardar Plantilla";
+        return;
+    }
+
     const payload = {
         id_empresa: window.miEmpresaId,
         nombre: document.getElementById('hr-turno-nombre').value.trim(),
@@ -109,7 +137,8 @@ window.guardarTurnoPlantilla = async function(e) {
         descanso_minutos: document.getElementById('hr-turno-descanso').value ? parseInt(document.getElementById('hr-turno-descanso').value) : 0,
         lleva_desayuno: document.getElementById('hr-chk-desayuno').checked,
         lleva_almuerzo: document.getElementById('hr-chk-almuerzo').checked,
-        lleva_once_cena: document.getElementById('hr-chk-once').checked
+        lleva_once_cena: document.getElementById('hr-chk-once').checked,
+        sucursales_disponibles: sucursalesArr // Guardamos el array de UUIDs
     };
 
     try {
