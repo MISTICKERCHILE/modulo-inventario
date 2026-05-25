@@ -542,6 +542,7 @@ window.cambiarVista = async function(vista) {
         if(vista === 'ventas' && typeof window.cargarVentas === 'function') window.cargarVentas();
         if(vista === 'ranking' && typeof window.cargarLaboratorio === 'function') window.cargarLaboratorio();
         if(vista === 'hr_colaboradores' && typeof window.cargarFichasLaborales === 'function') window.cargarFichasLaborales();
+        if(vista === 'hr_colaboradores' && typeof window.cambiarTabHR === 'function') window.cambiarTabHR('fichas');
 
     } catch (error) {
         main.innerHTML = `<div class="p-8 text-center text-red-500"><p class="text-4xl mb-4">❌</p><h2 class="text-xl font-bold">Error cargando la vista: ${vista}.html</h2></div>`;
