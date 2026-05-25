@@ -81,7 +81,7 @@
 <div id="modal-hr-turno-plantilla" class="hidden absolute inset-0 z-[100] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-2 md:p-4">
     <div class="bg-white p-4 md:p-6 rounded-xl shadow-2xl w-full max-w-md border-t-4 border-blue-600 transform transition-all scale-95 duration-200">
         <div class="flex justify-between items-center mb-4 border-b pb-3">
-            <h2 class="text-lg font-black text-slate-800">💼 Nueva Plantilla de Turno</h2>
+            <h2 class="text-lg font-black text-slate-800" id="hr-turno-modal-titulo">💼 Nueva Plantilla de Turno</h2>
             <button type="button" onclick="cerrarModalTurnoPlantilla()" class="text-slate-400 hover:text-slate-800 text-4xl font-bold leading-none">&times;</button>
         </div>
         
@@ -91,6 +91,13 @@
             <div>
                 <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre del Turno</label>
                 <input type="text" id="hr-turno-nombre" required class="w-full px-3 py-2 border border-slate-200 rounded-md outline-none font-bold text-slate-700 bg-slate-50 focus:bg-white" placeholder="Ej: Apertura Full Time, Turno Corto Sábado...">
+            </div>
+
+            <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 mt-3 mb-3">
+                <label class="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">Asignar a Sucursales</label>
+                <div id="hr-turno-sucursales" class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-24 overflow-y-auto">
+                    <p class="text-xs text-slate-500">Cargando sucursales...</p>
+                </div>
             </div>
 
             <div class="grid grid-cols-2 gap-3">
@@ -111,7 +118,6 @@
 
             <div class="bg-orange-50 p-3 rounded-lg border border-orange-200 space-y-2">
                 <label class="block text-[10px] font-black text-orange-800 uppercase tracking-wider mb-1">🍴 Control de Casino (Opcional)</label>
-                
                 <div class="flex flex-col gap-2">
                     <label class="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700">
                         <input type="checkbox" id="hr-chk-desayuno" class="w-4 h-4 accent-orange-600"> Incluye Desayuno corporativo
@@ -122,13 +128,6 @@
                     <label class="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700">
                         <input type="checkbox" id="hr-chk-once" class="w-4 h-4 accent-orange-600"> Incluye Once / Cena final
                     </label>
-                </div>
-            </div>
-
-            <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 mt-3 mb-3">
-                <label class="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">Asignar a Sucursales</label>
-                <div id="hr-turno-sucursales" class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-24 overflow-y-auto">
-                    <p class="text-xs text-slate-500">Cargando sucursales...</p>
                 </div>
             </div>
 
