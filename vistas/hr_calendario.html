@@ -43,13 +43,25 @@
     <div id="hr-panel-config" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-8 hidden bg-slate-100">
         
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-            <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+            <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center flex-wrap gap-2">
                 <div>
-                    <h3 class="font-black text-slate-800 text-base">🏪 Horarios de Sucursales</h3>
+                    <h3 class="font-black text-slate-800 text-base flex items-center gap-2">🏪 Horarios de Sucursales</h3>
                     <p class="text-xs text-slate-400 font-medium">Define la hora de apertura y cierre por tienda para validar tus turnos</p>
                 </div>
             </div>
-            <div class="p-6 text-center text-slate-400 text-sm italic">Aquí listaremos las tiendas para configurar su Lunes a Domingo...</div>
+            
+            <div class="bg-blue-50 border-b border-blue-100 p-3 flex items-start gap-2 text-blue-700">
+                <span class="text-lg leading-none">ℹ️</span>
+                <p class="text-[11px] font-medium leading-tight">
+                    <b>¿Falta alguna sucursal?</b> Los horarios se asignan a las tiendas ya existentes. Para crear una nueva sucursal, debes ir al menú principal: <b>Catálogos ➔ Sucursales</b>.
+                </p>
+            </div>
+
+            <div class="overflow-x-auto p-4">
+                <div id="hr-lista-sucursales-horarios" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div class="p-6 text-center text-slate-400 text-sm italic col-span-full">Cargando sucursales...</div>
+                </div>
+            </div>
         </div>
 
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -188,6 +200,35 @@
             <div class="flex justify-end gap-3 border-t pt-4">
                 <button type="button" onclick="cerrarModalTurnoPlantilla()" class="px-4 py-2 bg-white border border-slate-300 rounded-md font-bold text-slate-600">Cancelar</button>
                 <button type="submit" id="btn-guardar-plantilla-turno" class="px-6 py-2 bg-blue-600 text-white rounded-md font-bold shadow-sm">Guardar Plantilla</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="modal-hr-horario-sucursal" class="hidden absolute inset-0 z-[100] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-2 md:p-4">
+    <div class="bg-white p-4 md:p-6 rounded-xl shadow-2xl w-full max-w-2xl max-h-[95vh] overflow-y-auto border-t-4 border-emerald-500 transform transition-all scale-95 duration-200">
+        <div class="flex justify-between items-center mb-4 border-b pb-3">
+            <div>
+                <h2 class="text-xl font-black text-slate-800 flex items-center gap-2" id="hr-horario-titulo">⚙️ Configurar Horario</h2>
+                <p class="text-xs text-slate-500 font-medium mt-1">Establece las horas de operación para los 7 días de la semana</p>
+            </div>
+            <button type="button" onclick="cerrarModalHorarioSucursal()" class="text-slate-400 hover:text-slate-800 text-4xl font-bold leading-none">&times;</button>
+        </div>
+        
+        <form id="form-hr-horario-sucursal" class="space-y-4" onsubmit="guardarHorarioSucursal(event)">
+            <input type="hidden" id="hr-id-horario-sucursal"> <input type="hidden" id="hr-id-sucursal-activa"> <div id="hr-contenedor-dias-semana" class="space-y-2 bg-slate-50 p-4 rounded-lg border border-slate-200">
+                </div>
+
+            <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 mt-4">
+                <label class="block text-xs font-black text-blue-800 uppercase tracking-wider mb-2">📋 Clonar a otras sucursales (Opcional)</label>
+                <p class="text-[10px] text-blue-600 mb-2">Si marcas otras sucursales aquí, se les aplicará exactamente este mismo horario al guardar.</p>
+                <div id="hr-contenedor-clonar-sucursales" class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-24 overflow-y-auto">
+                    </div>
+            </div>
+
+            <div class="flex justify-end gap-3 border-t pt-4">
+                <button type="button" onclick="cerrarModalHorarioSucursal()" class="px-6 py-2 bg-white border border-slate-300 rounded-md font-bold text-slate-600 hover:bg-slate-50">Cancelar</button>
+                <button type="submit" id="btn-guardar-horario-sucursal" class="px-8 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md font-bold shadow-sm">Guardar Horario</button>
             </div>
         </form>
     </div>
