@@ -72,7 +72,7 @@ window.cargarPlantillasTurnos = async function() {
             // LÓGICA CORREGIDA PARA HORAS NULL
             let horarioHtml = '';
             if (t.es_ausencia) {
-                horarioHtml = `<span class="bg-slate-100 text-slate-600 font-bold px-2.5 py-1 rounded-md text-xs border border-slate-200 shadow-sm">🛑 Día Libre / Ausencia</span>`;
+                horarioHtml = `<span class="bg-slate-100 text-slate-600 font-bold px-2.5 py-1 rounded-md text-xs border border-slate-200 shadow-sm">⚪ Sin Horario</span>`;
             } else {
                 const inicio = t.hora_inicio ? t.hora_inicio.slice(0,5) : '--:--';
                 const fin = t.hora_fin ? t.hora_fin.slice(0,5) : '--:--';
@@ -293,7 +293,7 @@ window.cargarHorariosSucursales = async function() {
             return `
                 <tr onclick="abrirModalHorarioSucursal('${suc.id}')" class="cursor-pointer hover:bg-slate-50 transition-colors group">
                     <td class="px-6 py-4 font-black text-slate-800 text-sm group-hover:text-blue-600 transition-colors">
-                        🏪 ${suc.nombre}
+                        ${suc.nombre}
                     </td>
                     <td class="px-6 py-4 text-xs text-slate-600 font-bold">
                         Empresa Activa
