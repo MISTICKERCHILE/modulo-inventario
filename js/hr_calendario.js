@@ -437,3 +437,109 @@ window.guardarHorarioSucursal = async function(e) {
         btn.disabled = false; btn.innerText = "Guardar Horario";
     }
 };
+
+// ============================================================================
+// EL PROGRAMADOR MATRICIAL (CON DRAG AND DROP)
+// ============================================================================
+
+window.abrirModalProgramador = function() {
+    const modal = document.getElementById('modal-hr-programador');
+    const selectSuc = document.getElementById('prog-sucursal');
+    
+    // Llenar select de sucursales (usamos la memoria que ya teníamos)
+    selectSuc.innerHTML = '<option value="">Seleccionar Sucursal...</option>' + 
+        window.sucursalesMemoriaHR.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('');
+
+    // Setear fechas por defecto (Hoy y en 6 días)
+    const hoy = new Date();
+    const proximaSemana = new Date(hoy);
+    proximaSemana.setDate(hoy.getDate() + 6);
+
+    document.getElementById('prog-fecha-inicio').value = hoy.toISOString().split('T')[0];
+    document.getElementById('prog-fecha-fin').value = proximaSemana.toISOString().split('T')[0];
+
+    document.getElementById('prog-tabla-head').innerHTML = '';
+    document.getElementById('prog-tabla-body').innerHTML = `<tr><td class="p-8 text-center text-slate-400 font-medium italic" colspan="100%">Haz clic en "Generar Plantilla" para comenzar.</td></tr>`;
+
+    modal.classList.remove('hidden');
+};
+
+window.cerrarModalProgramador = function() {
+    document.getElementById('modal-hr-programador').classList.add('hidden');
+};
+
+// Genera la cuadrícula visual para el Drag & Drop
+window.generarMatrizProgramador = function() {
+    const thead = document.getElementById('prog-tabla-head');
+    const tbody = document.getElementById('prog-tabla-body');
+    
+    // Simulamos 3 días para la prueba visual
+    thead.innerHTML = `
+        <tr>
+            <th class="px-4 py-3 text-left font-bold text-slate-600 uppercase text-xs w-64 bg-slate-200">Colaborador</th>
+            <th class="px-2 py-3 text-center font-bold text-slate-600 uppercase text-[10px] border-l border-slate-300">Lunes 10</th>
+            <th class="px-2 py-3 text-center font-bold text-slate-600 uppercase text-[10px] border-l border-slate-300">Martes 11</th>
+            <th class="px-2 py-3 text-center font-bold text-slate-600 uppercase text-[10px] border-l border-slate-300 bg-slate-50">Miércoles 12 (Cerrado)</th>
+        </tr>
+    `;
+
+    // Simulamos 3 trabajadores para probar el drag and drop
+    const simulados = [
+        { id: '1', nombre: 'Valentina Nunez', cargo: 'Gerente' },
+        { id: '2', nombre: 'Juan Pérez', cargo: 'Cajero' },
+        { id: '3', nombre: 'María Gómez', cargo: 'Vendedora' }
+    ];
+
+    tbody.innerHTML = simulados.map(p => `
+        <tr class="hover:bg-blue-50 transition-colors border-b border-slate-100 bg-white cursor-move group" draggable="true" ondragstart="dragStart(event)" ondragover="dragOver(event)" ondrop="drop(event)">
+            <td class="px-4 py-2 border-r border-slate-200 flex items-center gap-3">
+                <span class="text-slate-300 group-hover:text-blue-500 cursor-grab text-lg">☰</span>
+                <div>
+                    <p class="font-bold text-slate-800 text-xs">${p.nombre}</p>
+                    <p class="text-[9px] text-slate-400">${p.cargo}</p>
+                </div>
+            </td>
+            <td class="px-2 py-2 border-r border-slate-200 text-center">
+                <select class="w-full text-[10px] p-1 border border-slate-200 rounded outline-none cursor-pointer focus:border-blue-500"><option>+ Asignar</option><option>Turno AM</option></select>
+            </td>
+            <td class="px-2 py-2 border-r border-slate-200 text-center">
+                <div class="bg-blue-100 text-blue-800 text-[10px] font-bold p-1 rounded border border-blue-200 shadow-sm cursor-pointer hover:bg-blue-200">08:00 a 15:30</div>
+            </td>
+            <td class="px-2 py-2 text-center bg-slate-50">
+                <span class="text-[10px] text-slate-400 italic">Libre</span>
+            </td>
+        </tr>
+    `).join('');
+};
+
+// --- LÓGICA NATIVA DE DRAG AND DROP ---
+let filaArrastrada = null;
+
+window.dragStart = function(e) {
+    filaArrastrada = e.target.closest('tr');
+    e.dataTransfer.effectAllowed = 'move';
+    // Efecto visual al agarrar
+    setTimeout(() => filaArrastrada.classList.add('opacity-50'), 0);
+};
+
+window.dragOver = function(e) {
+    e.preventDefault(); // Necesario para permitir el drop
+    e.dataTransfer.dropEffect = 'move';
+    const trObjetivo = e.target.closest('tr');
+    
+    if (trObjetivo && trObjetivo !== filaArrastrada && trObjetivo.parentNode === filaArrastrada.parentNode) {
+        // Calculamos si soltamos arriba o abajo del elemento
+        const rect = trObjetivo.getBoundingClientRect();
+        const next = (e.clientY - rect.top) / (rect.bottom - rect.top) > 0.5;
+        trObjetivo.parentNode.insertBefore(filaArrastrada, next ? trObjetivo.nextSibling : trObjetivo);
+    }
+};
+
+window.drop = function(e) {
+    e.stopPropagation();
+    if (filaArrastrada) {
+        filaArrastrada.classList.remove('opacity-50');
+        filaArrastrada = null;
+    }
+    return false;
+};

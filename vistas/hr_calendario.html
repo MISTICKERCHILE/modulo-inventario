@@ -13,12 +13,19 @@
                     <option value="">🌍 Todas las Sucursales</option>
                 </select>
                 
-                <div class="inline-flex rounded-lg border border-slate-200 p-1 bg-slate-100 shadow-inner">
+                <select id="hr-filtro-persona" class="px-3 py-2 border border-slate-300 rounded-lg font-bold text-slate-700 bg-slate-50 text-xs outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer">
+                    <option value="">👥 Todo el Personal</option>
+                </select>
+                
+                <div class="inline-flex rounded-lg border border-slate-200 p-1 bg-slate-100 shadow-inner mr-2">
                     <button onclick="cambiarModoVistaCalendario('dia')" class="px-3 py-1.5 text-xs font-bold rounded-md text-slate-600 hover:text-slate-800 transition-all">Día</button>
                     <button onclick="cambiarModoVistaCalendario('semana')" class="px-3 py-1.5 text-xs font-bold rounded-md bg-white text-emerald-600 shadow-sm transition-all">Semana</button>
                     <button onclick="cambiarModoVistaCalendario('mes')" class="px-3 py-1.5 text-xs font-bold rounded-md text-slate-600 hover:text-slate-800 transition-all">Mes</button>
-                    <button onclick="cambiarModoVistaCalendario('ano')" class="px-3 py-1.5 text-xs font-bold rounded-md text-slate-600 hover:text-slate-800 transition-all">Año</button>
                 </div>
+
+                <button onclick="abrirModalProgramador()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-lg transition-colors shadow-sm flex items-center gap-2">
+                    <span>➕</span> <span class="hidden sm:inline">Programar Turnos</span>
+                </button>
             </div>
 
             <button id="hr-btn-entrar-config" onclick="toggleConfiguracionHR(true)" class="bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 px-4 rounded-lg transition-colors shadow-sm flex items-center gap-2">
@@ -28,7 +35,6 @@
             <button id="hr-btn-volver-cal" onclick="toggleConfiguracionHR(false)" class="hidden bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold py-2.5 px-4 rounded-lg transition-colors shadow-sm border border-emerald-200 flex items-center gap-2">
                 <span>⬅️</span> <span>Volver al Calendario</span>
             </button>
-
         </div>
     </header>
 
@@ -233,5 +239,53 @@
                 <button type="submit" id="btn-guardar-horario-sucursal" class="px-8 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md font-bold shadow-sm">Guardar Horario</button>
             </div>
         </form>
+    </div>
+</div>
+
+<div id="modal-hr-programador" class="hidden absolute inset-0 z-[100] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-2 md:p-4">
+    <div class="bg-white p-4 md:p-6 rounded-xl shadow-2xl w-full max-w-6xl max-h-[95vh] flex flex-col border-t-4 border-blue-500 transform transition-all scale-95 duration-200">
+        
+        <div class="flex justify-between items-center mb-4 border-b pb-3 shrink-0">
+            <div>
+                <h2 class="text-xl font-black text-slate-800 flex items-center gap-2">📅 Programador de Turnos</h2>
+                <p class="text-xs text-slate-500 font-medium mt-1">Asigna horarios de forma masiva. <b class="text-blue-600">Arrastra las filas (☰) para reordenar al personal.</b></p>
+            </div>
+            <button type="button" onclick="cerrarModalProgramador()" class="text-slate-400 hover:text-slate-800 text-4xl font-bold leading-none">&times;</button>
+        </div>
+        
+        <div class="flex flex-wrap gap-4 mb-4 shrink-0 bg-slate-50 p-3 rounded-lg border border-slate-200">
+            <div>
+                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Sucursal</label>
+                <select id="prog-sucursal" class="px-3 py-1.5 border border-slate-300 rounded font-bold text-slate-700 text-sm outline-none">
+                    <option value="">Seleccionar Sucursal...</option>
+                    </select>
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Desde</label>
+                <input type="date" id="prog-fecha-inicio" class="px-3 py-1.5 border border-slate-300 rounded font-bold text-slate-700 text-sm outline-none">
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Hasta (Máx 7 días)</label>
+                <input type="date" id="prog-fecha-fin" class="px-3 py-1.5 border border-slate-300 rounded font-bold text-slate-700 text-sm outline-none">
+            </div>
+            <div class="flex items-end">
+                <button onclick="generarMatrizProgramador()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold py-1.5 px-4 rounded shadow-sm text-sm">Generar Plantilla</button>
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-auto border border-slate-200 rounded-lg relative">
+            <table class="min-w-full divide-y divide-slate-200 text-sm border-collapse">
+                <thead class="bg-slate-100 sticky top-0 z-10 shadow-sm" id="prog-tabla-head">
+                    </thead>
+                <tbody id="prog-tabla-body" class="bg-white divide-y divide-slate-100">
+                    <tr><td class="p-8 text-center text-slate-400 font-medium italic" colspan="100%">Selecciona una sucursal y fechas para comenzar.</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="flex justify-end gap-3 border-t pt-4 shrink-0 mt-4">
+            <button type="button" onclick="cerrarModalProgramador()" class="px-6 py-2 bg-white border border-slate-300 rounded-md font-bold text-slate-600 hover:bg-slate-50">Cancelar</button>
+            <button type="button" onclick="alert('Guardado en construcción 🚧')" class="px-8 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-bold shadow-sm">Guardar Programación</button>
+        </div>
     </div>
 </div>
