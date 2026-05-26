@@ -9,11 +9,11 @@
         <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
             
             <div id="hr-controles-calendario" class="flex flex-wrap items-center gap-2 w-full md:w-auto">
-                <select id="hr-filtro-sucursal" class="px-3 py-2 border border-slate-300 rounded-lg font-bold text-slate-700 bg-slate-50 text-xs outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer">
+                <select id="hr-filtro-sucursal" onchange="window.cargarCalendarioPrincipal()" class="px-3 py-2 border border-slate-300 rounded-lg font-bold text-slate-700 bg-slate-50 text-xs outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer">
                     <option value="">🌍 Todas las Sucursales</option>
                 </select>
                 
-                <select id="hr-filtro-persona" class="px-3 py-2 border border-slate-300 rounded-lg font-bold text-slate-700 bg-slate-50 text-xs outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer">
+                <select id="hr-filtro-persona" onchange="window.cargarCalendarioPrincipal()" class="px-3 py-2 border border-slate-300 rounded-lg font-bold text-slate-700 bg-slate-50 text-xs outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer">
                     <option value="">👥 Todo el Personal</option>
                 </select>
                 
@@ -38,11 +38,30 @@
         </div>
     </header>
 
-    <div id="hr-panel-visor" class="flex-1 flex flex-col p-6 overflow-auto">
-        <div class="bg-white p-12 rounded-2xl border border-slate-200 text-center shadow-sm max-w-2xl mx-auto my-auto">
-            <span class="text-5xl block mb-4">🚧</span>
-            <h2 class="text-xl font-black text-slate-800 mb-2">Aquí irá la Cuadrícula Interactiva</h2>
-            <p class="text-sm text-slate-500 font-medium">Usa el botón de <b>Configuración</b> arriba a la derecha para preparar tus sucursales y turnos primero.</p>
+    <div id="hr-panel-visor" class="flex-1 flex flex-col bg-white overflow-hidden animate-fade-in">
+        
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between px-6 py-3 border-b border-slate-200 bg-slate-50 shrink-0 gap-3">
+            <div class="flex items-center gap-2 sm:gap-4">
+                <button onclick="cambiarSemanaCalendario(-1)" class="p-1.5 rounded-md hover:bg-slate-200 text-slate-600 transition-colors shadow-sm bg-white border border-slate-200">◀</button>
+                <h3 id="hr-rango-fechas-visor" class="font-black text-slate-700 text-xs sm:text-sm w-40 sm:w-56 text-center uppercase tracking-wide">Cargando semana...</h3>
+                <button onclick="cambiarSemanaCalendario(1)" class="p-1.5 rounded-md hover:bg-slate-200 text-slate-600 transition-colors shadow-sm bg-white border border-slate-200">▶</button>
+                <button onclick="irAHoyCalendario()" class="text-xs font-bold text-blue-600 hover:text-blue-800 bg-blue-50 px-3 py-1.5 rounded-md border border-blue-100 transition-colors shadow-sm ml-2">Ir a Hoy</button>
+            </div>
+            <div class="text-[10px] sm:text-xs font-bold text-slate-500 flex items-center gap-2 bg-white px-3 py-1.5 rounded-full border border-slate-200 shadow-sm">
+                <span>🟢 Programado</span>
+                <span class="w-px h-3 bg-slate-300"></span>
+                <span>⚪ Ausencia</span>
+            </div>
+        </div>
+        
+        <div class="flex-1 overflow-auto relative bg-slate-100/50" id="hr-contenedor-grilla-visor">
+            <table class="min-w-full divide-y divide-slate-200 text-sm border-collapse bg-white">
+                <thead class="bg-slate-100 sticky top-0 z-10 shadow-sm" id="hr-visor-head">
+                    </thead>
+                <tbody id="hr-visor-body" class="divide-y divide-slate-100">
+                    <tr><td class="p-12 text-center text-slate-400 font-medium italic" colspan="100%">Cargando calendario...</td></tr>
+                </tbody>
+            </table>
         </div>
     </div>
 
@@ -165,18 +184,18 @@
                 <input type="text" id="hr-turno-nombre" required class="w-full px-3 py-2 border border-slate-200 rounded-md outline-none font-bold text-slate-700 bg-slate-50 focus:bg-white" placeholder="Ej: Turno Mañana, Día Libre, Vacaciones...">
             </div>
 
-            <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 mt-3 mb-3">
-                <label class="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">Asignar a Sucursales</label>
-                <div id="hr-turno-sucursales" class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-24 overflow-y-auto">
-                    <p class="text-xs text-slate-500">Cargando sucursales...</p>
-                </div>
-            </div>
-
             <div class="mb-2 mt-3">
                 <label class="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-600 bg-slate-100 p-2.5 rounded-lg border border-slate-200 shadow-sm hover:bg-slate-200 transition-colors">
                     <input type="checkbox" id="hr-chk-ausencia" onchange="toggleHorasAusencia(this.checked)" class="w-4 h-4 accent-slate-600">
                     Turno sin horario fijo / Día Libre (Oculta las horas)
                 </label>
+            </div>
+
+            <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 mt-3 mb-3">
+                <label class="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">Asignar a Sucursales</label>
+                <div id="hr-turno-sucursales" class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-24 overflow-y-auto">
+                    <p class="text-xs text-slate-500">Cargando sucursales...</p>
+                </div>
             </div>
 
             <div class="grid grid-cols-2 gap-3 mt-3" id="hr-contenedor-horas-turno">

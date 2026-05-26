@@ -14,6 +14,7 @@ window.toggleConfiguracionHR = function(mostrarConfig) {
     const sub = document.getElementById('hr-cal-sub');
 
     if (mostrarConfig) {
+        // MODO CONFIGURACIÓN (Ocultamos el calendario)
         panelVisor.classList.add('hidden');
         panelConfig.classList.remove('hidden');
         controlesCal.classList.add('hidden');
@@ -22,10 +23,11 @@ window.toggleConfiguracionHR = function(mostrarConfig) {
         titulo.innerText = '⚙️ Configuración Operativa';
         sub.innerText = 'Administra los horarios de sucursales, plantillas de turnos y feriados';
         
-        // --- LLAMAMOS A LAS DOS FUNCIONES DE CARGA ---
+        // Cargamos las tablas de configuración
         window.cargarPlantillasTurnos();
         window.cargarHorariosSucursales(); 
     } else {
+        // MODO CALENDARIO (Volvemos a la vista principal)
         panelConfig.classList.add('hidden');
         panelVisor.classList.remove('hidden');
         btnVolver.classList.add('hidden');
@@ -33,6 +35,9 @@ window.toggleConfiguracionHR = function(mostrarConfig) {
         btnEntrar.classList.remove('hidden');
         titulo.innerText = '📅 Calendario Operativo';
         sub.innerText = 'Control de turnos y asistencia del personal';
+        
+        // --- AQUÍ ES DONDE DEBE IR ---
+        window.cargarCalendarioPrincipal(); 
     }
 };
 
@@ -754,4 +759,153 @@ window.drop = function(e) {
         filaArrastrada = null;
     }
     return false;
+};
+
+// ============================================================================
+// VISUALIZADOR DEL CALENDARIO PRINCIPAL (VISTA SEMANAL)
+// ============================================================================
+
+window.fechaReferenciaCalendario = new Date(); // Guarda en qué semana estamos parados
+
+window.cambiarSemanaCalendario = function(offset) {
+    window.fechaReferenciaCalendario.setDate(window.fechaReferenciaCalendario.getDate() + (offset * 7));
+    window.cargarCalendarioPrincipal();
+};
+
+window.irAHoyCalendario = function() {
+    window.fechaReferenciaCalendario = new Date();
+    window.cargarCalendarioPrincipal();
+};
+
+// Función para obtener el lunes de la semana actual
+window.obtenerLunes = function(d) {
+    d = new Date(d);
+    var day = d.getDay(), diff = d.getDate() - day + (day == 0 ? -6 : 1);
+    return new Date(d.setDate(diff));
+};
+
+window.cargarCalendarioPrincipal = async function() {
+    const tbody = document.getElementById('hr-visor-body');
+    const thead = document.getElementById('hr-visor-head');
+    const labelRango = document.getElementById('hr-rango-fechas-visor');
+    const filtroSucursal = document.getElementById('hr-filtro-sucursal').value;
+    
+    // 1. Calcular fechas de la semana (Lunes a Domingo)
+    const lunes = window.obtenerLunes(window.fechaReferenciaCalendario);
+    let fechasSemana = [];
+    for(let i=0; i<7; i++) {
+        let dia = new Date(lunes);
+        dia.setDate(dia.getDate() + i);
+        fechasSemana.push(dia);
+    }
+    
+    const fechaInicioStr = fechasSemana[0].toISOString().split('T')[0];
+    const fechaFinStr = fechasSemana[6].toISOString().split('T')[0];
+    
+    // Actualizar texto del rango en el header
+    const opcionesMes = { month: 'short', day: 'numeric' };
+    labelRango.innerText = `${fechasSemana[0].toLocaleDateString('es-ES', opcionesMes)} - ${fechasSemana[6].toLocaleDateString('es-ES', opcionesMes)}`;
+
+    tbody.innerHTML = `<tr><td class="p-12 text-center text-slate-400 font-medium italic" colspan="100%">Cargando turnos...</td></tr>`;
+
+    try {
+        // 2. Traer Trabajadores Activos
+        let queryFichas = clienteSupabase.from('hr_fichas_laborales').select('*').eq('id_empresa', window.miEmpresaId).eq('estado', 'Activo');
+        const { data: fichas } = await queryFichas;
+        let fichasFiltradas = fichas || [];
+
+        // Filtrar por sucursal si hay una seleccionada
+        if(filtroSucursal) {
+            fichasFiltradas = fichasFiltradas.filter(f => f.sucursales && f.sucursales.includes(filtroSucursal));
+        }
+
+        if(fichasFiltradas.length === 0) {
+            tbody.innerHTML = `<tr><td class="p-12 text-center text-slate-400 font-medium italic" colspan="100%">No hay personal para mostrar con los filtros actuales.</td></tr>`;
+            thead.innerHTML = ''; return;
+        }
+
+        // 3. Traer Datos Complementarios (Nombres, Turnos Asignados, Plantillas)
+        const { data: perfiles } = await clienteSupabase.from('perfiles').select('id_usuario, nombre, apellido').eq('id_empresa', window.miEmpresaId);
+        const { data: plantillas } = await clienteSupabase.from('hr_turnos_plantillas').select('*').eq('id_empresa', window.miEmpresaId);
+        
+        // Traer Turnos Programados para esta semana específica
+        const { data: turnosAsignados } = await clienteSupabase.from('hr_turnos_asignados')
+            .select('*')
+            .eq('id_empresa', window.miEmpresaId)
+            .gte('fecha', fechaInicioStr)
+            .lte('fecha', fechaFinStr);
+
+        // === CONSTRUIR CABECERA ===
+        const diasNombres = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+        let headHtml = `<tr><th class="px-4 py-4 text-left font-black text-slate-700 uppercase text-xs w-56 bg-slate-100 border-r border-slate-200 shadow-sm sticky left-0 z-20">Colaborador</th>`;
+        
+        fechasSemana.forEach(f => {
+            const esHoy = f.toISOString().split('T')[0] === new Date().toISOString().split('T')[0];
+            const colorBg = esHoy ? 'bg-blue-100 text-blue-800 border-b-2 border-blue-500' : 'bg-slate-50 text-slate-600';
+            
+            headHtml += `<th class="px-2 py-3 text-center font-bold uppercase text-[10px] border-l border-slate-200 ${colorBg}">
+                <span class="block text-sm font-black mb-0.5">${f.getDate()}</span>
+                <span>${diasNombres[f.getDay()]}</span>
+            </th>`;
+        });
+        headHtml += `</tr>`;
+        thead.innerHTML = headHtml;
+
+        // === CONSTRUIR CUERPO DE LA GRILLA ===
+        let bodyHtml = fichasFiltradas.map(ficha => {
+            const perfil = (perfiles || []).find(p => p.id_usuario === ficha.id_usuario) || {};
+            const nombreCompleto = `${perfil.nombre || 'Sin Nombre'} ${perfil.apellido || ''}`;
+            
+            let celdasHTML = fechasSemana.map(f => {
+                const fStr = f.toISOString().split('T')[0];
+                
+                // Buscar si este trabajador tiene turno este día
+                const turnoDia = (turnosAsignados || []).find(t => t.id_ficha === ficha.id && t.fecha === fStr);
+                
+                if (turnoDia) {
+                    const plantilla = (plantillas || []).find(p => p.id === turnoDia.id_turno_plantilla);
+                    if(!plantilla) return `<td class="border-l border-slate-100 p-1"></td>`;
+
+                    // Diseño de la Tarjeta del Turno
+                    if (plantilla.es_ausencia) {
+                        // Tarjeta de Día Libre / Vacaciones
+                        return `<td class="border-l border-slate-200 p-1.5 align-top bg-red-50/30">
+                            <div onclick="alert('Editar asignación en construcción 🚧')" class="bg-white border border-red-200 rounded-md p-1.5 shadow-sm cursor-pointer hover:border-red-400 hover:shadow transition-all group">
+                                <p class="text-[9px] font-bold text-red-600 uppercase flex items-center gap-1"><span>🛑</span> ${plantilla.nombre}</p>
+                            </div>
+                        </td>`;
+                    } else {
+                        // Tarjeta de Turno Normal
+                        return `<td class="border-l border-slate-200 p-1.5 align-top hover:bg-slate-50 transition-colors">
+                            <div onclick="alert('Editar asignación en construcción 🚧')" class="bg-white border border-emerald-200 border-l-4 border-l-emerald-500 rounded-md p-1.5 shadow-sm cursor-pointer hover:shadow hover:border-emerald-400 transition-all">
+                                <p class="text-[10px] font-black text-slate-800 truncate" title="${plantilla.nombre}">${plantilla.nombre}</p>
+                                <p class="text-[9px] font-bold text-slate-500 mt-0.5">🕒 ${plantilla.hora_inicio ? plantilla.hora_inicio.slice(0,5) : ''} - ${plantilla.hora_fin ? plantilla.hora_fin.slice(0,5) : ''}</p>
+                            </div>
+                        </td>`;
+                    }
+                } else {
+                    // Celda Vacía con botón tenue para asignar
+                    return `<td class="border-l border-slate-200 p-1 group hover:bg-slate-50 transition-colors text-center align-middle">
+                        <button onclick="alert('Asignar turno individual en construcción 🚧')" class="opacity-0 group-hover:opacity-100 bg-white border border-slate-300 text-slate-400 hover:text-blue-600 hover:border-blue-400 rounded-md w-full py-2 text-xs font-bold transition-all shadow-sm">
+                            + Asignar
+                        </button>
+                    </td>`;
+                }
+            }).join('');
+
+            return `
+            <tr class="border-b border-slate-100">
+                <td class="px-4 py-3 bg-white sticky left-0 z-10 border-r border-slate-200 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
+                    <p class="font-bold text-slate-800 text-xs">${nombreCompleto}</p>
+                </td>
+                ${celdasHTML}
+            </tr>`;
+        }).join('');
+
+        tbody.innerHTML = bodyHtml;
+
+    } catch (e) {
+        console.error("Error al cargar calendario:", e);
+        tbody.innerHTML = `<tr><td class="p-12 text-center text-red-500 font-bold" colspan="100%">❌ Error al cargar los turnos.</td></tr>`;
+    }
 };
