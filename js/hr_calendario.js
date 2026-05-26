@@ -54,12 +54,7 @@ window.cargarPlantillasTurnos = async function() {
     if (!tbody) return;
 
     try {
-        const { data, error } = await clienteSupabase
-            .from('hr_turnos_plantillas')
-            .select('*')
-            .eq('id_empresa', window.miEmpresaId)
-            .order('nombre', { ascending: true });
-
+        const { data, error } = await clienteSupabase.from('hr_turnos_plantillas').select('*').eq('id_empresa', window.miEmpresaId).order('nombre', { ascending: true });
         if (error) throw error;
         window.plantillasTurnosMemoria = data || [];
 
@@ -74,18 +69,24 @@ window.cargarPlantillasTurnos = async function() {
             if(t.lleva_almuerzo) comidasHtml.push('🍲 Almuerzo');
             if(t.lleva_once_cena) comidasHtml.push('🌆 Once/Cena');
             
+            // LÓGICA CORREGIDA PARA HORAS NULL
+            let horarioHtml = '';
+            if (t.es_ausencia) {
+                horarioHtml = `<span class="bg-slate-100 text-slate-600 font-bold px-2.5 py-1 rounded-md text-xs border border-slate-200 shadow-sm">🛑 Día Libre / Ausencia</span>`;
+            } else {
+                const inicio = t.hora_inicio ? t.hora_inicio.slice(0,5) : '--:--';
+                const fin = t.hora_fin ? t.hora_fin.slice(0,5) : '--:--';
+                horarioHtml = `<span class="bg-blue-50 text-blue-700 font-mono font-bold px-2.5 py-1 rounded-md text-xs border border-blue-100 shadow-sm">${inicio} a ${fin}</span>`;
+                if (t.descanso_minutos) horarioHtml += `<p class="text-[10px] text-slate-400 font-bold mt-1">⏸ Descanso: ${t.descanso_minutos} min</p>`;
+            }
+
             return `
                 <tr class="hover:bg-slate-50 transition-colors">
                     <td class="px-6 py-4 font-bold text-slate-800 text-sm">
                         <p>${t.nombre}</p>
                         <p class="text-[9px] text-slate-400 font-medium">Sucursales habilitadas: ${t.sucursales_disponibles ? t.sucursales_disponibles.length : 0}</p>
                     </td>
-                    <td class="px-6 py-4 text-center">
-                        <span class="bg-blue-50 text-blue-700 font-mono font-bold px-2.5 py-1 rounded-md text-xs border border-blue-100 shadow-sm">
-                            ${t.hora_inicio.slice(0,5)} a ${t.hora_fin.slice(0,5)}
-                        </span>
-                        ${t.descanso_minutos ? `<p class="text-[10px] text-slate-400 font-bold mt-1">⏸ Descanso: ${t.descanso_minutos} min</p>` : ''}
-                    </td>
+                    <td class="px-6 py-4 text-center">${horarioHtml}</td>
                     <td class="px-6 py-4 text-center">
                         ${comidasHtml.length > 0 ? `<div class="flex flex-wrap justify-center gap-1.5">${comidasHtml.map(c => `<span class="bg-orange-50 text-orange-700 text-[10px] border border-orange-100 font-bold px-2 py-0.5 rounded-md">${c}</span>`).join('')}</div>` : '<span class="text-slate-400 italic text-xs">Ninguno</span>'}
                     </td>
@@ -101,7 +102,7 @@ window.cargarPlantillasTurnos = async function() {
         }).join('');
 
     } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-red-500 font-bold">❌ Error al cargar los turnos.</td></tr>`;
+        console.error(e); tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-red-500 font-bold">❌ Error al cargar los turnos.</td></tr>`;
     }
 };
 
@@ -246,11 +247,12 @@ window.horariosSucursalesMemoria = [];
 const DIAS_SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
 window.cargarHorariosSucursales = async function() {
-    const contenedor = document.getElementById('hr-lista-sucursales-horarios');
-    if (!contenedor) return;
+    const tbody = document.getElementById('hr-lista-sucursales-horarios');
+    if (!tbody) return;
 
     try {
-        const { data: sucursales, error: errSuc } = await clienteSupabase.from('sucursales').select('id, nombre').eq('id_empresa', window.miEmpresaId).order('nombre');
+        // Ahora traemos la dirección también
+        const { data: sucursales, error: errSuc } = await clienteSupabase.from('sucursales').select('id, nombre, direccion').eq('id_empresa', window.miEmpresaId).order('nombre');
         if (errSuc) throw errSuc;
         window.sucursalesMemoriaHR = sucursales || [];
 
@@ -259,34 +261,56 @@ window.cargarHorariosSucursales = async function() {
         window.horariosSucursalesMemoria = horarios || [];
 
         if (window.sucursalesMemoriaHR.length === 0) {
-            contenedor.innerHTML = `<div class="p-6 text-center text-slate-400 text-sm italic col-span-full">No tienes sucursales creadas. Ve a Catálogos -> Sucursales.</div>`;
+            tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-slate-400 text-sm italic">No tienes sucursales creadas. Ve a Catálogos -> Sucursales.</td></tr>`;
             return;
         }
 
-        contenedor.innerHTML = window.sucursalesMemoriaHR.map(suc => {
+        tbody.innerHTML = window.sucursalesMemoriaHR.map(suc => {
             const horarioGuardado = window.horariosSucursalesMemoria.find(h => h.id_sucursal === suc.id);
-            const estadoHtml = horarioGuardado 
-                ? `<span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-1 rounded border border-emerald-200">✅ Horario Configurado</span>`
-                : `<span class="bg-red-50 text-red-600 text-[10px] font-bold px-2 py-1 rounded border border-red-200">⚠️ Falta Configurar</span>`;
+            
+            // Lógica para crear el texto "Lun-Sáb: Abiertos Dom: Cerrados"
+            let txtHorario = "<span class='text-red-500 font-bold'>⚠️ Sin configurar</span>";
+            
+            if (horarioGuardado && horarioGuardado.config_dias) {
+                const d = horarioGuardado.config_dias;
+                const abiertos = [];
+                const cerrados = [];
+                
+                ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'].forEach(dia => {
+                    if(d[dia] && d[dia].abierto) abiertos.push(dia.slice(0,3)); // Corta a Lun, Mar, etc.
+                    else cerrados.push(dia.slice(0,3));
+                });
+                
+                if (abiertos.length === 6 && cerrados.length === 1 && cerrados[0] === 'Dom') {
+                    txtHorario = `<span class="text-emerald-600 font-bold">Lun-Sáb: Abiertos</span> | <span class="text-slate-400 font-bold">Dom: Cerrado</span>`;
+                } else {
+                    let strAbiertos = abiertos.length > 0 ? `<span class="text-emerald-600 font-bold">${abiertos.join(', ')}: Abierto</span>` : '';
+                    let strCerrados = cerrados.length > 0 ? `<span class="text-slate-400 font-bold">${cerrados.join(', ')}: Cerrado</span>` : '';
+                    txtHorario = [strAbiertos, strCerrados].filter(Boolean).join(' | ');
+                }
+            }
 
             return `
-                <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col justify-between items-start gap-4 hover:shadow-md transition-shadow">
-                    <div class="w-full flex justify-between items-start">
-                        <div>
-                            <h4 class="font-black text-slate-800">${suc.nombre}</h4>
-                            <div class="mt-2">${estadoHtml}</div>
-                        </div>
-                        <div class="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-xl">🏪</div>
-                    </div>
-                    <button onclick="abrirModalHorarioSucursal('${suc.id}')" class="w-full mt-2 bg-white border border-slate-300 hover:border-emerald-500 hover:text-emerald-700 text-slate-700 font-bold py-2 rounded-lg text-xs shadow-sm transition-colors">
-                        ⚙️ Editar Horario
-                    </button>
-                </div>
+                <tr onclick="abrirModalHorarioSucursal('${suc.id}')" class="cursor-pointer hover:bg-slate-50 transition-colors group">
+                    <td class="px-6 py-4 font-black text-slate-800 text-sm group-hover:text-blue-600 transition-colors">
+                        🏪 ${suc.nombre}
+                    </td>
+                    <td class="px-6 py-4 text-xs text-slate-600 font-bold">
+                        Empresa Activa
+                    </td>
+                    <td class="px-6 py-4 text-xs text-slate-500 truncate max-w-[200px]" title="${suc.direccion || ''}">
+                        ${suc.direccion || '<span class="italic opacity-50">Sin dirección</span>'}
+                    </td>
+                    <td class="px-6 py-4 text-[11px]">
+                        ${txtHorario}
+                    </td>
+                </tr>
             `;
         }).join('');
 
     } catch (e) {
-        contenedor.innerHTML = `<div class="p-6 text-center text-red-500 text-sm font-bold col-span-full">Error al cargar las sucursales.</div>`;
+        console.error(e);
+        tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-red-500 text-sm font-bold">Error al cargar las sucursales.</td></tr>`;
     }
 };
 
