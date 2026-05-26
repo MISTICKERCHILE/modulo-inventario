@@ -88,23 +88,38 @@ window.guardarTurnoPlantilla = async function(e) {
     const esAusencia = document.getElementById('hr-chk-ausencia').checked;
     const sucursalesArr = Array.from(document.querySelectorAll('input[name="hr-chk-sucursal-turno"]:checked')).map(cb => cb.value);
 
+    // RECUPERAMOS LOS CAMPOS CORRECTOS
+    const descansoInput = document.getElementById('hr-turno-descanso');
+    const chkDesayuno = document.getElementById('hr-chk-desayuno');
+    const chkAlmuerzo = document.getElementById('hr-chk-almuerzo');
+    const chkOnce = document.getElementById('hr-chk-once');
+
     const payload = {
         id_empresa: window.miEmpresaId,
         nombre: document.getElementById('hr-turno-nombre').value,
         es_ausencia: esAusencia,
         hora_inicio: esAusencia ? null : document.getElementById('hr-turno-entrada').value,
         hora_fin: esAusencia ? null : document.getElementById('hr-turno-salida').value,
-        descanso_minutos: esAusencia ? 0 : (document.getElementById('hr-turno-descanso').value ? parseInt(document.getElementById('hr-turno-descanso').value) : 0),
+        descanso_minutos: esAusencia ? 0 : (descansoInput.value ? parseInt(descansoInput.value) : 0),
+        lleva_desayuno: chkDesayuno ? chkDesayuno.checked : false,
+        lleva_almuerzo: chkAlmuerzo ? chkAlmuerzo.checked : false,
+        lleva_once_cena: chkOnce ? chkOnce.checked : false,
         sucursales_disponibles: sucursalesArr
     };
 
     const idFicha = document.getElementById('hr-id-turno-plantilla').value;
-    if (idFicha) await clienteSupabase.from('hr_turnos_plantillas').update(payload).eq('id', idFicha);
-    else await clienteSupabase.from('hr_turnos_plantillas').insert([payload]);
-    
-    window.cerrarModalTurnoPlantilla(); btn.disabled = false;
-    window.cargarPlantillasTurnos();
-    if (!document.getElementById('modal-hr-programador').classList.contains('hidden')) { window.generarMatrizProgramador(); }
+    try {
+        if (idFicha) await clienteSupabase.from('hr_turnos_plantillas').update(payload).eq('id', idFicha);
+        else await clienteSupabase.from('hr_turnos_plantillas').insert([payload]);
+        
+        window.cerrarModalTurnoPlantilla();
+        window.cargarPlantillasTurnos();
+        if (!document.getElementById('modal-hr-programador').classList.contains('hidden')) { window.generarMatrizProgramador(); }
+    } catch (err) {
+        console.error(err);
+    } finally {
+        btn.disabled = false;
+    }
 };
 
 // ============================================================================
@@ -206,6 +221,9 @@ window.guardarHorarioSucursal = async function(e) {
 // ============================================================================
 // NUEVO: ADMINISTRACIÓN DE TIPOS DE PERMISOS / AUSENCIAS
 // ============================================================================
+// ============================================================================
+// ADMINISTRACIÓN DE TIPOS DE PERMISOS / AUSENCIAS
+// ============================================================================
 window.cargarPermisosTipos = async function() {
     const tbody = document.getElementById('hr-tabla-permisos-tipos');
     if (!tbody) return;
@@ -221,18 +239,85 @@ window.cargarPermisosTipos = async function() {
         tbody.innerHTML = data.map(p => `
             <tr class="hover:bg-slate-50 transition-colors">
                 <td class="px-6 py-4 font-bold text-slate-800 text-xs flex items-center gap-2">
-                    <span class="w-3 h-3 rounded-full ${p.color}"></span> ${p.nombre}
+                    <span class="w-4 h-4 rounded shadow-sm border border-slate-200 inline-block" style="background-color: ${p.color || '#3b82f6'}"></span> 
+                    ${p.nombre}
                 </td>
                 <td class="px-6 py-4 text-center">
                     ${p.es_remunerado ? '<span class="bg-emerald-50 text-emerald-700 px-2 py-1 rounded text-[10px] font-bold border border-emerald-100">💰 Sí</span>' : '<span class="bg-red-50 text-red-600 px-2 py-1 rounded text-[10px] font-bold border border-red-100">❌ No</span>'}
                 </td>
                 <td class="px-6 py-4 text-xs text-slate-500">1 Paso (Admin)</td>
                 <td class="px-6 py-4 text-right">
-                    <button onclick="eliminarPermisoTipo('${p.id}')" class="text-red-500 font-bold px-2 py-1 text-xs hover:bg-red-50 rounded">🗑️</button>
+                    <button onclick="editarPermisoTipo('${p.id}')" class="text-blue-600 font-bold px-2 py-1 text-xs hover:bg-blue-50 rounded" title="Editar">✏️</button>
+                    <button onclick="duplicarPermisoTipo('${p.id}')" class="text-slate-600 font-bold px-2 py-1 text-xs hover:bg-slate-100 rounded" title="Duplicar">📋</button>
+                    <button onclick="eliminarPermisoTipo('${p.id}')" class="text-red-500 font-bold px-2 py-1 text-xs hover:bg-red-50 rounded" title="Eliminar">🗑️</button>
                 </td>
             </tr>
         `).join('');
     } catch (e) { console.error(e); }
+};
+
+window.abrirModalPermisoTipo = function() {
+    document.getElementById('form-hr-permiso-tipo').reset();
+    document.getElementById('hr-id-permiso-tipo').value = '';
+    document.getElementById('hr-permiso-modal-titulo').innerText = '🏖️ Nuevo Tipo de Permiso';
+    document.getElementById('modal-hr-permiso-tipo').classList.remove('hidden');
+};
+
+window.editarPermisoTipo = function(id) {
+    const p = window.permisosTiposMemoria.find(x => x.id === id);
+    if (!p) return;
+    document.getElementById('hr-id-permiso-tipo').value = p.id;
+    document.getElementById('hr-permiso-nombre').value = p.nombre;
+    document.getElementById('hr-permiso-remunerado').checked = p.es_remunerado;
+    // Si viene de las clases viejas, ponemos un color por defecto, si es HEX, lo carga.
+    document.getElementById('hr-permiso-color').value = p.color?.startsWith('#') ? p.color : '#3b82f6';
+    
+    document.getElementById('hr-permiso-modal-titulo').innerText = '✏️ Editar Tipo de Permiso';
+    document.getElementById('modal-hr-permiso-tipo').classList.remove('hidden');
+};
+
+window.duplicarPermisoTipo = function(id) {
+    const p = window.permisosTiposMemoria.find(x => x.id === id);
+    if (!p) return;
+    document.getElementById('hr-id-permiso-tipo').value = ''; // ID vacío para crear nuevo
+    document.getElementById('hr-permiso-nombre').value = `${p.nombre} (Copia)`;
+    document.getElementById('hr-permiso-remunerado').checked = p.es_remunerado;
+    document.getElementById('hr-permiso-color').value = p.color?.startsWith('#') ? p.color : '#3b82f6';
+    
+    document.getElementById('hr-permiso-modal-titulo').innerText = '📋 Duplicar Tipo de Permiso';
+    document.getElementById('modal-hr-permiso-tipo').classList.remove('hidden');
+};
+
+window.cerrarModalPermisoTipo = function() {
+    document.getElementById('modal-hr-permiso-tipo').classList.add('hidden');
+};
+
+window.guardarPermisoTipo = async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btn-guardar-permiso'); btn.disabled = true;
+    
+    const payload = {
+        id_empresa: window.miEmpresaId,
+        nombre: document.getElementById('hr-permiso-nombre').value,
+        es_remunerado: document.getElementById('hr-permiso-remunerado').checked,
+        color: document.getElementById('hr-permiso-color').value // Guarda el HEX directamente
+    };
+
+    const idFicha = document.getElementById('hr-id-permiso-tipo').value;
+    try {
+        if (idFicha) await clienteSupabase.from('hr_permisos_tipos').update(payload).eq('id', idFicha);
+        else await clienteSupabase.from('hr_permisos_tipos').insert([payload]);
+        
+        window.cerrarModalPermisoTipo();
+        window.cargarPermisosTipos();
+    } catch (err) { console.error(err); } finally { btn.disabled = false; }
+};
+
+window.eliminarPermisoTipo = async function(id) {
+    if(confirm("¿Seguro que deseas eliminar este tipo de permiso?")) {
+        await clienteSupabase.from('hr_permisos_tipos').delete().eq('id', id);
+        window.cargarPermisosTipos();
+    }
 };
 
 window.abrirModalPermisoTipo = function() {
