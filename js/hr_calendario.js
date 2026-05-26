@@ -446,11 +446,33 @@ window.guardarHorarioSucursal = async function(e) {
 // EL PROGRAMADOR MATRICIAL (CONECTADO A LA REALIDAD + DRAG AND DROP)
 // ============================================================================
 
-window.abrirModalProgramador = function() {
+window.abrirModalProgramador = async function() {
     const modal = document.getElementById('modal-hr-programador');
     const selectSuc = document.getElementById('prog-sucursal');
     
-    // Llenar select de sucursales reales
+    // Cambiamos el botón visualmente para que se sepa que está cargando
+    const btnAbrir = document.querySelector('button[onclick="abrirModalProgramador()"]');
+    if (btnAbrir) { btnAbrir.disabled = true; btnAbrir.innerHTML = '<span>⏳</span> <span class="hidden sm:inline">Cargando...</span>'; }
+
+    try {
+        // FORZAMOS LA CARGA DE DATOS PARA QUE NUNCA ESTÉ VACÍO
+        const { data: sucursales } = await clienteSupabase.from('sucursales').select('id, nombre').eq('id_empresa', window.miEmpresaId).order('nombre');
+        window.sucursalesMemoriaHR = sucursales || [];
+
+        const { data: horarios } = await clienteSupabase.from('hr_sucursal_horarios').select('*').eq('id_empresa', window.miEmpresaId);
+        window.horariosSucursalesMemoria = horarios || [];
+
+        const { data: turnos } = await clienteSupabase.from('hr_turnos_plantillas').select('*').eq('id_empresa', window.miEmpresaId).order('nombre');
+        window.plantillasTurnosMemoria = turnos || [];
+
+    } catch (e) {
+        console.error("Error al cargar datos del programador:", e);
+    } finally {
+        // Restauramos el botón
+        if (btnAbrir) { btnAbrir.disabled = false; btnAbrir.innerHTML = '<span>➕</span> <span class="hidden sm:inline">Programar Turnos</span>'; }
+    }
+    
+    // Ahora sí, llenamos el select con los datos frescos
     selectSuc.innerHTML = '<option value="">Seleccionar Sucursal...</option>' + 
         window.sucursalesMemoriaHR.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('');
 
