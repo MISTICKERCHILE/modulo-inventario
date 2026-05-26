@@ -125,18 +125,18 @@ window.guardarTurnoPlantilla = async function(e) {
 // ============================================================================
 // ADMINISTRACIÓN DE HORARIOS DE SUCURSALES
 // ============================================================================
-// ============================================================================
-// ADMINISTRACIÓN DE HORARIOS DE SUCURSALES
-// ============================================================================
 window.cargarHorariosSucursales = async function() {
     const tbody = document.getElementById('hr-lista-sucursales-horarios');
     if (!tbody) return;
 
     try {
-        // 1. Traer el nombre real de la empresa
-        const { data: empresaData } = await clienteSupabase.from('empresas').select('nombre, razon_social').eq('id', window.miEmpresaId).single();
-        // Usamos la razón social, y si no tiene, usamos el nombre normal
-        const nombreEmpresaReal = empresaData ? (empresaData.razon_social || empresaData.nombre || 'Empresa Activa') : 'Empresa Activa';
+        // 1. Traer el nombre real de la empresa (Solo pedimos 'nombre')
+        const { data: empresaData, error: errEmpresa } = await clienteSupabase.from('empresas').select('nombre').eq('id', window.miEmpresaId).single();
+        
+        if (errEmpresa) console.error("Error al buscar empresa:", errEmpresa);
+
+        // Usamos el nombre, y si no hay nada, el texto por defecto
+        const nombreEmpresaReal = empresaData ? (empresaData.nombre || 'Empresa Activa') : 'Empresa Activa';
 
         // 2. Traer sucursales y horarios
         const { data: sucursales } = await clienteSupabase.from('sucursales').select('id, nombre, direccion').eq('id_empresa', window.miEmpresaId).order('nombre');
