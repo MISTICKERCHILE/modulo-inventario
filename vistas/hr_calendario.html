@@ -210,20 +210,22 @@
         <div class="flex justify-between items-center mb-4 border-b pb-3">
             <div>
                 <h2 class="text-xl font-black text-slate-800 flex items-center gap-2" id="hr-horario-titulo">⚙️ Configurar Horario</h2>
-                <p class="text-xs text-slate-500 font-medium mt-1">Establece las horas de operación para los 7 días de la semana</p>
+                <p class="text-xs text-slate-500 font-medium mt-1">Establece las horas de operación. Puedes añadir múltiples bloques por día para horarios cortados.</p>
             </div>
             <button type="button" onclick="cerrarModalHorarioSucursal()" class="text-slate-400 hover:text-slate-800 text-4xl font-bold leading-none">&times;</button>
         </div>
         
         <form id="form-hr-horario-sucursal" class="space-y-4" onsubmit="guardarHorarioSucursal(event)">
-            <input type="hidden" id="hr-id-horario-sucursal"> <input type="hidden" id="hr-id-sucursal-activa"> <div id="hr-contenedor-dias-semana" class="space-y-2 bg-slate-50 p-4 rounded-lg border border-slate-200">
+            <input type="hidden" id="hr-id-horario-sucursal">
+            <input type="hidden" id="hr-id-sucursal-activa">
+
+            <div id="hr-contenedor-dias-semana" class="space-y-3 bg-slate-50 p-4 rounded-lg border border-slate-200">
                 </div>
 
             <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 mt-4">
                 <label class="block text-xs font-black text-blue-800 uppercase tracking-wider mb-2">📋 Clonar a otras sucursales (Opcional)</label>
                 <p class="text-[10px] text-blue-600 mb-2">Si marcas otras sucursales aquí, se les aplicará exactamente este mismo horario al guardar.</p>
-                <div id="hr-contenedor-clonar-sucursales" class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-24 overflow-y-auto">
-                    </div>
+                <div id="hr-contenedor-clonar-sucursales" class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-24 overflow-y-auto"></div>
             </div>
 
             <div class="flex justify-end gap-3 border-t pt-4">
