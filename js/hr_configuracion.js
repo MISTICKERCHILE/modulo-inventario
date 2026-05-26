@@ -357,3 +357,114 @@ window.eliminarPermisoTipo = async function(id) {
         window.cargarPermisosTipos();
     }
 };
+
+window.feriadosMemoria = [];
+
+// ============================================================================
+// ADMINISTRACIÓN DE FERIADOS Y EVENTOS ESPECIALES
+// ============================================================================
+window.cargarFeriados = async function() {
+    const tbody = document.getElementById('hr-tabla-feriados');
+    if (!tbody) return;
+    try {
+        const { data } = await clienteSupabase.from('hr_feriados_eventos').select('*').eq('id_empresa', window.miEmpresaId).order('fecha', { ascending: true });
+        window.feriadosMemoria = data || [];
+        
+        if (data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-slate-400">No hay eventos o feriados registrados.</td></tr>`;
+            return;
+        }
+
+        const opcionesFecha = { weekday: 'short', day: 'numeric', month: 'long', timeZone: 'UTC' };
+
+        tbody.innerHTML = data.map(f => {
+            const fechaObj = new Date(f.fecha + 'T00:00:00Z');
+            const estadoHtml = f.cierra_sucursal 
+                ? '<span class="bg-slate-100 text-slate-600 px-2 py-1 rounded text-[10px] font-bold border border-slate-200">🔒 Tiendas Cerradas</span>' 
+                : '<span class="bg-emerald-50 text-emerald-700 px-2 py-1 rounded text-[10px] font-bold border border-emerald-100">✅ Operación Normal</span>';
+
+            return `
+                <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="px-6 py-4 font-black text-slate-800 text-xs capitalize">${fechaObj.toLocaleDateString('es-ES', opcionesFecha)}</td>
+                    <td class="px-6 py-4">
+                        <p class="font-bold text-slate-800 text-xs">${f.nombre}</p>
+                        <p class="text-[9px] text-slate-400 font-medium">Aplica a: ${f.sucursales_afectadas ? f.sucursales_afectadas.length : 0} sucursales</p>
+                    </td>
+                    <td class="px-6 py-4 text-center">${estadoHtml}</td>
+                    <td class="px-6 py-4 text-right">
+                        <button onclick="editarFeriado('${f.id}')" class="text-blue-600 font-bold px-2 py-1 text-xs hover:bg-blue-50 rounded" title="Editar">✏️</button>
+                        <button onclick="eliminarFeriado('${f.id}')" class="text-red-500 font-bold px-2 py-1 text-xs hover:bg-red-50 rounded" title="Eliminar">🗑️</button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    } catch (e) { console.error(e); }
+};
+
+window.cargarSucursalesEnModalFeriado = function(seleccionadas) {
+    const cont = document.getElementById('hr-feriado-sucursales');
+    // Reutilizamos la memoria de sucursales que ya cargó la configuración
+    cont.innerHTML = window.sucursalesMemoriaHR.map(s => `
+        <label class="flex items-center gap-2 p-2 border border-slate-200 rounded text-xs cursor-pointer hover:bg-slate-50">
+            <input type="checkbox" name="hr-chk-sucursal-feriado" value="${s.id}" ${seleccionadas.includes(s.id)?'checked':''} class="w-3.5 h-3.5 accent-slate-800">
+            <span class="font-bold text-slate-700">${s.nombre}</span>
+        </label>
+    `).join('');
+};
+
+window.abrirModalFeriado = function() {
+    document.getElementById('form-hr-feriado').reset();
+    document.getElementById('hr-id-feriado').value = '';
+    document.getElementById('hr-feriado-modal-titulo').innerText = '🎉 Registrar Feriado o Evento';
+    document.getElementById('hr-feriado-cierra').checked = true; // Por defecto cierra
+    window.cargarSucursalesEnModalFeriado([]);
+    document.getElementById('modal-hr-feriado').classList.remove('hidden');
+};
+
+window.editarFeriado = function(id) {
+    const f = window.feriadosMemoria.find(x => x.id === id);
+    if (!f) return;
+    document.getElementById('hr-id-feriado').value = f.id;
+    document.getElementById('hr-feriado-nombre').value = f.nombre;
+    document.getElementById('hr-feriado-fecha').value = f.fecha;
+    document.getElementById('hr-feriado-cierra').checked = f.cierra_sucursal;
+    
+    document.getElementById('hr-feriado-modal-titulo').innerText = '✏️ Editar Evento';
+    window.cargarSucursalesEnModalFeriado(f.sucursales_afectadas || []);
+    document.getElementById('modal-hr-feriado').classList.remove('hidden');
+};
+
+window.cerrarModalFeriado = function() {
+    document.getElementById('modal-hr-feriado').classList.add('hidden');
+};
+
+window.guardarFeriado = async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btn-guardar-feriado'); btn.disabled = true;
+    
+    const sucursalesArr = Array.from(document.querySelectorAll('input[name="hr-chk-sucursal-feriado"]:checked')).map(cb => cb.value);
+
+    const payload = {
+        id_empresa: window.miEmpresaId,
+        nombre: document.getElementById('hr-feriado-nombre').value,
+        fecha: document.getElementById('hr-feriado-fecha').value,
+        cierra_sucursal: document.getElementById('hr-feriado-cierra').checked,
+        sucursales_afectadas: sucursalesArr
+    };
+
+    const idFicha = document.getElementById('hr-id-feriado').value;
+    try {
+        if (idFicha) await clienteSupabase.from('hr_feriados_eventos').update(payload).eq('id', idFicha);
+        else await clienteSupabase.from('hr_feriados_eventos').insert([payload]);
+        
+        window.cerrarModalFeriado();
+        window.cargarFeriados();
+    } catch (err) { console.error(err); } finally { btn.disabled = false; }
+};
+
+window.eliminarFeriado = async function(id) {
+    if(confirm("¿Seguro que deseas eliminar este evento del calendario?")) {
+        await clienteSupabase.from('hr_feriados_eventos').delete().eq('id', id);
+        window.cargarFeriados();
+    }
+};

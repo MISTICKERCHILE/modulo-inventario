@@ -129,11 +129,25 @@
             <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
                 <div>
                     <h3 class="font-black text-slate-800 text-base">🎉 Feriados y Eventos del Año</h3>
-                    <p class="text-xs text-slate-400 font-medium">Registra los días especiales y decide de forma anticipada qué sucursales abren o cierran</p>
+                    <p class="text-xs text-slate-400 font-medium">Registra los días especiales y decide si las sucursales cierran o operan normal</p>
                 </div>
-                <button onclick="alert('Formulario de Feriados en construcción 🚧')" class="bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 px-3 rounded-lg text-xs transition-colors shadow-sm">+ Registrar Fecha</button>
+                <button onclick="abrirModalFeriado()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 px-3 rounded-lg text-xs transition-colors shadow-sm">+ Registrar Fecha</button>
             </div>
-            <div class="p-6 text-center text-slate-400 text-sm italic">Sección en desarrollo...</div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-slate-100 text-sm">
+                    <thead class="bg-slate-100 text-slate-600 font-bold text-[10px] uppercase tracking-wider text-left">
+                        <tr>
+                            <th class="px-6 py-3">Fecha</th>
+                            <th class="px-6 py-3">Motivo / Evento</th>
+                            <th class="px-6 py-3 text-center">Estado Operativo</th>
+                            <th class="px-6 py-3 text-right">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="hr-tabla-feriados" class="divide-y divide-slate-100">
+                        <tr><td colspan="4" class="p-6 text-center text-slate-400">Cargando eventos...</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
@@ -288,5 +302,48 @@
             <button type="button" onclick="cerrarModalProgramador()" class="px-6 py-2 bg-white border border-slate-300 rounded-md font-bold text-slate-600 hover:bg-slate-50">Cancelar</button>
             <button type="button" onclick="guardarProgramacionMasiva()" class="px-8 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-bold shadow-sm">Guardar Programación</button>
         </div>
+    </div>
+</div>
+
+<div id="modal-hr-feriado" class="hidden absolute inset-0 z-[110] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-2 md:p-4">
+    <div class="bg-white p-4 md:p-6 rounded-xl shadow-2xl w-full max-w-md border-t-4 border-slate-800 transform transition-all scale-95 duration-200">
+        <div class="flex justify-between items-center mb-4 border-b pb-3">
+            <h2 class="text-lg font-black text-slate-800" id="hr-feriado-modal-titulo">🎉 Registrar Feriado o Evento</h2>
+            <button type="button" onclick="cerrarModalFeriado()" class="text-slate-400 hover:text-slate-800 text-4xl font-bold leading-none">&times;</button>
+        </div>
+        
+        <form id="form-hr-feriado" class="space-y-4" onsubmit="guardarFeriado(event)">
+            <input type="hidden" id="hr-id-feriado">
+            
+            <div class="grid grid-cols-3 gap-3">
+                <div class="col-span-2">
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre (Ej: Año Nuevo)</label>
+                    <input type="text" id="hr-feriado-nombre" required class="w-full px-3 py-2 border border-slate-200 rounded-md outline-none font-bold text-slate-700 bg-slate-50">
+                </div>
+                <div class="col-span-1">
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Fecha</label>
+                    <input type="date" id="hr-feriado-fecha" required class="w-full px-3 py-2 border border-slate-200 rounded-md text-xs outline-none font-bold text-slate-700 bg-slate-50">
+                </div>
+            </div>
+
+            <div class="mb-2">
+                <label class="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-600 bg-slate-100 p-2.5 rounded-lg border border-slate-200 shadow-sm hover:bg-slate-200 transition-colors">
+                    <input type="checkbox" id="hr-feriado-cierra" class="w-4 h-4 accent-slate-600">
+                    🔒 Este día la sucursal estará CERRADA
+                </label>
+            </div>
+
+            <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 mt-3">
+                <label class="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">Aplica para Sucursales</label>
+                <div id="hr-feriado-sucursales" class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-24 overflow-y-auto">
+                    <p class="text-xs text-slate-500">Cargando...</p>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 border-t pt-4">
+                <button type="button" onclick="cerrarModalFeriado()" class="px-4 py-2 bg-white border border-slate-300 rounded-md font-bold text-slate-600">Cancelar</button>
+                <button type="submit" id="btn-guardar-feriado" class="px-6 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-md font-bold shadow-sm">Guardar Fecha</button>
+            </div>
+        </form>
     </div>
 </div>

@@ -27,6 +27,7 @@ window.toggleConfiguracionHR = function(mostrarConfig) {
         if(typeof window.cargarPlantillasTurnos === 'function') window.cargarPlantillasTurnos();
         if(typeof window.cargarHorariosSucursales === 'function') window.cargarHorariosSucursales(); 
         if(typeof window.cargarPermisosTipos === 'function') window.cargarPermisosTipos();
+        if(typeof window.cargarFeriados === 'function') window.cargarFeriados();
     } else {
         panelConfig.classList.add('hidden');
         panelVisor.classList.remove('hidden');
