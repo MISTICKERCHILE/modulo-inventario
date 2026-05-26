@@ -206,6 +206,10 @@ window.guardarTurnoPlantilla = async function(e) {
         }
         window.cerrarModalTurnoPlantilla();
         await window.cargarPlantillasTurnos();
+        // SI ESTAMOS EN MEDIO DE UNA PROGRAMACIÓN, REGENERAMOS LA TABLA
+        if (!document.getElementById('modal-hr-programador').classList.contains('hidden')) {
+            window.generarMatrizProgramador();
+        }
     } catch (err) {
         alert("Error al guardar la plantilla de turno.");
     } finally {
@@ -439,14 +443,14 @@ window.guardarHorarioSucursal = async function(e) {
 };
 
 // ============================================================================
-// EL PROGRAMADOR MATRICIAL (CON DRAG AND DROP)
+// EL PROGRAMADOR MATRICIAL (CONECTADO A LA REALIDAD + DRAG AND DROP)
 // ============================================================================
 
 window.abrirModalProgramador = function() {
     const modal = document.getElementById('modal-hr-programador');
     const selectSuc = document.getElementById('prog-sucursal');
     
-    // Llenar select de sucursales (usamos la memoria que ya teníamos)
+    // Llenar select de sucursales reales
     selectSuc.innerHTML = '<option value="">Seleccionar Sucursal...</option>' + 
         window.sucursalesMemoriaHR.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('');
 
@@ -459,7 +463,7 @@ window.abrirModalProgramador = function() {
     document.getElementById('prog-fecha-fin').value = proximaSemana.toISOString().split('T')[0];
 
     document.getElementById('prog-tabla-head').innerHTML = '';
-    document.getElementById('prog-tabla-body').innerHTML = `<tr><td class="p-8 text-center text-slate-400 font-medium italic" colspan="100%">Haz clic en "Generar Plantilla" para comenzar.</td></tr>`;
+    document.getElementById('prog-tabla-body').innerHTML = `<tr><td class="p-8 text-center text-slate-400 font-medium italic" colspan="100%">Selecciona una sucursal y haz clic en "Generar Plantilla".</td></tr>`;
 
     modal.classList.remove('hidden');
 };
@@ -468,48 +472,134 @@ window.cerrarModalProgramador = function() {
     document.getElementById('modal-hr-programador').classList.add('hidden');
 };
 
-// Genera la cuadrícula visual para el Drag & Drop
-window.generarMatrizProgramador = function() {
-    const thead = document.getElementById('prog-tabla-head');
-    const tbody = document.getElementById('prog-tabla-body');
-    
-    // Simulamos 3 días para la prueba visual
-    thead.innerHTML = `
-        <tr>
-            <th class="px-4 py-3 text-left font-bold text-slate-600 uppercase text-xs w-64 bg-slate-200">Colaborador</th>
-            <th class="px-2 py-3 text-center font-bold text-slate-600 uppercase text-[10px] border-l border-slate-300">Lunes 10</th>
-            <th class="px-2 py-3 text-center font-bold text-slate-600 uppercase text-[10px] border-l border-slate-300">Martes 11</th>
-            <th class="px-2 py-3 text-center font-bold text-slate-600 uppercase text-[10px] border-l border-slate-300 bg-slate-50">Miércoles 12 (Cerrado)</th>
-        </tr>
-    `;
+window.generarMatrizProgramador = async function() {
+    const idSucursal = document.getElementById('prog-sucursal').value;
+    const fInicio = document.getElementById('prog-fecha-inicio').value;
+    const fFin = document.getElementById('prog-fecha-fin').value;
 
-    // Simulamos 3 trabajadores para probar el drag and drop
-    const simulados = [
-        { id: '1', nombre: 'Valentina Nunez', cargo: 'Gerente' },
-        { id: '2', nombre: 'Juan Pérez', cargo: 'Cajero' },
-        { id: '3', nombre: 'María Gómez', cargo: 'Vendedora' }
-    ];
+    if(!idSucursal || !fInicio || !fFin) {
+        alert("⚠️ Por favor, selecciona la sucursal y el rango de fechas.");
+        return;
+    }
 
-    tbody.innerHTML = simulados.map(p => `
-        <tr class="hover:bg-blue-50 transition-colors border-b border-slate-100 bg-white cursor-move group" draggable="true" ondragstart="dragStart(event)" ondragover="dragOver(event)" ondrop="drop(event)">
-            <td class="px-4 py-2 border-r border-slate-200 flex items-center gap-3">
-                <span class="text-slate-300 group-hover:text-blue-500 cursor-grab text-lg">☰</span>
-                <div>
-                    <p class="font-bold text-slate-800 text-xs">${p.nombre}</p>
-                    <p class="text-[9px] text-slate-400">${p.cargo}</p>
-                </div>
-            </td>
-            <td class="px-2 py-2 border-r border-slate-200 text-center">
-                <select class="w-full text-[10px] p-1 border border-slate-200 rounded outline-none cursor-pointer focus:border-blue-500"><option>+ Asignar</option><option>Turno AM</option></select>
-            </td>
-            <td class="px-2 py-2 border-r border-slate-200 text-center">
-                <div class="bg-blue-100 text-blue-800 text-[10px] font-bold p-1 rounded border border-blue-200 shadow-sm cursor-pointer hover:bg-blue-200">08:00 a 15:30</div>
-            </td>
-            <td class="px-2 py-2 text-center bg-slate-50">
-                <span class="text-[10px] text-slate-400 italic">Libre</span>
-            </td>
-        </tr>
-    `).join('');
+    const btn = document.querySelector('button[onclick="generarMatrizProgramador()"]');
+    btn.innerText = "Generando..."; btn.disabled = true;
+
+    try {
+        // 1. Calcular rango de días
+        const start = new Date(fInicio + 'T00:00:00');
+        const end = new Date(fFin + 'T00:00:00');
+        const diffDays = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24));
+
+        if(diffDays > 6) {
+            alert("⚠️ Para mantener la visual limpia, el rango máximo es de 7 días.");
+            btn.innerText = "Generar Plantilla"; btn.disabled = false;
+            return;
+        }
+
+        let fechasGrid = [];
+        for(let i=0; i<=diffDays; i++) {
+            let d = new Date(start);
+            d.setDate(d.getDate() + i);
+            fechasGrid.push(d);
+        }
+
+        // 2. Traer Trabajadores REALES de esta sucursal
+        const { data: fichas } = await clienteSupabase.from('hr_fichas_laborales').select('*').eq('id_empresa', window.miEmpresaId).eq('estado', 'Activo');
+        const fichasSucursal = (fichas || []).filter(f => f.sucursales && f.sucursales.includes(idSucursal));
+
+        if(fichasSucursal.length === 0) {
+            document.getElementById('prog-tabla-body').innerHTML = `<tr><td class="p-8 text-center text-slate-400 font-medium italic" colspan="100%">No hay colaboradores activos asignados a esta sucursal.</td></tr>`;
+            document.getElementById('prog-tabla-head').innerHTML = '';
+            btn.innerText = "Generar Plantilla"; btn.disabled = false;
+            return;
+        }
+
+        // Traer datos complementarios (Nombres y Cargos)
+        const { data: perfiles } = await clienteSupabase.from('perfiles').select('id_usuario, nombre, apellido').eq('id_empresa', window.miEmpresaId);
+        const { data: cargos } = await clienteSupabase.from('hr_cargos').select('id, nombre').eq('id_empresa', window.miEmpresaId);
+
+        // 3. Traer Turnos válidos para la sucursal y guardar global para repintar
+        window.turnosValidosMatriz = window.plantillasTurnosMemoria.filter(t => !t.sucursales_disponibles || t.sucursales_disponibles.length === 0 || t.sucursales_disponibles.includes(idSucursal));
+
+        // 4. Traer el "Molde" de la sucursal para bloquear días
+        const horarioSucursal = window.horariosSucursalesMemoria.find(h => h.id_sucursal === idSucursal);
+        const configDias = horarioSucursal ? horarioSucursal.config_dias : {};
+        const diasStr = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+        // === A. CONSTRUIR CABECERA ===
+        let headHtml = `<tr><th class="px-4 py-3 text-left font-bold text-slate-600 uppercase text-xs w-64 bg-slate-200">Colaborador</th>`;
+        fechasGrid.forEach(f => {
+            const nombreDia = diasStr[f.getDay()];
+            const diaAbierto = configDias[nombreDia] ? configDias[nombreDia].abierto : true;
+            const dateStr = `${String(f.getDate()).padStart(2, '0')}/${String(f.getMonth()+1).padStart(2, '0')}`;
+            
+            headHtml += `<th class="px-2 py-3 text-center font-bold text-slate-600 uppercase text-[10px] border-l border-slate-300 ${!diaAbierto ? 'bg-slate-50 text-slate-400' : ''}">
+                ${nombreDia} ${dateStr} ${!diaAbierto ? '<br>(Cerrado)' : ''}
+            </th>`;
+        });
+        headHtml += `</tr>`;
+        document.getElementById('prog-tabla-head').innerHTML = headHtml;
+
+        // === B. CONSTRUIR CUERPO DE LA MATRIZ ===
+        let bodyHtml = fichasSucursal.map(ficha => {
+            const perfil = (perfiles || []).find(p => p.id_usuario === ficha.id_usuario) || {};
+            const cargoObj = (cargos || []).find(c => c.id === ficha.cargo);
+            const nombreCorto = `${perfil.nombre || 'Sin'} ${perfil.apellido || 'Nombre'}`;
+            const nombreCargo = cargoObj ? cargoObj.nombre : 'Sin Cargo';
+
+            let celdasDias = fechasGrid.map(f => {
+                const nombreDia = diasStr[f.getDay()];
+                const diaAbierto = configDias[nombreDia] ? configDias[nombreDia].abierto : true;
+
+                if(!diaAbierto) {
+                    return `<td class="px-2 py-2 border-r border-slate-200 text-center bg-slate-50"><span class="text-[10px] text-slate-400 italic">Cerrado</span></td>`;
+                }
+
+                // Generar Options del Select
+                let opcionesTurnos = `<option value="">-- Libre --</option>`;
+                window.turnosValidosMatriz.forEach(t => {
+                    opcionesTurnos += `<option value="${t.id}">${t.nombre} (${t.hora_inicio.slice(0,5)})</option>`;
+                });
+                opcionesTurnos += `<option value="CREAR_NUEVO" class="font-bold text-blue-600">➕ Crear Nuevo Turno</option>`;
+
+                return `
+                <td class="px-2 py-2 border-r border-slate-200 text-center">
+                    <select onchange="manejarAccionTurnoMatriz(this)" class="select-turno-matriz w-full text-[10px] p-1.5 border border-slate-200 rounded outline-none cursor-pointer focus:border-blue-500 font-medium text-slate-700 bg-slate-50 hover:bg-white transition-colors">
+                        ${opcionesTurnos}
+                    </select>
+                </td>`;
+            }).join('');
+
+            return `
+            <tr class="hover:bg-blue-50 transition-colors border-b border-slate-100 bg-white cursor-move group" draggable="true" ondragstart="dragStart(event)" ondragover="dragOver(event)" ondrop="drop(event)" data-idficha="${ficha.id}">
+                <td class="px-4 py-2 border-r border-slate-200 flex items-center gap-3">
+                    <span class="text-slate-300 group-hover:text-blue-500 cursor-grab text-lg">☰</span>
+                    <div class="flex flex-col">
+                        <span class="font-bold text-slate-800 text-xs truncate w-40" title="${nombreCorto}">${nombreCorto}</span>
+                        <span class="text-[9px] text-slate-400 truncate w-40 text-emerald-600">${nombreCargo}</span>
+                    </div>
+                </td>
+                ${celdasDias}
+            </tr>`;
+        }).join('');
+
+        document.getElementById('prog-tabla-body').innerHTML = bodyHtml;
+
+    } catch(e) {
+        console.error(e);
+        alert("❌ Error al conectar con la base de datos.");
+    } finally {
+        btn.innerText = "Generar Plantilla"; btn.disabled = false;
+    }
+};
+
+// --- FUNCIÓN PARA CREAR TURNO DESDE LA GRILLA ---
+window.manejarAccionTurnoMatriz = function(selectEl) {
+    if (selectEl.value === 'CREAR_NUEVO') {
+        selectEl.value = ""; // Lo devolvemos a "Libre" visualmente mientras se crea
+        window.abrirModalTurnoPlantilla(); // Abre el modal que ya teníamos
+    }
 };
 
 // --- LÓGICA NATIVA DE DRAG AND DROP ---
@@ -518,17 +608,14 @@ let filaArrastrada = null;
 window.dragStart = function(e) {
     filaArrastrada = e.target.closest('tr');
     e.dataTransfer.effectAllowed = 'move';
-    // Efecto visual al agarrar
     setTimeout(() => filaArrastrada.classList.add('opacity-50'), 0);
 };
 
 window.dragOver = function(e) {
-    e.preventDefault(); // Necesario para permitir el drop
+    e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     const trObjetivo = e.target.closest('tr');
-    
     if (trObjetivo && trObjetivo !== filaArrastrada && trObjetivo.parentNode === filaArrastrada.parentNode) {
-        // Calculamos si soltamos arriba o abajo del elemento
         const rect = trObjetivo.getBoundingClientRect();
         const next = (e.clientY - rect.top) / (rect.bottom - rect.top) > 0.5;
         trObjetivo.parentNode.insertBefore(filaArrastrada, next ? trObjetivo.nextSibling : trObjetivo);
