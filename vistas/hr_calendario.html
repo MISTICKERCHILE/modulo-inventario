@@ -161,25 +161,25 @@
             <input type="hidden" id="hr-id-turno-plantilla">
             
             <div>
-                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre del Turno</label>
-                <input type="text" id="hr-turno-nombre" required class="w-full px-3 py-2 border border-slate-200 rounded-md outline-none font-bold text-slate-700 bg-slate-50 focus:bg-white" placeholder="Ej: Apertura Full Time, Turno Corto Sábado...">
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre del Turno / Asignación</label>
+                <input type="text" id="hr-turno-nombre" required class="w-full px-3 py-2 border border-slate-200 rounded-md outline-none font-bold text-slate-700 bg-slate-50 focus:bg-white" placeholder="Ej: Turno Mañana, Día Libre, Vacaciones...">
             </div>
 
-            <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 mt-3 mb-3">
-                <label class="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">Asignar a Sucursales</label>
-                <div id="hr-turno-sucursales" class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-24 overflow-y-auto">
-                    <p class="text-xs text-slate-500">Cargando sucursales...</p>
-                </div>
+            <div class="mb-2 mt-3">
+                <label class="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-600 bg-slate-100 p-2.5 rounded-lg border border-slate-200 shadow-sm hover:bg-slate-200 transition-colors">
+                    <input type="checkbox" id="hr-chk-ausencia" onchange="toggleHorasAusencia(this.checked)" class="w-4 h-4 accent-slate-600">
+                    Turno sin horario fijo / Día Libre (Oculta las horas)
+                </label>
             </div>
 
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-2 gap-3 mt-3" id="hr-contenedor-horas-turno">
                 <div>
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Hora Entrada</label>
-                    <input type="time" id="hr-turno-entrada" required class="w-full px-3 py-2 border border-slate-200 rounded-md outline-none font-bold text-slate-700 bg-slate-50">
+                    <input type="time" id="hr-turno-entrada" class="w-full px-3 py-2 border border-slate-200 rounded-md outline-none font-bold text-slate-700 bg-slate-50">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Hora Salida</label>
-                    <input type="time" id="hr-turno-salida" required class="w-full px-3 py-2 border border-slate-200 rounded-md outline-none font-bold text-slate-700 bg-slate-50">
+                    <input type="time" id="hr-turno-salida" class="w-full px-3 py-2 border border-slate-200 rounded-md outline-none font-bold text-slate-700 bg-slate-50">
                 </div>
             </div>
 
@@ -285,7 +285,7 @@
 
         <div class="flex justify-end gap-3 border-t pt-4 shrink-0 mt-4">
             <button type="button" onclick="cerrarModalProgramador()" class="px-6 py-2 bg-white border border-slate-300 rounded-md font-bold text-slate-600 hover:bg-slate-50">Cancelar</button>
-            <button type="button" onclick="alert('Guardado en construcción 🚧')" class="px-8 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-bold shadow-sm">Guardar Programación</button>
+            <button type="button" onclick="guardarProgramacionMasiva()" class="px-8 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-bold shadow-sm">Guardar Programación</button>
         </div>
     </div>
 </div>

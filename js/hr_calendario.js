@@ -184,12 +184,17 @@ window.guardarTurnoPlantilla = async function(e) {
         return;
     }
 
+    // Vemos si está marcado el check "Sin horario"
+    const esAusencia = document.getElementById('hr-chk-ausencia').checked;
+
     const payload = {
         id_empresa: window.miEmpresaId,
         nombre: document.getElementById('hr-turno-nombre').value.trim(),
-        hora_inicio: document.getElementById('hr-turno-entrada').value,
-        hora_fin: document.getElementById('hr-turno-salida').value,
-        descanso_minutos: document.getElementById('hr-turno-descanso').value ? parseInt(document.getElementById('hr-turno-descanso').value) : 0,
+        // Si es ausencia, mandamos null, sino mandamos la hora
+        hora_inicio: esAusencia ? null : document.getElementById('hr-turno-entrada').value,
+        hora_fin: esAusencia ? null : document.getElementById('hr-turno-salida').value,
+        descanso_minutos: esAusencia ? 0 : (document.getElementById('hr-turno-descanso').value ? parseInt(document.getElementById('hr-turno-descanso').value) : 0),
+        es_ausencia: esAusencia, // Guardamos la bandera en Supabase
         lleva_desayuno: document.getElementById('hr-chk-desayuno').checked,
         lleva_almuerzo: document.getElementById('hr-chk-almuerzo').checked,
         lleva_once_cena: document.getElementById('hr-chk-once').checked,
@@ -204,12 +209,15 @@ window.guardarTurnoPlantilla = async function(e) {
             const { error } = await clienteSupabase.from('hr_turnos_plantillas').insert([payload]);
             if (error) throw error;
         }
+        
         window.cerrarModalTurnoPlantilla();
         await window.cargarPlantillasTurnos();
+
         // SI ESTAMOS EN MEDIO DE UNA PROGRAMACIÓN, REGENERAMOS LA TABLA
         if (!document.getElementById('modal-hr-programador').classList.contains('hidden')) {
             window.generarMatrizProgramador();
         }
+
     } catch (err) {
         alert("Error al guardar la plantilla de turno.");
     } finally {
@@ -494,6 +502,21 @@ window.cerrarModalProgramador = function() {
     document.getElementById('modal-hr-programador').classList.add('hidden');
 };
 
+// Función para ocultar/mostrar horas si es ausencia
+window.toggleHorasAusencia = function(esAusencia) {
+    const contHoras = document.getElementById('hr-contenedor-horas-turno');
+    const inputEntrada = document.getElementById('hr-turno-entrada');
+    const inputSalida = document.getElementById('hr-turno-salida');
+    const inputDescanso = document.getElementById('hr-turno-descanso');
+    
+    if (esAusencia) {
+        contHoras.classList.add('opacity-30', 'pointer-events-none');
+        inputEntrada.value = ''; inputSalida.value = ''; inputDescanso.value = '';
+    } else {
+        contHoras.classList.remove('opacity-30', 'pointer-events-none');
+    }
+};
+
 window.generarMatrizProgramador = async function() {
     const idSucursal = document.getElementById('prog-sucursal').value;
     const fInicio = document.getElementById('prog-fecha-inicio').value;
@@ -508,7 +531,6 @@ window.generarMatrizProgramador = async function() {
     btn.innerText = "Generando..."; btn.disabled = true;
 
     try {
-        // 1. Calcular rango de días
         const start = new Date(fInicio + 'T00:00:00');
         const end = new Date(fFin + 'T00:00:00');
         const diffDays = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24));
@@ -521,41 +543,50 @@ window.generarMatrizProgramador = async function() {
 
         let fechasGrid = [];
         for(let i=0; i<=diffDays; i++) {
-            let d = new Date(start);
-            d.setDate(d.getDate() + i);
-            fechasGrid.push(d);
+            let d = new Date(start); d.setDate(d.getDate() + i); fechasGrid.push(d);
         }
 
-        // 2. Traer Trabajadores REALES de esta sucursal
+        // ==========================================
+        // 🚀 MAGIA: GUARDAR ESTADO PREVIO DE LA GRILLA
+        // ==========================================
+        let estadoPrevio = {};
+        const selectsAnteriores = document.querySelectorAll('.select-turno-matriz');
+        selectsAnteriores.forEach((sel) => {
+            if(sel.value && sel.value !== 'CREAR_NUEVO') {
+                const fila = sel.closest('tr');
+                if(fila) {
+                    const idFicha = fila.getAttribute('data-idficha');
+                    // Buscamos en qué índice de columna estaba el select
+                    const selectsEnFila = Array.from(fila.querySelectorAll('.select-turno-matriz'));
+                    const colIndex = selectsEnFila.indexOf(sel);
+                    estadoPrevio[`${idFicha}-${colIndex}`] = sel.value;
+                }
+            }
+        });
+
         const { data: fichas } = await clienteSupabase.from('hr_fichas_laborales').select('*').eq('id_empresa', window.miEmpresaId).eq('estado', 'Activo');
         const fichasSucursal = (fichas || []).filter(f => f.sucursales && f.sucursales.includes(idSucursal));
 
         if(fichasSucursal.length === 0) {
             document.getElementById('prog-tabla-body').innerHTML = `<tr><td class="p-8 text-center text-slate-400 font-medium italic" colspan="100%">No hay colaboradores activos asignados a esta sucursal.</td></tr>`;
             document.getElementById('prog-tabla-head').innerHTML = '';
-            btn.innerText = "Generar Plantilla"; btn.disabled = false;
-            return;
+            btn.innerText = "Generar Plantilla"; btn.disabled = false; return;
         }
 
-        // Traer datos complementarios (Nombres y Cargos)
         const { data: perfiles } = await clienteSupabase.from('perfiles').select('id_usuario, nombre, apellido').eq('id_empresa', window.miEmpresaId);
         const { data: cargos } = await clienteSupabase.from('hr_cargos').select('id, nombre').eq('id_empresa', window.miEmpresaId);
 
-        // 3. Traer Turnos válidos para la sucursal y guardar global para repintar
         window.turnosValidosMatriz = window.plantillasTurnosMemoria.filter(t => !t.sucursales_disponibles || t.sucursales_disponibles.length === 0 || t.sucursales_disponibles.includes(idSucursal));
 
-        // 4. Traer el "Molde" de la sucursal para bloquear días
         const horarioSucursal = window.horariosSucursalesMemoria.find(h => h.id_sucursal === idSucursal);
         const configDias = horarioSucursal ? horarioSucursal.config_dias : {};
         const diasStr = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
-        // === A. CONSTRUIR CABECERA ===
         let headHtml = `<tr><th class="px-4 py-3 text-left font-bold text-slate-600 uppercase text-xs w-64 bg-slate-200">Colaborador</th>`;
         fechasGrid.forEach(f => {
             const nombreDia = diasStr[f.getDay()];
             const diaAbierto = configDias[nombreDia] ? configDias[nombreDia].abierto : true;
             const dateStr = `${String(f.getDate()).padStart(2, '0')}/${String(f.getMonth()+1).padStart(2, '0')}`;
-            
             headHtml += `<th class="px-2 py-3 text-center font-bold text-slate-600 uppercase text-[10px] border-l border-slate-300 ${!diaAbierto ? 'bg-slate-50 text-slate-400' : ''}">
                 ${nombreDia} ${dateStr} ${!diaAbierto ? '<br>(Cerrado)' : ''}
             </th>`;
@@ -563,25 +594,27 @@ window.generarMatrizProgramador = async function() {
         headHtml += `</tr>`;
         document.getElementById('prog-tabla-head').innerHTML = headHtml;
 
-        // === B. CONSTRUIR CUERPO DE LA MATRIZ ===
         let bodyHtml = fichasSucursal.map(ficha => {
             const perfil = (perfiles || []).find(p => p.id_usuario === ficha.id_usuario) || {};
             const cargoObj = (cargos || []).find(c => c.id === ficha.cargo);
             const nombreCorto = `${perfil.nombre || 'Sin'} ${perfil.apellido || 'Nombre'}`;
-            const nombreCargo = cargoObj ? cargoObj.nombre : 'Sin Cargo';
-
-            let celdasDias = fechasGrid.map(f => {
+            
+            let celdasDias = fechasGrid.map((f, indexColumna) => {
                 const nombreDia = diasStr[f.getDay()];
                 const diaAbierto = configDias[nombreDia] ? configDias[nombreDia].abierto : true;
 
-                if(!diaAbierto) {
-                    return `<td class="px-2 py-2 border-r border-slate-200 text-center bg-slate-50"><span class="text-[10px] text-slate-400 italic">Cerrado</span></td>`;
-                }
+                if(!diaAbierto) return `<td class="px-2 py-2 border-r border-slate-200 text-center bg-slate-50"><span class="text-[10px] text-slate-400 italic">Cerrado</span></td>`;
 
-                // Generar Options del Select
+                // Vemos si en el estado previo había un turno seleccionado para esta celda
+                const celdaKey = `${ficha.id}-${indexColumna}`;
+                const turnoSeleccionadoPrevio = estadoPrevio[celdaKey];
+
                 let opcionesTurnos = `<option value="">-- Libre --</option>`;
                 window.turnosValidosMatriz.forEach(t => {
-                    opcionesTurnos += `<option value="${t.id}">${t.nombre} (${t.hora_inicio.slice(0,5)})</option>`;
+                    // Si es ausencia, le ponemos otra etiqueta
+                    const etiqueta = t.es_ausencia ? `⚪ ${t.nombre}` : `${t.nombre} (${t.hora_inicio ? t.hora_inicio.slice(0,5) : ''})`;
+                    const seleccionado = (t.id === turnoSeleccionadoPrevio) ? 'selected' : '';
+                    opcionesTurnos += `<option value="${t.id}" ${seleccionado}>${etiqueta}</option>`;
                 });
                 opcionesTurnos += `<option value="CREAR_NUEVO" class="font-bold text-blue-600">➕ Crear Nuevo Turno</option>`;
 
@@ -598,8 +631,8 @@ window.generarMatrizProgramador = async function() {
                 <td class="px-4 py-2 border-r border-slate-200 flex items-center gap-3">
                     <span class="text-slate-300 group-hover:text-blue-500 cursor-grab text-lg">☰</span>
                     <div class="flex flex-col">
-                        <span class="font-bold text-slate-800 text-xs truncate w-40" title="${nombreCorto}">${nombreCorto}</span>
-                        <span class="text-[9px] text-slate-400 truncate w-40 text-emerald-600">${nombreCargo}</span>
+                        <span class="font-bold text-slate-800 text-xs truncate w-40">${nombreCorto}</span>
+                        <span class="text-[9px] text-slate-400 truncate w-40 text-emerald-600">${cargoObj ? cargoObj.nombre : 'Sin Cargo'}</span>
                     </div>
                 </td>
                 ${celdasDias}
@@ -609,18 +642,88 @@ window.generarMatrizProgramador = async function() {
         document.getElementById('prog-tabla-body').innerHTML = bodyHtml;
 
     } catch(e) {
-        console.error(e);
-        alert("❌ Error al conectar con la base de datos.");
+        console.error(e); alert("❌ Error al generar matriz.");
     } finally {
         btn.innerText = "Generar Plantilla"; btn.disabled = false;
     }
 };
 
-// --- FUNCIÓN PARA CREAR TURNO DESDE LA GRILLA ---
 window.manejarAccionTurnoMatriz = function(selectEl) {
     if (selectEl.value === 'CREAR_NUEVO') {
-        selectEl.value = ""; // Lo devolvemos a "Libre" visualmente mientras se crea
-        window.abrirModalTurnoPlantilla(); // Abre el modal que ya teníamos
+        selectEl.value = "";
+        // Al abrir, desmarcamos el check de ausencia por defecto
+        document.getElementById('hr-chk-ausencia').checked = false;
+        window.toggleHorasAusencia(false);
+        window.abrirModalTurnoPlantilla(); 
+    }
+};
+
+// ============================================================================
+// 💾 GUARDAR LA PROGRAMACIÓN MASIVA A LA BASE DE DATOS
+// ============================================================================
+window.guardarProgramacionMasiva = async function() {
+    const idSucursal = document.getElementById('prog-sucursal').value;
+    const fInicio = document.getElementById('prog-fecha-inicio').value;
+    const fFin = document.getElementById('prog-fecha-fin').value;
+    const btn = document.querySelector('button[onclick="guardarProgramacionMasiva()"]');
+
+    if(!idSucursal || !fInicio || !fFin) { alert("Datos incompletos."); return; }
+
+    btn.disabled = true; btn.innerText = "Guardando...";
+
+    try {
+        // Reconstruimos las fechas para saber qué columna es qué día
+        const start = new Date(fInicio + 'T00:00:00');
+        const end = new Date(fFin + 'T00:00:00');
+        const diffDays = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24));
+        let fechasGrid = [];
+        for(let i=0; i<=diffDays; i++) {
+            let d = new Date(start); d.setDate(d.getDate() + i); fechasGrid.push(d);
+        }
+
+        let payloadInsert = [];
+        const filas = document.querySelectorAll('#prog-tabla-body tr[data-idficha]');
+
+        filas.forEach(fila => {
+            const idFicha = fila.getAttribute('data-idficha');
+            const selects = fila.querySelectorAll('.select-turno-matriz');
+            
+            selects.forEach((sel, indexCol) => {
+                const idTurno = sel.value;
+                if (idTurno && idTurno !== 'CREAR_NUEVO') {
+                    payloadInsert.push({
+                        id_empresa: window.miEmpresaId,
+                        id_ficha: idFicha,
+                        id_sucursal: idSucursal,
+                        fecha: fechasGrid[indexCol].toISOString().split('T')[0],
+                        id_turno_plantilla: idTurno,
+                        estado: 'Programado'
+                    });
+                }
+            });
+        });
+
+        // 1. Borramos la programación existente de esta sucursal en este rango (Sobreescribimos limpio)
+        await clienteSupabase.from('hr_turnos_asignados')
+            .delete()
+            .eq('id_sucursal', idSucursal)
+            .gte('fecha', fInicio)
+            .lte('fecha', fFin);
+
+        // 2. Insertamos la nueva malla
+        if(payloadInsert.length > 0) {
+            const { error } = await clienteSupabase.from('hr_turnos_asignados').insert(payloadInsert);
+            if (error) throw error;
+        }
+
+        alert("✅ ¡Programación de turnos guardada con éxito!");
+        window.cerrarModalProgramador();
+
+    } catch (e) {
+        console.error(e);
+        alert("❌ Error al guardar la programación.");
+    } finally {
+        btn.disabled = false; btn.innerText = "Guardar Programación";
     }
 };
 
