@@ -125,32 +125,61 @@ window.guardarTurnoPlantilla = async function(e) {
 // ============================================================================
 // ADMINISTRACIÓN DE HORARIOS DE SUCURSALES
 // ============================================================================
+// ============================================================================
+// ADMINISTRACIÓN DE HORARIOS DE SUCURSALES
+// ============================================================================
 window.cargarHorariosSucursales = async function() {
     const tbody = document.getElementById('hr-lista-sucursales-horarios');
     if (!tbody) return;
-    const { data: sucursales } = await clienteSupabase.from('sucursales').select('id, nombre, direccion').eq('id_empresa', window.miEmpresaId).order('nombre');
-    const { data: horarios } = await clienteSupabase.from('hr_sucursal_horarios').select('*').eq('id_empresa', window.miEmpresaId);
-    window.sucursalesMemoriaHR = sucursales || [];
-    window.horariosSucursalesMemoria = horarios || [];
 
-    if (window.sucursalesMemoriaHR.length === 0) { tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-slate-400">No hay sucursales.</td></tr>`; return; }
+    try {
+        // 1. Traer el nombre real de la empresa
+        const { data: empresaData } = await clienteSupabase.from('empresas').select('nombre, razon_social').eq('id', window.miEmpresaId).single();
+        // Usamos la razón social, y si no tiene, usamos el nombre normal
+        const nombreEmpresaReal = empresaData ? (empresaData.razon_social || empresaData.nombre || 'Empresa Activa') : 'Empresa Activa';
 
-    tbody.innerHTML = window.sucursalesMemoriaHR.map(suc => {
-        const h = window.horariosSucursalesMemoria.find(x => x.id_sucursal === suc.id);
-        let txt = "<span class='text-red-500 font-bold'>⚠️ Sin configurar</span>";
-        if (h && h.config_dias) {
-            let ab = []; let ce = [];
-            ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'].forEach(dia => { if(h.config_dias[dia] && h.config_dias[dia].abierto) ab.push(dia.slice(0,3)); else ce.push(dia.slice(0,3)); });
-            if (ab.length === 6 && ce.length === 1 && ce[0] === 'Dom') txt = `<span class="text-emerald-600 font-bold">Lun-Sáb: Abiertos</span> | <span class="text-slate-400 font-bold">Dom: Cerrado</span>`;
-            else txt = [ab.length>0?`<span class="text-emerald-600 font-bold">${ab.join(', ')}: Abierto</span>`:'', ce.length>0?`<span class="text-slate-400 font-bold">${ce.join(', ')}: Cerrado</span>`:''].filter(Boolean).join(' | ');
+        // 2. Traer sucursales y horarios
+        const { data: sucursales } = await clienteSupabase.from('sucursales').select('id, nombre, direccion').eq('id_empresa', window.miEmpresaId).order('nombre');
+        const { data: horarios } = await clienteSupabase.from('hr_sucursal_horarios').select('*').eq('id_empresa', window.miEmpresaId);
+        
+        window.sucursalesMemoriaHR = sucursales || [];
+        window.horariosSucursalesMemoria = horarios || [];
+
+        if (window.sucursalesMemoriaHR.length === 0) { 
+            tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-slate-400">No hay sucursales.</td></tr>`; 
+            return; 
         }
-        return `<tr onclick="abrirModalHorarioSucursal('${suc.id}')" class="cursor-pointer hover:bg-slate-50 group">
-            <td class="px-6 py-4 font-black text-slate-800 text-sm group-hover:text-blue-600">${suc.nombre}</td>
-            <td class="px-6 py-4 text-xs">Empresa Activa</td>
-            <td class="px-6 py-4 text-xs truncate max-w-[200px]">${suc.direccion || '-'}</td>
-            <td class="px-6 py-4 text-[11px]">${txt}</td>
-        </tr>`;
-    }).join('');
+
+        tbody.innerHTML = window.sucursalesMemoriaHR.map(suc => {
+            const h = window.horariosSucursalesMemoria.find(x => x.id_sucursal === suc.id);
+            let txt = "<span class='text-red-500 font-bold'>⚠️ Sin configurar</span>";
+            if (h && h.config_dias) {
+                let ab = []; let ce = [];
+                ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'].forEach(dia => { 
+                    if(h.config_dias[dia] && h.config_dias[dia].abierto) ab.push(dia.slice(0,3)); 
+                    else ce.push(dia.slice(0,3)); 
+                });
+                if (ab.length === 6 && ce.length === 1 && ce[0] === 'Dom') {
+                    txt = `<span class="text-emerald-600 font-bold">Lun-Sáb: Abiertos</span> | <span class="text-slate-400 font-bold">Dom: Cerrado</span>`;
+                } else {
+                    txt = [
+                        ab.length>0 ? `<span class="text-emerald-600 font-bold">${ab.join(', ')}: Abierto</span>` : '', 
+                        ce.length>0 ? `<span class="text-slate-400 font-bold">${ce.join(', ')}: Cerrado</span>` : ''
+                    ].filter(Boolean).join(' | ');
+                }
+            }
+            
+            return `<tr onclick="abrirModalHorarioSucursal('${suc.id}')" class="cursor-pointer hover:bg-slate-50 group transition-colors">
+                <td class="px-6 py-4 font-black text-slate-800 text-sm group-hover:text-blue-600">${suc.nombre}</td>
+                <td class="px-6 py-4 text-xs font-bold text-slate-600">${nombreEmpresaReal}</td>
+                <td class="px-6 py-4 text-xs truncate max-w-[200px] text-slate-500">${suc.direccion || '-'}</td>
+                <td class="px-6 py-4 text-[11px]">${txt}</td>
+            </tr>`;
+        }).join('');
+    } catch (err) {
+        console.error("Error al cargar horarios: ", err);
+        tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-red-500">Error al cargar datos.</td></tr>`;
+    }
 };
 
 window.abrirModalHorarioSucursal = function(id_sucursal) {
