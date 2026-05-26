@@ -67,7 +67,7 @@ window.cargarPlantillasTurnos = async function() {
             let comidasHtml = [];
             if(t.lleva_desayuno) comidasHtml.push('🍳 Desayuno');
             if(t.lleva_almuerzo) comidasHtml.push('🍲 Almuerzo');
-            if(t.lleva_once_cena) comidasHtml.push('%;">Once/Cena');
+            if(t.lleva_once_cena) comidasHtml.push('🌆 Once/Cena');
             
             return `
                 <tr class="hover:bg-slate-50 transition-colors">
@@ -109,7 +109,6 @@ window.abrirModalTurnoPlantilla = async function() {
     document.getElementById('modal-hr-turno-plantilla').classList.remove('hidden');
 };
 
-// Carga reutilizable de los checkboxes de sucursales
 window.cargarSucursalesEnModalTurno = async function(seleccionadas) {
     const contSucursales = document.getElementById('hr-turno-sucursales');
     if (!contSucursales) return;
@@ -134,7 +133,6 @@ window.cerrarModalTurnoPlantilla = function() {
     document.getElementById('modal-hr-turno-plantilla').classList.add('hidden');
 };
 
-// --- MÓDULO EDITAR (Mapeo de datos al formulario) ---
 window.editarPlantillaTurno = async function(id) {
     const t = window.plantillasTurnosMemoria.find(x => x.id === id);
     if (!t) return;
@@ -153,12 +151,11 @@ window.editarPlantillaTurno = async function(id) {
     document.getElementById('modal-hr-turno-plantilla').classList.remove('hidden');
 };
 
-// --- MÓDULO DUPLICAR (Mapeo rápido de datos clonados) ---
 window.duplicarPlantillaTurno = async function(id) {
     const t = window.plantillasTurnosMemoria.find(x => x.id === id);
     if (!t) return;
 
-    document.getElementById('hr-id-turno-plantilla').value = ''; // Vacío para que cree un registro NUEVO
+    document.getElementById('hr-id-turno-plantilla').value = '';
     document.getElementById('hr-turno-nombre').value = `${t.nombre} (Copia)`;
     document.getElementById('hr-turno-entrada').value = t.hora_inicio.slice(0,5);
     document.getElementById('hr-turno-salida').value = t.hora_fin.slice(0,5);
@@ -172,7 +169,6 @@ window.duplicarPlantillaTurno = async function(id) {
     document.getElementById('modal-hr-turno-plantilla').classList.remove('hidden');
 };
 
-// --- GUARDAR (INSERCIÓN O ACTUALIZACIÓN) ---
 window.guardarTurnoPlantilla = async function(e) {
     e.preventDefault();
     const btn = document.getElementById('btn-guardar-plantilla-turno');
@@ -202,15 +198,12 @@ window.guardarTurnoPlantilla = async function(e) {
 
     try {
         if (idFicha) {
-            // Edición
             const { error } = await clienteSupabase.from('hr_turnos_plantillas').update(payload).eq('id', idFicha);
             if (error) throw error;
         } else {
-            // Creación o Duplicación
             const { error } = await clienteSupabase.from('hr_turnos_plantillas').insert([payload]);
             if (error) throw error;
         }
-        
         window.cerrarModalTurnoPlantilla();
         await window.cargarPlantillasTurnos();
     } catch (err) {
@@ -227,8 +220,9 @@ window.eliminarPlantillaTurno = async function(id) {
     }
 };
 
+
 // ============================================================================
-// ADMINISTRACIÓN DE HORARIOS DE SUCURSALES (Lunes a Domingo)
+// ADMINISTRACIÓN DE HORARIOS DE SUCURSALES (CON BLOQUES MÚLTIPLES)
 // ============================================================================
 window.sucursalesMemoriaHR = [];
 window.horariosSucursalesMemoria = [];
@@ -239,12 +233,10 @@ window.cargarHorariosSucursales = async function() {
     if (!contenedor) return;
 
     try {
-        // 1. Traemos las sucursales
         const { data: sucursales, error: errSuc } = await clienteSupabase.from('sucursales').select('id, nombre').eq('id_empresa', window.miEmpresaId).order('nombre');
         if (errSuc) throw errSuc;
         window.sucursalesMemoriaHR = sucursales || [];
 
-        // 2. Traemos las configuraciones de horario guardadas
         const { data: horarios, error: errHor } = await clienteSupabase.from('hr_sucursal_horarios').select('*').eq('id_empresa', window.miEmpresaId);
         if (errHor) throw errHor;
         window.horariosSucursalesMemoria = horarios || [];
@@ -254,7 +246,6 @@ window.cargarHorariosSucursales = async function() {
             return;
         }
 
-        // Renderizamos las tarjetas
         contenedor.innerHTML = window.sucursalesMemoriaHR.map(suc => {
             const horarioGuardado = window.horariosSucursalesMemoria.find(h => h.id_sucursal === suc.id);
             const estadoHtml = horarioGuardado 
@@ -278,7 +269,6 @@ window.cargarHorariosSucursales = async function() {
         }).join('');
 
     } catch (e) {
-        console.error(e);
         contenedor.innerHTML = `<div class="p-6 text-center text-red-500 text-sm font-bold col-span-full">Error al cargar las sucursales.</div>`;
     }
 };
@@ -294,25 +284,31 @@ window.abrirModalHorarioSucursal = function(id_sucursal) {
     const configGuardada = horario ? horario.config_dias : {};
     const contDias = document.getElementById('hr-contenedor-dias-semana');
 
-    // Generar las filas de Lunes a Domingo
+    // Generar la estructura de Lunes a Domingo
     contDias.innerHTML = DIAS_SEMANA.map(dia => {
-        const diaData = configGuardada[dia] || { abierto: true, apertura: '09:00', cierre: '18:00' };
+        const diaData = configGuardada[dia] || { abierto: true, bloques: [{ apertura: '09:00', cierre: '18:00' }] };
+        const bloques = diaData.bloques || [{ apertura: diaData.apertura || '09:00', cierre: diaData.cierre || '18:00' }];
+
         return `
-            <div class="flex items-center justify-between bg-white p-3 rounded-md border border-slate-200 gap-4">
-                <div class="flex items-center gap-3 w-1/3">
-                    <input type="checkbox" id="chk-dia-${dia}" ${diaData.abierto ? 'checked' : ''} onchange="toggleInputsDia('${dia}')" class="w-4 h-4 accent-emerald-600 cursor-pointer">
-                    <span class="font-bold text-sm text-slate-700 w-20">${dia}</span>
+            <div class="bg-white p-3 rounded-md border border-slate-200 flex flex-col sm:flex-row sm:items-start justify-between gap-3" id="fila-dia-${dia}">
+                <div class="flex items-center gap-3 pt-1.5 sm:w-1/4 shrink-0">
+                    <input type="checkbox" id="chk-dia-${dia}" ${diaData.abierto ? 'checked' : ''} onchange="toggleInputsDia('${dia}')" class="w-4 h-4 accent-emerald-600 cursor-pointer shadow-sm">
+                    <span class="font-black text-sm text-slate-700 w-24">${dia}</span>
                 </div>
-                <div class="flex items-center gap-2 w-2/3 justify-end ${!diaData.abierto ? 'opacity-30 pointer-events-none' : ''}" id="inputs-dia-${dia}">
-                    <input type="time" id="apertura-${dia}" value="${diaData.apertura}" class="px-2 py-1 border border-slate-300 rounded text-xs font-bold text-slate-700 w-24">
-                    <span class="text-xs text-slate-400 font-bold">a</span>
-                    <input type="time" id="cierre-${dia}" value="${diaData.cierre}" class="px-2 py-1 border border-slate-300 rounded text-xs font-bold text-slate-700 w-24">
+                
+                <div class="flex-1 space-y-2 ${!diaData.abierto ? 'opacity-25 pointer-events-none' : ''}" id="contenedor-bloques-${dia}">
+                    <div id="lista-bloques-físicos-${dia}" class="space-y-2 flex flex-col items-end sm:items-start">
+                        ${bloques.map((b, index) => window.generarHtmlBloqueHorario(dia, index, b.apertura, b.cierre)).join('')}
+                    </div>
+                    <button type="button" onclick="agregarBloqueHorarioDia('${dia}')" class="text-[11px] font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 mt-1 transition-colors w-full sm:w-auto justify-end sm:justify-start">
+                        ➕ Añadir segundo tramo (Horario Cortado)
+                    </button>
                 </div>
             </div>
         `;
     }).join('');
 
-    // Preparar contenedor de clonado (Mostrar otras sucursales, excluir la actual)
+    // Preparar contenedor de clonado
     const contClonar = document.getElementById('hr-contenedor-clonar-sucursales');
     const otrasSucursales = window.sucursalesMemoriaHR.filter(s => s.id !== id_sucursal);
     
@@ -320,7 +316,7 @@ window.abrirModalHorarioSucursal = function(id_sucursal) {
         contClonar.innerHTML = '<p class="text-[10px] text-slate-500 italic">No tienes otras sucursales para clonar este horario.</p>';
     } else {
         contClonar.innerHTML = otrasSucursales.map(s => `
-            <label class="flex items-center gap-2 p-1.5 bg-white border border-blue-100 rounded cursor-pointer hover:bg-blue-50">
+            <label class="flex items-center gap-2 p-1.5 bg-white border border-blue-100 rounded cursor-pointer hover:bg-blue-50 transition-colors">
                 <input type="checkbox" name="hr-chk-clonar-horario" value="${s.id}" class="w-3.5 h-3.5 accent-blue-600">
                 <span class="text-[11px] font-bold text-blue-800">${s.nombre}</span>
             </label>
@@ -330,16 +326,114 @@ window.abrirModalHorarioSucursal = function(id_sucursal) {
     document.getElementById('modal-hr-horario-sucursal').classList.remove('hidden');
 };
 
+// Generador de la fila de horas (Entrada -> Salida -> Botón Eliminar)
+window.generarHtmlBloqueHorario = function(dia, index, apertura = '09:00', cierre = '18:00') {
+    return `
+        <div class="flex items-center gap-2 item-bloque-${dia}" data-index="${index}">
+            <input type="time" value="${apertura}" class="input-apertura px-2 py-1.5 border border-slate-300 rounded text-xs font-bold text-slate-700 bg-slate-50 focus:bg-white w-28 shadow-inner">
+            <span class="text-xs text-slate-400 font-bold">a</span>
+            <input type="time" value="${cierre}" class="input-cierre px-2 py-1.5 border border-slate-300 rounded text-xs font-bold text-slate-700 bg-slate-50 focus:bg-white w-28 shadow-inner">
+            
+            ${index > 0 ? `
+                <button type="button" onclick="removerBloqueHorarioDia('${dia}', ${index}, this)" class="text-red-500 hover:text-red-700 font-bold text-base px-2 transition-colors" title="Eliminar tramo">&times;</button>
+            ` : '<span class="w-8"></span>'}
+        </div>
+    `;
+};
+
+window.agregarBloqueHorarioDia = function(dia) {
+    const lista = document.getElementById(`lista-bloques-físicos-${dia}`);
+    if(!lista) return;
+    
+    const indexSiguiente = lista.children.length;
+    const nuevoBloqueHtml = window.generarHtmlBloqueHorario(dia, indexSiguiente, '16:00', '20:00');
+    
+    const divTemporal = document.createElement('div');
+    divTemporal.innerHTML = nuevoBloqueHtml;
+    lista.appendChild(divTemporal.firstElementChild);
+};
+
+window.removerBloqueHorarioDia = function(dia, index, boton) {
+    const contenedorBloque = boton.parentElement;
+    if(contenedorBloque) {
+        contenedorBloque.remove();
+    }
+};
+
 window.toggleInputsDia = function(dia) {
     const isChecked = document.getElementById(`chk-dia-${dia}`).checked;
-    const divInputs = document.getElementById(`inputs-dia-${dia}`);
+    const divInputs = document.getElementById(`contenedor-bloques-${dia}`);
     if (isChecked) {
-        divInputs.classList.remove('opacity-30', 'pointer-events-none');
+        divInputs.classList.remove('opacity-25', 'pointer-events-none');
     } else {
-        divInputs.classList.add('opacity-30', 'pointer-events-none');
+        divInputs.classList.add('opacity-25', 'pointer-events-none');
     }
 };
 
 window.cerrarModalHorarioSucursal = function() {
     document.getElementById('modal-hr-horario-sucursal').classList.add('hidden');
+};
+
+window.guardarHorarioSucursal = async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btn-guardar-horario-sucursal');
+    btn.disabled = true; btn.innerText = "Guardando...";
+
+    const idSucursalActiva = document.getElementById('hr-id-sucursal-activa').value;
+    
+    // Recolectar la información avanzada del molde
+    let configDiasJSON = {};
+    
+    DIAS_SEMANA.forEach(dia => {
+        const isAbierto = document.getElementById(`chk-dia-${dia}`).checked;
+        let bloquesArr = [];
+        
+        if (isAbierto) {
+            const bloquesFisicos = document.querySelectorAll(`#lista-bloques-físicos-${dia} .item-bloque-${dia}`);
+            bloquesFisicos.forEach(bloque => {
+                const hApertura = bloque.querySelector('.input-apertura').value;
+                const hCierre = bloque.querySelector('.input-cierre').value;
+                bloquesArr.push({ apertura: hApertura, cierre: hCierre });
+            });
+        }
+
+        configDiasJSON[dia] = {
+            abierto: isAbierto,
+            bloques: bloquesArr.length > 0 ? bloquesArr : [{ apertura: '09:00', cierre: '18:00' }]
+        };
+    });
+
+    const checkboxesClonar = document.querySelectorAll('input[name="hr-chk-clonar-horario"]:checked');
+    let listaSucursalesAfectadas = [idSucursalActiva];
+    checkboxesClonar.forEach(cb => listaSucursalesAfectadas.push(cb.value));
+
+    try {
+        const promesas = listaSucursalesAfectadas.map(async (idSuc) => {
+            const horarioExistente = window.horariosSucursalesMemoria.find(h => h.id_sucursal === idSuc);
+            const payload = {
+                id_empresa: window.miEmpresaId,
+                id_sucursal: idSuc,
+                nombre_version: 'Horario Estándar',
+                activo: true,
+                config_dias: configDiasJSON
+            };
+
+            if (horarioExistente) {
+                return clienteSupabase.from('hr_sucursal_horarios').update(payload).eq('id', horarioExistente.id);
+            } else {
+                return clienteSupabase.from('hr_sucursal_horarios').insert([payload]);
+            }
+        });
+
+        await Promise.all(promesas);
+
+        window.cerrarModalHorarioSucursal();
+        await window.cargarHorariosSucursales();
+
+    } catch (err) {
+        console.error("Error guardando horario:", err);
+        alert("Ocurrió un error al guardar el horario.");
+    } finally {
+        btn.disabled = false; btn.innerText = "Guardar Horario";
+    }
 };
