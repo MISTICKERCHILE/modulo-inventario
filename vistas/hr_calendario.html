@@ -7,7 +7,6 @@
         </div>
 
         <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
-            
             <div id="hr-controles-calendario" class="flex flex-wrap items-center gap-2 w-full md:w-auto">
                 <select id="hr-filtro-sucursal" onchange="window.cargarCalendarioPrincipal()" class="px-3 py-2 border border-slate-300 rounded-lg font-bold text-slate-700 bg-slate-50 text-xs outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer">
                     <option value="">🌍 Todas las Sucursales</option>
@@ -39,7 +38,6 @@
     </header>
 
     <div id="hr-panel-visor" class="flex-1 flex flex-col bg-white overflow-hidden animate-fade-in">
-        
         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between px-6 py-3 border-b border-slate-200 bg-slate-50 shrink-0 gap-3">
             <div class="flex items-center gap-2 sm:gap-4">
                 <button onclick="cambiarSemanaCalendario(-1)" class="p-1.5 rounded-md hover:bg-slate-200 text-slate-600 transition-colors shadow-sm bg-white border border-slate-200">◀</button>
@@ -47,18 +45,15 @@
                 <button onclick="cambiarSemanaCalendario(1)" class="p-1.5 rounded-md hover:bg-slate-200 text-slate-600 transition-colors shadow-sm bg-white border border-slate-200">▶</button>
                 <button onclick="irAHoyCalendario()" class="text-xs font-bold text-blue-600 hover:text-blue-800 bg-blue-50 px-3 py-1.5 rounded-md border border-blue-100 transition-colors shadow-sm ml-2">Semana Actual</button>
             </div>
-            
             <div class="flex items-center gap-3">
                 <button id="hr-btn-toggle-colab" onclick="toggleDetalleColaboradores()" class="text-xs font-bold text-slate-600 bg-white hover:bg-slate-100 border border-slate-300 px-3 py-1.5 rounded-md shadow-sm transition-colors flex items-center gap-2">
                     <span id="hr-icono-toggle">👁️‍🗨️</span> <span id="hr-texto-toggle">Ocultar Personal</span>
                 </button>
             </div>
         </div>
-        
         <div class="flex-1 overflow-auto relative bg-slate-100/50" id="hr-contenedor-grilla-visor">
             <table class="min-w-full divide-y divide-slate-200 text-sm border-collapse bg-white">
-                <thead class="bg-slate-100 sticky top-0 z-10 shadow-sm" id="hr-visor-head">
-                    </thead>
+                <thead class="bg-slate-100 sticky top-0 z-10 shadow-sm" id="hr-visor-head"></thead>
                 <tbody id="hr-visor-body" class="divide-y divide-slate-100">
                     <tr><td class="p-12 text-center text-slate-400 font-medium italic" colspan="100%">Cargando calendario...</td></tr>
                 </tbody>
@@ -75,23 +70,14 @@
                     <p class="text-xs text-slate-400 font-medium">Define la hora de apertura y cierre por tienda para validar tus turnos</p>
                 </div>
             </div>
-            
             <div class="bg-blue-50 border-b border-blue-100 p-3 flex items-start gap-2 text-blue-700">
                 <span class="text-lg leading-none">ℹ️</span>
-                <p class="text-[11px] font-medium leading-tight">
-                    <b>¿Falta alguna sucursal?</b> Los horarios se asignan a las tiendas ya existentes. Para crear una nueva sucursal, debes ir al menú principal: <b>Catálogos ➔ Sucursales</b>.
-                </p>
+                <p class="text-[11px] font-medium leading-tight"><b>¿Falta alguna sucursal?</b> Los horarios se asignan a las tiendas ya existentes. Para crear una nueva sucursal, debes ir al menú principal: <b>Catálogos ➔ Sucursales</b>.</p>
             </div>
-
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-slate-100 text-sm text-left">
                     <thead class="bg-slate-50 text-slate-500 font-bold text-[10px] uppercase tracking-wider">
-                        <tr>
-                            <th class="px-6 py-3">Sucursal</th>
-                            <th class="px-6 py-3">Empresa</th>
-                            <th class="px-6 py-3">Dirección</th>
-                            <th class="px-6 py-3">Horario Resumen</th>
-                        </tr>
+                        <tr><th class="px-6 py-3">Sucursal</th><th class="px-6 py-3">Empresa</th><th class="px-6 py-3">Dirección</th><th class="px-6 py-3">Horario Resumen</th></tr>
                     </thead>
                     <tbody id="hr-lista-sucursales-horarios" class="divide-y divide-slate-100 bg-white">
                         <tr><td colspan="4" class="p-6 text-center text-slate-400 italic">Cargando sucursales...</td></tr>
@@ -110,13 +96,8 @@
             </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-slate-100 text-sm">
-                    <thead class="bg-slate-100 text-slate-600 font-bold text-xs uppercase">
-                        <tr>
-                            <th class="px-6 py-3 text-left">Nombre Turno</th>
-                            <th class="px-6 py-3 text-center">Horario Efectivo</th>
-                            <th class="px-6 py-3 text-center">Servicios Casino</th>
-                            <th class="px-6 py-3 text-right">Acciones</th>
-                        </tr>
+                    <thead class="bg-slate-100 text-slate-600 font-bold text-xs uppercase text-left">
+                        <tr><th class="px-6 py-3 text-left">Nombre Turno</th><th class="px-6 py-3 text-center">Horario Efectivo</th><th class="px-6 py-3 text-center">Servicios Casino</th><th class="px-6 py-3 text-right">Acciones</th></tr>
                     </thead>
                     <tbody id="hr-tabla-plantillas-turnos" class="divide-y divide-slate-100">
                         <tr><td colspan="4" class="p-6 text-center text-slate-400">Cargando...</td></tr>
@@ -128,55 +109,72 @@
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
             <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
                 <div>
-                    <h3 class="font-black text-slate-800 text-base">🎉 Feriados y Eventos del Año</h3>
-                    <p class="text-xs text-slate-400 font-medium">Días festivos y cierres especiales programados</p>
+                    <h3 class="font-black text-slate-800 text-base">🏖️ Tipos de Permisos y Ausencias</h3>
+                    <p class="text-xs text-slate-400 font-medium">Define las políticas para solicitudes de personal (Vacaciones, Licencias, etc.)</p>
                 </div>
-                <button onclick="alert('En construcción 🚧')" class="bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 px-3 rounded-lg text-xs transition-colors shadow-sm">+ Registrar Fecha</button>
-            </div>
-            <div class="p-6 text-center text-slate-400 text-sm italic">Sección en desarrollo...</div>
-        </div>
-
-    </div>
-</div>
-
-    <div id="hr-panel-config" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-8 hidden">
-        
-        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-            <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
-                <div>
-                    <h3 class="font-black text-slate-800 text-base">💼 Plantillas de Turnos Base</h3>
-                    <p class="text-xs text-slate-400 font-medium">Define los horarios estándar y comidas asignadas para clonar rápido en el calendario</p>
-                </div>
-                <button onclick="abrirModalTurnoPlantilla()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded-lg text-xs transition-colors shadow-sm">+ Crear Turno</button>
+                <button onclick="abrirModalPermisoTipo()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 px-3 rounded-lg text-xs transition-colors shadow-sm">+ Crear Permiso</button>
             </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-slate-100 text-sm">
-                    <thead class="bg-slate-100 text-slate-600 font-bold text-xs uppercase">
-                        <tr>
-                            <th class="px-6 py-3 text-left">Nombre Turno</th>
-                            <th class="px-6 py-3 text-center">Horario Efectivo</th>
-                            <th class="px-6 py-3 text-center">Servicios Casino</th>
-                            <th class="px-6 py-3 text-right">Acciones</th>
-                        </tr>
+                    <thead class="bg-slate-100 text-slate-600 font-bold text-[10px] uppercase tracking-wider text-left">
+                        <tr><th class="px-6 py-3">Nombre del Permiso</th><th class="px-6 py-3 text-center">Remunerado</th><th class="px-6 py-3">Flujo Aprobación</th><th class="px-6 py-3 text-right">Acciones</th></tr>
                     </thead>
-                    <tbody id="hr-tabla-plantillas-turnos" class="divide-y divide-slate-100">
-                        <tr><td colspan="4" class="p-6 text-center text-slate-400">No hay turnos creados.</td></tr>
+                    <tbody id="hr-tabla-permisos-tipos" class="divide-y divide-slate-100">
+                        <tr><td colspan="4" class="p-6 text-center text-slate-400">Cargando tipos de permisos...</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
+    </div>
+</div>
 
-        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-            <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
-                <div>
-                    <h3 class="font-black text-slate-800 text-base">🎉 Feriados y Eventos del Año</h3>
-                    <p class="text-xs text-slate-400 font-medium">Registra los días especiales y decide de forma anticipada qué sucursales abren o cierran</p>
-                </div>
-                <button onclick="alert('Formulario de Feriados en construcción 🚧')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded-lg text-xs transition-colors shadow-sm">+ Registrar Fecha</button>
-            </div>
-            <div class="p-6 text-center text-slate-400 text-sm">Sección en desarrollo...</div>
+<div id="modal-hr-permiso-tipo" class="hidden absolute inset-0 z-[110] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-2 md:p-4">
+    <div class="bg-white p-4 md:p-6 rounded-xl shadow-2xl w-full max-w-md border-t-4 border-slate-800 transform transition-all scale-95 duration-200">
+        <div class="flex justify-between items-center mb-4 border-b pb-3">
+            <h2 class="text-lg font-black text-slate-800" id="hr-permiso-modal-titulo">🏖️ Nuevo Tipo de Permiso</h2>
+            <button type="button" onclick="cerrarModalPermisoTipo()" class="text-slate-400 hover:text-slate-800 text-4xl font-bold leading-none">&times;</button>
         </div>
+        
+        <form id="form-hr-permiso-tipo" class="space-y-4" onsubmit="guardarPermisoTipo(event)">
+            <input type="hidden" id="hr-id-permiso-tipo">
+            
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre (Ej: Vacaciones Legales)</label>
+                <input type="text" id="hr-permiso-nombre" required class="w-full px-3 py-2 border border-slate-200 rounded-md outline-none font-bold text-slate-700 bg-slate-50">
+            </div>
 
+            <div class="grid grid-cols-2 gap-4">
+                <label class="flex items-center gap-2 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors">
+                    <input type="checkbox" id="hr-permiso-remunerado" class="w-4 h-4 accent-emerald-600">
+                    <span class="text-xs font-bold text-slate-700">Es Remunerado</span>
+                </label>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Color (Calendario)</label>
+                    <select id="hr-permiso-color" class="w-full px-2 py-2 border border-slate-200 rounded-md text-xs font-bold outline-none">
+                        <option value="bg-blue-100">Azul Sutil</option>
+                        <option value="bg-emerald-100">Verde Sutil</option>
+                        <option value="bg-purple-100">Morado Sutil</option>
+                        <option value="bg-orange-100">Naranja Sutil</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                <label class="block text-[10px] font-black text-slate-700 uppercase tracking-wider mb-2">Flujo de Aprobación</label>
+                <div class="space-y-2">
+                    <div class="flex items-center gap-2 text-xs font-bold text-slate-600 bg-white p-2 border border-slate-200 rounded shadow-sm">
+                        <span class="text-slate-400">Paso 1:</span> Autoriza Administrador / Supervisor
+                        <span class="ml-auto text-[9px] text-emerald-600">(Obligatorio)</span>
+                    </div>
+                    <p class="text-[9px] text-slate-400 italic">Pasos adicionales en desarrollo...</p>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 border-t pt-4">
+                <button type="button" onclick="cerrarModalPermisoTipo()" class="px-4 py-2 bg-white border border-slate-300 rounded-md font-bold text-slate-600">Cancelar</button>
+                <button type="submit" id="btn-guardar-permiso" class="px-6 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-md font-bold shadow-sm">Guardar</button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -186,60 +184,25 @@
             <h2 class="text-lg font-black text-slate-800" id="hr-turno-modal-titulo">💼 Nueva Plantilla de Turno</h2>
             <button type="button" onclick="cerrarModalTurnoPlantilla()" class="text-slate-400 hover:text-slate-800 text-4xl font-bold leading-none">&times;</button>
         </div>
-        
         <form id="form-hr-turno-plantilla" class="space-y-4" onsubmit="guardarTurnoPlantilla(event)">
             <input type="hidden" id="hr-id-turno-plantilla">
-            
             <div>
                 <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre del Turno / Asignación</label>
-                <input type="text" id="hr-turno-nombre" required class="w-full px-3 py-2 border border-slate-200 rounded-md outline-none font-bold text-slate-700 bg-slate-50 focus:bg-white" placeholder="Ej: Turno Mañana, Día Libre, Vacaciones...">
+                <input type="text" id="hr-turno-nombre" required class="w-full px-3 py-2 border border-slate-200 rounded-md outline-none font-bold text-slate-700 bg-slate-50 focus:bg-white" placeholder="Ej: Turno Mañana, Día Libre...">
             </div>
-
             <div class="mb-2 mt-3">
                 <label class="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-600 bg-slate-100 p-2.5 rounded-lg border border-slate-200 shadow-sm hover:bg-slate-200 transition-colors">
-                    <input type="checkbox" id="hr-chk-ausencia" onchange="toggleHorasAusencia(this.checked)" class="w-4 h-4 accent-slate-600">
-                    Turno sin horario
+                    <input type="checkbox" id="hr-chk-ausencia" onchange="toggleHorasAusencia(this.checked)" class="w-4 h-4 accent-slate-600"> Turno sin horario
                 </label>
             </div>
-
             <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 mt-3 mb-3">
                 <label class="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">Asignar a Sucursales</label>
-                <div id="hr-turno-sucursales" class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-24 overflow-y-auto">
-                    <p class="text-xs text-slate-500">Cargando sucursales...</p>
-                </div>
+                <div id="hr-turno-sucursales" class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-24 overflow-y-auto"><p class="text-xs text-slate-500">Cargando...</p></div>
             </div>
-
             <div class="grid grid-cols-2 gap-3 mt-3" id="hr-contenedor-horas-turno">
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Hora Entrada</label>
-                    <input type="time" id="hr-turno-entrada" class="w-full px-3 py-2 border border-slate-200 rounded-md outline-none font-bold text-slate-700 bg-slate-50">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Hora Salida</label>
-                    <input type="time" id="hr-turno-salida" class="w-full px-3 py-2 border border-slate-200 rounded-md outline-none font-bold text-slate-700 bg-slate-50">
-                </div>
+                <div><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Entrada</label><input type="time" id="hr-turno-entrada" class="w-full px-3 py-2 border border-slate-200 rounded-md outline-none font-bold text-slate-700 bg-slate-50"></div>
+                <div><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Salida</label><input type="time" id="hr-turno-salida" class="w-full px-3 py-2 border border-slate-200 rounded-md outline-none font-bold text-slate-700 bg-slate-50"></div>
             </div>
-
-            <div>
-                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Minutos de Descanso / Colación</label>
-                <input type="number" id="hr-turno-descanso" class="w-full px-3 py-2 border border-slate-200 rounded-md outline-none font-bold text-slate-700 bg-slate-50" placeholder="Ej: 30 o 60">
-            </div>
-
-            <div class="bg-orange-50 p-3 rounded-lg border border-orange-200 space-y-2">
-                <label class="block text-[10px] font-black text-orange-800 uppercase tracking-wider mb-1">🍴 Control de Casino (Opcional)</label>
-                <div class="flex flex-col gap-2">
-                    <label class="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700">
-                        <input type="checkbox" id="hr-chk-desayuno" class="w-4 h-4 accent-orange-600"> Incluye Desayuno corporativo
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700">
-                        <input type="checkbox" id="hr-chk-almuerzo" class="w-4 h-4 accent-orange-600"> Incluye Almuerzo / Colación principal
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700">
-                        <input type="checkbox" id="hr-chk-once" class="w-4 h-4 accent-orange-600"> Incluye Once / Cena final
-                    </label>
-                </div>
-            </div>
-
             <div class="flex justify-end gap-3 border-t pt-4">
                 <button type="button" onclick="cerrarModalTurnoPlantilla()" class="px-4 py-2 bg-white border border-slate-300 rounded-md font-bold text-slate-600">Cancelar</button>
                 <button type="submit" id="btn-guardar-plantilla-turno" class="px-6 py-2 bg-blue-600 text-white rounded-md font-bold shadow-sm">Guardar Plantilla</button>
@@ -251,26 +214,17 @@
 <div id="modal-hr-horario-sucursal" class="hidden absolute inset-0 z-[100] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-2 md:p-4">
     <div class="bg-white p-4 md:p-6 rounded-xl shadow-2xl w-full max-w-2xl max-h-[95vh] overflow-y-auto border-t-4 border-emerald-500 transform transition-all scale-95 duration-200">
         <div class="flex justify-between items-center mb-4 border-b pb-3">
-            <div>
-                <h2 class="text-xl font-black text-slate-800 flex items-center gap-2" id="hr-horario-titulo">⚙️ Configurar Horario</h2>
-                <p class="text-xs text-slate-500 font-medium mt-1">Establece las horas de operación. Puedes añadir múltiples bloques por día para horarios cortados.</p>
-            </div>
+            <div><h2 class="text-xl font-black text-slate-800 flex items-center gap-2" id="hr-horario-titulo">⚙️ Configurar Horario</h2></div>
             <button type="button" onclick="cerrarModalHorarioSucursal()" class="text-slate-400 hover:text-slate-800 text-4xl font-bold leading-none">&times;</button>
         </div>
-        
         <form id="form-hr-horario-sucursal" class="space-y-4" onsubmit="guardarHorarioSucursal(event)">
             <input type="hidden" id="hr-id-horario-sucursal">
             <input type="hidden" id="hr-id-sucursal-activa">
-
-            <div id="hr-contenedor-dias-semana" class="space-y-3 bg-slate-50 p-4 rounded-lg border border-slate-200">
-                </div>
-
+            <div id="hr-contenedor-dias-semana" class="space-y-3 bg-slate-50 p-4 rounded-lg border border-slate-200"></div>
             <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 mt-4">
                 <label class="block text-xs font-black text-blue-800 uppercase tracking-wider mb-2">📋 Clonar a otras sucursales (Opcional)</label>
-                <p class="text-[10px] text-blue-600 mb-2">Si marcas otras sucursales aquí, se les aplicará exactamente este mismo horario al guardar.</p>
                 <div id="hr-contenedor-clonar-sucursales" class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-24 overflow-y-auto"></div>
             </div>
-
             <div class="flex justify-end gap-3 border-t pt-4">
                 <button type="button" onclick="cerrarModalHorarioSucursal()" class="px-6 py-2 bg-white border border-slate-300 rounded-md font-bold text-slate-600 hover:bg-slate-50">Cancelar</button>
                 <button type="submit" id="btn-guardar-horario-sucursal" class="px-8 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md font-bold shadow-sm">Guardar Horario</button>
@@ -281,21 +235,14 @@
 
 <div id="modal-hr-programador" class="hidden absolute inset-0 z-[100] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-2 md:p-4">
     <div class="bg-white p-4 md:p-6 rounded-xl shadow-2xl w-full max-w-6xl max-h-[95vh] flex flex-col border-t-4 border-blue-500 transform transition-all scale-95 duration-200">
-        
         <div class="flex justify-between items-center mb-4 border-b pb-3 shrink-0">
-            <div>
-                <h2 class="text-xl font-black text-slate-800 flex items-center gap-2">📅 Programador de Turnos</h2>
-                <p class="text-xs text-slate-500 font-medium mt-1">Asigna horarios de forma masiva. <b class="text-blue-600">Arrastra las filas (☰) para reordenar al personal.</b></p>
-            </div>
+            <div><h2 class="text-xl font-black text-slate-800 flex items-center gap-2">📅 Programador de Turnos</h2></div>
             <button type="button" onclick="cerrarModalProgramador()" class="text-slate-400 hover:text-slate-800 text-4xl font-bold leading-none">&times;</button>
         </div>
-        
         <div class="flex flex-wrap gap-4 mb-4 shrink-0 bg-slate-50 p-3 rounded-lg border border-slate-200">
             <div>
                 <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Sucursal</label>
-                <select id="prog-sucursal" class="px-3 py-1.5 border border-slate-300 rounded font-bold text-slate-700 text-sm outline-none">
-                    <option value="">Seleccionar Sucursal...</option>
-                    </select>
+                <select id="prog-sucursal" class="px-3 py-1.5 border border-slate-300 rounded font-bold text-slate-700 text-sm outline-none"><option value="">Seleccionar Sucursal...</option></select>
             </div>
             <div>
                 <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Desde</label>
@@ -309,17 +256,12 @@
                 <button onclick="generarMatrizProgramador()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold py-1.5 px-4 rounded shadow-sm text-sm">Generar Plantilla</button>
             </div>
         </div>
-
         <div class="flex-1 overflow-auto border border-slate-200 rounded-lg relative">
             <table class="min-w-full divide-y divide-slate-200 text-sm border-collapse">
-                <thead class="bg-slate-100 sticky top-0 z-10 shadow-sm" id="prog-tabla-head">
-                    </thead>
-                <tbody id="prog-tabla-body" class="bg-white divide-y divide-slate-100">
-                    <tr><td class="p-8 text-center text-slate-400 font-medium italic" colspan="100%">Selecciona una sucursal y fechas para comenzar.</td></tr>
-                </tbody>
+                <thead class="bg-slate-100 sticky top-0 z-10 shadow-sm" id="prog-tabla-head"></thead>
+                <tbody id="prog-tabla-body" class="bg-white divide-y divide-slate-100"><tr><td class="p-8 text-center text-slate-400 font-medium italic" colspan="100%">Selecciona una sucursal y fechas.</td></tr></tbody>
             </table>
         </div>
-
         <div class="flex justify-end gap-3 border-t pt-4 shrink-0 mt-4">
             <button type="button" onclick="cerrarModalProgramador()" class="px-6 py-2 bg-white border border-slate-300 rounded-md font-bold text-slate-600 hover:bg-slate-50">Cancelar</button>
             <button type="button" onclick="guardarProgramacionMasiva()" class="px-8 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-bold shadow-sm">Guardar Programación</button>
