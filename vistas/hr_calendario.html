@@ -47,10 +47,11 @@
                 <button onclick="cambiarSemanaCalendario(1)" class="p-1.5 rounded-md hover:bg-slate-200 text-slate-600 transition-colors shadow-sm bg-white border border-slate-200">▶</button>
                 <button onclick="irAHoyCalendario()" class="text-xs font-bold text-blue-600 hover:text-blue-800 bg-blue-50 px-3 py-1.5 rounded-md border border-blue-100 transition-colors shadow-sm ml-2">Ir a Hoy</button>
             </div>
-            <div class="text-[10px] sm:text-xs font-bold text-slate-500 flex items-center gap-2 bg-white px-3 py-1.5 rounded-full border border-slate-200 shadow-sm">
-                <span>🟢 Programado</span>
-                <span class="w-px h-3 bg-slate-300"></span>
-                <span>⚪ Ausencia</span>
+            
+            <div class="flex items-center gap-3">
+                <button id="hr-btn-toggle-colab" onclick="toggleDetalleColaboradores()" class="text-xs font-bold text-slate-600 bg-white hover:bg-slate-100 border border-slate-300 px-3 py-1.5 rounded-md shadow-sm transition-colors flex items-center gap-2">
+                    <span id="hr-icono-toggle">👁️‍🗨️</span> <span id="hr-texto-toggle">Ocultar Personal</span>
+                </button>
             </div>
         </div>
         

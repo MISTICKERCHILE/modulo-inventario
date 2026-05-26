@@ -784,119 +784,154 @@ window.obtenerLunes = function(d) {
     return new Date(d.setDate(diff));
 };
 
+window.mostrarColaboradoresDetalle = true;
+
+window.toggleDetalleColaboradores = function() {
+    window.mostrarColaboradoresDetalle = !window.mostrarColaboradoresDetalle;
+    const btnTexto = document.getElementById('hr-texto-toggle');
+    const btnIcono = document.getElementById('hr-icono-toggle');
+    
+    if (window.mostrarColaboradoresDetalle) {
+        btnTexto.innerText = "Ocultar Personal";
+        btnIcono.innerText = "👁️‍🗨️";
+    } else {
+        btnTexto.innerText = "Mostrar Personal";
+        btnIcono.innerText = "👤";
+    }
+    window.cargarCalendarioPrincipal();
+};
+
 window.cargarCalendarioPrincipal = async function() {
     const tbody = document.getElementById('hr-visor-body');
     const thead = document.getElementById('hr-visor-head');
     const labelRango = document.getElementById('hr-rango-fechas-visor');
     const filtroSucursal = document.getElementById('hr-filtro-sucursal').value;
     
-    // 1. Calcular fechas de la semana (Lunes a Domingo)
     const lunes = window.obtenerLunes(window.fechaReferenciaCalendario);
     let fechasSemana = [];
     for(let i=0; i<7; i++) {
-        let dia = new Date(lunes);
-        dia.setDate(dia.getDate() + i);
-        fechasSemana.push(dia);
+        let dia = new Date(lunes); dia.setDate(dia.getDate() + i); fechasSemana.push(dia);
     }
     
-    const fechaInicioStr = fechasSemana[0].toISOString().split('T')[0];
-    const fechaFinStr = fechasSemana[6].toISOString().split('T')[0];
+    const fInicio = fechasSemana[0].toISOString().split('T')[0];
+    const fFin = fechasSemana[6].toISOString().split('T')[0];
     
-    // Actualizar texto del rango en el header
-    const opcionesMes = { month: 'short', day: 'numeric' };
-    labelRango.innerText = `${fechasSemana[0].toLocaleDateString('es-ES', opcionesMes)} - ${fechasSemana[6].toLocaleDateString('es-ES', opcionesMes)}`;
-
-    tbody.innerHTML = `<tr><td class="p-12 text-center text-slate-400 font-medium italic" colspan="100%">Cargando turnos...</td></tr>`;
+    labelRango.innerText = `${fechasSemana[0].toLocaleDateString('es-ES', {month:'short', day:'numeric'})} - ${fechasSemana[6].toLocaleDateString('es-ES', {month:'short', day:'numeric'})}`;
+    tbody.innerHTML = `<tr><td class="p-12 text-center text-slate-400 italic" colspan="100%">Cargando turnos...</td></tr>`;
 
     try {
-        // 2. Traer Trabajadores Activos
         let queryFichas = clienteSupabase.from('hr_fichas_laborales').select('*').eq('id_empresa', window.miEmpresaId).eq('estado', 'Activo');
         const { data: fichas } = await queryFichas;
         let fichasFiltradas = fichas || [];
 
-        // Filtrar por sucursal si hay una seleccionada
-        if(filtroSucursal) {
-            fichasFiltradas = fichasFiltradas.filter(f => f.sucursales && f.sucursales.includes(filtroSucursal));
-        }
+        if(filtroSucursal) fichasFiltradas = fichasFiltradas.filter(f => f.sucursales && f.sucursales.includes(filtroSucursal));
 
         if(fichasFiltradas.length === 0) {
-            tbody.innerHTML = `<tr><td class="p-12 text-center text-slate-400 font-medium italic" colspan="100%">No hay personal para mostrar con los filtros actuales.</td></tr>`;
+            tbody.innerHTML = `<tr><td class="p-12 text-center text-slate-400 italic" colspan="100%">Selecciona una sucursal con personal.</td></tr>`;
             thead.innerHTML = ''; return;
         }
 
-        // 3. Traer Datos Complementarios (Nombres, Turnos Asignados, Plantillas)
         const { data: perfiles } = await clienteSupabase.from('perfiles').select('id_usuario, nombre, apellido').eq('id_empresa', window.miEmpresaId);
         const { data: plantillas } = await clienteSupabase.from('hr_turnos_plantillas').select('*').eq('id_empresa', window.miEmpresaId);
+        const { data: turnosAsignados } = await clienteSupabase.from('hr_turnos_asignados').select('*').eq('id_empresa', window.miEmpresaId).gte('fecha', fInicio).lte('fecha', fFin);
         
-        // Traer Turnos Programados para esta semana específica
-        const { data: turnosAsignados } = await clienteSupabase.from('hr_turnos_asignados')
-            .select('*')
-            .eq('id_empresa', window.miEmpresaId)
-            .gte('fecha', fechaInicioStr)
-            .lte('fecha', fechaFinStr);
+        const horarioSucursal = window.horariosSucursalesMemoria.find(h => h.id_sucursal === filtroSucursal);
+        const configDias = horarioSucursal ? horarioSucursal.config_dias : {};
+        const diasNombres = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
-        // === CONSTRUIR CABECERA ===
-        const diasNombres = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-        let headHtml = `<tr><th class="px-4 py-4 text-left font-black text-slate-700 uppercase text-xs w-56 bg-slate-100 border-r border-slate-200 shadow-sm sticky left-0 z-20">Colaborador</th>`;
-        
+        // === CABECERA (Con soporte futuro para Feriados) ===
+        let headHtml = `<tr><th class="px-4 py-4 text-left font-black text-slate-700 uppercase text-xs w-56 bg-slate-50 border-r border-b border-slate-200 sticky left-0 z-20">Colaborador</th>`;
         fechasSemana.forEach(f => {
             const esHoy = f.toISOString().split('T')[0] === new Date().toISOString().split('T')[0];
-            const colorBg = esHoy ? 'bg-blue-100 text-blue-800 border-b-2 border-blue-500' : 'bg-slate-50 text-slate-600';
+            const colorBg = esHoy ? 'bg-blue-50/50 text-blue-800 border-b-2 border-b-blue-400' : 'bg-white text-slate-500 border-b border-slate-200';
+            
+            // Aquí en el futuro inyectaremos si es feriado desde la base de datos
+            const esFeriadoSimulado = false; // Cambiar a lógica real después
             
             headHtml += `<th class="px-2 py-3 text-center font-bold uppercase text-[10px] border-l border-slate-200 ${colorBg}">
-                <span class="block text-sm font-black mb-0.5">${f.getDate()}</span>
-                <span>${diasNombres[f.getDay()]}</span>
+                <span class="block text-[13px] font-black mb-0.5">${f.getDate()}</span>
+                <span>${diasNombres[f.getDay()].slice(0,3)}</span>
+                ${esFeriadoSimulado ? `<div class="mt-1 bg-orange-100 text-orange-700 text-[8px] rounded px-1">Feriado</div>` : ''}
             </th>`;
         });
         headHtml += `</tr>`;
         thead.innerHTML = headHtml;
 
-        // === CONSTRUIR CUERPO DE LA GRILLA ===
-        let bodyHtml = fichasFiltradas.map(ficha => {
+        // === MODO RESUMEN (SI SE OCULTAN LOS COLABORADORES) ===
+        if (!window.mostrarColaboradoresDetalle) {
+            let celdasResumen = fechasSemana.map(f => {
+                const fStr = f.toISOString().split('T')[0];
+                const turnosDelDia = (turnosAsignados || []).filter(t => t.fecha === fStr && fichasFiltradas.some(ficha => ficha.id === t.id_ficha));
+                
+                if(turnosDelDia.length === 0) return `<td class="border-l border-slate-200 p-2 text-center align-middle"><span class="text-[10px] text-slate-300">-</span></td>`;
+                
+                return `<td class="border-l border-slate-200 p-2 align-middle">
+                    <div class="bg-blue-50 border border-blue-100 rounded text-center py-1">
+                        <span class="text-xs font-black text-blue-700">${turnosDelDia.length}</span><span class="text-[9px] text-blue-500 font-bold ml-1">Turnos</span>
+                    </div>
+                </td>`;
+            }).join('');
+
+            tbody.innerHTML = `<tr class="bg-white"><td class="px-4 py-4 sticky left-0 z-10 border-r border-slate-200 font-black text-slate-600 text-xs">Resumen Sucursal</td>${celdasResumen}</tr>`;
+            return;
+        }
+
+        // === MODO DETALLE (EXPANDIDO CON ESTILOS SUTILES) ===
+        let bodyHtml = fichasFiltradas.map((ficha) => {
             const perfil = (perfiles || []).find(p => p.id_usuario === ficha.id_usuario) || {};
-            const nombreCompleto = `${perfil.nombre || 'Sin Nombre'} ${perfil.apellido || ''}`;
+            const nombreCompleto = `${perfil.nombre || ''} ${perfil.apellido || ''}`;
             
             let celdasHTML = fechasSemana.map(f => {
                 const fStr = f.toISOString().split('T')[0];
+                const nombreDia = diasNombres[f.getDay()];
+                const configDiaMolde = configDias[nombreDia];
                 
-                // Buscar si este trabajador tiene turno este día
+                let fondoMolde = (configDiaMolde && configDiaMolde.abierto) 
+                    ? `<div class="absolute inset-1.5 border border-slate-200 border-dashed rounded z-0 opacity-40"></div>` 
+                    : `<div class="absolute inset-0 bg-slate-50 z-0"></div>`; // Cerrado
+                
                 const turnoDia = (turnosAsignados || []).find(t => t.id_ficha === ficha.id && t.fecha === fStr);
-                
+                let frenteTurno = '';
+
                 if (turnoDia) {
                     const plantilla = (plantillas || []).find(p => p.id === turnoDia.id_turno_plantilla);
-                    if(!plantilla) return `<td class="border-l border-slate-100 p-1"></td>`;
+                    if (plantilla) {
+                        // LÓGICA DE COLOR SUTIL (AM vs PM vs Ausencia)
+                        let estiloChip = '';
+                        if (plantilla.es_ausencia) {
+                            // Ausencias: Gris muy sutil
+                            estiloChip = 'bg-slate-100 text-slate-600 border border-slate-200';
+                        } else {
+                            // Determinar si es AM o PM
+                            const horaInt = plantilla.hora_inicio ? parseInt(plantilla.hora_inicio.split(':')[0]) : 9;
+                            if (horaInt < 13) {
+                                // AM: Muy translúcido (Azul claro)
+                                estiloChip = 'bg-blue-50/60 text-blue-700 border border-blue-100/80';
+                            } else {
+                                // PM: Un poco más relleno (Azul un poco más fuerte)
+                                estiloChip = 'bg-blue-100/90 text-blue-800 border border-blue-200 shadow-[0_1px_2px_rgba(0,0,0,0.05)]';
+                            }
+                        }
 
-                    // Diseño de la Tarjeta del Turno
-                    if (plantilla.es_ausencia) {
-                        // Tarjeta de Día Libre / Vacaciones
-                        return `<td class="border-l border-slate-200 p-1.5 align-top bg-red-50/30">
-                            <div onclick="alert('Editar asignación en construcción 🚧')" class="bg-white border border-red-200 rounded-md p-1.5 shadow-sm cursor-pointer hover:border-red-400 hover:shadow transition-all group">
-                                <p class="text-[9px] font-bold text-red-600 uppercase flex items-center gap-1"><span>🛑</span> ${plantilla.nombre}</p>
-                            </div>
-                        </td>`;
-                    } else {
-                        // Tarjeta de Turno Normal
-                        return `<td class="border-l border-slate-200 p-1.5 align-top hover:bg-slate-50 transition-colors">
-                            <div onclick="alert('Editar asignación en construcción 🚧')" class="bg-white border border-emerald-200 border-l-4 border-l-emerald-500 rounded-md p-1.5 shadow-sm cursor-pointer hover:shadow hover:border-emerald-400 transition-all">
-                                <p class="text-[10px] font-black text-slate-800 truncate" title="${plantilla.nombre}">${plantilla.nombre}</p>
-                                <p class="text-[9px] font-bold text-slate-500 mt-0.5">🕒 ${plantilla.hora_inicio ? plantilla.hora_inicio.slice(0,5) : ''} - ${plantilla.hora_fin ? plantilla.hora_fin.slice(0,5) : ''}</p>
-                            </div>
-                        </td>`;
+                        frenteTurno = `
+                            <div class="relative z-10 rounded px-2 py-1.5 m-1.5 ${estiloChip} cursor-pointer hover:brightness-95 transition-all flex flex-col justify-center min-h-[36px]">
+                                <p class="text-[9.5px] font-bold leading-tight truncate">${plantilla.nombre}</p>
+                                ${!plantilla.es_ausencia ? `<p class="text-[8.5px] opacity-80 mt-0.5 font-medium tracking-wide">${plantilla.hora_inicio.slice(0,5)} - ${plantilla.hora_fin.slice(0,5)}</p>` : ''}
+                            </div>`;
                     }
-                } else {
-                    // Celda Vacía con botón tenue para asignar
-                    return `<td class="border-l border-slate-200 p-1 group hover:bg-slate-50 transition-colors text-center align-middle">
-                        <button onclick="alert('Asignar turno individual en construcción 🚧')" class="opacity-0 group-hover:opacity-100 bg-white border border-slate-300 text-slate-400 hover:text-blue-600 hover:border-blue-400 rounded-md w-full py-2 text-xs font-bold transition-all shadow-sm">
-                            + Asignar
-                        </button>
-                    </td>`;
                 }
+
+                return `<td class="relative border-l border-slate-200 h-[60px] min-w-[110px] align-middle">
+                    ${fondoMolde}
+                    ${frenteTurno}
+                </td>`;
             }).join('');
 
             return `
-            <tr class="border-b border-slate-100">
-                <td class="px-4 py-3 bg-white sticky left-0 z-10 border-r border-slate-200 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
-                    <p class="font-bold text-slate-800 text-xs">${nombreCompleto}</p>
+            <tr class="border-b border-slate-100 bg-white hover:bg-slate-50/50 transition-colors cursor-move" draggable="true" ondragstart="dragStart(event)" ondragover="dragOver(event)" ondrop="drop(event)">
+                <td class="px-4 py-3 sticky left-0 z-10 border-r border-slate-100 bg-inherit flex items-center gap-2.5 h-[60px]">
+                    <span class="text-slate-300 hover:text-slate-500 cursor-grab text-base">⋮⋮</span>
+                    <p class="font-bold text-slate-700 text-[11px] truncate w-40">${nombreCompleto}</p>
                 </td>
                 ${celdasHTML}
             </tr>`;
@@ -905,7 +940,6 @@ window.cargarCalendarioPrincipal = async function() {
         tbody.innerHTML = bodyHtml;
 
     } catch (e) {
-        console.error("Error al cargar calendario:", e);
-        tbody.innerHTML = `<tr><td class="p-12 text-center text-red-500 font-bold" colspan="100%">❌ Error al cargar los turnos.</td></tr>`;
+        console.error(e); tbody.innerHTML = `<tr><td class="p-12 text-center text-red-500 font-bold" colspan="100%">Error al cargar.</td></tr>`;
     }
 };
