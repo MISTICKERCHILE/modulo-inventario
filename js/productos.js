@@ -1285,3 +1285,95 @@ document.addEventListener('input', (e) => {
         else document.getElementById('prod-precio-neto').value = '';
     }
 });
+
+// ==========================================
+// LÓGICA PARA CLONAR RECETAS
+// ==========================================
+
+async function abrirModalClonarReceta() {
+    const recetaDestinoId = document.getElementById('buscador-recetas').value;
+    
+    if (!recetaDestinoId) {
+        alert("Primero selecciona el producto/receta al que le quieres copiar los ingredientes.");
+        return;
+    }
+
+    // Copiamos las opciones del buscador principal al select del modal
+    const buscadorPrincipal = document.getElementById('buscador-recetas');
+    const selectOrigen = document.getElementById('select-receta-origen');
+    
+    // Limpiamos y clonamos
+    selectOrigen.innerHTML = '<option value="">-- Selecciona una receta --</option>';
+    Array.from(buscadorPrincipal.options).forEach(opt => {
+        // Evitamos que se pueda clonar a sí misma
+        if (opt.value && opt.value !== recetaDestinoId) {
+            let nuevaOpt = new Option(opt.text, opt.value);
+            selectOrigen.add(nuevaOpt);
+        }
+    });
+
+    document.getElementById('modal-clonar-receta').classList.remove('hidden');
+}
+
+async function ejecutarClonacionReceta() {
+    const recetaDestinoId = document.getElementById('buscador-recetas').value;
+    const recetaOrigenId = document.getElementById('select-receta-origen').value;
+    const btnClonar = document.getElementById('btn-ejecutar-clon');
+
+    if (!recetaOrigenId) {
+        alert("Por favor selecciona una receta de origen.");
+        return;
+    }
+
+    try {
+        btnClonar.innerText = "Clonando...";
+        btnClonar.disabled = true;
+
+        // 1. Buscamos los ingredientes de la receta origen en Supabase
+        // OJO: Cambia 'recetas_ingredientes' por el nombre real de tu tabla si es diferente
+        const { data: ingredientesOrigen, error: errLectura } = await supabase
+            .from('recetas_ingredientes') 
+            .select('*')
+            .eq('id_receta', recetaOrigenId);
+
+        if (errLectura) throw errLectura;
+
+        if (!ingredientesOrigen || ingredientesOrigen.length === 0) {
+            alert("La receta de origen no tiene ingredientes para copiar.");
+            return;
+        }
+
+        // 2. Preparamos los datos para insertarlos en la receta actual
+        const nuevosIngredientes = ingredientesOrigen.map(ing => {
+            return {
+                id_receta: recetaDestinoId,
+                id_insumo: ing.id_insumo,
+                cantidad: ing.cantidad
+                // Agrega aquí cualquier otra columna requerida por tu base de datos
+            };
+        });
+
+        // 3. Insertamos en la receta destino
+        const { error: errInsert } = await supabase
+            .from('recetas_ingredientes')
+            .insert(nuevosIngredientes);
+
+        if (errInsert) throw errInsert;
+
+        // Éxito
+        document.getElementById('modal-clonar-receta').classList.add('hidden');
+        
+        // Aquí recargamos la vista de la receta para que aparezcan los ingredientes nuevos
+        // Asumo que esta es la función que usas para cargar la tabla en pantalla
+        seleccionarRecetaDesdeBuscador(recetaDestinoId); 
+        
+        alert("¡Receta clonada con éxito!");
+
+    } catch (error) {
+        console.error("Error al clonar receta:", error);
+        alert("Hubo un error al clonar la receta. Revisa la consola para más detalles.");
+    } finally {
+        btnClonar.innerText = "Clonar Ingredientes";
+        btnClonar.disabled = false;
+    }
+}
