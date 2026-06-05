@@ -832,15 +832,15 @@ window.abrirEscanerCamara = function(contexto) {
         ]
     };
 
-    // Obligamos a pedir la cámara trasera con autoenfoque continuo si el celular lo permite
-    window.html5QrCode.start(
-        { facingMode: "environment", advanced: [{ focusMode: "continuous" }] }, 
+// Pedimos la cámara trasera de forma sencilla y universal
+window.html5QrCode.start(
+        { facingMode: "environment" }, // <--- ¡ASÍ DEBE QUEDAR, LIMPIO!
         config,
         (decodedText) => {
             sonidoBeep();
             window.cerrarEscaner();
 
-if (contexto === 'PRODUCTO') {
+            if (contexto === 'PRODUCTO') {
                 const inputCodigo = document.getElementById('prod-codigo-barras');
                 if (inputCodigo) {
                     inputCodigo.value = decodedText;
@@ -870,7 +870,6 @@ if (contexto === 'PRODUCTO') {
         alert("❌ Error al iniciar la cámara. Verifica que diste los permisos en tu navegador.");
         window.cerrarEscaner();
     });
-};
 
 window.cerrarEscaner = function() {
     document.getElementById('modal-escaner').classList.add('hidden');
