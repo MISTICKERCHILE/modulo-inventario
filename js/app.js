@@ -814,15 +814,15 @@ window.abrirEscanerCamara = function(contexto) {
 
     window.html5QrCode = new Html5Qrcode("lector-codigo-barras");
 
-    // OPTIMIZACIÓN MÓVIL: Ajustamos el cuadro según el tamaño de la pantalla y forzamos el enfoque
+    // OPTIMIZACIÓN MÓVIL
     const anchoPantalla = window.innerWidth;
     const boxWidth = anchoPantalla < 500 ? 250 : 300;
     
     const config = { 
-        fps: 15, // Un poco más rápido para móviles
+        fps: 15, 
         qrbox: { width: boxWidth, height: 120 },
         aspectRatio: 1.0,
-        formatsToSupport: [ // Le decimos qué buscar exactamente para que no pierda tiempo
+        formatsToSupport: [ 
             Html5QrcodeSupportedFormats.EAN_13,
             Html5QrcodeSupportedFormats.EAN_8,
             Html5QrcodeSupportedFormats.UPC_A,
@@ -832,9 +832,9 @@ window.abrirEscanerCamara = function(contexto) {
         ]
     };
 
-// Pedimos la cámara trasera de forma sencilla y universal
-window.html5QrCode.start(
-        { facingMode: "environment" }, // <--- ¡ASÍ DEBE QUEDAR, LIMPIO!
+    // Pedimos la cámara trasera de forma sencilla y universal
+    window.html5QrCode.start(
+        { facingMode: "environment" }, 
         config,
         (decodedText) => {
             sonidoBeep();
@@ -858,18 +858,19 @@ window.html5QrCode.start(
                 const buscadorPOS = document.getElementById('pos-input-buscador');
                 if (buscadorPOS) {
                     buscadorPOS.value = decodedText;
-                    // Llamamos directo a la función de búsqueda que ya tienes en ventas.js
                     if (typeof window.buscarProductoPOS === 'function') {
                         window.buscarProductoPOS(decodedText);
                     }
                 }
             }
         },
-        (errorMessage) => { /* Ignoramos errores de frame vacío */ }
+        (errorMessage) => { /* Ignoramos errores visuales menores */ }
     ).catch((err) => {
+        console.error(err);
         alert("❌ Error al iniciar la cámara. Verifica que diste los permisos en tu navegador.");
         window.cerrarEscaner();
     });
+}; 
 
 window.cerrarEscaner = function() {
     document.getElementById('modal-escaner').classList.add('hidden');
@@ -882,15 +883,14 @@ window.cerrarEscaner = function() {
     }
 };
 
-// Un simple "beep" para dar la sensación de un escáner real de supermercado
 function sonidoBeep() {
     try {
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const oscillator = audioCtx.createOscillator();
         oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(800, audioCtx.currentTime); // 800Hz
+        oscillator.frequency.setValueAtTime(800, audioCtx.currentTime); 
         oscillator.connect(audioCtx.destination);
         oscillator.start();
-        setTimeout(() => oscillator.stop(), 100); // Suena por 0.1 segundos
+        setTimeout(() => oscillator.stop(), 100); 
     } catch(e) { console.log("Audio no soportado"); }
 }
