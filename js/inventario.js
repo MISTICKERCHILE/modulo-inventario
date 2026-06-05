@@ -339,7 +339,7 @@ window.cargarFilasConteoMasivo = async function(idUbicacion) {
                 contadorFilas++;
                 const abrev = p.id_unidad_almacenamiento?.abreviatura || 'UA';
                 html += `
-                <tr class="border-b border-slate-100 fila-conteo-item hover:bg-slate-50 transition-colors">
+                <tr class="border-b border-slate-100 fila-conteo-item hover:bg-slate-50 transition-colors" data-codigobarras="${p.codigo_barras || ''}">
                     <td class="py-3 px-4 font-medium text-sm text-slate-700">
                         ${p.nombre}
                         <input type="hidden" class="cm-select-prod" value="${p.id}">
@@ -741,22 +741,34 @@ window.imprimirPlanillaConteo = function() {
     printWindow.document.close();
 }
 
-// --- NUEVA FUNCIÓN: Buscador en tiempo real para Conteo Masivo ---
+// --- NUEVA FUNCIÓN: Buscador en tiempo real para Conteo Masivo (Con soporte para Código de Barras) ---
 window.filtrarProductosConteo = function() {
     const textoBuscado = document.getElementById('cm-buscador-productos').value.toLowerCase().trim();
-    const filasProductos = document.querySelectorAll('#cm-filas tr'); // Agarramos todas las filas cargadas
+    const filasProductos = document.querySelectorAll('#cm-filas tr');
     
-    // Si la tabla está vacía o tiene el mensaje de "Selecciona ubicación", no hacemos nada
     if(filasProductos.length === 0 || filasProductos[0].cells.length === 1) return;
 
     filasProductos.forEach(fila => {
-        // Asumimos que el nombre del producto está en la primera celda (td) de cada fila
+        // Obtenemos el nombre y el código de barras oculto que acabamos de meter
         const nombreProducto = fila.cells[0].innerText.toLowerCase();
+        const codigoBarras = fila.getAttribute('data-codigobarras')?.toLowerCase() || '';
         
-        if (nombreProducto.includes(textoBuscado)) {
-            fila.style.display = ''; // Lo mostramos
+        if (nombreProducto.includes(textoBuscado) || (textoBuscado !== '' && codigoBarras === textoBuscado)) {
+            fila.style.display = ''; 
+            
+            // Si fue un "Match Exacto" por código de barras, le hacemos focus automático al input de cantidad
+            if (codigoBarras !== '' && codigoBarras === textoBuscado) {
+                const inputCant = fila.querySelector('.cm-input-cant');
+                if (inputCant) {
+                    // Esperamos un pelín para que la pantalla termine de pintar antes de hacer focus
+                    setTimeout(() => { 
+                        inputCant.focus();
+                        inputCant.select(); 
+                    }, 50);
+                }
+            }
         } else {
-            fila.style.display = 'none'; // Lo ocultamos
+            fila.style.display = 'none'; 
         }
     });
 }

@@ -797,3 +797,92 @@ document.getElementById('form-nueva-pass').addEventListener('submit', async (e) 
     window.location.href = window.location.pathname; 
 });
 
+// ============================================================================
+// SISTEMA GLOBAL DE CÁMARA Y CÓDIGOS DE BARRAS
+// ============================================================================
+window.html5QrCode = null;
+
+window.abrirEscanerCamara = function(contexto) {
+    const modal = document.getElementById('modal-escaner');
+    if (!modal) return alert("Falta el modal del escáner en el HTML.");
+    
+    modal.classList.remove('hidden');
+
+    // Si había una cámara pegada de antes, la limpiamos
+    if (window.html5QrCode) {
+        window.html5QrCode.clear();
+    }
+
+    // Inicializamos el lector en el div que creamos en el HTML
+    window.html5QrCode = new Html5Qrcode("lector-codigo-barras");
+
+    // Configuramos para que lea rápido y se enfoque en un rectángulo
+    const config = { 
+        fps: 10, 
+        qrbox: { width: 250, height: 100 } 
+    };
+
+    // Iniciamos pidiendo la cámara trasera ("environment")
+    window.html5QrCode.start(
+        { facingMode: "environment" }, 
+        config,
+        (decodedText) => {
+            // ¡ÉXITO! Leyó un código
+            sonidoBeep(); // Un pequeño feedback (opcional)
+            window.cerrarEscaner();
+
+            if (contexto === 'PRODUCTO') {
+                // CASO 1: Creando o editando un producto
+                const inputCodigo = document.getElementById('prod-codigo-barras');
+                if (inputCodigo) {
+                    inputCodigo.value = decodedText;
+                    // Le damos un brillito verde rápido para que el usuario sepa que funcionó
+                    inputCodigo.classList.add('ring-4', 'ring-emerald-500', 'bg-emerald-50');
+                    setTimeout(() => inputCodigo.classList.remove('ring-4', 'ring-emerald-500', 'bg-emerald-50'), 800);
+                }
+            } else if (contexto === 'INVENTARIO') {
+                // CASO 2: Conteo Masivo de Inventario (Lo conectaremos en el próximo paso)
+                if (typeof window.procesarEscaneoInventario === 'function') {
+                    window.procesarEscaneoInventario(decodedText);
+                } else {
+                    // Plan B por si acaso
+                    const buscadorInv = document.getElementById('cm-buscador-productos');
+                    if (buscadorInv) {
+                        buscadorInv.value = decodedText;
+                        if (typeof window.filtrarProductosConteo === 'function') window.filtrarProductosConteo();
+                    }
+                }
+            }
+        },
+        (errorMessage) => {
+            // Ignoramos los errores de frame (pasan docenas por segundo si no hay código a la vista)
+        }
+    ).catch((err) => {
+        alert("❌ Error al iniciar la cámara. Verifica que diste los permisos en tu navegador.");
+        window.cerrarEscaner();
+    });
+};
+
+window.cerrarEscaner = function() {
+    document.getElementById('modal-escaner').classList.add('hidden');
+    if (window.html5QrCode) {
+        window.html5QrCode.stop().then(() => {
+            window.html5QrCode.clear();
+        }).catch((err) => {
+            console.log("Error apagando la cámara", err);
+        });
+    }
+};
+
+// Un simple "beep" para dar la sensación de un escáner real de supermercado
+function sonidoBeep() {
+    try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioCtx.createOscillator();
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(800, audioCtx.currentTime); // 800Hz
+        oscillator.connect(audioCtx.destination);
+        oscillator.start();
+        setTimeout(() => oscillator.stop(), 100); // Suena por 0.1 segundos
+    } catch(e) { console.log("Audio no soportado"); }
+}
