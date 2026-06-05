@@ -263,6 +263,7 @@ window.renderizarTablaProductos = function() {
                     <div class="flex justify-end gap-6 items-center flex-wrap">
                         ${p.tiene_receta ? `<button onclick="abrirReceta('${p.id}', '${p.nombre.replace(/'/g, "\\'")}')" class="text-emerald-700 font-bold hover:underline flex items-center gap-1 bg-white px-3 py-1.5 rounded shadow-sm border border-emerald-200"><span>📝</span> Construir Receta</button>` : ''}
                         <button onclick="editarProductoFull('${p.id}')" class="text-blue-600 font-bold hover:underline flex items-center gap-1 text-sm bg-white px-3 py-1.5 rounded shadow-sm border border-blue-200">✏️ Editar Detalles</button>
+                        <button onclick="duplicarProductoFull('${p.id}')" class="text-purple-600 font-bold hover:underline flex items-center gap-1 text-sm bg-white px-3 py-1.5 rounded shadow-sm border border-purple-200">📑 Duplicar</button>
                         <button onclick="eliminarReg('productos', '${p.id}'); window.cargarProductos();" class="text-red-600 font-bold hover:underline flex items-center gap-1 text-sm bg-white px-3 py-1.5 rounded shadow-sm border border-red-200">🗑️ Eliminar</button>
                     </div>
                 </td>
@@ -279,16 +280,16 @@ window.renderizarTablaProductos = function() {
     if(elNext) elNext.disabled = window.prodCurrentPage === totalPages || totalPages === 0;
 }
 
-window.editarProductoFull = async function(id) {
+window.duplicarProductoFull = async function(id) {
+    // 1. Traemos los datos del producto original
     const { data } = await clienteSupabase.from('productos').select('*').eq('id', id).single();
     
-    await window.abrirModalProducto(true); 
+    // 2. Abrimos el modal simulando que es un producto "Nuevo" (false)
+    await window.abrirModalProducto(false); 
 
-    document.getElementById('prod-nombre').value = data.nombre || '';
-    
-    // Si vino del Excel sin SKU, le generamos uno en el acto
-    const finalSku = data.sku || ('PRD-' + Math.random().toString(36).substring(2, 8).toUpperCase());
-    document.getElementById('prod-sku').value = finalSku;
+    // 3. Llenamos los campos con los datos del original
+    document.getElementById('prod-nombre').value = "Copia de " + (data.nombre || '');
+    // Nota: El SKU nuevo ya lo generó automáticamente abrirModalProducto()
     
     document.getElementById('prod-categoria').value = data.id_categoria || '';
     document.getElementById('prod-u-compra').value = data.id_unidad_compra || '';
@@ -300,23 +301,25 @@ window.editarProductoFull = async function(id) {
     document.getElementById('prod-u-receta').value = data.id_unidad_receta || '';
     document.getElementById('prod-tiene-receta').checked = data.tiene_receta || false;
 
-    // NUEVO: Cargar datos del POS y Precios
+    // Configuración POS y Precios
     if(document.getElementById('prod-codigo-barras')) document.getElementById('prod-codigo-barras').value = data.codigo_barras || '';
     
     const checkPos = document.getElementById('prod-vender-pos');
-        if(checkPos) {
-            checkPos.checked = data.vender_en_pos || false;
-            const cajaPrecios = document.getElementById('contenedor-precios-pos');
-            if(cajaPrecios) cajaPrecios.classList.toggle('hidden', !checkPos.checked);
-        }
+    if(checkPos) {
+        checkPos.checked = data.vender_en_pos || false;
+        const cajaPrecios = document.getElementById('contenedor-precios-pos');
+        if(cajaPrecios) cajaPrecios.classList.toggle('hidden', !checkPos.checked);
+    }
         
-        if(document.getElementById('prod-precio-neto')) document.getElementById('prod-precio-neto').value = data.precio_venta_neto || '';
-        if(document.getElementById('prod-precio-iva')) document.getElementById('prod-precio-iva').value = data.precio_venta_iva || '';
-        const checkControl = document.getElementById('prod-control-stock');
-        if(checkControl) {
+    if(document.getElementById('prod-precio-neto')) document.getElementById('prod-precio-neto').value = data.precio_venta_neto || '';
+    if(document.getElementById('prod-precio-iva')) document.getElementById('prod-precio-iva').value = data.precio_venta_iva || '';
+    
+    const checkControl = document.getElementById('prod-control-stock');
+    if(checkControl) {
         checkControl.checked = data.control_stock !== false; 
     }
 
+    // Reglas de inventario (Mínimo e Ideal)
     const { data: reglas } = await clienteSupabase.from('reglas_stock_sucursal').select('*').eq('id_producto', id);
     (reglas || []).forEach(r => {
         const inputMin = document.getElementById(`regla-min-${r.id_sucursal}`);
@@ -324,11 +327,16 @@ window.editarProductoFull = async function(id) {
         if(inputMin) inputMin.value = r.stock_minimo_ua || 0;
         if(inputIdeal) inputIdeal.value = r.stock_ideal_ua || 0;
     });
+
+    // 4. Maquillamos el modal para que el usuario sepa qué está pasando
+    window.modoEdicion = { activo: false, id: null, form: 'producto' };
+    document.getElementById('titulo-modal-producto').innerText = "Nuevo Producto (Clonado) 📑";
     
-    window.modoEdicion = { activo: true, id: id, form: 'producto' };
-    document.getElementById('titulo-modal-producto').innerText = "Editando Producto ✏️";
-    document.getElementById('btn-guardar-producto').innerText = 'Actualizar ✏️';
-    document.getElementById('btn-guardar-producto').classList.replace('bg-emerald-600', 'bg-blue-600');
+    const btnGuardar = document.getElementById('btn-guardar-producto');
+    btnGuardar.innerText = 'Guardar Clon';
+    // Si veníamos de una edición, nos aseguramos de que el botón vuelva a ser verde
+    btnGuardar.classList.remove('bg-blue-600');
+    btnGuardar.classList.add('bg-emerald-600');
 }
 
 // ==========================================
@@ -1285,3 +1293,95 @@ document.addEventListener('input', (e) => {
         else document.getElementById('prod-precio-neto').value = '';
     }
 });
+
+// ==========================================
+// LÓGICA PARA CLONAR RECETAS
+// ==========================================
+
+async function abrirModalClonarReceta() {
+    const recetaDestinoId = document.getElementById('buscador-recetas').value;
+    
+    if (!recetaDestinoId) {
+        alert("Primero selecciona el producto/receta al que le quieres copiar los ingredientes.");
+        return;
+    }
+
+    // Copiamos las opciones del buscador principal al select del modal
+    const buscadorPrincipal = document.getElementById('buscador-recetas');
+    const selectOrigen = document.getElementById('select-receta-origen');
+    
+    // Limpiamos y clonamos
+    selectOrigen.innerHTML = '<option value="">-- Selecciona una receta --</option>';
+    Array.from(buscadorPrincipal.options).forEach(opt => {
+        // Evitamos que se pueda clonar a sí misma
+        if (opt.value && opt.value !== recetaDestinoId) {
+            let nuevaOpt = new Option(opt.text, opt.value);
+            selectOrigen.add(nuevaOpt);
+        }
+    });
+
+    document.getElementById('modal-clonar-receta').classList.remove('hidden');
+}
+
+async function ejecutarClonacionReceta() {
+    const recetaDestinoId = document.getElementById('buscador-recetas').value;
+    const recetaOrigenId = document.getElementById('select-receta-origen').value;
+    const btnClonar = document.getElementById('btn-ejecutar-clon');
+
+    if (!recetaOrigenId) {
+        alert("Por favor selecciona una receta de origen.");
+        return;
+    }
+
+    try {
+        btnClonar.innerText = "Clonando...";
+        btnClonar.disabled = true;
+
+        // 1. Buscamos los ingredientes de la receta origen en Supabase
+        // OJO: Cambia 'recetas_ingredientes' por el nombre real de tu tabla si es diferente
+        const { data: ingredientesOrigen, error: errLectura } = await supabase
+            .from('recetas_ingredientes') 
+            .select('*')
+            .eq('id_receta', recetaOrigenId);
+
+        if (errLectura) throw errLectura;
+
+        if (!ingredientesOrigen || ingredientesOrigen.length === 0) {
+            alert("La receta de origen no tiene ingredientes para copiar.");
+            return;
+        }
+
+        // 2. Preparamos los datos para insertarlos en la receta actual
+        const nuevosIngredientes = ingredientesOrigen.map(ing => {
+            return {
+                id_receta: recetaDestinoId,
+                id_insumo: ing.id_insumo,
+                cantidad: ing.cantidad
+                // Agrega aquí cualquier otra columna requerida por tu base de datos
+            };
+        });
+
+        // 3. Insertamos en la receta destino
+        const { error: errInsert } = await supabase
+            .from('recetas_ingredientes')
+            .insert(nuevosIngredientes);
+
+        if (errInsert) throw errInsert;
+
+        // Éxito
+        document.getElementById('modal-clonar-receta').classList.add('hidden');
+        
+        // Aquí recargamos la vista de la receta para que aparezcan los ingredientes nuevos
+        // Asumo que esta es la función que usas para cargar la tabla en pantalla
+        seleccionarRecetaDesdeBuscador(recetaDestinoId); 
+        
+        alert("¡Receta clonada con éxito!");
+
+    } catch (error) {
+        console.error("Error al clonar receta:", error);
+        alert("Hubo un error al clonar la receta. Revisa la consola para más detalles.");
+    } finally {
+        btnClonar.innerText = "Clonar Ingredientes";
+        btnClonar.disabled = false;
+    }
+}

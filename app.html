@@ -295,6 +295,44 @@
             </div>
             
             <div class="flex items-center gap-3 md:gap-4 relative">
+                
+                <div class="relative">
+                    <button onclick="toggleCalculadora()" class="text-slate-400 hover:text-emerald-600 transition-colors relative outline-none p-1" title="Calculadora Rápida">
+                        <span class="text-2xl">🧮</span>
+                    </button>
+                    <div id="panel-calculadora" class="hidden absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-2xl border border-slate-200 z-[200] overflow-hidden p-4">
+                        <div class="mb-3">
+                            <input type="text" id="calc-display" readonly class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-3 text-right text-xl font-mono text-slate-800 outline-none shadow-inner tracking-wider" value="0">
+                        </div>
+                        <div class="grid grid-cols-4 gap-2 text-sm font-bold">
+                            <button type="button" onclick="calcInput('C')" class="col-span-2 py-2.5 bg-red-50 text-red-600 rounded-lg border border-red-100 hover:bg-red-100 transition-colors">C</button>
+                            <button type="button" onclick="calcInput('(')" class="py-2.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors">(</button>
+                            <button type="button" onclick="calcInput(')')" class="py-2.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors">)</button>
+
+                            <button type="button" onclick="calcInput('7')" class="py-2.5 bg-white text-slate-700 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors shadow-sm">7</button>
+                            <button type="button" onclick="calcInput('8')" class="py-2.5 bg-white text-slate-700 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors shadow-sm">8</button>
+                            <button type="button" onclick="calcInput('9')" class="py-2.5 bg-white text-slate-700 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors shadow-sm">9</button>
+                            <button type="button" onclick="calcInput('/')" class="py-2.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg hover:bg-emerald-100 transition-colors">÷</button>
+
+                            <button type="button" onclick="calcInput('4')" class="py-2.5 bg-white text-slate-700 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors shadow-sm">4</button>
+                            <button type="button" onclick="calcInput('5')" class="py-2.5 bg-white text-slate-700 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors shadow-sm">5</button>
+                            <button type="button" onclick="calcInput('6')" class="py-2.5 bg-white text-slate-700 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors shadow-sm">6</button>
+                            <button type="button" onclick="calcInput('*')" class="py-2.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg hover:bg-emerald-100 transition-colors">×</button>
+
+                            <button type="button" onclick="calcInput('1')" class="py-2.5 bg-white text-slate-700 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors shadow-sm">1</button>
+                            <button type="button" onclick="calcInput('2')" class="py-2.5 bg-white text-slate-700 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors shadow-sm">2</button>
+                            <button type="button" onclick="calcInput('3')" class="py-2.5 bg-white text-slate-700 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors shadow-sm">3</button>
+                            <button type="button" onclick="calcInput('-')" class="py-2.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg hover:bg-emerald-100 transition-colors">-</button>
+
+                            <button type="button" onclick="calcInput('0')" class="py-2.5 bg-white text-slate-700 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors shadow-sm">0</button>
+                            <button type="button" onclick="calcInput('.')" class="py-2.5 bg-white text-slate-700 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors shadow-sm">.</button>
+                            <button type="button" onclick="calcInput('%')" class="py-2.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors">%</button>
+                            <button type="button" onclick="calcInput('+')" class="py-2.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg hover:bg-emerald-100 transition-colors">+</button>
+
+                            <button type="button" onclick="calcInput('=')" class="col-span-4 py-3 mt-1 bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-colors shadow-md text-base">=</button>
+                        </div>
+                    </div>
+                </div>
                
                 <div class="relative">
                     <button onclick="toggleNotificaciones()" class="text-slate-400 hover:text-emerald-600 transition-colors relative outline-none p-1" title="Notificaciones">
@@ -395,6 +433,28 @@
                     </button>
                     <button onclick="cambiarVista('recetas')" id="btn-menu-recetas" class="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
                         <span>📝</span> <span class="menu-texto">Recetas</span>
+                    </button>
+                </div>
+
+                <button onclick="cambiarVista('dashboard_personas')" id="btn-menu-dashboard_personas" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors">
+                    <span>👥</span> <span class="menu-texto">Módulo Personas</span>
+                </button>
+
+                <div id="submenu-dashboard_personas" class="space-y-1 mt-1 border-l-2 border-slate-700 ml-4 pl-2 hidden">
+                    <button onclick="cambiarVista('hr_calendario')" id="btn-menu-hr_calendario" class="w-full flex items-center text-left gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
+                        <span class="shrink-0">📅</span> <span class="menu-texto leading-tight">Calendario</span>
+                    </button>
+                    <button onclick="cambiarVista('hr_colaboradores')" id="btn-menu-hr_colaboradores" class="w-full flex items-center text-left gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
+                        <span class="shrink-0">👨‍💼</span> <span class="menu-texto leading-tight">Colaboradores</span>
+                    </button>
+                    <button onclick="cambiarVista('hr_documentos')" id="btn-menu-hr_documentos" class="w-full flex items-center text-left gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
+                        <span class="shrink-0">📁</span> <span class="menu-texto leading-tight">Documentos</span>
+                    </button>
+                    <button onclick="cambiarVista('hr_formacion')" id="btn-menu-hr_formacion" class="w-full flex items-center text-left gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
+                        <span class="shrink-0">🎓</span> <span class="menu-texto leading-tight">Formación</span>
+                    </button>
+                    <button onclick="cambiarVista('hr_solicitudes')" id="btn-menu-hr_solicitudes" class="w-full flex items-center text-left gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
+                        <span class="shrink-0">📝</span> <span class="menu-texto leading-tight">Solicitudes</span>
                     </button>
                 </div>
 
@@ -735,6 +795,7 @@
     <script src="/config.js"></script> 
     <script src="js/supabase.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="js/app.js"></script>
     <script src="js/home.js"></script>
     <script src="js/dashboard.js"></script>
@@ -748,6 +809,10 @@
     <script src="js/ventas.js"></script>
     <script src="js/ranking.js"></script>
     <script src="js/parametros.js"></script>
+    <script src="js/pos-admin.js"></script>
+    <script src="js/hr_colaboradores.js"></script>
+    <script src="js/hr_calendario.js"></script>
+    <script src="js/hr_configuracion.js"></script>
 
     <script>
         window.addEventListener('load', function() {
@@ -757,6 +822,67 @@
                 setTimeout(() => { preloader.classList.add('hidden'); }, 500); 
             }
         });
+    </script>
+    <script>
+        // Lógica existente del Preloader
+        window.addEventListener('load', function() {
+            const preloader = document.getElementById('preloader');
+            if (preloader) {
+                preloader.classList.add('opacity-0');
+                setTimeout(() => { preloader.classList.add('hidden'); }, 500); 
+            }
+        });
+
+        // 🧮 Lógica de la Calculadora Flotante
+        let calcExp = '';
+        
+        function toggleCalculadora() {
+            const panel = document.getElementById('panel-calculadora');
+            panel.classList.toggle('hidden');
+            // Ocultamos otros paneles si están abiertos (opcional pero bueno para UX)
+            document.getElementById('panel-notificaciones').classList.add('hidden');
+            document.getElementById('user-dropdown').classList.add('hidden');
+        }
+
+        function calcInput(val) {
+            const display = document.getElementById('calc-display');
+            
+            if (val === 'C') {
+                calcExp = '';
+                display.value = '0';
+                return;
+            }
+            
+            if (val === '=') {
+                try {
+                    // Convertimos el porcentaje en una división entre 100 para que JavaScript lo entienda
+                    // Ej: 100 * 10% se convierte en 100 * 10/100
+                    let exprToEval = calcExp.replace(/%/g, '/100');
+                    
+                    // Evaluamos la expresión matemática
+                    let result = new Function('return ' + exprToEval)();
+                    
+                    // Redondeamos a 4 decimales para evitar el clásico bug de JS (ej: 0.1 + 0.2 = 0.3000000000004)
+                    result = Math.round(result * 10000) / 10000;
+                    
+                    display.value = result;
+                    calcExp = result.toString();
+                } catch (e) {
+                    display.value = 'Error';
+                    calcExp = '';
+                }
+                return;
+            }
+
+            // Evitar acumular ceros a la izquierda o escribir sobre un Error
+            if (display.value === '0' || display.value === 'Error') {
+                calcExp = val === '.' ? '0.' : val;
+            } else {
+                calcExp += val;
+            }
+            
+            display.value = calcExp;
+        }
     </script>
 
 </body>

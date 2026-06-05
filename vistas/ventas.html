@@ -1,6 +1,6 @@
 <div id="pos-wrapper" class="fixed inset-0 z-50 bg-slate-50 hidden flex-col">
     
-    <div id="pos-pin-screen" class="flex-1 flex flex-col items-center justify-center bg-slate-900 text-white p-4">
+    <div id="pos-pin-screen" class="absolute inset-0 z-[70] flex-1 flex flex-col items-center justify-center bg-slate-900 text-white p-4">
         <div class="text-center mb-8">
             <h2 class="text-3xl font-black text-emerald-400 mb-2">Buddy POS</h2>
             <p class="text-slate-400">Ingresa tu PIN de operador</p>
@@ -93,6 +93,91 @@
             </button>
         </div>
     </div>
+</div>
+
+    <div id="pos-admin-menu-screen" class="hidden h-full flex-col bg-slate-100 absolute inset-0 z-[80]">
+        <header class="bg-white px-6 py-4 flex justify-between items-center shadow-sm border-b shrink-0">
+            <button onclick="cerrarPosAdminMenu()" class="text-slate-500 hover:text-slate-800 font-bold px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors flex items-center gap-2 outline-none">
+                <span class="text-xl">←</span> Volver
+            </button>
+            <h2 class="text-xl font-black text-slate-800 tracking-tight">⚙️ Configurar Menú</h2>
+            <button onclick="guardarOrdenMenu()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2 rounded-xl font-bold shadow-md transition-transform active:scale-95">
+                💾 Guardar Orden
+            </button>
+        </header>
+
+        <div class="flex-1 overflow-y-auto p-6 flex justify-center">
+            <div class="w-full max-w-2xl bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-fit">
+                <h3 class="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4">Orden de Categorías</h3>
+                <p class="text-xs text-slate-400 mb-4">Usa las flechas para decidir en qué orden aparecen los botones arriba en la caja.</p>
+                
+                <div id="lista-admin-categorias" class="space-y-2">
+                    <p class="text-center py-4 text-slate-400 font-bold animate-pulse">Cargando...</p>
+                </div>
+            </div>
+         </div>
+    </div>     
+
+        <div id="pos-admin-usuarios-screen" class="hidden h-full flex-col bg-slate-100 absolute inset-0 z-[80]">
+        <header class="bg-white px-6 py-4 flex justify-between items-center shadow-sm border-b shrink-0">
+            <button onclick="cerrarPosAdminUsuarios()" class="text-slate-500 hover:text-slate-800 font-bold px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors flex items-center gap-2 outline-none">
+                <span class="text-xl">←</span> Volver a Caja
+            </button>
+            <h2 class="text-xl font-black text-slate-800 tracking-tight">👥 Pines de Acceso POS</h2>
+            <div class="w-24"></div> </header>
+
+        <div class="flex-1 overflow-y-auto p-6 flex justify-center">
+            <div class="w-full max-w-3xl bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-fit">
+                <p class="text-xs text-slate-400 mb-6 font-bold uppercase tracking-widest">Personal con acceso a esta sucursal</p>
+                <div id="lista-admin-usuarios" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <p class="text-slate-400 font-bold animate-pulse col-span-full text-center">Cargando personal...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="pos-admin-resumen-screen" class="hidden h-full flex-col bg-slate-100 absolute inset-0 z-[80]">
+        <header class="bg-white px-6 py-4 flex justify-between items-center shadow-sm border-b shrink-0">
+            <button onclick="cerrarPosAdminResumen()" class="text-slate-500 hover:text-slate-800 font-bold px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors flex items-center gap-2 outline-none">
+                <span class="text-xl">←</span> Volver a Caja
+            </button>
+            <h2 class="text-xl font-black text-slate-800 tracking-tight">📊 Resumen de Turno Actual</h2>
+            <button onclick="cargarResumenPOS()" class="text-blue-600 font-bold px-3 py-2 rounded-lg hover:bg-blue-50 transition-colors">
+                ↻ Actualizar
+            </button>
+        </header>
+
+        <div class="flex-1 overflow-y-auto p-6 flex justify-center">
+            <div class="w-full max-w-4xl space-y-6">
+                
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border-t-4 border-emerald-500">
+                        <p class="text-xs font-bold text-slate-400 uppercase">Ventas Totales</p>
+                        <p class="text-2xl font-black text-slate-800 mt-1" id="resumen-total-monto">$0</p>
+                    </div>
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border-t-4 border-blue-500">
+                        <p class="text-xs font-bold text-slate-400 uppercase">Tickets Emitidos</p>
+                        <p class="text-2xl font-black text-slate-800 mt-1" id="resumen-total-tickets">0</p>
+                    </div>
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border-t-4 border-orange-500">
+                        <p class="text-xs font-bold text-slate-400 uppercase">Turno Abierto a las</p>
+                        <p class="text-xl font-black text-slate-800 mt-1" id="resumen-hora-apertura">--:--</p>
+                    </div>
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border-t-4 border-purple-500">
+                        <p class="text-xs font-bold text-slate-400 uppercase">Cuentas Pendientes</p>
+                        <p class="text-2xl font-black text-slate-800 mt-1" id="resumen-cuentas-pendientes">0</p>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <h3 class="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4">Ingresos por Método de Pago</h3>
+                    <div id="lista-resumen-metodos" class="space-y-3">
+                        </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
 
     <div id="pos-nueva-venta-screen" class="hidden flex-1 bg-slate-100 flex-col md:flex-row overflow-hidden relative">
         
@@ -133,7 +218,9 @@
             <div class="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center shrink-0">
                 <div>
                     <h2 class="font-black text-slate-800 text-lg">Cuenta #001</h2>
-                    <button class="text-xs text-blue-600 font-bold hover:underline flex items-center gap-1 mt-0.5">👤 Asignar Cliente (Opcional)</button>
+                    <button id="btn-asignar-cliente" onclick="abrirModalClientesPOS()" class="text-xs text-blue-600 font-bold hover:bg-blue-50 px-2 py-1 rounded-md flex items-center gap-1 mt-0.5 transition-colors outline-none w-fit">
+                    👤 Asignar Cliente (Opcional)
+                </button>
                 </div>
                 <button onclick="toggleCarritoMobile()" class="md:hidden text-slate-400 hover:text-slate-800 text-3xl font-bold px-2">&times;</button>
                 <button onclick="document.getElementById('pos-dropdown-menu').classList.toggle('hidden')" class="text-slate-400 hover:bg-slate-100 hover:text-slate-800 text-2xl font-bold px-3 py-1 rounded-xl outline-none transition-colors">
@@ -187,16 +274,8 @@
             <div class="p-6 flex-1 flex flex-col gap-6">
                 <div>
                     <h3 class="text-sm font-bold text-slate-700 mb-3 uppercase">Forma de Pago</h3>
-                    <div class="grid grid-cols-3 gap-3">
-                        <button onclick="seleccionarMetodoPago('EFECTIVO')" id="btn-pago-efectivo" class="metodo-pago-btn py-4 rounded-xl border-2 border-slate-200 font-bold text-slate-600 hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 transition-all flex flex-col items-center gap-2">
-                            <span class="text-3xl">💵</span> Efectivo
-                        </button>
-                        <button onclick="seleccionarMetodoPago('TARJETA')" id="btn-pago-tarjeta" class="metodo-pago-btn py-4 rounded-xl border-2 border-slate-200 font-bold text-slate-600 hover:border-blue-500 hover:bg-blue-50 hover:text-blue-700 transition-all flex flex-col items-center gap-2">
-                            <span class="text-3xl">💳</span> Tarjeta
-                        </button>
-                        <button onclick="seleccionarMetodoPago('TRANSFERENCIA')" id="btn-pago-transf" class="metodo-pago-btn py-4 rounded-xl border-2 border-slate-200 font-bold text-slate-600 hover:border-purple-500 hover:bg-purple-50 hover:text-purple-700 transition-all flex flex-col items-center gap-2">
-                            <span class="text-3xl">📱</span> Transf.
-                        </button>
+                    <div id="contenedor-metodos-pago" class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        <p class="text-xs text-slate-400 col-span-full text-center animate-pulse py-4">Cargando métodos de pago...</p>
                     </div>
                 </div>
 
@@ -218,142 +297,158 @@
             </div>
         </div>
     </div>
-</div>
-
-<div id="pos-cuentas-screen" class="hidden h-full flex flex-col bg-slate-100 p-4 md:p-6 absolute inset-0 z-40">
-        <div class="flex justify-between items-center mb-6">
-            <button onclick="volverDashboardPOS()" class="flex items-center gap-2 text-slate-500 hover:text-slate-800 font-bold transition-colors">
-                <span class="text-xl">←</span> Volver al Menú
-            </button>
-            <h2 class="text-2xl font-black text-slate-800">Cuentas en Espera</h2>
-            <div class="w-20"></div> </div>
-        
-        <div id="grid-cuentas-guardadas" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 overflow-y-auto pb-20">
+    <div id="modal-clientes-pos" class="hidden fixed inset-0 bg-slate-900/80 z-[100] flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[80vh] border-t-4 border-blue-500">
+            <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+                <h2 class="text-xl font-black text-slate-800 tracking-tight">Buscar Cliente</h2>
+                <button onclick="cerrarModalClientesPOS()" class="text-slate-400 hover:text-red-500 text-3xl font-bold leading-none outline-none">&times;</button>
             </div>
-    </div>
-
-    <div id="modal-guardar-cuenta" class="hidden fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center backdrop-blur-sm p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden p-6">
-            <h3 class="text-lg font-bold text-slate-800 mb-2">Guardar Cuenta / Mesa</h3>
-            <p class="text-sm text-slate-500 mb-4">Ingresa un nombre para identificar este pedido en espera.</p>
-            <input type="text" id="input-nombre-cuenta" placeholder="Ej: Mesa 4, o Juan (Billetera)..." class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl outline-none focus:border-blue-500 mb-6 font-bold text-slate-700 text-center">
-            <div class="flex gap-3">
-                <button onclick="document.getElementById('modal-guardar-cuenta').classList.add('hidden')" class="flex-1 py-3 text-slate-600 font-bold hover:bg-slate-100 rounded-xl transition-colors">Cancelar</button>
-                <button onclick="confirmarGuardarCuenta()" class="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md transition-colors">Guardar</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="modal-escaner-camara" class="hidden fixed inset-0 bg-black/95 z-[100] flex flex-col items-center justify-center p-4">
-        <button onclick="cerrarEscanerCamara()" class="absolute top-6 right-6 text-white hover:text-red-400 text-5xl font-bold outline-none">&times;</button>
-        <div class="text-center mb-6">
-            <h3 class="text-white font-black text-2xl tracking-widest uppercase mb-2">Escáner POS</h3>
-            <p class="text-emerald-400 font-bold text-sm">Apunta la cámara al código de barras</p>
-        </div>
-        <div id="lector-camara-pos" class="w-full max-w-sm rounded-3xl overflow-hidden shadow-[0_0_30px_rgba(52,211,153,0.3)] border-4 border-emerald-500/50 relative">
-             <div class="absolute inset-0 border-y-2 border-red-500/50 top-1/2 transform -translate-y-1/2 h-10 z-10 pointer-events-none animate-pulse"></div>
-        </div>
-    </div>
-
-    <div id="modal-salida-pos" class="hidden fixed inset-0 bg-slate-900/80 z-[100] flex items-center justify-center backdrop-blur-sm p-4">
-    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden p-6 text-center border-t-4 border-slate-800">
-        <h2 class="text-2xl font-black text-slate-800 mb-2">¿Qué deseas hacer?</h2>
-        <p class="text-sm text-slate-500 mb-6">Selecciona una opción para salir de la caja registradora.</p>
-        
-        <div class="space-y-3">
-            <button onclick="pausarTurno()" class="w-full p-4 border-2 border-orange-200 bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-xl font-bold flex flex-col items-center justify-center gap-1 transition-colors outline-none">
-                <span class="text-2xl">☕</span>
-                <span>Tomar un Descanso (Pausa)</span>
-                <span class="text-[10px] font-normal text-orange-600">Bloquea la caja y registra tu tiempo de break.</span>
-            </button>
-
-            <button onclick="iniciarCierreDeCaja()" class="w-full p-4 border-2 border-red-200 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl font-bold flex flex-col items-center justify-center gap-1 transition-colors outline-none">
-                <span class="text-2xl">💰</span>
-                <span>Cierre de Caja Final</span>
-                <span class="text-[10px] font-normal text-red-600">Termina el día, cuenta los billetes y cierra el turno.</span>
-            </button>
-        </div>
-
-        <button onclick="document.getElementById('modal-salida-pos').classList.add('hidden')" class="mt-6 text-slate-400 hover:text-slate-700 font-bold text-sm outline-none">
-            Cancelar y Volver a Vender
-        </button>
-    </div>
-</div>
-
-<div id="modal-cierre-caja" class="hidden fixed inset-0 bg-slate-900/90 z-[100] flex items-center justify-center backdrop-blur-sm p-4">
-    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border-t-8 border-slate-800 flex flex-col max-h-[90vh]">
-        
-        <div class="p-6 border-b border-slate-100 flex justify-between items-start bg-slate-50">
-            <div>
-                <h2 class="text-2xl font-black text-slate-800 tracking-tight">Cierre de Caja</h2>
-                <p class="text-sm font-bold text-slate-500 mt-1">Cajero: <span id="cierre-cajero-nombre" class="text-slate-700">...</span></p>
-            </div>
-            <button onclick="document.getElementById('modal-cierre-caja').classList.add('hidden')" class="text-slate-400 hover:text-red-500 text-3xl font-bold leading-none outline-none">&times;</button>
-        </div>
-
-        <div class="p-6 overflow-y-auto space-y-6">
-            <div class="bg-emerald-50 rounded-2xl p-4 border border-emerald-100 relative">
-                <div class="absolute -top-3 left-4 bg-emerald-500 text-white text-[10px] font-black uppercase px-3 py-1 rounded-full tracking-widest shadow-sm">💵 Efectivo</div>
-                <div class="flex justify-between items-end mt-2 mb-3">
-                    <p class="text-sm font-bold text-emerald-700">El sistema calculó:</p>
-                    <p class="text-xl font-black text-emerald-900" id="cierre-esperado-efectivo">$0</p>
+            <div class="p-4 shrink-0 shadow-sm z-10">
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">🔍</span>
+                    <input type="text" id="input-buscar-cliente-pos" oninput="buscarClientePOS(this.value)" placeholder="Buscar por nombre, RUT o DNI..." class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all">
                 </div>
-                <div class="bg-white p-3 rounded-xl shadow-inner border border-emerald-200">
-                    <label class="block text-xs font-bold text-slate-500 mb-1 uppercase">Billetes/Monedas contadas:</label>
-                    <div class="relative">
-                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-bold text-lg">$</span>
-                        <input type="number" id="cierre-real-efectivo" oninput="calcularDiferenciaCaja()" placeholder="0" class="w-full pl-8 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-2xl font-black text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
+            </div>
+            <div class="flex-1 overflow-y-auto p-2 bg-slate-50/50" id="lista-clientes-pos">
+                </div>
+            <div class="p-4 border-t border-slate-100 bg-white shrink-0">
+                <button onclick="abrirModalNuevoClientePOS()" class="w-full py-3 bg-blue-50 text-blue-700 rounded-xl font-bold text-sm hover:bg-blue-100 transition-colors shadow-sm">
+                    + Crear Nuevo Cliente Rápido
+                </button>
+            </div>
+        </div>
+    </div>
+    <div id="modal-nuevo-cliente-pos" class="hidden fixed inset-0 bg-slate-900/80 z-[110] flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm border-t-4 border-emerald-500 overflow-hidden">
+            <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h3 class="text-lg font-black text-slate-800">Nuevo Cliente</h3>
+                <button onclick="cerrarModalNuevoClientePOS()" class="text-slate-400 hover:text-red-500 text-2xl font-bold leading-none outline-none">&times;</button>
+            </div>
+            
+            <div class="p-5 space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1 uppercase">Nombre Completo o Empresa *</label>
+                    <input type="text" id="input-nc-nombre" placeholder="Ej: Juan Pérez" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1 uppercase">RUT / DNI (Opcional)</label>
+                    <input type="text" id="input-nc-doc" placeholder="Ej: 12345678-9" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1 uppercase">Teléfono</label>
+                        <input type="text" id="input-nc-tel" placeholder="Ej: +569..." class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1 uppercase">Correo</label>
+                        <input type="email" id="input-nc-correo" placeholder="@" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
                     </div>
                 </div>
-            </div>
 
-            <div class="bg-blue-50 rounded-2xl p-4 border border-blue-100 relative">
-                <div class="absolute -top-3 left-4 bg-blue-500 text-white text-[10px] font-black uppercase px-3 py-1 rounded-full tracking-widest shadow-sm">💳 Tarjetas</div>
-                <div class="flex justify-between items-end mt-2 mb-3">
-                    <p class="text-sm font-bold text-blue-700">Vouchers calculados:</p>
-                    <p class="text-xl font-black text-blue-900" id="cierre-esperado-tarjeta">$0</p>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1 uppercase">Dirección de Despacho / Entrega</label>
+                    <input type="text" id="input-nc-dir" placeholder="Ej: Av. Los Leones 1234, Depto 402" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
                 </div>
-                <div class="bg-white p-3 rounded-xl shadow-inner border border-blue-200">
-                    <label class="block text-xs font-bold text-slate-500 mb-1 uppercase">Suma de Vouchers reales:</label>
-                    <div class="relative">
-                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-bold text-lg">$</span>
-                        <input type="number" id="cierre-real-tarjeta" oninput="calcularDiferenciaCaja()" placeholder="0" class="w-full pl-8 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-2xl font-black text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none transition-all">
-                    </div>
-                </div>
-            </div>
 
-            <div class="bg-purple-50 rounded-2xl p-4 border border-purple-100 relative">
-                <div class="absolute -top-3 left-4 bg-purple-500 text-white text-[10px] font-black uppercase px-3 py-1 rounded-full tracking-widest shadow-sm">📱 Transferencias</div>
-                <div class="flex justify-between items-end mt-2 mb-3">
-                    <p class="text-sm font-bold text-purple-700">El sistema calculó:</p>
-                    <p class="text-xl font-black text-purple-900" id="cierre-esperado-transf">$0</p>
-                </div>
-                <div class="bg-white p-3 rounded-xl shadow-inner border border-purple-200">
-                    <label class="block text-xs font-bold text-slate-500 mb-1 uppercase">Suma de Transferencias reales:</label>
-                    <div class="relative">
-                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-bold text-lg">$</span>
-                        <input type="number" id="cierre-real-transf" oninput="calcularDiferenciaCaja()" placeholder="0" class="w-full pl-8 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-2xl font-black text-slate-800 focus:ring-2 focus:ring-purple-500 outline-none transition-all">
-                    </div>
-                </div>
+                <button onclick="guardarNuevoClientePOS()" id="btn-guardar-cliente-pos" class="w-full mt-2 py-4 bg-emerald-600 text-white rounded-xl text-sm font-black uppercase tracking-wider hover:bg-emerald-500 transition-colors shadow-lg active:scale-95">
+                    Guardar y Seleccionar
+                </button>
             </div>
+        </div>
+    </div>
 
-            <div id="cierre-resultado-panel" class="p-4 rounded-xl border-2 border-slate-200 bg-slate-50 text-center transition-colors">
-                <p class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Diferencia Total</p>
-                <p id="cierre-diferencia-monto" class="text-3xl font-black text-slate-800">$0</p>
-                <p id="cierre-diferencia-texto" class="text-sm font-bold text-slate-500 mt-1">Caja Cuadrada Perfectamente</p>
-            </div>
+    <div id="pos-cuentas-screen" class="hidden h-full flex flex-col bg-slate-100 p-4 md:p-6 absolute inset-0 z-[60]">
+            <div class="flex justify-between items-center mb-6">
+                <button onclick="volverDashboardPOS()" class="flex items-center gap-2 text-slate-500 hover:text-slate-800 font-bold transition-colors">
+                    <span class="text-xl">←</span> Volver
+                </button>
+                <h2 class="text-2xl font-black text-slate-800">Cuentas en Espera</h2>
+                <div class="w-20"></div> </div>
+            
+            <div id="grid-cuentas-guardadas" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 overflow-y-auto pb-20">
+                </div>
+        </div>
 
-            <div>
-                <label class="block text-xs font-bold text-slate-500 mb-1 uppercase">Observaciones (Opcional):</label>
-                <textarea id="cierre-notas" rows="2" placeholder="Ej: Se usaron $2.000 para pagar el gas..." class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-slate-500 outline-none resize-none"></textarea>
+        <div id="modal-guardar-cuenta" class="hidden fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center backdrop-blur-sm p-4">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden p-6">
+                <h3 class="text-lg font-bold text-slate-800 mb-2">Guardar Cuenta / Mesa</h3>
+                <p class="text-sm text-slate-500 mb-4">Ingresa un nombre para identificar este pedido en espera.</p>
+                <input type="text" id="input-nombre-cuenta" placeholder="Ej: Mesa 4, o Juan (Billetera)..." class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl outline-none focus:border-blue-500 mb-6 font-bold text-slate-700 text-center">
+                <div class="flex gap-3">
+                    <button onclick="document.getElementById('modal-guardar-cuenta').classList.add('hidden')" class="flex-1 py-3 text-slate-600 font-bold hover:bg-slate-100 rounded-xl transition-colors">Cancelar</button>
+                    <button onclick="confirmarGuardarCuenta()" class="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md transition-colors">Guardar</button>
+                </div>
             </div>
         </div>
 
-        <div class="p-4 border-t border-slate-100 bg-white grid grid-cols-2 gap-3 shrink-0">
-            <button onclick="document.getElementById('modal-cierre-caja').classList.add('hidden')" class="px-4 py-4 font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">Cancelar</button>
-            <button onclick="confirmarCierreCaja()" id="btn-finalizar-cierre" class="px-4 py-4 font-black text-white bg-slate-800 hover:bg-slate-900 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2">
-                <span>🔒</span> Cerrar Turno
+        <div id="modal-escaner-camara" class="hidden fixed inset-0 bg-black/95 z-[100] flex flex-col items-center justify-center p-4">
+            <button onclick="cerrarEscanerCamara()" class="absolute top-6 right-6 text-white hover:text-red-400 text-5xl font-bold outline-none">&times;</button>
+            <div class="text-center mb-6">
+                <h3 class="text-white font-black text-2xl tracking-widest uppercase mb-2">Escáner POS</h3>
+                <p class="text-emerald-400 font-bold text-sm">Apunta la cámara al código de barras</p>
+            </div>
+            <div id="lector-camara-pos" class="w-full max-w-sm rounded-3xl overflow-hidden shadow-[0_0_30px_rgba(52,211,153,0.3)] border-4 border-emerald-500/50 relative">
+                <div class="absolute inset-0 border-y-2 border-red-500/50 top-1/2 transform -translate-y-1/2 h-10 z-10 pointer-events-none animate-pulse"></div>
+            </div>
+        </div>
+
+        <div id="modal-salida-pos" class="hidden fixed inset-0 bg-slate-900/80 z-[100] flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden p-6 text-center border-t-4 border-slate-800">
+            <h2 class="text-2xl font-black text-slate-800 mb-2">¿Qué deseas hacer?</h2>
+            <p class="text-sm text-slate-500 mb-6">Selecciona una opción para salir de la caja registradora.</p>
+            
+            <div class="space-y-3">
+                <button onclick="pausarTurno()" class="w-full p-4 border-2 border-orange-200 bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-xl font-bold flex flex-col items-center justify-center gap-1 transition-colors outline-none">
+                    <span class="text-2xl">☕</span>
+                    <span>Tomar un Descanso (Pausa)</span>
+                    <span class="text-[10px] font-normal text-orange-600">Bloquea la caja y registra tu tiempo de break.</span>
+                </button>
+
+                <button onclick="iniciarCierreDeCaja()" class="w-full p-4 border-2 border-red-200 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl font-bold flex flex-col items-center justify-center gap-1 transition-colors outline-none">
+                    <span class="text-2xl">💰</span>
+                    <span>Cierre de Caja Final</span>
+                    <span class="text-[10px] font-normal text-red-600">Termina el día, cuenta los billetes y cierra el turno.</span>
+                </button>
+            </div>
+
+            <button onclick="document.getElementById('modal-salida-pos').classList.add('hidden')" class="mt-6 text-slate-400 hover:text-slate-700 font-bold text-sm outline-none">
+                Cancelar y Volver a Vender
             </button>
+        </div>
+    </div>
+
+        <div id="modal-cierre-caja" class="hidden fixed inset-0 bg-slate-900/90 z-[100] flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border-t-8 border-slate-800 flex flex-col max-h-[90vh]">
+            
+            <div class="p-6 border-b border-slate-100 flex justify-between items-start bg-slate-50">
+                <div>
+                    <h2 class="text-2xl font-black text-slate-800 tracking-tight">Cierre de Caja</h2>
+                    <p class="text-sm font-bold text-slate-500 mt-1">Cajero: <span id="cierre-cajero-nombre" class="text-slate-700">...</span></p>
+                </div>
+                <button onclick="document.getElementById('modal-cierre-caja').classList.add('hidden')" class="text-slate-400 hover:text-red-500 text-3xl font-bold leading-none outline-none">&times;</button>
+            </div>
+
+            <div class="p-6 overflow-y-auto space-y-6">
+                <div id="cierre-dinamico-container" class="space-y-4"></div>
+                
+                <div id="cierre-resultado-panel" class="p-4 rounded-xl border-2 border-slate-200 bg-slate-50 text-center transition-colors">
+                    <p class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Diferencia Total</p>
+                    <p id="cierre-diferencia-monto" class="text-3xl font-black text-slate-800">$0</p>
+                    <p id="cierre-diferencia-texto" class="text-sm font-bold text-slate-500 mt-1">Caja Cuadrada Perfectamente</p>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1 uppercase">Observaciones (Opcional):</label>
+                    <textarea id="cierre-notas" rows="2" placeholder="Ej: Se usaron $2.000 para pagar el gas..." class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-slate-500 outline-none resize-none"></textarea>
+                </div>
+            </div>
+
+            <div class="p-4 border-t border-slate-100 bg-white grid grid-cols-2 gap-3 shrink-0">
+                <button onclick="document.getElementById('modal-cierre-caja').classList.add('hidden')" class="px-4 py-4 font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">Cancelar</button>
+                <button onclick="confirmarCierreCaja()" id="btn-finalizar-cierre" class="px-4 py-4 font-black text-white bg-slate-800 hover:bg-slate-900 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2">
+                    <span>🔒</span> Cerrar Turno
+                </button>
+            </div>
         </div>
     </div>
 </div>

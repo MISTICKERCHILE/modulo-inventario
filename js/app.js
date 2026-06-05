@@ -482,6 +482,18 @@ window.cambiarVista = async function(vista) {
         }
     }
 
+    // 👉 NUEVO: Mostrar u ocultar el submenú de Personas inteligentemente
+    const vistasPersonas = ['dashboard_personas', 'hr_calendario', 'hr_colaboradores', 'hr_documentos', 'hr_formacion', 'hr_solicitudes'];
+    const submenuPersonas = document.getElementById('submenu-dashboard_personas');
+    
+    if (submenuPersonas) {
+        if (vistasPersonas.includes(vista)) {
+            submenuPersonas.classList.remove('hidden');
+        } else {
+            submenuPersonas.classList.add('hidden');
+        }
+    }
+
     const main = document.getElementById('main-content');
     // Reemplazamos el texto aburrido por tu GIF personalizado
     main.innerHTML = `
@@ -529,6 +541,9 @@ window.cambiarVista = async function(vista) {
         if(vista === 'parametros') window.cargarParametros();
         if(vista === 'ventas' && typeof window.cargarVentas === 'function') window.cargarVentas();
         if(vista === 'ranking' && typeof window.cargarLaboratorio === 'function') window.cargarLaboratorio();
+        if(vista === 'hr_colaboradores' && typeof window.cargarFichasLaborales === 'function') window.cargarFichasLaborales();
+        if(vista === 'hr_colaboradores' && typeof window.cambiarTabHR === 'function') window.cambiarTabHR('fichas');
+        if(vista === 'hr_calendario' && typeof window.toggleConfiguracionHR === 'function') window.toggleConfiguracionHR(false);
 
     } catch (error) {
         main.innerHTML = `<div class="p-8 text-center text-red-500"><p class="text-4xl mb-4">❌</p><h2 class="text-xl font-bold">Error cargando la vista: ${vista}.html</h2></div>`;

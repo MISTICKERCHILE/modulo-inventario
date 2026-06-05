@@ -144,6 +144,128 @@
     </div>
 </div>
 
+<div class="lg:col-span-12 mt-8 space-y-8">
+            
+    <div class="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm">
+        <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+            <div>
+                <h3 class="text-lg font-bold text-slate-900">Ajustes Generales del POS</h3>
+                <p class="text-xs text-slate-500 mt-1">Configuración de comportamiento de la caja registradora.</p>
+            </div>
+        </div>
+        <div class="p-6">
+            <div class="flex items-center justify-between p-4 border border-slate-200 rounded-lg bg-white">
+                <div>
+                    <p class="font-bold text-sm text-slate-800">Permitir vender sin stock físico</p>
+                    <p class="text-xs text-slate-500 mt-1">Si se activa, el POS permitirá facturar productos aunque el inventario llegue a números negativos.</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="toggle-vender-sin-stock" onchange="guardarParametroVentaSinStock(this.checked)" class="sr-only peer">
+                    <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-emerald-500 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm">
+        <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+            <div>
+                <h3 class="text-lg font-bold text-slate-900">Formas de Pago</h3>
+                <p class="text-xs text-slate-500 mt-1">Administra los métodos de pago aceptados en tu sucursal.</p>
+            </div>
+            <button onclick="abrirModalNuevoMetodoPago()" class="px-4 py-2 bg-emerald-600 text-white rounded-md text-sm font-bold hover:bg-emerald-500 transition-colors shadow-sm">
+                + Nueva Forma de Pago
+            </button>
+        </div>
+        
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-slate-600">
+                <thead class="bg-slate-50 text-xs uppercase font-bold text-slate-500 border-b border-slate-200">
+                    <tr>
+                        <th class="px-6 py-3">Nombre</th>
+                        <th class="px-6 py-3">Tipo / Categoría</th>
+                        <th class="px-6 py-3">Moneda</th>
+                        <th class="px-6 py-3 text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-metodos-pago" class="divide-y divide-slate-100">
+                    <tr><td colspan="4" class="px-6 py-8 text-center text-slate-400 font-bold animate-pulse">Cargando métodos de pago...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div id="modal-nuevo-metodo" class="hidden fixed inset-0 bg-slate-900/60 z-[70] flex items-center justify-center backdrop-blur-sm p-4">
+    <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-md border-t-4 border-emerald-500">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-lg font-black text-slate-900">Agregar Forma de Pago</h3>
+            <button onclick="cerrarModalNuevoMetodoPago()" class="text-slate-400 hover:text-red-500 text-2xl font-bold leading-none outline-none">&times;</button>
+        </div>
+        
+        <div class="space-y-4">
+            <div>
+                <label class="block text-xs font-bold text-slate-500 mb-1 uppercase">Nombre Público</label>
+                <input type="text" id="input-mp-nombre" placeholder="Ej: Junaeb, Efectivo USD, Zelle..." class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none">
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1 uppercase">Tipo Contable</label>
+                    <select id="select-mp-tipo" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none">
+                        <option value="EFECTIVO">Efectivo 💵</option>
+                        <option value="TARJETA">Tarjeta 💳</option>
+                        <option value="TRANSFERENCIA">Transferencia 📱</option>
+                        <option value="CREDITO">Crédito Interno 📝</option>
+                    </select>
+                </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1 uppercase">Moneda</label>
+                        <select id="select-mp-moneda" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none">
+                            <option value="CLP">CLP - Peso Chileno</option>
+                            <option value="USD">USD - Dólar Estadounidense</option>
+                            <option value="EUR">EUR - Euro</option>
+                            <option value="ARS">ARS - Peso Argentino</option>
+                            <option value="BOB">BOB - Boliviano</option>
+                            <option value="BRL">BRL - Real Brasileño</option>
+                            <option value="COP">COP - Peso Colombiano</option>
+                            <option value="CRC">CRC - Colón Costarricense</option>
+                            <option value="MXN">MXN - Peso Mexicano</option>
+                            <option value="PEN">PEN - Sol Peruano</option>
+                            <option value="PYG">PYG - Guaraní Paraguayo</option>
+                            <option value="UYU">UYU - Peso Uruguayo</option>
+                            <option value="VES">VES - Bolívar Venezolano</option>
+                            <option value="AED">AED - Dírham de los EAU</option>
+                            <option value="AUD">AUD - Dólar Australiano</option>
+                            <option value="CAD">CAD - Dólar Canadiense</option>
+                            <option value="CHF">CHF - Franco Suizo</option>
+                            <option value="CNY">CNY - Yuan Chino</option>
+                            <option value="GBP">GBP - Libra Esterlina</option>
+                            <option value="JPY">JPY - Yen Japonés</option>
+                            <option value="NZD">NZD - Dólar Neozelandés</option>
+                            <option value="RUB">RUB - Rublo Ruso</option>
+                            <option value="OTRA">Otra moneda...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 mt-4">
+                    <label class="block text-xs font-bold text-blue-800 mb-1 uppercase">Valor de Conversión</label>
+                    <p class="text-[10px] text-blue-600 mb-2">Si es tu moneda local, déjalo en <b>1</b>. Si es extranjera, indica a cuánto equivale.</p>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-blue-400 font-bold">×</span>
+                        <input type="number" id="input-mp-tasa" value="1" step="0.01" class="w-full pl-8 pr-4 py-2 bg-white border border-blue-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="guardarNuevoMetodoPago()" id="btn-guardar-mp" class="w-full mt-2 py-4 bg-emerald-600 text-white rounded-xl text-sm font-black uppercase tracking-wider hover:bg-emerald-500 transition-colors shadow-lg active:scale-95">
+                Guardar Método
+            </button>
+        </div>
+    </div>
+</div>
+
 <style>
     .toggle-permiso {
         appearance: none; width: 18px; height: 18px; border: 1.5px solid #cbd5e1; border-radius: 4px; cursor: pointer; background-color: white; transition: all 0.2s;
