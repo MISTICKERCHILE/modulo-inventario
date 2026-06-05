@@ -285,19 +285,22 @@ window.abrirModalConteoMasivo = async function() {
     document.getElementById('modal-conteo-masivo').classList.remove('hidden');
 }
 
+// =========================================================
+// CARGAR FILAS CONTEO MASIVO (Ahora con Código de Barras y Categoría)
+// =========================================================
 window.cargarFilasConteoMasivo = async function(idUbicacion) {
     const tbody = document.getElementById('cm-filas');
     if(!idUbicacion) { 
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-slate-400 py-8">Selecciona una ubicación.</td></tr>'; 
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-slate-400 py-8">Selecciona una ubicación.</td></tr>'; 
         return; 
     }
     
-    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-emerald-600 py-8 font-bold animate-pulse">⏳ Cargando catálogo y saldos...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-emerald-600 py-8 font-bold animate-pulse">⏳ Cargando catálogo y saldos...</td></tr>';
 
     try {
-        // 1. Traemos TODOS los productos físicos del catálogo
+        // 1. Traemos TODOS los productos físicos del catálogo (Incluyendo Código de Barras y Categoría)
         const { data: prodsFisicos } = await clienteSupabase.from('productos')
-            .select('id, nombre, id_unidad_almacenamiento(abreviatura)')
+            .select('id, nombre, codigo_barras, categorias(nombre), id_unidad_almacenamiento(abreviatura)')
             .eq('id_empresa', window.miEmpresaId)
             .is('control_stock', true)
             .order('nombre');
@@ -317,7 +320,6 @@ window.cargarFilasConteoMasivo = async function(idUbicacion) {
             let cantActual = 0;
 
             if (idUbicacion === 'GENERAL') {
-                // REGLA GENERAL: Mostrar si tiene saldo en 'General' (NULL) o si es un producto totalmente NUEVO
                 const saldoGeneral = saldosDelProducto.find(s => s.id_ubicacion === null);
                 const sinNingunSaldo = saldosDelProducto.length === 0;
 
@@ -326,7 +328,6 @@ window.cargarFilasConteoMasivo = async function(idUbicacion) {
                     cantActual = saldoGeneral ? saldoGeneral.cantidad_actual_ua : 0;
                 }
             } else {
-                // REGLA BODEGA ESPECÍFICA: Solo mostrar si YA existe físicamente en esa ubicación
                 const saldoEspecifico = saldosDelProducto.find(s => s.id_ubicacion === idUbicacion);
                 if (saldoEspecifico) {
                     mostrar = true;
@@ -334,22 +335,28 @@ window.cargarFilasConteoMasivo = async function(idUbicacion) {
                 }
             }
 
-            // Si cumple la regla, dibujamos la fila
+            // Si cumple la regla, dibujamos la fila escondiendo el código de barras y mostrando la categoría
             if (mostrar) {
                 contadorFilas++;
                 const abrev = p.id_unidad_almacenamiento?.abreviatura || 'UA';
+                const categoriaStr = p.categorias?.nombre || 'Sin Categoría';
+                const codBarrasStr = p.codigo_barras || '';
+
                 html += `
-                <tr class="border-b border-slate-100 fila-conteo-item hover:bg-slate-50 transition-colors" data-codigobarras="${p.codigo_barras || ''}">
+                <tr class="border-b border-slate-100 fila-conteo-item hover:bg-slate-50 transition-colors" data-codigobarras="${codBarrasStr}" data-categoria="${categoriaStr.toLowerCase()}">
                     <td class="py-3 px-4 font-medium text-sm text-slate-700">
                         ${p.nombre}
                         <input type="hidden" class="cm-select-prod" value="${p.id}">
                         <input type="hidden" class="cm-cant-anterior" value="${cantActual}">
                     </td>
-                    <td class="py-3 px-4 text-center">
+                    <td class="py-3 px-4 text-xs font-bold text-slate-500 hidden md:table-cell">
+                        ${categoriaStr}
+                    </td>
+                    <td class="py-3 px-4 text-center hidden sm:table-cell">
                         <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-100">${abrev}</span>
                     </td>
                     <td class="py-3 px-4 relative flex justify-center flex-col items-center">
-                        <span class="text-[10px] text-slate-400 font-bold mb-1">Stock Sistema: ${cantActual}</span>
+                        <span class="text-[10px] text-slate-400 font-bold mb-1">Stock: ${cantActual}</span>
                         <input type="number" step="0.01" value="${cantActual}" class="w-24 px-2 py-1 border border-slate-300 rounded text-center cm-input-cant font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner">
                     </td>
                     <td class="py-3 px-4 text-right">
@@ -359,13 +366,12 @@ window.cargarFilasConteoMasivo = async function(idUbicacion) {
             }
         });
 
-        // 4. Si la bodega está realmente vacía, mostramos el mensaje
         if (contadorFilas === 0) {
             tbody.innerHTML = `
             <tr>
-                <td colspan="4" class="text-center text-slate-400 py-12">
+                <td colspan="5" class="text-center text-slate-400 py-12">
                     <p class="text-lg">📭 Ubicación Vacía</p>
-                    <p class="text-xs mt-1">No hay productos registrados aquí. Usa el botón "+ Agregar Fila" para sumar un producto a esta ubicación.</p>
+                    <p class="text-xs mt-1">No hay productos registrados aquí. Usa el botón "+ Agregar Producto" para sumar un producto a esta ubicación.</p>
                 </td>
             </tr>`;
         } else {
@@ -373,8 +379,48 @@ window.cargarFilasConteoMasivo = async function(idUbicacion) {
         }
 
     } catch (error) {
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-red-500 py-8">❌ Error al cargar los datos.</td></tr>';
+        console.error(error);
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-red-500 py-8">❌ Error al cargar los datos.</td></tr>';
     }
+}
+
+// =========================================================
+// FILTRAR PRODUCTOS CONTEO MASIVO (Ahora busca por Nombre, Categoría y Código)
+// =========================================================
+window.filtrarProductosConteo = function() {
+    const textoBuscado = document.getElementById('cm-buscador-productos').value.toLowerCase().trim();
+    const filasProductos = document.querySelectorAll('#cm-filas tr.fila-conteo-item'); 
+    
+    if(filasProductos.length === 0) return;
+
+    filasProductos.forEach(fila => {
+        // Obtenemos los 3 datos de la fila
+        const nombreProducto = fila.cells[0].innerText.toLowerCase();
+        const categoria = fila.getAttribute('data-categoria') || '';
+        const codigoBarras = fila.getAttribute('data-codigobarras')?.toLowerCase() || '';
+        
+        // Evaluamos si el texto buscado coincide con alguno de los 3
+        const coincideNombre = nombreProducto.includes(textoBuscado);
+        const coincideCategoria = categoria.includes(textoBuscado);
+        const coincideCodigo = (textoBuscado !== '' && codigoBarras === textoBuscado);
+
+        if (coincideNombre || coincideCategoria || coincideCodigo) {
+            fila.style.display = ''; // Lo mostramos
+            
+            // Auto-Focus Mágico: Si fue un match exacto por código de barras, selecciona el input
+            if (coincideCodigo) {
+                const inputCant = fila.querySelector('.cm-input-cant');
+                if (inputCant) {
+                    setTimeout(() => { 
+                        inputCant.focus();
+                        inputCant.select(); 
+                    }, 50);
+                }
+            }
+        } else {
+            fila.style.display = 'none'; // Lo ocultamos
+        }
+    });
 }
 
 window.agregarFilaConteoFija = function(idProd, nombre, abrev, cantActual) {
@@ -739,36 +785,4 @@ window.imprimirPlanillaConteo = function() {
         </html>
     `);
     printWindow.document.close();
-}
-
-// --- NUEVA FUNCIÓN: Buscador en tiempo real para Conteo Masivo (Con soporte para Código de Barras) ---
-window.filtrarProductosConteo = function() {
-    const textoBuscado = document.getElementById('cm-buscador-productos').value.toLowerCase().trim();
-    const filasProductos = document.querySelectorAll('#cm-filas tr');
-    
-    if(filasProductos.length === 0 || filasProductos[0].cells.length === 1) return;
-
-    filasProductos.forEach(fila => {
-        // Obtenemos el nombre y el código de barras oculto que acabamos de meter
-        const nombreProducto = fila.cells[0].innerText.toLowerCase();
-        const codigoBarras = fila.getAttribute('data-codigobarras')?.toLowerCase() || '';
-        
-        if (nombreProducto.includes(textoBuscado) || (textoBuscado !== '' && codigoBarras === textoBuscado)) {
-            fila.style.display = ''; 
-            
-            // Si fue un "Match Exacto" por código de barras, le hacemos focus automático al input de cantidad
-            if (codigoBarras !== '' && codigoBarras === textoBuscado) {
-                const inputCant = fila.querySelector('.cm-input-cant');
-                if (inputCant) {
-                    // Esperamos un pelín para que la pantalla termine de pintar antes de hacer focus
-                    setTimeout(() => { 
-                        inputCant.focus();
-                        inputCant.select(); 
-                    }, 50);
-                }
-            }
-        } else {
-            fila.style.display = 'none'; 
-        }
-    });
 }
