@@ -814,7 +814,6 @@ window.abrirEscanerCamara = function(contexto) {
 
     window.html5QrCode = new Html5Qrcode("lector-codigo-barras");
 
-    // OPTIMIZACIÓN MÓVIL
     const anchoPantalla = window.innerWidth;
     const boxWidth = anchoPantalla < 500 ? 250 : 300;
     
@@ -832,7 +831,6 @@ window.abrirEscanerCamara = function(contexto) {
         ]
     };
 
-    // Pedimos la cámara trasera de forma sencilla y universal
     window.html5QrCode.start(
         { facingMode: "environment" }, 
         config,
@@ -854,7 +852,6 @@ window.abrirEscanerCamara = function(contexto) {
                     if (typeof window.filtrarProductosConteo === 'function') window.filtrarProductosConteo();
                 }
             } else if (contexto === 'POS') {
-                // CASO 3: Punto de Venta
                 const buscadorPOS = document.getElementById('pos-input-buscador');
                 if (buscadorPOS) {
                     buscadorPOS.value = decodedText;
@@ -867,10 +864,10 @@ window.abrirEscanerCamara = function(contexto) {
         (errorMessage) => { /* Ignoramos errores visuales menores */ }
     ).catch((err) => {
         console.error(err);
-        alert("❌ Error al iniciar la cámara. Verifica que diste los permisos en tu navegador.");
+        alert("❌ Error al iniciar la cámara. Verifica los permisos.");
         window.cerrarEscaner();
     });
-}; 
+}; // <---- ESTA ES LA LLAVE MÁGICA QUE REVIVIRÁ TU APP 🪄
 
 window.cerrarEscaner = function() {
     document.getElementById('modal-escaner').classList.add('hidden');
