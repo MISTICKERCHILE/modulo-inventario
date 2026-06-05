@@ -808,55 +808,54 @@ window.abrirEscanerCamara = function(contexto) {
     
     modal.classList.remove('hidden');
 
-    // Si había una cámara pegada de antes, la limpiamos
     if (window.html5QrCode) {
         window.html5QrCode.clear();
     }
 
-    // Inicializamos el lector en el div que creamos en el HTML
     window.html5QrCode = new Html5Qrcode("lector-codigo-barras");
 
-    // Configuramos para que lea rápido y se enfoque en un rectángulo
+    // OPTIMIZACIÓN MÓVIL: Ajustamos el cuadro según el tamaño de la pantalla y forzamos el enfoque
+    const anchoPantalla = window.innerWidth;
+    const boxWidth = anchoPantalla < 500 ? 250 : 300;
+    
     const config = { 
-        fps: 10, 
-        qrbox: { width: 250, height: 100 } 
+        fps: 15, // Un poco más rápido para móviles
+        qrbox: { width: boxWidth, height: 120 },
+        aspectRatio: 1.0,
+        formatsToSupport: [ // Le decimos qué buscar exactamente para que no pierda tiempo
+            Html5QrcodeSupportedFormats.EAN_13,
+            Html5QrcodeSupportedFormats.EAN_8,
+            Html5QrcodeSupportedFormats.UPC_A,
+            Html5QrcodeSupportedFormats.UPC_E,
+            Html5QrcodeSupportedFormats.CODE_128,
+            Html5QrcodeSupportedFormats.QR_CODE
+        ]
     };
 
-    // Iniciamos pidiendo la cámara trasera ("environment")
+    // Obligamos a pedir la cámara trasera con autoenfoque continuo si el celular lo permite
     window.html5QrCode.start(
-        { facingMode: "environment" }, 
+        { facingMode: "environment", advanced: [{ focusMode: "continuous" }] }, 
         config,
         (decodedText) => {
-            // ¡ÉXITO! Leyó un código
-            sonidoBeep(); // Un pequeño feedback (opcional)
+            sonidoBeep();
             window.cerrarEscaner();
 
             if (contexto === 'PRODUCTO') {
-                // CASO 1: Creando o editando un producto
                 const inputCodigo = document.getElementById('prod-codigo-barras');
                 if (inputCodigo) {
                     inputCodigo.value = decodedText;
-                    // Le damos un brillito verde rápido para que el usuario sepa que funcionó
                     inputCodigo.classList.add('ring-4', 'ring-emerald-500', 'bg-emerald-50');
                     setTimeout(() => inputCodigo.classList.remove('ring-4', 'ring-emerald-500', 'bg-emerald-50'), 800);
                 }
             } else if (contexto === 'INVENTARIO') {
-                // CASO 2: Conteo Masivo de Inventario (Lo conectaremos en el próximo paso)
-                if (typeof window.procesarEscaneoInventario === 'function') {
-                    window.procesarEscaneoInventario(decodedText);
-                } else {
-                    // Plan B por si acaso
-                    const buscadorInv = document.getElementById('cm-buscador-productos');
-                    if (buscadorInv) {
-                        buscadorInv.value = decodedText;
-                        if (typeof window.filtrarProductosConteo === 'function') window.filtrarProductosConteo();
-                    }
+                const buscadorInv = document.getElementById('cm-buscador-productos');
+                if (buscadorInv) {
+                    buscadorInv.value = decodedText;
+                    if (typeof window.filtrarProductosConteo === 'function') window.filtrarProductosConteo();
                 }
             }
         },
-        (errorMessage) => {
-            // Ignoramos los errores de frame (pasan docenas por segundo si no hay código a la vista)
-        }
+        (errorMessage) => { /* Ignoramos errores de frame vacío */ }
     ).catch((err) => {
         alert("❌ Error al iniciar la cámara. Verifica que diste los permisos en tu navegador.");
         window.cerrarEscaner();
