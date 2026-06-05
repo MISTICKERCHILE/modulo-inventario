@@ -840,7 +840,7 @@ window.abrirEscanerCamara = function(contexto) {
             sonidoBeep();
             window.cerrarEscaner();
 
-            if (contexto === 'PRODUCTO') {
+if (contexto === 'PRODUCTO') {
                 const inputCodigo = document.getElementById('prod-codigo-barras');
                 if (inputCodigo) {
                     inputCodigo.value = decodedText;
@@ -852,6 +852,16 @@ window.abrirEscanerCamara = function(contexto) {
                 if (buscadorInv) {
                     buscadorInv.value = decodedText;
                     if (typeof window.filtrarProductosConteo === 'function') window.filtrarProductosConteo();
+                }
+            } else if (contexto === 'POS') {
+                // CASO 3: Punto de Venta
+                const buscadorPOS = document.getElementById('pos-input-buscador');
+                if (buscadorPOS) {
+                    buscadorPOS.value = decodedText;
+                    // Llamamos directo a la función de búsqueda que ya tienes en ventas.js
+                    if (typeof window.buscarProductoPOS === 'function') {
+                        window.buscarProductoPOS(decodedText);
+                    }
                 }
             }
         },
