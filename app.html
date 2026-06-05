@@ -798,6 +798,23 @@
         </div>
     </div>
 
+    <!-- MODAL ESCÁNER DE CÓDIGO DE BARRAS -->
+    <div id="modal-escaner" class="hidden fixed inset-0 bg-slate-900/90 z-[200] flex flex-col items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white p-4 md:p-6 rounded-xl shadow-2xl w-full max-w-md flex flex-col border-t-4 border-emerald-500 relative">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">📷 Escáner Activo</h3>
+                <button type="button" onclick="cerrarEscaner()" class="text-slate-400 hover:text-red-500 text-3xl font-bold leading-none transition-colors">&times;</button>
+            </div>
+            
+            <!-- Aquí la librería inyectará el video de la cámara -->
+            <div id="lector-codigo-barras" class="w-full bg-slate-100 rounded-lg overflow-hidden border border-slate-200 min-h-[300px] flex items-center justify-center">
+                <p class="text-slate-400 text-sm font-bold animate-pulse">Iniciando cámara...</p>
+            </div>
+            
+            <p class="text-xs text-slate-500 text-center mt-4">Centra el código de barras en el recuadro. La lectura es automática.</p>
+        </div>
+    </div>
+
     <script src="/config.js"></script> 
     <script src="js/supabase.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
