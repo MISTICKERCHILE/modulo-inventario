@@ -792,48 +792,6 @@ window.toggleCarritoMobile = function() {
 let escanerCamara = null;
 let modoEscanerActual = 'POS'; 
 
-window.abrirEscanerCamara = function(modo = 'POS') {
-    modoEscanerActual = modo;
-    document.getElementById('modal-escaner-camara').classList.remove('hidden');
-    
-    if (escanerCamara) { escanerCamara.clear(); }
-    
-    escanerCamara = new Html5Qrcode("lector-camara-pos");
-    const config = { 
-        fps: 15, 
-        qrbox: { width: 300, height: 120 },
-        formatsToSupport: [
-            Html5QrcodeSupportedFormats.EAN_13,
-            Html5QrcodeSupportedFormats.EAN_8,
-            Html5QrcodeSupportedFormats.UPC_A,
-            Html5QrcodeSupportedFormats.UPC_E,
-            Html5QrcodeSupportedFormats.CODE_128,
-            Html5QrcodeSupportedFormats.QR_CODE
-        ]
-    };
-    
-    escanerCamara.start({ facingMode: "environment" }, config, 
-        (textoDecodificado) => {
-            window.cerrarEscanerCamara();
-            
-            if (modoEscanerActual === 'PRODUCTO') {
-                document.getElementById('prod-codigo-barras').value = textoDecodificado;
-                if (navigator.vibrate) navigator.vibrate(100);
-                const input = document.getElementById('prod-codigo-barras');
-                input.classList.add('bg-emerald-100', 'ring-2', 'ring-emerald-500');
-                setTimeout(() => input.classList.remove('bg-emerald-100', 'ring-2', 'ring-emerald-500'), 1000);
-            } else {
-                procesarEscaneoFisico(textoDecodificado);
-            }
-        },
-        (mensajeError) => {
-        }
-    ).catch(err => {
-        console.error("Error iniciando cámara:", err);
-        alert("❌ No se pudo acceder a la cámara. Revisa los permisos de tu navegador.");
-        window.cerrarEscanerCamara();
-    });
-}
 
 window.cerrarEscanerCamara = function() {
     document.getElementById('modal-escaner-camara').classList.add('hidden');
