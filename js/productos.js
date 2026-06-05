@@ -280,6 +280,64 @@ window.renderizarTablaProductos = function() {
     if(elNext) elNext.disabled = window.prodCurrentPage === totalPages || totalPages === 0;
 }
 
+// ==========================================
+// FUNCIÓN EDITAR PRODUCTO (La que se había borrado)
+// ==========================================
+window.editarProductoFull = async function(id) {
+    const { data } = await clienteSupabase.from('productos').select('*').eq('id', id).single();
+    
+    await window.abrirModalProducto(true); 
+
+    document.getElementById('prod-nombre').value = data.nombre || '';
+    
+    // Si vino del Excel sin SKU, le generamos uno en el acto
+    const finalSku = data.sku || ('PRD-' + Math.random().toString(36).substring(2, 8).toUpperCase());
+    document.getElementById('prod-sku').value = finalSku;
+    
+    document.getElementById('prod-categoria').value = data.id_categoria || '';
+    document.getElementById('prod-u-compra').value = data.id_unidad_compra || '';
+    document.getElementById('prod-cant-ua').value = data.cant_en_ua_de_uc || 1;
+    document.getElementById('prod-u-almacen').value = data.id_unidad_almacenamiento || '';
+    document.getElementById('prod-cant-um').value = data.cant_en_um_de_ua || 1;
+    document.getElementById('prod-u-menor').value = data.id_unidad_menor || '';
+    document.getElementById('prod-cant-ur').value = data.cant_en_ur_de_um || 1;
+    document.getElementById('prod-u-receta').value = data.id_unidad_receta || '';
+    document.getElementById('prod-tiene-receta').checked = data.tiene_receta || false;
+
+    // Cargar datos del POS y Precios
+    if(document.getElementById('prod-codigo-barras')) document.getElementById('prod-codigo-barras').value = data.codigo_barras || '';
+    
+    const checkPos = document.getElementById('prod-vender-pos');
+    if(checkPos) {
+        checkPos.checked = data.vender_en_pos || false;
+        const cajaPrecios = document.getElementById('contenedor-precios-pos');
+        if(cajaPrecios) cajaPrecios.classList.toggle('hidden', !checkPos.checked);
+    }
+        
+    if(document.getElementById('prod-precio-neto')) document.getElementById('prod-precio-neto').value = data.precio_venta_neto || '';
+    if(document.getElementById('prod-precio-iva')) document.getElementById('prod-precio-iva').value = data.precio_venta_iva || '';
+    const checkControl = document.getElementById('prod-control-stock');
+    if(checkControl) {
+        checkControl.checked = data.control_stock !== false; 
+    }
+
+    const { data: reglas } = await clienteSupabase.from('reglas_stock_sucursal').select('*').eq('id_producto', id);
+    (reglas || []).forEach(r => {
+        const inputMin = document.getElementById(`regla-min-${r.id_sucursal}`);
+        const inputIdeal = document.getElementById(`regla-ideal-${r.id_sucursal}`);
+        if(inputMin) inputMin.value = r.stock_minimo_ua || 0;
+        if(inputIdeal) inputIdeal.value = r.stock_ideal_ua || 0;
+    });
+    
+    window.modoEdicion = { activo: true, id: id, form: 'producto' };
+    document.getElementById('titulo-modal-producto').innerText = "Editando Producto ✏️";
+    document.getElementById('btn-guardar-producto').innerText = 'Actualizar ✏️';
+    document.getElementById('btn-guardar-producto').classList.replace('bg-emerald-600', 'bg-blue-600');
+}
+
+// ==========================================
+// FUNCIÓN DUPLICAR PRODUCTO
+// ==========================================
 window.duplicarProductoFull = async function(id) {
     // 1. Traemos los datos del producto original
     const { data } = await clienteSupabase.from('productos').select('*').eq('id', id).single();
