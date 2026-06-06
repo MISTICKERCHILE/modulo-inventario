@@ -27,36 +27,47 @@ window.cambiarSubTabPedidos = function(subtab) {
 }
 
 // ==========================================
-// --- SECCIÓN 1: PEDIDOS SUGERIDOS (COLABORATIVO EN LA NUBE) ---
+// --- SECCIÓN 1: PEDIDOS SUGERIDOS (INTELIGENCIA AÑADIDA) ---
 // ==========================================
 window.carritoPedidos = [];
 window.proveedoresGlobal = [];
-window.sugerenciasGlobal = []; // Memoria para el buscador inteligente
+window.sugerenciasGlobal = []; 
+window.memoriaProveedoresXProducto = {}; // 👉 NUEVO: Para auto-seleccionar proveedor
 
 window.cargarPedidosPlanificados = async function() {
-    // 1. CARGAR CARRITO DESDE LA NUBE (Supabase)
-    // 👉 Le pedimos a Supabase que traiga también la abreviatura de la Unidad de Compra (UC)
+    // 1. CARGAR CARRITO
     const { data: carritoNube } = await clienteSupabase.from('carrito_pedidos')
         .select(`
             id_sucursal, id_producto, id_proveedor, cantidad_uc, precio_referencia, 
-            sucursales(nombre), 
-            productos(nombre, id_unidad_compra(abreviatura)), 
-            proveedores(nombre)
-        `)
-        .eq('id_empresa', window.miEmpresaId);
+            sucursales(nombre), productos(nombre, id_unidad_compra(abreviatura)), proveedores(nombre)
+        `).eq('id_empresa', window.miEmpresaId);
 
     window.carritoPedidos = (carritoNube || []).map(c => ({
         idSuc: c.id_sucursal, nombreSuc: c.sucursales?.nombre,
         idProd: c.id_producto, nombreProd: c.productos?.nombre,
         idProv: c.id_proveedor, nombreProv: c.proveedores?.nombre,
         cantUC: c.cantidad_uc, precioRef: c.precio_referencia, 
-        // 👉 Extraemos la abreviatura correcta. Si no tiene, pone 'UC'.
         abrevUC: c.productos?.id_unidad_compra?.abreviatura || 'UC' 
     }));
 
     if(window.actualizarBadgeCarrito) window.actualizarBadgeCarrito();
 
-    // 2. CARGAR DATOS PARA SUGERENCIAS
+    // 👉 1.5 MAGIA: BUSCAR EL ÚLTIMO PROVEEDOR DE CADA PRODUCTO
+    const { data: historialProvs } = await clienteSupabase
+        .from('compras_detalles')
+        .select('id_producto, compras!inner(id_proveedor)')
+        .eq('estado', 'Recibido')
+        .order('created_at', { ascending: false }); // Trae los más nuevos primero
+
+    window.memoriaProveedoresXProducto = {};
+    (historialProvs || []).forEach(h => {
+        // Solo guardamos el primero que encuentre (que será el más reciente)
+        if(!window.memoriaProveedoresXProducto[h.id_producto]) {
+            window.memoriaProveedoresXProducto[h.id_producto] = h.compras?.id_proveedor;
+        }
+    });
+
+    // 2. CARGAR DATOS GENERALES
     const [{ data: sucursales }, { data: prods }, { data: reglas }, { data: provs }, { data: saldos }, { data: transitoGlobal }] = await Promise.all([
         clienteSupabase.from('sucursales').select('id, nombre').eq('id_empresa', window.miEmpresaId),
         clienteSupabase.from('productos').select('id, nombre, ultimo_costo_uc, cant_en_ua_de_uc, id_unidad_almacenamiento(abreviatura), id_unidad_compra(abreviatura)').eq('id_empresa', window.miEmpresaId),
@@ -116,38 +127,32 @@ window.cargarPedidosPlanificados = async function() {
         });
     });
 
-    window.filtrarSugerencias(); // Pinta la pantalla
+    window.filtrarSugerencias(); 
     window.renderizarBandejaPedidos();
 }
 
-// NUEVO: BUSCADOR Y ORDENAMIENTO INTELIGENTE
 window.filtrarSugerencias = function() {
     const term = (document.getElementById('search-sugerencias')?.value || '').toLowerCase().trim();
     const sort = document.getElementById('sort-sugerencias')?.value || 'urgencia';
     
     let filtradas = [...window.sugerenciasGlobal];
 
-    // 1. Filtrar
     if(term) {
         filtradas = filtradas.filter(s => s.nombreProd.toLowerCase().includes(term) || s.nombreSuc.toLowerCase().includes(term));
     }
 
-    // 2. Ordenar
     filtradas.sort((a, b) => {
         if(sort === 'nombre') return a.nombreProd.localeCompare(b.nombreProd);
         if(sort === 'precio') return b.precioRef - a.precioRef;
         if(sort === 'mayor_sugerido') return b.sugeridoUA - a.sugeridoUA;
-        // Urgencia (Por defecto): Manuales primero, luego los de menor stock virtual respecto a su mínimo
+        
         if(a.esManual !== b.esManual) return a.esManual ? -1 : 1;
-        const urgenciaA = a.stockVirtual - a.stockMinimoEstrategico;
-        const urgenciaB = b.stockVirtual - b.stockMinimoEstrategico;
-        return urgenciaA - urgenciaB;
+        return (a.stockVirtual - a.stockMinimoEstrategico) - (b.stockVirtual - b.stockMinimoEstrategico);
     });
 
     window.renderizarHTMLSugerencias(filtradas);
 }
 
-// NUEVO: PINTAR HTML CON ACORDEONES PLEGABLES
 window.renderizarHTMLSugerencias = function(lista) {
     const container = document.getElementById('lista-alertas-compras');
     if(!container) return;
@@ -157,9 +162,6 @@ window.renderizarHTMLSugerencias = function(lista) {
         return;
     }
 
-    const optsProvs = '<option value="">Elige Proveedor...</option>' + window.proveedoresGlobal.map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
-    
-    // Agrupamos por sucursal
     const porSucursal = {};
     lista.forEach(s => {
         if(!porSucursal[s.idSuc]) porSucursal[s.idSuc] = { nombre: s.nombreSuc, items: [] };
@@ -173,6 +175,13 @@ window.renderizarHTMLSugerencias = function(lista) {
             const txtEnCamino = p.incomingUA > 0 ? `<br><span class="text-[9px] text-blue-500 font-bold uppercase">+ ${p.incomingUA.toFixed(2)} en camino</span>` : '';
             const badgeManual = p.esManual ? `<span class="bg-indigo-100 text-indigo-700 text-[9px] px-1.5 py-0.5 rounded ml-2 uppercase font-bold">Manual</span>` : '';
             const paramsParaBoton = `'${idSuc}', '${data.nombre}', '${p.idProd}', '${p.nombreProd.replace(/'/g, "\\'")}', ${p.sugeridoUC}, '${p.abrevUC}', ${p.precioRef}`;
+
+            // 👉 AUTO-SELECCIÓN DE PROVEEDOR
+            const ultimoProvId = window.memoriaProveedoresXProducto[p.idProd];
+            const optsProvs = '<option value="">Elige Proveedor...</option>' + window.proveedoresGlobal.map(prov => {
+                const isSelected = prov.id === ultimoProvId ? 'selected' : '';
+                return `<option value="${prov.id}" ${isSelected}>${prov.nombre}</option>`;
+            }).join('');
 
             return `
             <tr id="fila-sug-${idSuc}-${p.idProd}" ${displayStyle} class="hover:bg-orange-50 transition-colors border-b border-orange-100">
@@ -190,7 +199,7 @@ window.renderizarHTMLSugerencias = function(lista) {
                 <td class="px-4 py-3 text-center font-bold text-slate-600">
                     <div class="flex items-center justify-center gap-2">
                         $${p.precioRef}
-                        <button onclick="verHistorialPrecios('${p.idProd}', '${p.nombreProd.replace(/'/g, "\\'")}')" class="text-blue-500 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-full w-6 h-6 flex items-center justify-center font-bold transition-colors text-xs" title="Ver historial de precios de compra">i</button>
+                        <button onclick="verHistorialPrecios('${p.idProd}', '${p.nombreProd.replace(/'/g, "\\'")}', ${p.precioRef})" class="text-blue-500 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-full w-6 h-6 flex items-center justify-center font-bold transition-colors text-xs" title="Ver historial de precios de compra">i</button>
                     </div>
                 </td>
                 <td class="px-4 py-3 text-right">
@@ -218,11 +227,9 @@ window.renderizarHTMLSugerencias = function(lista) {
     container.innerHTML = htmlGlobal;
 }
 
-// CARRITO EN LA NUBE: Guardar
 window.agregarPedidoAlCarrito = async function(idSuc, nombreSuc, idProd, nombreProd, cantUC, abrevUC, precioRef, idProv) {
     if(!idProv) return alert("❌ Selecciona un proveedor primero.");
     
-    // Guardar en Supabase
     const { data: existente } = await clienteSupabase.from('carrito_pedidos')
         .select('id, cantidad_uc').eq('id_sucursal', idSuc).eq('id_producto', idProd).eq('id_proveedor', idProv).maybeSingle();
 
@@ -237,22 +244,18 @@ window.agregarPedidoAlCarrito = async function(idSuc, nombreSuc, idProd, nombreP
     const fila = document.getElementById(`fila-sug-${idSuc}-${idProd}`);
     if(fila) fila.style.display = 'none';
     
-    // Recargar nube silenciosamente
     window.cargarPedidosPlanificados(); 
 }
 
-// CARRITO EN LA NUBE: Quitar
 window.quitarDelCarrito = async function(idSuc, idProd, idProv) {
     await clienteSupabase.from('carrito_pedidos').delete().eq('id_sucursal', idSuc).eq('id_producto', idProd).eq('id_proveedor', idProv);
     window.cargarPedidosPlanificados();
 }
 
-// CARRITO EN LA NUBE: Actualizar Cantidad
 window.actualizarCantCarrito = async function(idSuc, idProd, idProv, nuevaCant) {
     await clienteSupabase.from('carrito_pedidos').update({ cantidad_uc: parseFloat(nuevaCant) || 0 }).eq('id_sucursal', idSuc).eq('id_producto', idProd).eq('id_proveedor', idProv);
     window.cargarPedidosPlanificados();
 }
-
 
 window.renderizarBandejaPedidos = function() {
     const contenedor = document.getElementById('contenedor-bandeja');
@@ -312,9 +315,6 @@ window.renderizarBandejaPedidos = function() {
     lista.innerHTML = html;
 }
 
-// ==========================================
-// --- FUNCIONES DE IMPRESIÓN Y WHATSAPP ---
-// ==========================================
 window.imprimirPedido = async function(idProv, nombreProv) {
     const items = window.carritoPedidos.filter(i => i.idProv === idProv);
     if(items.length === 0) return alert("No hay productos en este pedido.");
@@ -328,13 +328,7 @@ window.imprimirPedido = async function(idProv, nombreProv) {
 
     let filasHtml = '';
     items.forEach(item => {
-        filasHtml += `
-            <tr>
-                <td class="prod-col">${item.nombreProd}</td>
-                <td class="unit-col text-center font-mono font-bold">${item.cantUC}</td>
-                <td class="unit-col text-center font-bold text-gray-500">${item.abrevUC}</td>
-            </tr>
-        `;
+        filasHtml += `<tr><td class="prod-col">${item.nombreProd}</td><td class="unit-col text-center font-mono font-bold">${item.cantUC}</td><td class="unit-col text-center font-bold text-gray-500">${item.abrevUC}</td></tr>`;
     });
 
     const printWindow = window.open('', '_blank', 'width=800,height=600');
@@ -391,21 +385,11 @@ window.whatsappPedido = async function(idProv, nombreProv) {
     const nombreSuc = items[0].nombreSuc;
     const fechaHoy = new Date().toLocaleDateString('es-CL');
 
-    let texto = `Hola, este es nuestro pedido para el ${fechaHoy}:\n\n`;
-    texto += `*Destino:* Sucursal ${nombreSuc}\n`;
-    texto += `*Proveedor:* ${nombreProv}\n\n`;
-    texto += `*LISTA DE PRODUCTOS:*\n`;
-
-    items.forEach(item => {
-        texto += `- ${item.cantUC} ${item.abrevUC} de ${item.nombreProd}\n`;
-    });
-
+    let texto = `Hola, este es nuestro pedido para el ${fechaHoy}:\n\n*Destino:* Sucursal ${nombreSuc}\n*Proveedor:* ${nombreProv}\n\n*LISTA DE PRODUCTOS:*\n`;
+    items.forEach(item => { texto += `- ${item.cantUC} ${item.abrevUC} de ${item.nombreProd}\n`; });
     texto += `\nPor favor confirmar recepción. ¡Gracias!`;
 
-    const url = telf
-        ? `https://wa.me/${telf}?text=${encodeURIComponent(texto)}`
-        : `https://wa.me/?text=${encodeURIComponent(texto)}`;
-
+    const url = telf ? `https://wa.me/${telf}?text=${encodeURIComponent(texto)}` : `https://wa.me/?text=${encodeURIComponent(texto)}`;
     window.open(url, '_blank');
 }
 
@@ -435,22 +419,19 @@ window.generarPedidoTransitoMasivo = async function(idProv) {
             }));
             await clienteSupabase.from('compras_detalles').insert(detallesAInsertar);
             
-            // 👉 LIMPIANDO EL TRUCO NEGATIVO
             for (const item of itemsDelProveedor) {
                 const { data: reglaActual } = await clienteSupabase.from('reglas_stock_sucursal')
                     .select('id, stock_minimo_ua').eq('id_sucursal', item.idSuc).eq('id_producto', item.idProd).maybeSingle();
                 
                 if (reglaActual && reglaActual.stock_minimo_ua < 0) {
-                    await clienteSupabase.from('reglas_stock_sucursal')
-                        .update({ stock_minimo_ua: reglaActual.stock_minimo_ua * -1 }).eq('id', reglaActual.id);
+                    await clienteSupabase.from('reglas_stock_sucursal').update({ stock_minimo_ua: reglaActual.stock_minimo_ua * -1 }).eq('id', reglaActual.id);
                 }
             }
             
-            // BORRAMOS EL CARRITO COLABORATIVO DE LA NUBE
             await clienteSupabase.from('carrito_pedidos').delete().eq('id_empresa', window.miEmpresaId).eq('id_proveedor', idProv);
         }
 
-        window.cargarPedidosPlanificados(); // Recarga limpia
+        window.cargarPedidosPlanificados(); 
         alert("✅ Pedido/Orden generada exitosamente. Revisa las pestañas de Tránsito o Producción.");
 
     } catch (error) {
@@ -583,7 +564,7 @@ window.abrirModalRecepcionMasiva = async function(idSuc, nombreSuc, idProv, nomb
     const txtPostpuesto = isProd ? '🟡 En Proceso / Pausado' : '🟡 Postpuesto (No llegó hoy)';
     const txtNoRecibido = isProd ? '🔴 Fallido / Cancelado' : '🔴 No Recibido (Rechazado/Falta)';
     const txtCantReal = isProd ? 'Cant. Producida:' : 'Cant. Real Llegó:';
-    const txtMotivo = isProd ? 'Motivo (Ej: Fallo máquina, Falta insumo)...' : 'Motivo (Ej: Roto, No llegó)...';
+    const txtMotivo = isProd ? 'Motivo (Ej: Fallo máquina)...' : 'Motivo (Ej: Roto, Falta)...';
 
     const tbody = document.getElementById('rm-filas');
     tbody.innerHTML = detalles.map(d => {
@@ -592,8 +573,6 @@ window.abrirModalRecepcionMasiva = async function(idSuc, nombreSuc, idProv, nomb
         const labelPost = isPostpuesto ? `<span class="block mt-1 text-[10px] bg-yellow-100 text-yellow-800 px-2 py-1 rounded w-max">Estaba en espera</span>` : '';
         const colorInputCant = isProd ? 'text-purple-700' : 'text-emerald-700';
 
-// Condición clave: Si es Producción (isProd), el bloque de costo queda vacío. Si no, dibuja el input.
-// Condición clave: Si es Producción, muestra LOTE. Si es externo, muestra COSTO NETO.
         const bloqueExtra = isProd ? `
             <div class="flex items-center gap-2 mt-2 border-t pt-2 border-slate-100">
                 <span class="text-xs text-slate-500 font-bold w-24">Lote / OT:</span>
@@ -628,12 +607,10 @@ window.abrirModalRecepcionMasiva = async function(idSuc, nombreSuc, idProv, nomb
                         <input type="number" step="0.01" value="${d.cantidad_uc}" class="w-24 px-2 py-1 border rounded text-sm font-bold text-center ${colorInputCant} outline-none focus:ring-1 focus:ring-emerald-500 input-cant-real">
                         <span class="text-xs font-bold text-slate-400">${abrev}</span>
                     </div>
-                    
                     <div class="flex items-center gap-2">
                         <span class="text-xs text-slate-500 font-bold w-24">Guardar en:</span>
                         <select class="flex-1 px-2 py-1 border rounded text-xs select-ubi-rec bg-white outline-none focus:ring-1 focus:ring-emerald-500">${optsUbi}</select>
                     </div>
-                    
                     ${bloqueExtra}
                 </div>
                 <div id="zona-no-recibido-${d.id}" class="zona-dinamica hidden bg-red-50 p-2 rounded border border-red-100">
@@ -670,12 +647,8 @@ window.guardarRecepcionMasiva = async function() {
     const isProd = window.tipoVistaTransitoActiva === 'Interno';
 
     for (const fila of filas) {
-        if(!fila.querySelector('.select-estado-rec').value) {
-            return alert("❌ Debes seleccionar un estado para todos los productos de la lista.");
-        }
-        if(fila.querySelector('.select-estado-rec').value === 'No Recibido' && fila.querySelector('.input-motivo-rec').value.trim() === '') {
-            return alert("❌ Debes escribir un motivo para los productos marcados como fallidos o no recibidos.");
-        }
+        if(!fila.querySelector('.select-estado-rec').value) return alert("❌ Selecciona un estado para todos los productos.");
+        if(fila.querySelector('.select-estado-rec').value === 'No Recibido' && fila.querySelector('.input-motivo-rec').value.trim() === '') return alert("❌ Escribe el motivo de lo no recibido.");
     }
 
     const btn = document.getElementById('btn-guardar-recepcion');
@@ -689,27 +662,15 @@ window.guardarRecepcionMasiva = async function() {
             const idProd = fila.getAttribute('data-id-prod');
             const idCompraPadre = fila.getAttribute('data-id-compra');
             const factorConversion = parseFloat(fila.getAttribute('data-factor'));
-            const precioUC = parseFloat(fila.getAttribute('data-precio-uc'));
             const estado = fila.querySelector('.select-estado-rec').value;
 
             if (estado === 'Recibido') {
                 const cantUC = parseFloat(fila.querySelector('.input-cant-real').value);
-                
-                // 👉 EL CAMBIO: Si es producción el precio es 0, si no, lo lee del input
                 const precioRealUC = isProd ? 0 : (parseFloat(fila.querySelector('.input-precio-real').value) || 0);
-                
                 const idUbi = fila.querySelector('.select-ubi-rec').value || null;
                 const cantUA = cantUC * factorConversion;
 
-                // Actualizamos que se recibió, ajustamos la cantidad real que llegó y el PRECIO REAL pagado
-                await clienteSupabase.from('compras_detalles')
-                    .update({
-                        estado: 'Recibido', 
-                        cantidad_uc: cantUC, 
-                        precio_unitario_uc: precioRealUC, 
-                        subtotal: cantUC * precioRealUC
-                    })
-                    .eq('id', idDetalle);
+                await clienteSupabase.from('compras_detalles').update({ estado: 'Recibido', cantidad_uc: cantUC, precio_unitario_uc: precioRealUC, subtotal: cantUC * precioRealUC }).eq('id', idDetalle);
 
                 let query = clienteSupabase.from('inventario_saldos').select('id, cantidad_actual_ua').eq('id_producto', idProd).eq('id_sucursal', window.recepcionActivaSuc);
                 if(idUbi) query = query.eq('id_ubicacion', idUbi); else query = query.is('id_ubicacion', null);
@@ -721,44 +682,26 @@ window.guardarRecepcionMasiva = async function() {
                     await clienteSupabase.from('inventario_saldos').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_sucursal: window.recepcionActivaSuc, id_ubicacion: idUbi, cantidad_actual_ua: cantUA }]);
                 }
 
-                // 👉 LEYENDO EL LOTE
                 const loteInput = isProd ? fila.querySelector('.input-lote-real').value.trim() : '';
                 const textoLote = loteInput ? `Lote/OT: ${loteInput}` : 'Producción Interna';
-                
-                // Tipo de movimiento OFICIAL (Para los filtros de la BD)
                 const tipoMov = isProd ? 'INGRESO_PRODUCCION' : 'INGRESO_COMPRA';
-                
-                // Texto de referencia para el usuario (Kardex)
                 const refMov = isProd ? textoLote : 'Recepción Masiva de Proveedor';
 
-                // Guardamos el movimiento en el historial con su costo unitario real
-                await clienteSupabase.from('movimientos_inventario').insert([{ 
-                    id_empresa: window.miEmpresaId, 
-                    id_producto: idProd, 
-                    id_ubicacion: idUbi, 
-                    tipo_movimiento: tipoMov, 
-                    cantidad_movida: cantUA, 
-                    costo_unitario_movimiento: precioRealUC, 
-                    referencia: refMov 
-                }]);
+                await clienteSupabase.from('movimientos_inventario').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_ubicacion: idUbi, tipo_movimiento: tipoMov, cantidad_movida: cantUA, costo_unitario_movimiento: precioRealUC, referencia: refMov }]);
                 
-                // Actualizamos el "último costo" en el maestro de productos para futuras sugerencias
                 if(!isProd) await clienteSupabase.from('productos').update({ ultimo_costo_uc: precioRealUC }).eq('id', idProd);
                 if(idCompraPadre) comprasAfectadas.add(idCompraPadre);
 
             } else if (estado === 'No Recibido') {
                 const motivo = fila.querySelector('.input-motivo-rec').value;
                 await clienteSupabase.from('compras_detalles').update({estado: 'No Recibido', motivo_no_recepcion: motivo}).eq('id', idDetalle);
-
                 if(idCompraPadre) comprasAfectadas.add(idCompraPadre);
             } else {
                 await clienteSupabase.from('compras_detalles').update({estado: 'Postpuesto'}).eq('id', idDetalle);
             }
         }
 
-        for(const idC of comprasAfectadas) {
-            await clienteSupabase.from('compras').update({estado: 'Completada'}).eq('id', idC);
-        }
+        for(const idC of comprasAfectadas) { await clienteSupabase.from('compras').update({estado: 'Completada'}).eq('id', idC); }
 
         btn.innerText = "✅ Guardar Recepción"; btn.disabled = false;
         document.getElementById('modal-recepcion-masiva').classList.add('hidden');
@@ -770,17 +713,16 @@ window.guardarRecepcionMasiva = async function() {
 }
 
 // ==========================================
-// HISTORIAL DE PRECIOS DE COMPRA (BOTÓN "i")
+// HISTORIAL DE PRECIOS HÍBRIDO (BOTÓN "i")
 // ==========================================
-window.verHistorialPrecios = async function(idProd, nombreProd) {
-    // 1. Abrimos el modal y ponemos el título
+// 👉 NUEVO: Ahora recibe el precio base del catálogo
+window.verHistorialPrecios = async function(idProd, nombreProd, precioCatalogo) {
     document.getElementById('hp-producto-nombre').innerText = nombreProd;
     document.getElementById('modal-historial-precios').classList.remove('hidden');
     
     const tbody = document.getElementById('lista-historial-precios');
     tbody.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-slate-500 font-bold animate-pulse">⏳ Buscando en el historial...</td></tr>';
 
-    // 2. Buscamos las últimas 10 compras recibidas de este producto
     const { data, error } = await clienteSupabase.from('compras_detalles')
         .select('precio_unitario_uc, created_at, compras!inner(proveedores(nombre))')
         .eq('id_producto', idProd)
@@ -788,12 +730,24 @@ window.verHistorialPrecios = async function(idProd, nombreProd) {
         .order('created_at', { ascending: false })
         .limit(10);
 
-    // 3. Dibujamos los resultados
+    // Si NO hay compras, mostramos el precio base que guardamos en Catálogos
     if (error || !data || data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" class="text-center py-6 text-slate-500">No hay compras anteriores registradas para este producto.</td></tr>';
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="3" class="text-center py-4 bg-orange-50 text-orange-800 text-xs border-b border-orange-100">
+                    No hay compras recientes de este producto.<br>Mostrando el Costo Neto configurado en el catálogo.
+                </td>
+            </tr>
+            <tr class="hover:bg-slate-50 border-b border-slate-100">
+                <td class="px-4 py-3 font-medium text-slate-600">Catálogo Base</td>
+                <td class="px-4 py-3 font-bold text-slate-800">Proveedor General</td>
+                <td class="px-4 py-3 text-right font-bold text-emerald-700 font-mono">$${precioCatalogo}</td>
+            </tr>
+        `;
         return;
     }
 
+    // Si SÍ hay compras, mostramos el historial normal
     tbody.innerHTML = data.map(d => `
         <tr class="hover:bg-slate-50 border-b border-slate-100">
             <td class="px-4 py-3 font-medium text-slate-600">${new Date(d.created_at).toLocaleDateString('es-CL')}</td>
