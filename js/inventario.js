@@ -50,9 +50,12 @@ window.abrirInventarioSucursal = async function(idSuc, nombreSuc) {
     const tbody = document.getElementById('lista-inventario');
     tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-8 text-center text-slate-500 font-bold">⏳ Cargando inventario...</td></tr>';
 
-    // 1. Traemos los datos de la base de datos
+    // 1. Traemos los datos de la base de datos (simplificamos la consulta de ubicación)
     const [{ data: saldos }, { data: ubicaciones }, { data: reglas }] = await Promise.all([
-        clienteSupabase.from('inventario_saldos').select(`id, id_producto, cantidad_actual_ua, id_ubicacion, productos (nombre, id_unidad_almacenamiento(abreviatura)), ubicaciones_internas (nombre)`).eq('id_empresa', window.miEmpresaId).eq('id_sucursal', idSuc),
+        clienteSupabase.from('inventario_saldos')
+            .select(`id, id_producto, cantidad_actual_ua, id_ubicacion, productos (nombre, id_unidad_almacenamiento(abreviatura))`) // <- LE QUITAMOS EL TEXTO DE UBICACIONES INTERNAS AQUÍ
+            .eq('id_empresa', window.miEmpresaId)
+            .eq('id_sucursal', idSuc),
         clienteSupabase.from('ubicaciones_internas').select('id, nombre').eq('id_sucursal', idSuc),
         clienteSupabase.from('reglas_stock_sucursal').select('id_producto, stock_minimo_ua').eq('id_empresa', window.miEmpresaId).eq('id_sucursal', idSuc)
     ]);
@@ -63,16 +66,21 @@ window.abrirInventarioSucursal = async function(idSuc, nombreSuc) {
     (reglas||[]).forEach(r => reglasMap[r.id_producto] = r.stock_minimo_ua);
 
     // 2. Preparamos los datos en memoria para que no se borren
-    window.saldosGlobalMemoria = (saldos || []).map(s => ({
-        id: s.id,
-        id_producto: s.id_producto,
-        id_ubicacion: s.id_ubicacion,
-        cantidad_actual_ua: s.cantidad_actual_ua,
-        nombreProducto: s.productos?.nombre || 'Producto sin nombre',
-        nombreUbicacion: s.ubicaciones_internas?.nombre || 'General / Sin Ubicación Específica',
-        stockMinimo: reglasMap[s.id_producto] || 0,
-        abreviatura: s.productos?.id_unidad_almacenamiento?.abreviatura || 'UA'
-    }));
+    window.saldosGlobalMemoria = (saldos || []).map(s => {
+        // Buscamos el nombre de la ubicación en el array local que sí cargó bien
+        const ubiLocal = (ubicaciones || []).find(u => u.id === s.id_ubicacion);
+        
+        return {
+            id: s.id,
+            id_producto: s.id_producto,
+            id_ubicacion: s.id_ubicacion,
+            cantidad_actual_ua: s.cantidad_actual_ua,
+            nombreProducto: s.productos?.nombre || 'Producto sin nombre',
+            nombreUbicacion: ubiLocal ? ubiLocal.nombre : 'General / Sin Ubicación Específica', // <- SOLUCIÓN INTELIGENTE LOCAL
+            stockMinimo: reglasMap[s.id_producto] || 0,
+            abreviatura: s.productos?.id_unidad_almacenamiento?.abreviatura || 'UA'
+        };
+    });
 
     // 3. Mandamos a pintar la tabla
     renderizarTablaInventario(window.saldosGlobalMemoria);
