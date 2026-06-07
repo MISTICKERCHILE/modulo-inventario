@@ -52,18 +52,21 @@ window.cargarPedidosPlanificados = async function() {
 
     if(window.actualizarBadgeCarrito) window.actualizarBadgeCarrito();
 
-    // 👉 1.5 MAGIA: BUSCAR EL ÚLTIMO PROVEEDOR DE CADA PRODUCTO
+// 👉 1.5 MAGIA: BUSCAR EL ÚLTIMO PROVEEDOR DE CADA PRODUCTO (Mejorado)
     const { data: historialProvs } = await clienteSupabase
         .from('compras_detalles')
-        .select('id_producto, compras!inner(id_proveedor)')
+        .select('id_producto, created_at, compras!inner(id_proveedor, id_empresa)')
         .eq('estado', 'Recibido')
-        .order('created_at', { ascending: false }); // Trae los más nuevos primero
+        .eq('compras.id_empresa', window.miEmpresaId)
+        .order('created_at', { ascending: false });
 
     window.memoriaProveedoresXProducto = {};
     (historialProvs || []).forEach(h => {
-        // Solo guardamos el primero que encuentre (que será el más reciente)
-        if(!window.memoriaProveedoresXProducto[h.id_producto]) {
-            window.memoriaProveedoresXProducto[h.id_producto] = h.compras?.id_proveedor;
+        // Supabase a veces manda esto como Array, nos aseguramos de leerlo sin importar el formato
+        const idProv = Array.isArray(h.compras) ? h.compras[0]?.id_proveedor : h.compras?.id_proveedor;
+        
+        if (idProv && !window.memoriaProveedoresXProducto[h.id_producto]) {
+            window.memoriaProveedoresXProducto[h.id_producto] = idProv;
         }
     });
 
@@ -176,10 +179,11 @@ window.renderizarHTMLSugerencias = function(lista) {
             const badgeManual = p.esManual ? `<span class="bg-indigo-100 text-indigo-700 text-[9px] px-1.5 py-0.5 rounded ml-2 uppercase font-bold">Manual</span>` : '';
             const paramsParaBoton = `'${idSuc}', '${data.nombre}', '${p.idProd}', '${p.nombreProd.replace(/'/g, "\\'")}', ${p.sugeridoUC}, '${p.abrevUC}', ${p.precioRef}`;
 
-            // 👉 AUTO-SELECCIÓN DE PROVEEDOR
+            // 👉 AUTO-SELECCIÓN DE PROVEEDOR (A prueba de balas)
             const ultimoProvId = window.memoriaProveedoresXProducto[p.idProd];
             const optsProvs = '<option value="">Elige Proveedor...</option>' + window.proveedoresGlobal.map(prov => {
-                const isSelected = prov.id === ultimoProvId ? 'selected' : '';
+                // Forzamos que ambos sean Textos (String) para que JavaScript no se confunda
+                const isSelected = String(prov.id) === String(ultimoProvId) ? 'selected' : '';
                 return `<option value="${prov.id}" ${isSelected}>${prov.nombre}</option>`;
             }).join('');
 
