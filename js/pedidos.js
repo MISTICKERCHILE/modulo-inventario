@@ -52,17 +52,18 @@ window.cargarPedidosPlanificados = async function() {
 
     if(window.actualizarBadgeCarrito) window.actualizarBadgeCarrito();
 
-// 👉 1.5 MAGIA: BUSCAR EL ÚLTIMO PROVEEDOR DE CADA PRODUCTO (Mejorado)
-    const { data: historialProvs } = await clienteSupabase
+    // 👉 1.5 MAGIA: BUSCAR EL ÚLTIMO PROVEEDOR DE CADA PRODUCTO (Libre de errores 400)
+    const { data: historialProvs, error: errMagia } = await clienteSupabase
         .from('compras_detalles')
-        .select('id_producto, created_at, compras!inner(id_proveedor, id_empresa)')
+        .select('id_producto, created_at, compras(id_proveedor)')
         .eq('estado', 'Recibido')
-        .eq('compras.id_empresa', window.miEmpresaId)
         .order('created_at', { ascending: false });
+
+    if(errMagia) console.warn("Error leyendo historial:", errMagia.message);
 
     window.memoriaProveedoresXProducto = {};
     (historialProvs || []).forEach(h => {
-        // Supabase a veces manda esto como Array, nos aseguramos de leerlo sin importar el formato
+        // Leemos el proveedor sin importar si Supabase lo manda como objeto o como array
         const idProv = Array.isArray(h.compras) ? h.compras[0]?.id_proveedor : h.compras?.id_proveedor;
         
         if (idProv && !window.memoriaProveedoresXProducto[h.id_producto]) {
@@ -719,7 +720,6 @@ window.guardarRecepcionMasiva = async function() {
 // ==========================================
 // HISTORIAL DE PRECIOS HÍBRIDO (BOTÓN "i")
 // ==========================================
-// 👉 NUEVO: Ahora recibe el precio base del catálogo
 window.verHistorialPrecios = async function(idProd, nombreProd, precioCatalogo) {
     document.getElementById('hp-producto-nombre').innerText = nombreProd;
     document.getElementById('modal-historial-precios').classList.remove('hidden');
@@ -727,14 +727,15 @@ window.verHistorialPrecios = async function(idProd, nombreProd, precioCatalogo) 
     const tbody = document.getElementById('lista-historial-precios');
     tbody.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-slate-500 font-bold animate-pulse">⏳ Buscando en el historial...</td></tr>';
 
+    // Consulta limpia, sin filtros cruzados que rompan Supabase
     const { data, error } = await clienteSupabase.from('compras_detalles')
-        .select('precio_unitario_uc, created_at, compras!inner(proveedores(nombre))')
+        .select('precio_unitario_uc, created_at, compras(proveedores(nombre))')
         .eq('id_producto', idProd)
         .eq('estado', 'Recibido')
         .order('created_at', { ascending: false })
         .limit(10);
 
-    // Si NO hay compras, mostramos el precio base que guardamos en Catálogos
+    // Si NO hay compras (o hay error), mostramos el precio base
     if (error || !data || data.length === 0) {
         tbody.innerHTML = `
             <tr>
@@ -751,12 +752,20 @@ window.verHistorialPrecios = async function(idProd, nombreProd, precioCatalogo) 
         return;
     }
 
-    // Si SÍ hay compras, mostramos el historial normal
-    tbody.innerHTML = data.map(d => `
+    // Si SÍ hay compras, mostramos el historial normal extrayendo el nombre de forma segura
+    tbody.innerHTML = data.map(d => {
+        let nombreProv = 'Proveedor Desconocido';
+        if (d.compras) {
+            const provData = Array.isArray(d.compras) ? d.compras[0]?.proveedores : d.compras?.proveedores;
+            if (provData) nombreProv = Array.isArray(provData) ? provData[0]?.nombre : provData?.nombre;
+        }
+
+        return `
         <tr class="hover:bg-slate-50 border-b border-slate-100">
             <td class="px-4 py-3 font-medium text-slate-600">${new Date(d.created_at).toLocaleDateString('es-CL')}</td>
-            <td class="px-4 py-3 font-bold text-slate-800">${d.compras?.proveedores?.nombre || 'Proveedor Desconocido'}</td>
+            <td class="px-4 py-3 font-bold text-slate-800">${nombreProv}</td>
             <td class="px-4 py-3 text-right font-bold text-emerald-700 font-mono">$${d.precio_unitario_uc}</td>
         </tr>
-    `).join('');
+        `;
+    }).join('');
 }
