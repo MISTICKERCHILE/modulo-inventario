@@ -619,24 +619,85 @@ window.cargarPedidosEnTransito = async function(tipoFiltro = 'Externo') {
     document.getElementById('transito-vista-sucursales').classList.remove('hidden');
     document.getElementById('transito-vista-detalle').classList.add('hidden');
 
-    const { data: sucursales } = await clienteSupabase.from('sucursales').select('id, nombre').eq('id_empresa', window.miEmpresaId);
     const grid = document.getElementById('grid-sucursales-transito');
+    grid.innerHTML = '<p class="text-slate-500 font-bold py-8 col-span-full text-center animate-pulse">⏳ Contando pedidos en camino...</p>';
 
-    const isProd = tipoFiltro === 'Interno';
-    const icon = isProd ? '🏭' : '🏢';
-    const textDesc = isProd ? 'Ver tareas de producción →' : 'Ver camiones en camino →';
-    const borderColor = isProd ? 'hover:border-purple-400' : 'hover:border-blue-400';
-    const textColor = isProd ? 'text-purple-600' : 'text-blue-600';
+    try {
+        // 1. Consultas PLANAS y seguras (100% a prueba de Error 400)
+        const [{ data: sucursales }, { data: detalles }] = await Promise.all([
+            clienteSupabase.from('sucursales').select('id, nombre').eq('id_empresa', window.miEmpresaId),
+            clienteSupabase.from('compras_detalles').select('id_sucursal_destino, id_compra').in('estado', ['En Tránsito', 'Postpuesto'])
+        ]);
 
-    grid.innerHTML = (sucursales||[]).map(s => `
-        <button onclick="abrirTransitoSucursal('${s.id}', '${s.nombre}')" class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md ${borderColor} transition-all text-left flex flex-col items-start gap-4 cursor-pointer outline-none">
-            <span class="text-5xl">${icon}</span>
-            <div>
-                <span class="block font-bold text-xl text-slate-800">${s.nombre}</span>
-                <span class="text-sm ${textColor} font-medium mt-1">${textDesc}</span>
-            </div>
-        </button>
-    `).join('');
+        // 2. Extraemos IDs de las compras y las buscamos
+        const idsCompras = [...new Set((detalles || []).map(d => d.id_compra).filter(Boolean))];
+        let compras = [];
+        if (idsCompras.length > 0) {
+            const { data: cData } = await clienteSupabase.from('compras').select('id, id_proveedor').in('id', idsCompras);
+            compras = cData || [];
+        }
+
+        // 3. Extraemos IDs de los proveedores y los buscamos
+        const idsProvs = [...new Set(compras.map(c => c.id_proveedor).filter(Boolean))];
+        let proveedores = [];
+        if (idsProvs.length > 0) {
+            const { data: pData } = await clienteSupabase.from('proveedores').select('id, tipo').in('id', idsProvs);
+            proveedores = pData || [];
+        }
+
+        // 4. Configuración visual según pestaña (Interno vs Externo)
+        const isProd = tipoFiltro === 'Interno';
+        const icon = isProd ? '🏭' : '🏢';
+        const borderColor = isProd ? 'hover:border-purple-400' : 'hover:border-blue-400';
+        const textColor = isProd ? 'text-purple-600' : 'text-blue-600';
+        const textoPlural = isProd ? 'órdenes de producción' : 'pedidos en camino';
+
+        // 5. Ensamblamos las tarjetas contando los pedidos
+        grid.innerHTML = (sucursales || []).map(s => {
+            
+            // Filtramos los detalles para esta sucursal específica
+            const detallesSucursal = (detalles || []).filter(d => d.id_sucursal_destino === s.id);
+            
+            // Usamos un Set para contar Pedidos únicos (Órdenes), no los productos individuales
+            const comprasUnicas = new Set();
+
+            detallesSucursal.forEach(det => {
+                const compra = compras.find(c => c.id === det.id_compra);
+                if (compra) {
+                    const prov = proveedores.find(p => p.id === compra.id_proveedor);
+                    const tipoProv = prov?.tipo || 'Externo'; // Por defecto es Externo si no hay tipo
+                    
+                    if (tipoProv === tipoFiltro) {
+                        comprasUnicas.add(compra.id); // Guardamos el ID del pedido
+                    }
+                }
+            });
+
+            const cantidadPedidos = comprasUnicas.size;
+            
+            // Texto dinámico con excelente UX
+            const textoMostrar = cantidadPedidos > 0 
+                ? `Ver ${textoPlural}: ${cantidadPedidos} →` 
+                : `Sin ${textoPlural} pendientes`;
+
+            // Efecto UX: Opacidad un poco baja si no hay nada en camino para no distraer
+            const opacity = cantidadPedidos === 0 ? 'opacity-60 hover:opacity-100' : 'opacity-100';
+
+            return `
+            <button onclick="abrirTransitoSucursal('${s.id}', '${s.nombre}')" class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md ${borderColor} transition-all text-left flex flex-col items-start gap-4 cursor-pointer outline-none ${opacity}">
+                <span class="text-5xl">${icon}</span>
+                <div>
+                    <span class="block font-bold text-xl text-slate-800">${s.nombre}</span>
+                    <span class="text-sm ${textColor} font-medium mt-1">${textoMostrar}</span>
+                </div>
+            </button>
+            `;
+        }).join('');
+
+    } catch (error) {
+        console.error("Error al contar pedidos en tránsito:", error.message);
+        grid.innerHTML = '<p class="text-red-500 py-8 col-span-full">Error al cargar conteos.</p>';
+    }
 }
 
 window.volverGridTransito = function() {
