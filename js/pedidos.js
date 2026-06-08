@@ -299,6 +299,9 @@ window.actualizarCantCarrito = async function(idSuc, idProd, idProv, nuevaCant) 
     window.cargarPedidosPlanificados();
 }
 
+// ==========================================
+// 1. BANDEJA AGRUPADA POR PROVEEDOR + SUCURSAL
+// ==========================================
 window.renderizarBandejaPedidos = function() {
     const contenedor = document.getElementById('contenedor-bandeja');
     const lista = document.getElementById('lista-carritos-proveedor');
@@ -307,14 +310,20 @@ window.renderizarBandejaPedidos = function() {
     if (window.carritoPedidos.length === 0) { contenedor.classList.add('hidden'); lista.innerHTML = ''; return; }
     contenedor.classList.remove('hidden');
 
-    const agrupadoPorProveedor = {};
+    // 👉 NUEVO: Agrupamos usando una llave combinada de Proveedor + Sucursal
+    const agrupado = {};
     window.carritoPedidos.forEach(item => {
-        if(!agrupadoPorProveedor[item.idProv]) agrupadoPorProveedor[item.idProv] = { nombreProv: item.nombreProv, items: [] };
-        agrupadoPorProveedor[item.idProv].items.push(item);
+        const key = `${item.idProv}_${item.idSuc}`;
+        if(!agrupado[key]) agrupado[key] = { 
+            idProv: item.idProv, nombreProv: item.nombreProv, 
+            idSuc: item.idSuc, nombreSuc: item.nombreSuc, 
+            items: [] 
+        };
+        agrupado[key].items.push(item);
     });
 
     let html = '';
-    for (const [idProv, data] of Object.entries(agrupadoPorProveedor)) {
+    for (const [key, data] of Object.entries(agrupado)) {
         let totalEstimado = 0;
         const filasHTML = data.items.map(item => {
             totalEstimado += (item.cantUC * item.precioRef);
@@ -324,19 +333,19 @@ window.renderizarBandejaPedidos = function() {
                 <td class="px-4 py-2 font-medium text-sm">${item.nombreProd}</td>
                 <td class="px-4 py-2 text-center">
                     <div class="flex items-center justify-center gap-1">
-                        <input type="number" step="0.01" value="${item.cantUC}" onchange="actualizarCantCarrito('${item.idSuc}', '${item.idProd}', '${idProv}', this.value)" class="w-20 px-2 py-1 border border-slate-300 rounded text-center text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 text-blue-700">
+                        <input type="number" step="0.01" value="${item.cantUC}" onchange="actualizarCantCarrito('${item.idSuc}', '${item.idProd}', '${item.idProv}', this.value)" class="w-20 px-2 py-1 border border-slate-300 rounded text-center text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 text-blue-700">
                         <span class="text-xs text-slate-500 font-bold">${item.abrevUC}</span>
                     </div>
                 </td>
                 <td class="px-4 py-2 text-right text-slate-500 font-mono text-sm w-32">$${item.precioRef}</td>
-                <td class="px-2 py-2 text-center w-16"><button onclick="quitarDelCarrito('${item.idSuc}', '${item.idProd}', '${idProv}')" class="text-red-400 hover:text-red-600 text-lg transition-transform hover:scale-110" title="Quitar de la bandeja">❌</button></td>
+                <td class="px-2 py-2 text-center w-16"><button onclick="quitarDelCarrito('${item.idSuc}', '${item.idProd}', '${data.idProv}')" class="text-red-400 hover:text-red-600 text-lg transition-transform hover:scale-110" title="Quitar">❌</button></td>
             </tr>`;
         }).join('');
 
         html += `
         <div class="bg-white rounded-lg border border-slate-300 shadow-sm overflow-hidden p-1 mb-4">
             <div class="bg-slate-800 text-white px-4 py-3 flex justify-between items-center rounded-t-md">
-                <h4 class="font-bold text-lg">📝 Para: ${data.nombreProv}</h4>
+                <h4 class="font-bold text-lg">📝 Para: ${data.nombreProv} <span class="text-slate-400 text-sm font-normal">| Destino: ${data.nombreSuc}</span></h4>
                 <span class="text-sm font-medium bg-slate-700 px-3 py-1 rounded border border-slate-600">Total est: $${totalEstimado.toFixed(2)}</span>
             </div>
             <div class="p-4 bg-slate-50 overflow-x-auto">
@@ -347,9 +356,9 @@ window.renderizarBandejaPedidos = function() {
                     <tbody>${filasHTML}</tbody>
                 </table>
                 <div class="flex justify-end gap-3 mt-2 flex-wrap">
-                    <button onclick="imprimirPedido('${idProv}', '${data.nombreProv.replace(/'/g, "\\'")}')" class="px-4 py-2 bg-white text-slate-700 border border-slate-300 rounded font-bold shadow-sm hover:bg-slate-100 transition-colors">🖨️ Imprimir PDF</button>
-                    <button onclick="whatsappPedido('${idProv}', '${data.nombreProv.replace(/'/g, "\\'")}')" class="px-4 py-2 bg-[#25D366] text-white rounded font-bold shadow-sm hover:bg-[#1ebe5d] transition-colors">💬 WhatsApp</button>
-                    <button onclick="generarPedidoTransitoMasivo('${idProv}')" class="px-6 py-2 bg-blue-600 text-white rounded font-bold shadow hover:bg-blue-700 transition-transform hover:scale-105">🚀 Pedido Generado</button>
+                    <button onclick="imprimirPedido('${data.idProv}', '${data.nombreProv.replace(/'/g, "\\'")}', '${data.idSuc}', '${data.nombreSuc.replace(/'/g, "\\'")}')" class="px-4 py-2 bg-white text-slate-700 border border-slate-300 rounded font-bold shadow-sm hover:bg-slate-100 transition-colors">🖨️ Imprimir PDF</button>
+                    <button onclick="whatsappPedido('${data.idProv}', '${data.nombreProv.replace(/'/g, "\\'")}', '${data.idSuc}', '${data.nombreSuc.replace(/'/g, "\\'")}')" class="px-4 py-2 bg-[#25D366] text-white rounded font-bold shadow-sm hover:bg-[#1ebe5d] transition-colors">💬 WhatsApp</button>
+                    <button onclick="abrirModalFechaEntrega('${data.idProv}', '${data.idSuc}', '${data.nombreSuc.replace(/'/g, "\\'")}')" class="px-6 py-2 bg-blue-600 text-white rounded font-bold shadow hover:bg-blue-700 transition-transform hover:scale-105">🚀 Pedido Generado</button>
                 </div>
             </div>
         </div>`;
@@ -357,27 +366,31 @@ window.renderizarBandejaPedidos = function() {
     lista.innerHTML = html;
 }
 
-window.imprimirPedido = async function(idProv, nombreProv) {
-    const items = window.carritoPedidos.filter(i => i.idProv === idProv);
+// ==========================================
+// 2. IMPRIMIR PDF CON RAZÓN SOCIAL Y HORARIOS
+// ==========================================
+window.imprimirPedido = async function(idProv, nombreProv, idSuc, nombreSuc) {
+    const items = window.carritoPedidos.filter(i => i.idProv === idProv && i.idSuc === idSuc);
     if(items.length === 0) return alert("No hay productos en este pedido.");
 
-    const idSuc = items[0].idSuc;
-    const nombreSuc = items[0].nombreSuc;
-    const { data: sucData } = await clienteSupabase.from('sucursales').select('direccion').eq('id', idSuc).maybeSingle();
-    const direccionStr = sucData?.direccion || 'No registrada';
+    // Traemos Razón Social de Empresa y Dirección/Horario de Sucursal
+    const [{ data: empData }, { data: sucData }] = await Promise.all([
+        clienteSupabase.from('empresas').select('nombre').eq('id', window.miEmpresaId).maybeSingle(),
+        clienteSupabase.from('sucursales').select('direccion, horarios_atencion').eq('id', idSuc).maybeSingle()
+    ]);
 
+    const razonSocial = empData?.nombre || 'Mi Empresa';
+    const direccionStr = sucData?.direccion || 'No registrada';
+    const horarioStr = sucData?.horarios_atencion || 'No registrado';
     const fechaHoy = new Date().toLocaleDateString('es-CL');
 
-    let filasHtml = '';
-    items.forEach(item => {
-        filasHtml += `<tr><td class="prod-col">${item.nombreProd}</td><td class="unit-col text-center font-mono font-bold">${item.cantUC}</td><td class="unit-col text-center font-bold text-gray-500">${item.abrevUC}</td></tr>`;
-    });
+    let filasHtml = items.map(item => `<tr><td class="prod-col">${item.nombreProd}</td><td class="unit-col text-center font-mono font-bold">${item.cantUC}</td><td class="unit-col text-center font-bold text-gray-500">${item.abrevUC}</td></tr>`).join('');
 
     const printWindow = window.open('', '_blank', 'width=800,height=600');
     printWindow.document.write(`
         <html>
         <head>
-            <title>Pedido ${fechaHoy} - ${nombreSuc}</title>
+            <title>Orden de Compra - ${nombreSuc}</title>
             <style>
                 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
                 body { font-family: 'Inter', sans-serif; margin: 0; padding: 20px; color: #333; }
@@ -389,21 +402,20 @@ window.imprimirPedido = async function(idProv, nombreProv) {
                 table { width: 100%; border-collapse: collapse; margin-top: 10px; }
                 th, td { border: 1px solid #000; padding: 12px 8px; text-align: left; }
                 th { background-color: #f1f5f9; font-weight: bold; text-transform: uppercase; font-size: 12px; }
-                thead { display: table-header-group; }
-                tr { page-break-inside: avoid; }
                 .prod-col { font-weight: bold; font-size: 14px; }
-                .text-center { text-align: center; }
-                @media print { body { padding: 0; } @page { margin: 15mm; } .header-box { background-color: white !important; -webkit-print-color-adjust: exact; } th { background-color: #f1f5f9 !important; -webkit-print-color-adjust: exact; } }
+                @media print { @page { margin: 15mm; } .header-box, th { background-color: white !important; -webkit-print-color-adjust: exact; } }
             </style>
         </head>
         <body>
             <div class="header-box">
-                <h1 class="header-title">Orden de Pedido</h1>
+                <h1 class="header-title">ORDEN DE COMPRA</h1>
                 <div class="info-grid">
+                    <div class="info-item"><strong>Facturar a (Razón Social):</strong><div style="font-size: 16px; font-weight: bold; margin-top: 4px;">${razonSocial}</div></div>
+                    <div class="info-item"><strong>Fecha de Orden:</strong><div style="font-size: 16px; margin-top: 4px;">${fechaHoy}</div></div>
                     <div class="info-item"><strong>Proveedor:</strong><div style="font-size: 16px; font-weight: bold; margin-top: 4px;">${nombreProv}</div></div>
-                    <div class="info-item"><strong>Fecha:</strong><div style="font-size: 16px; margin-top: 4px;">${fechaHoy}</div></div>
-                    <div class="info-item"><strong>Sucursal Destino:</strong><div style="font-size: 16px; margin-top: 4px;">${nombreSuc}</div></div>
+                    <div class="info-item"><strong>Sucursal Destino:</strong><div style="font-size: 14px; margin-top: 4px;">${nombreSuc}</div></div>
                     <div class="info-item"><strong>Dirección de Entrega:</strong><div style="font-size: 14px; margin-top: 4px;">${direccionStr}</div></div>
+                    <div class="info-item"><strong>Horario de Recepción:</strong><div style="font-size: 14px; margin-top: 4px;">${horarioStr}</div></div>
                 </div>
             </div>
             <table>
@@ -417,51 +429,108 @@ window.imprimirPedido = async function(idProv, nombreProv) {
     printWindow.document.close();
 }
 
-window.whatsappPedido = async function(idProv, nombreProv) {
-    const items = window.carritoPedidos.filter(i => i.idProv === idProv);
+// ==========================================
+// 3. ENVIAR WHATSAPP CON FORMATO COMPLETO
+// ==========================================
+window.whatsappPedido = async function(idProv, nombreProv, idSuc, nombreSuc) {
+    const items = window.carritoPedidos.filter(i => i.idProv === idProv && i.idSuc === idSuc);
     if(items.length === 0) return alert("No hay productos en este pedido.");
 
-    const { data: provData } = await clienteSupabase.from('proveedores').select('whatsapp').eq('id', idProv).maybeSingle();
-    let telf = provData?.whatsapp ? provData.whatsapp.replace(/\D/g,'') : '';
+    const [{ data: empData }, { data: sucData }, { data: provData }] = await Promise.all([
+        clienteSupabase.from('empresas').select('nombre').eq('id', window.miEmpresaId).maybeSingle(),
+        clienteSupabase.from('sucursales').select('direccion, horarios_atencion').eq('id', idSuc).maybeSingle(),
+        clienteSupabase.from('proveedores').select('whatsapp').eq('id', idProv).maybeSingle()
+    ]);
 
-    const nombreSuc = items[0].nombreSuc;
+    let telf = provData?.whatsapp ? provData.whatsapp.replace(/\D/g,'') : '';
+    const razonSocial = empData?.nombre || 'Nuestra Empresa';
+    const direccionStr = sucData?.direccion || 'No registrada';
+    const horarioStr = sucData?.horarios_atencion || 'No registrado';
     const fechaHoy = new Date().toLocaleDateString('es-CL');
 
-    let texto = `Hola, este es nuestro pedido para el ${fechaHoy}:\n\n*Destino:* Sucursal ${nombreSuc}\n*Proveedor:* ${nombreProv}\n\n*LISTA DE PRODUCTOS:*\n`;
-    items.forEach(item => { texto += `- ${item.cantUC} ${item.abrevUC} de ${item.nombreProd}\n`; });
-    texto += `\nPor favor confirmar recepción. ¡Gracias!`;
+    let texto = `*NUEVA ORDEN DE COMPRA* 📝\n*Fecha:* ${fechaHoy}\n*Facturar a:* ${razonSocial}\n*Proveedor:* ${nombreProv}\n\n*📍 DATOS DE DESPACHO:*\n*Destino:* Sucursal ${nombreSuc}\n*Dirección:* ${direccionStr}\n*Horario Recepción:* ${horarioStr}\n\n*📦 PRODUCTOS SOLICITADOS:*\n`;
+    items.forEach(item => { texto += `▫️ ${item.cantUC} ${item.abrevUC} de ${item.nombreProd}\n`; });
+    texto += `\nPor favor confirmar recepción del pedido y fecha de entrega. ¡Gracias!`;
 
     const url = telf ? `https://wa.me/${telf}?text=${encodeURIComponent(texto)}` : `https://wa.me/?text=${encodeURIComponent(texto)}`;
     window.open(url, '_blank');
 }
 
-window.generarPedidoTransitoMasivo = async function(idProv) {
-    const itemsDelProveedor = window.carritoPedidos.filter(i => i.idProv === idProv);
-    if(itemsDelProveedor.length === 0) return;
+// ==========================================
+// 4 Y 5. FLUJO DE GENERACIÓN Y FECHAS
+// ==========================================
+window.infoPedidoActual = null; // Guardará temporalmente los datos para el modal
+
+window.abrirModalFechaEntrega = function(idProv, idSuc, nombreSuc) {
+    window.infoPedidoActual = { idProv, idSuc, nombreSuc };
+    document.getElementById('modal-fecha-entrega').classList.remove('hidden');
+    document.getElementById('input-dias-entrega').focus();
+}
+
+window.confirmarYGenerarPedido = async function() {
+    if(!window.infoPedidoActual) return;
+    const { idProv, idSuc, nombreSuc } = window.infoPedidoActual;
+
+    const items = window.carritoPedidos.filter(i => i.idProv === idProv && i.idSuc === idSuc);
+    if(items.length === 0) return;
 
     let tieneError = false;
-    itemsDelProveedor.forEach(i => { if(i.cantUC <= 0) tieneError = true; });
+    items.forEach(i => { if(i.cantUC <= 0) tieneError = true; });
     if(tieneError) return alert("❌ Tienes productos con cantidad 0. Elimínalos o arréglalos.");
 
-    const totalEstimado = itemsDelProveedor.reduce((sum, item) => sum + (item.cantUC * item.precioRef), 0);
+    const btn = document.getElementById('btn-confirmar-fecha-oc');
+    btn.innerText = "⏳ Generando..."; btn.disabled = true;
+
+    // 1. CÁLCULO INTELIGENTE DE LA FECHA DE ENTREGA
+    const dias = parseInt(document.getElementById('input-dias-entrega').value) || 0;
+    const esHabil = document.getElementById('check-dias-habiles').checked;
+    
+    let fechaLlegada = new Date();
+    if (dias > 0) {
+        if (esHabil) {
+            let agregados = 0;
+            while (agregados < dias) {
+                fechaLlegada.setDate(fechaLlegada.getDate() + 1);
+                // 0 es Domingo, 6 es Sábado
+                if (fechaLlegada.getDay() !== 0 && fechaLlegada.getDay() !== 6) {
+                    agregados++;
+                }
+            }
+        } else {
+            fechaLlegada.setDate(fechaLlegada.getDate() + dias);
+        }
+    }
+    // Formateamos para Supabase (YYYY-MM-DD)
+    const fechaEstimadaSQL = fechaLlegada.toISOString().split('T')[0];
+
+    // 2. GENERAMOS EL CÓDIGO INTERNO (OC - TRES LETRAS SUCURSAL - 4 NÚMEROS RANDOM)
+    const prefijoSuc = nombreSuc.substring(0,3).toUpperCase();
+    const numeroAleatorio = Math.floor(1000 + Math.random() * 9000);
+    const codigoOC = `OC-${prefijoSuc}-${numeroAleatorio}`;
+
+    const totalEstimado = items.reduce((sum, item) => sum + (item.cantUC * item.precioRef), 0);
 
     try {
-        document.body.style.cursor = 'wait';
-
+        // 3. INSERTAMOS EN COMPRAS CON LA FECHA Y EL CÓDIGO
         const { data: cabecera, error: errCabecera } = await clienteSupabase.from('compras').insert([{
-            id_empresa: window.miEmpresaId, id_proveedor: idProv, total_compra: totalEstimado, estado: 'En Tránsito'
+            id_empresa: window.miEmpresaId, 
+            id_proveedor: idProv, 
+            total_compra: totalEstimado, 
+            estado: 'En Tránsito',
+            numero_documento: codigoOC,
+            fecha_entrega_estimada: fechaEstimadaSQL // <--- AQUÍ SE GUARDA
         }]).select('id').single();
 
         if (errCabecera) throw errCabecera;
 
         if(cabecera) {
-            const detallesAInsertar = itemsDelProveedor.map(item => ({
+            const detallesAInsertar = items.map(item => ({
                 id_compra: cabecera.id, id_producto: item.idProd, id_sucursal_destino: item.idSuc,
                 cantidad_uc: item.cantUC, precio_unitario_uc: item.precioRef, subtotal: item.cantUC * item.precioRef, estado: 'En Tránsito'
             }));
             await clienteSupabase.from('compras_detalles').insert(detallesAInsertar);
             
-            for (const item of itemsDelProveedor) {
+            for (const item of items) {
                 const { data: reglaActual } = await clienteSupabase.from('reglas_stock_sucursal')
                     .select('id, stock_minimo_ua').eq('id_sucursal', item.idSuc).eq('id_producto', item.idProd).maybeSingle();
                 
@@ -470,17 +539,21 @@ window.generarPedidoTransitoMasivo = async function(idProv) {
                 }
             }
             
-            await clienteSupabase.from('carrito_pedidos').delete().eq('id_empresa', window.miEmpresaId).eq('id_proveedor', idProv);
+            // Borramos de la bandeja SOLO los items de este proveedor y sucursal
+            const promesasBorrado = items.map(i => clienteSupabase.from('carrito_pedidos').delete().eq('id_empresa', window.miEmpresaId).eq('id_producto', i.idProd).eq('id_sucursal', i.idSuc));
+            await Promise.all(promesasBorrado);
         }
 
+        document.getElementById('modal-fecha-entrega').classList.add('hidden');
+        btn.innerText = "✅ Confirmar Fecha"; btn.disabled = false;
+        
         window.cargarPedidosPlanificados(); 
-        alert("✅ Pedido/Orden generada exitosamente. Revisa las pestañas de Tránsito o Producción.");
+        alert(`✅ Orden ${codigoOC} generada exitosamente. Se espera su llegada el ${fechaLlegada.toLocaleDateString('es-CL')}.`);
 
     } catch (error) {
         console.error("Error al generar pedido:", error);
         alert("❌ Error en BD: " + error.message);
-    } finally {
-        document.body.style.cursor = 'default';
+        btn.innerText = "✅ Confirmar Fecha"; btn.disabled = false;
     }
 }
 
