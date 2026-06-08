@@ -1433,3 +1433,14 @@ async function ejecutarClonacionReceta() {
         btnClonar.disabled = false;
     }
 }
+
+window.toggleObservacionesFactura = function() {
+    const caja = document.getElementById('caja-obs-factura');
+    if (document.getElementById('check-obs-factura').checked) {
+        caja.classList.remove('hidden');
+        document.getElementById('input-obs-factura').focus();
+    } else {
+        caja.classList.add('hidden');
+        document.getElementById('input-obs-factura').value = ''; // Limpiamos si se arrepiente
+    }
+}

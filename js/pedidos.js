@@ -711,46 +711,135 @@ window.abrirTransitoSucursal = async function(idSuc, nombreSuc) {
     document.getElementById('transito-vista-detalle').classList.remove('hidden');
 
     const lista = document.getElementById('lista-transito-proveedores');
-    lista.innerHTML = '<p class="text-slate-500 font-bold py-8">⏳ Buscando...</p>';
+    lista.innerHTML = '<p class="text-slate-500 font-bold py-8 text-center animate-pulse">⏳ Calculando línea de tiempo de llegadas...</p>';
 
-    const { data: transito } = await clienteSupabase.from('compras_detalles')
-        .select(`id, id_producto, cantidad_uc, compras!inner(id, id_proveedor, proveedores(nombre, tipo))`)
-        .eq('id_sucursal_destino', idSuc)
-        .in('estado', ['En Tránsito', 'Postpuesto']);
+    try {
+        // 1. Buscamos TODOS los ítems en tránsito para esta sucursal (Consulta plana y segura)
+        const { data: detalles } = await clienteSupabase.from('compras_detalles')
+            .select('id, id_compra, id_producto')
+            .eq('id_sucursal_destino', idSuc)
+            .in('estado', ['En Tránsito', 'Postpuesto']);
 
-    const filtrados = (transito||[]).filter(t => (t.compras.proveedores?.tipo || 'Externo') === window.tipoVistaTransitoActiva);
+        if (!detalles || detalles.length === 0) {
+            const bg = isProd ? 'bg-purple-50 border-purple-200 text-purple-700' : 'bg-blue-50 border-blue-200 text-blue-700';
+            lista.innerHTML = `<div class="p-8 text-center border rounded-xl font-bold ${bg}">Todo está al día. No hay pendientes aquí.</div>`;
+            return;
+        }
 
-    if(filtrados.length === 0) {
-        const bg = isProd ? 'bg-purple-50 border-purple-200 text-purple-700' : 'bg-blue-50 border-blue-200 text-blue-700';
-        lista.innerHTML = `<div class="p-8 text-center border rounded-xl font-bold ${bg}">Todo está al día. No hay pendientes aquí.</div>`;
-        return;
-    }
+        // 2. Extraemos las Órdenes (Compras) Padre y sus Fechas
+        const idsCompras = [...new Set(detalles.map(d => d.id_compra).filter(Boolean))];
+        const { data: compras } = await clienteSupabase.from('compras')
+            .select('id, id_proveedor, numero_documento, fecha_entrega_esperada')
+            .in('id', idsCompras);
 
-    const agrupado = {};
-    filtrados.forEach(t => {
-        const idProv = t.compras.id_proveedor;
-        const nombreProv = t.compras.proveedores?.nombre || 'General';
-        if(!agrupado[idProv]) agrupado[idProv] = { nombre: nombreProv, items: 0 };
-        agrupado[idProv].items++;
-    });
+        // 3. Extraemos los Proveedores y sus Tipos (Interno/Externo)
+        const idsProvs = [...new Set((compras || []).map(c => c.id_proveedor).filter(Boolean))];
+        const { data: proveedores } = await clienteSupabase.from('proveedores')
+            .select('id, nombre, tipo')
+            .in('id', idsProvs);
 
-    const borderCard = isProd ? 'border-purple-200' : 'border-blue-200';
-    const btnClass = isProd ? 'bg-purple-600 hover:bg-purple-700' : 'bg-blue-600 hover:bg-blue-700';
-    const btnText = isProd ? '✅ Registrar Producción' : '✅ Recepción de Pedido';
-    const iconBox = isProd ? '🧑‍🍳' : '📦';
+        // 4. Agrupamos por ÓRDEN DE COMPRA (No solo por proveedor), así se separan en el tiempo
+        let ordenesPendientes = [];
 
-    lista.innerHTML = Object.keys(agrupado).map(idProv => `
-        <div class="bg-white rounded-lg border ${borderCard} p-6 flex justify-between items-center shadow-sm hover:shadow-md transition-shadow">
-            <div>
-                <h4 class="font-bold text-xl text-slate-800">${iconBox} Origen: ${agrupado[idProv].nombre}</h4>
-                <p class="text-slate-500 text-sm mt-1">${agrupado[idProv].items} ítems en espera.</p>
+        (compras || []).forEach(compra => {
+            const prov = proveedores.find(p => p.id === compra.id_proveedor);
+            const tipoProv = prov?.tipo || 'Externo';
+
+            // Verificamos que coincida con la pestaña actual (Producción vs Tránsito)
+            if (tipoProv === window.tipoVistaTransitoActiva) {
+                const itemsDeEstaOrden = detalles.filter(d => d.id_compra === compra.id).length;
+                if (itemsDeEstaOrden > 0) {
+                    ordenesPendientes.push({
+                        idCompra: compra.id,
+                        idProv: compra.id_proveedor,
+                        nombreProv: prov?.nombre || 'Proveedor Desconocido',
+                        numeroDoc: compra.numero_documento || 'Sin OC',
+                        fechaEsperada: compra.fecha_entrega_esperada || null,
+                        itemsCount: itemsDeEstaOrden
+                    });
+                }
+            }
+        });
+
+        if(ordenesPendientes.length === 0) {
+            const bg = isProd ? 'bg-purple-50 border-purple-200 text-purple-700' : 'bg-blue-50 border-blue-200 text-blue-700';
+            lista.innerHTML = `<div class="p-8 text-center border rounded-xl font-bold ${bg}">Todo está al día en esta categoría.</div>`;
+            return;
+        }
+
+        // 5. MOTOR DE TIMELINE: Cálculo de días restantes
+        const hoy = new Date();
+        hoy.setHours(0,0,0,0); // Seteamos a medianoche para que el cálculo de días sea exacto
+
+        ordenesPendientes = ordenesPendientes.map(orden => {
+            let diffDays = 9999; // Si no tiene fecha, lo mandamos al fondo
+            let fechaObj = null;
+
+            if (orden.fechaEsperada) {
+                fechaObj = new Date(orden.fechaEsperada + 'T12:00:00'); // T12 previene saltos de zona horaria
+                const targetDate = new Date(fechaObj);
+                targetDate.setHours(0,0,0,0);
+                
+                const diffTime = targetDate - hoy;
+                diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            }
+            return { ...orden, diffDays, fechaObj };
+        });
+
+        // 6. ORDENAR: Atrasados primero, luego los de hoy, luego los del futuro (Cronológico)
+        ordenesPendientes.sort((a, b) => a.diffDays - b.diffDays);
+
+        // 7. DIBUJAR PANTALLA
+        const borderCard = isProd ? 'border-purple-200' : 'border-blue-200';
+        const btnClass = isProd ? 'bg-purple-600 hover:bg-purple-700' : 'bg-blue-600 hover:bg-blue-700';
+        const btnText = isProd ? '✅ Registrar Producción' : '✅ Recepción de Pedido';
+        const iconBox = isProd ? '🧑‍🍳' : '📦';
+
+        lista.innerHTML = ordenesPendientes.map(orden => {
+            // Lógica de Etiquetas Dinámicas (Badges)
+            let badgeFecha = '';
+            if (orden.fechaObj) {
+                const fechaStr = orden.fechaObj.toLocaleDateString('es-CL');
+                if (orden.diffDays < 0) {
+                    badgeFecha = `<span class="bg-red-100 text-red-700 font-bold px-3 py-1 rounded-full text-xs shadow-sm border border-red-200 animate-pulse">🔴 Atrasado ${Math.abs(orden.diffDays)} día(s) (Debió llegar el ${fechaStr})</span>`;
+                } else if (orden.diffDays === 0) {
+                    badgeFecha = `<span class="bg-emerald-100 text-emerald-800 font-bold px-3 py-1 rounded-full text-xs shadow-sm border border-emerald-300">🟢 Llega HOY</span>`;
+                } else if (orden.diffDays === 1) {
+                    badgeFecha = `<span class="bg-yellow-100 text-yellow-800 font-bold px-3 py-1 rounded-full text-xs shadow-sm border border-yellow-300">🟡 Llega Mañana (${fechaStr})</span>`;
+                } else {
+                    badgeFecha = `<span class="bg-blue-50 text-blue-700 font-bold px-3 py-1 rounded-full text-xs shadow-sm border border-blue-200">🔵 En ${orden.diffDays} días (${fechaStr})</span>`;
+                }
+            } else {
+                badgeFecha = `<span class="bg-slate-100 text-slate-600 font-bold px-3 py-1 rounded-full text-xs shadow-sm border border-slate-200">⚪ Fecha sin definir</span>`;
+            }
+
+            // OJO: Le pasamos el ID de la ORDEN específica al botón de Recepción
+            return `
+            <div class="bg-white rounded-lg border ${borderCard} p-5 flex flex-col md:flex-row justify-between items-start md:items-center shadow-sm hover:shadow-md transition-shadow gap-4 mb-3">
+                <div class="w-full">
+                    <div class="flex justify-between items-start w-full mb-2">
+                        <h4 class="font-bold text-lg text-slate-800 flex items-center gap-2">
+                            ${iconBox} Origen: ${orden.nombreProv}
+                            <span class="bg-slate-100 text-slate-500 text-[10px] px-2 py-0.5 rounded border font-mono">${orden.numeroDoc}</span>
+                        </h4>
+                    </div>
+                    <div class="flex flex-col sm:flex-row sm:items-center gap-3 mt-1">
+                        ${badgeFecha}
+                        <p class="text-slate-500 text-sm font-medium mt-1 sm:mt-0">${orden.itemsCount} ítems en esta orden.</p>
+                    </div>
+                </div>
+                <button onclick="abrirModalRecepcionMasiva('${idSuc}', '${nombreSuc}', '${orden.idProv}', '${orden.nombreProv}', '${orden.idCompra}')" class="px-6 py-2.5 ${btnClass} text-white rounded-md font-bold shadow transition-transform hover:scale-105 whitespace-nowrap w-full md:w-auto">${btnText}</button>
             </div>
-            <button onclick="abrirModalRecepcionMasiva('${idSuc}', '${nombreSuc}', '${idProv}', '${agrupado[idProv].nombre}')" class="px-6 py-3 ${btnClass} text-white rounded-md font-bold shadow transition-transform hover:scale-105">${btnText}</button>
-        </div>
-    `).join('');
+            `;
+        }).join('');
+
+    } catch (error) {
+        console.error("Error al cargar la línea de tiempo:", error);
+        lista.innerHTML = '<p class="text-red-500 font-bold py-8 text-center">❌ Ocurrió un error al consultar las recepciones.</p>';
+    }
 }
 
-window.abrirModalRecepcionMasiva = async function(idSuc, nombreSuc, idProv, nombreProv) {
+window.abrirModalRecepcionMasiva = async function(idSuc, nombreSuc, idProv, nombreProv, idCompraEspecifica) {
     window.recepcionActivaSuc = idSuc;
     window.recepcionActivaProv = idProv;
     const isProd = window.tipoVistaTransitoActiva === 'Interno';
@@ -765,25 +854,25 @@ window.abrirModalRecepcionMasiva = async function(idSuc, nombreSuc, idProv, nomb
 
     document.getElementById('rm-sucursal').innerText = nombreSuc;
     document.getElementById('rm-proveedor').innerText = nombreProv;
-    document.getElementById('rm-fecha-hoy').innerText = new Date().toLocaleDateString();
+    document.getElementById('rm-fecha-hoy').innerText = new Date().toLocaleDateString('es-CL');
 
-    const { data: provInfo } = await clienteSupabase.from('proveedores').select('whatsapp, correo').eq('id', idProv).single();
+    // Botón de Contacto
+    const { data: provInfo } = await clienteSupabase.from('proveedores').select('whatsapp, correo').eq('id', idProv).maybeSingle();
     let btnContactHTML = '';
     if(provInfo?.whatsapp) {
         const telf = provInfo.whatsapp.replace(/\D/g,'');
         btnContactHTML = `<a href="https://wa.me/${telf}" target="_blank" class="text-[10px] bg-green-500 text-white px-2 py-1 rounded-full font-bold hover:bg-green-600 transition-colors flex items-center gap-1 shadow-sm">💬 Escribir</a>`;
-    } else if (provInfo?.correo) {
-        btnContactHTML = `<a href="mailto:${provInfo.correo}" target="_blank" class="text-[10px] bg-blue-500 text-white px-2 py-1 rounded-full font-bold hover:bg-blue-600 transition-colors flex items-center gap-1 shadow-sm">✉️ Correo</a>`;
     }
     document.getElementById('rm-contacto-container').innerHTML = btnContactHTML;
 
+    // Buscamos ubicaciones
     const { data: ubicaciones } = await clienteSupabase.from('ubicaciones_internas').select('id, nombre').eq('id_sucursal', idSuc);
     const optsUbi = '<option value="">-- General (Sin ubicación) --</option>' + (ubicaciones||[]).map(u => `<option value="${u.id}">${u.nombre}</option>`).join('');
 
+    // 👉 LA CONSULTA MAGISTRAL: Buscamos SOLAMENTE los ítems de esta orden específica
     const { data: detalles } = await clienteSupabase.from('compras_detalles')
-        .select('id, cantidad_uc, precio_unitario_uc, id_producto, estado, motivo_no_recepcion, productos(nombre, cant_en_ua_de_uc, id_unidad_compra(abreviatura)), compras!inner(id, id_proveedor)')
-        .eq('id_sucursal_destino', idSuc)
-        .eq('compras.id_proveedor', idProv)
+        .select('id, id_compra, cantidad_uc, precio_unitario_uc, id_producto, estado, motivo_no_recepcion, productos(nombre, cant_en_ua_de_uc, id_unidad_compra(abreviatura))')
+        .eq('id_compra', idCompraEspecifica)
         .in('estado', ['En Tránsito', 'Postpuesto']);
 
     const txtRecibido = isProd ? '🟢 Producido / Finalizado' : '🟢 Sí, Recibido';
@@ -793,7 +882,7 @@ window.abrirModalRecepcionMasiva = async function(idSuc, nombreSuc, idProv, nomb
     const txtMotivo = isProd ? 'Motivo (Ej: Fallo máquina)...' : 'Motivo (Ej: Roto, Falta)...';
 
     const tbody = document.getElementById('rm-filas');
-    tbody.innerHTML = detalles.map(d => {
+    tbody.innerHTML = (detalles||[]).map(d => {
         const abrev = d.productos?.id_unidad_compra?.abreviatura || 'UC';
         const isPostpuesto = d.estado === 'Postpuesto';
         const labelPost = isPostpuesto ? `<span class="block mt-1 text-[10px] bg-yellow-100 text-yellow-800 px-2 py-1 rounded w-max">Estaba en espera</span>` : '';
@@ -814,8 +903,9 @@ window.abrirModalRecepcionMasiva = async function(idSuc, nombreSuc, idProv, nomb
             </div>
         `;
 
+        // 👉 Pasamos el id_compra correctamente al dataset
         return `
-        <tr class="fila-recepcion border-b border-slate-100 hover:bg-slate-50 transition-colors" data-id-detalle="${d.id}" data-id-prod="${d.id_producto}" data-factor="${d.productos?.cant_en_ua_de_uc || 1}" data-id-compra="${d.compras.id}">
+        <tr class="fila-recepcion border-b border-slate-100 hover:bg-slate-50 transition-colors" data-id-detalle="${d.id}" data-id-prod="${d.id_producto}" data-factor="${d.productos?.cant_en_ua_de_uc || 1}" data-id-compra="${d.id_compra}">
             <td class="px-4 py-3 font-bold text-slate-700 text-sm">${d.productos?.nombre} ${labelPost}</td>
             <td class="px-4 py-3 text-center font-mono font-bold text-slate-700 bg-slate-100/50">${d.cantidad_uc} <span class="text-xs text-slate-400">${abrev}</span></td>
             <td class="px-4 py-3">
