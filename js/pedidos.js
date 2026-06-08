@@ -52,24 +52,46 @@ window.cargarPedidosPlanificados = async function() {
 
     if(window.actualizarBadgeCarrito) window.actualizarBadgeCarrito();
 
-    // 👉 1.5 MAGIA: BUSCAR EL ÚLTIMO PROVEEDOR DE CADA PRODUCTO (Libre de errores 400)
-    const { data: historialProvs, error: errMagia } = await clienteSupabase
-        .from('compras_detalles')
-        .select('id_producto, created_at, compras(id_proveedor)')
-        .eq('estado', 'Recibido')
-        .order('created_at', { ascending: false });
-
-    if(errMagia) console.warn("Error leyendo historial:", errMagia.message);
-
+    // 1.5 OBTENER ÚLTIMO PROVEEDOR (Consulta plana, 100% segura contra errores 400)
     window.memoriaProveedoresXProducto = {};
-    (historialProvs || []).forEach(h => {
-        // Leemos el proveedor sin importar si Supabase lo manda como objeto o como array
-        const idProv = Array.isArray(h.compras) ? h.compras[0]?.id_proveedor : h.compras?.id_proveedor;
-        
-        if (idProv && !window.memoriaProveedoresXProducto[h.id_producto]) {
-            window.memoriaProveedoresXProducto[h.id_producto] = idProv;
+    try {
+        // A. Traemos los detalles recibidos más recientes
+        const { data: ultimosDetalles } = await clienteSupabase
+            .from('compras_detalles')
+            .select('id_producto, id_compra')
+            .eq('estado', 'Recibido')
+            .order('created_at', { ascending: false });
+
+        if (ultimosDetalles && ultimosDetalles.length > 0) {
+            const primerasComprasPorProducto = [];
+            
+            // Filtramos para quedarnos solo con la compra más reciente de cada producto
+            ultimosDetalles.forEach(det => {
+                if (!window.memoriaProveedoresXProducto[det.id_producto] && det.id_compra) {
+                    window.memoriaProveedoresXProducto[det.id_producto] = 'PENDIENTE';
+                    primerasComprasPorProducto.push(det);
+                }
+            });
+
+            // B. Buscamos los proveedores de esas compras específicas directamente en la tabla compras
+            if (primerasComprasPorProducto.length > 0) {
+                const idsCompras = primerasComprasPorProducto.map(c => c.id_compra);
+                const { data: compras } = await clienteSupabase
+                    .from('compras')
+                    .select('id, id_proveedor')
+                    .in('id', idsCompras);
+                
+                if (compras) {
+                    primerasComprasPorProducto.forEach(det => {
+                        const compra = compras.find(c => c.id === det.id_compra);
+                        if (compra) window.memoriaProveedoresXProducto[det.id_producto] = compra.id_proveedor;
+                    });
+                }
+            }
         }
-    });
+    } catch (error) {
+        console.error("Error cargando memoria de proveedores:", error);
+    }
 
     // 2. CARGAR DATOS GENERALES
     const [{ data: sucursales }, { data: prods }, { data: reglas }, { data: provs }, { data: saldos }, { data: transitoGlobal }] = await Promise.all([
@@ -718,51 +740,43 @@ window.guardarRecepcionMasiva = async function() {
 }
 
 // ==========================================
-// HISTORIAL DE PRECIOS HÍBRIDO (BOTÓN "i")
+// HISTORIAL DE PRECIOS DE COMPRA (BOTÓN "i") - RESTAURADO Y CORREGIDO
 // ==========================================
-window.verHistorialPrecios = async function(idProd, nombreProd, precioCatalogo) {
+window.verHistorialPrecios = async function(idProd, nombreProd) {
     document.getElementById('hp-producto-nombre').innerText = nombreProd;
     document.getElementById('modal-historial-precios').classList.remove('hidden');
     
     const tbody = document.getElementById('lista-historial-precios');
     tbody.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-slate-500 font-bold animate-pulse">⏳ Buscando en el historial...</td></tr>';
 
-    // Consulta limpia, sin filtros cruzados que rompan Supabase
+    // 1. Buscamos las últimas compras. Usamos "fecha_compra" desde la tabla padre (compras) en vez de created_at
     const { data, error } = await clienteSupabase.from('compras_detalles')
-        .select('precio_unitario_uc, created_at, compras(proveedores(nombre))')
+        .select('precio_unitario_uc, compras!inner(fecha_compra, proveedores(nombre))')
         .eq('id_producto', idProd)
         .eq('estado', 'Recibido')
-        .order('created_at', { ascending: false })
+        .order('id', { ascending: false }) // Ordenamos por el ID del detalle en vez de la fecha inexistente
         .limit(10);
 
-    // Si NO hay compras (o hay error), mostramos el precio base
+    // 2. Dibujamos los resultados
     if (error || !data || data.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="3" class="text-center py-4 bg-orange-50 text-orange-800 text-xs border-b border-orange-100">
-                    No hay compras recientes de este producto.<br>Mostrando el Costo Neto configurado en el catálogo.
-                </td>
-            </tr>
-            <tr class="hover:bg-slate-50 border-b border-slate-100">
-                <td class="px-4 py-3 font-medium text-slate-600">Catálogo Base</td>
-                <td class="px-4 py-3 font-bold text-slate-800">Proveedor General</td>
-                <td class="px-4 py-3 text-right font-bold text-emerald-700 font-mono">$${precioCatalogo}</td>
-            </tr>
-        `;
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center py-6 text-slate-500">No hay compras anteriores registradas para este producto.</td></tr>';
         return;
     }
 
-    // Si SÍ hay compras, mostramos el historial normal extrayendo el nombre de forma segura
     tbody.innerHTML = data.map(d => {
+        // Extraemos la fecha desde la tabla compras de forma segura
+        const fechaCruda = d.compras?.fecha_compra;
+        const fechaAmigable = fechaCruda ? new Date(fechaCruda + 'T00:00:00').toLocaleDateString('es-CL') : 'Sin fecha';
+        
+        // Extraemos el nombre del proveedor
         let nombreProv = 'Proveedor Desconocido';
-        if (d.compras) {
-            const provData = Array.isArray(d.compras) ? d.compras[0]?.proveedores : d.compras?.proveedores;
-            if (provData) nombreProv = Array.isArray(provData) ? provData[0]?.nombre : provData?.nombre;
+        if (d.compras && d.compras.proveedores) {
+            nombreProv = Array.isArray(d.compras.proveedores) ? d.compras.proveedores[0]?.nombre : d.compras.proveedores.nombre;
         }
 
         return `
         <tr class="hover:bg-slate-50 border-b border-slate-100">
-            <td class="px-4 py-3 font-medium text-slate-600">${new Date(d.created_at).toLocaleDateString('es-CL')}</td>
+            <td class="px-4 py-3 font-medium text-slate-600">${fechaAmigable}</td>
             <td class="px-4 py-3 font-bold text-slate-800">${nombreProv}</td>
             <td class="px-4 py-3 text-right font-bold text-emerald-700 font-mono">$${d.precio_unitario_uc}</td>
         </tr>
