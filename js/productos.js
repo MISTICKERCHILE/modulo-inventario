@@ -41,13 +41,13 @@ window.cargarDatosSelects = async function() {
     }
 }
 
-// ==========================================
-// 2. LUEGO DEFINIMOS LA FUNCIÓN DEL MODAL
-// ==========================================
+// ==========================================================
+// 2. SÚPER MODAL PRODUCTOS UNIFICADO (Crear, Editar, Clonar)
+// ==========================================================
 window.abrirModalProducto = async function(esEdicion = false, nombreSugerido = '') {
     document.getElementById('modal-producto').classList.remove('hidden');
     
-    // Revisamos si el HTML está vacío
+    // 1. Cargamos las listas desplegables si están vacías
     const catSelect = document.getElementById('prod-categoria');
     if(!catSelect || catSelect.options.length <= 1) {
         await window.cargarDatosSelects();
@@ -55,7 +55,7 @@ window.abrirModalProducto = async function(esEdicion = false, nombreSugerido = '
     
     const { data: sucursales } = await clienteSupabase.from('sucursales').select('id, nombre').eq('id_empresa', window.miEmpresaId);
     
-    // ESTO DIBUJA LAS REGLAS DE STOCK (Mínimo / Ideal)
+    // 2. Dibujamos las reglas de stock
     let htmlReglas = '';
     (sucursales || []).forEach(suc => {
         htmlReglas += `
@@ -75,15 +75,27 @@ window.abrirModalProducto = async function(esEdicion = false, nombreSugerido = '
     });
     document.getElementById('contenedor-reglas-stock').innerHTML = htmlReglas;
 
+    // 3. LÓGICA DE NUEVO PRODUCTO (Limpieza Total)
     if(!esEdicion) {
-        window.cancelarEdicion('producto');
+        window.cancelarEdicion('producto'); // Por si tenías otra función de apoyo
+        window.modoEdicion = { activo: false, id: null, form: 'producto' };
+        
         document.getElementById('titulo-modal-producto').innerText = "Nuevo Producto / Insumo";
+        
+        // 👉 MAGIA DE UNIFICACIÓN: Reseteamos todo el formulario de golpe
+        document.getElementById('form-producto').reset();
+
+        // Valores por defecto seguros
         const aleatorio = Math.random().toString(36).substring(2, 8).toUpperCase();
         document.getElementById('prod-sku').value = 'PRD-' + aleatorio;
-        if(document.getElementById('prod-control-stock')) document.getElementById('prod-control-stock').checked = true;
         
-        // Limpiamos el costo de referencia en producto nuevo
+        document.getElementById('prod-cant-ua').value = 1;
+        document.getElementById('prod-cant-um').value = 1;
+        document.getElementById('prod-cant-ur').value = 1;
+
+        if(document.getElementById('prod-control-stock')) document.getElementById('prod-control-stock').checked = true;
         if(document.getElementById('prod-costo-ref')) document.getElementById('prod-costo-ref').value = '';
+        if(document.getElementById('prod-codigo-barras')) document.getElementById('prod-codigo-barras').value = '';
 
         if(document.getElementById('contenedor-precios-pos')) {
             document.getElementById('contenedor-precios-pos').classList.add('hidden');
@@ -91,6 +103,14 @@ window.abrirModalProducto = async function(esEdicion = false, nombreSugerido = '
         
         if (nombreSugerido) {
             document.getElementById('prod-nombre').value = nombreSugerido;
+        }
+
+        // 👉 RESTAURAR BOTÓN AL ESTADO DE "CREACIÓN" (Verde)
+        const btnGuardar = document.getElementById('btn-guardar-producto');
+        if(btnGuardar) {
+            btnGuardar.innerText = 'Guardar Producto';
+            btnGuardar.classList.remove('bg-blue-600', 'bg-purple-600');
+            btnGuardar.classList.add('bg-emerald-600');
         }
     }
 };
@@ -485,6 +505,7 @@ if (!window.eventosFormProductoAtados) {
     });
     window.eventosFormProductoAtados = true;
 }
+
 // ==========================================
 // --- RECETAS Y BUSCADOR INTELIGENTE ---
 // ==========================================
