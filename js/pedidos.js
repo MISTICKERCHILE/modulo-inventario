@@ -969,11 +969,48 @@ window.guardarRecepcionMasiva = async function() {
     }
 
     const btn = document.getElementById('btn-guardar-recepcion');
-    btn.innerText = "⏳ Guardando Inventario..."; btn.disabled = true;
+    if(btn) { btn.innerText = "⏳ Preparando datos..."; btn.disabled = true; }
 
     const comprasAfectadas = new Set();
+    
+    // --- 1. CAPTURAR DATOS DE FACTURA Y FOTO ---
+    let rutaFotoGuardada = null;
+    let nroFactura = null, totalFactura = null, obsFactura = null;
+
+    if (!isProd) {
+        nroFactura = document.getElementById('input-nro-factura')?.value.trim() || null;
+        totalFactura = parseFloat(document.getElementById('input-total-factura')?.value) || null;
+        obsFactura = document.getElementById('check-obs-factura')?.checked ? document.getElementById('input-obs-factura').value.trim() : null;
+
+        const fileInput = document.getElementById('input-foto-factura');
+        if (fileInput && fileInput.files.length > 0) {
+            if(btn) btn.innerText = "⏳ Subiendo factura...";
+            const archivo = fileInput.files[0];
+            const fileExt = archivo.name.split('.').pop();
+            // Creamos una ruta segura: Carpeta de la Empresa / Nombre con fecha
+            const fileName = `${window.miEmpresaId}/factura_${Date.now()}.${fileExt}`;
+
+            const { data: uploadData, error: uploadError } = await clienteSupabase.storage
+                .from('facturas_compras')
+                .upload(fileName, archivo);
+
+            if (uploadError) {
+                console.error("Error subiendo foto:", uploadError);
+                alert("⚠️ Aviso: Hubo un problema subiendo el archivo (" + uploadError.message + "). El inventario se guardará igual.");
+            } else {
+                rutaFotoGuardada = uploadData.path; // Guardamos la ruta interna secreta
+            }
+        }
+    }
+
+    // --- 2. CAPTURAR USUARIO RESPONSABLE ---
+    // Tomamos el nombre del usuario activo (o "Valentina" que está en el menú superior)
+    const btnUsuario = document.querySelector('.top-bar-user-name, header button:contains("Valentina")'); 
+    const nombreResponsable = window.nombreUsuarioActivo || (btnUsuario ? btnUsuario.innerText.trim() : 'Usuario Sistema');
 
     try {
+        if(btn) btn.innerText = "⏳ Actualizando Inventario...";
+        
         for (const fila of filas) {
             const idDetalle = fila.getAttribute('data-id-detalle');
             const idProd = fila.getAttribute('data-id-prod');
@@ -1002,9 +1039,19 @@ window.guardarRecepcionMasiva = async function() {
                 const loteInput = isProd ? fila.querySelector('.input-lote-real').value.trim() : '';
                 const textoLote = loteInput ? `Lote/OT: ${loteInput}` : 'Producción Interna';
                 const tipoMov = isProd ? 'INGRESO_PRODUCCION' : 'INGRESO_COMPRA';
-                const refMov = isProd ? textoLote : 'Recepción Masiva de Proveedor';
+                
+                // 👉 INYECTAMOS AL RESPONSABLE DIRECTAMENTE EN LA TRAZABILIDAD
+                const refMov = isProd ? `${textoLote} | Resp: ${nombreResponsable}` : `Factura: ${nroFactura || 'S/F'} | Resp: ${nombreResponsable}`;
 
-                await clienteSupabase.from('movimientos_inventario').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_ubicacion: idUbi, tipo_movimiento: tipoMov, cantidad_movida: cantUA, costo_unitario_movimiento: precioRealUC, referencia: refMov }]);
+                await clienteSupabase.from('movimientos_inventario').insert([{ 
+                    id_empresa: window.miEmpresaId, 
+                    id_producto: idProd, 
+                    id_ubicacion: idUbi, 
+                    tipo_movimiento: tipoMov, 
+                    cantidad_movida: cantUA, 
+                    costo_unitario_movimiento: precioRealUC, 
+                    referencia: refMov 
+                }]);
                 
                 if(!isProd) await clienteSupabase.from('productos').update({ ultimo_costo_uc: precioRealUC }).eq('id', idProd);
                 if(idCompraPadre) comprasAfectadas.add(idCompraPadre);
@@ -1018,14 +1065,24 @@ window.guardarRecepcionMasiva = async function() {
             }
         }
 
-        for(const idC of comprasAfectadas) { await clienteSupabase.from('compras').update({estado: 'Completada'}).eq('id', idC); }
+        // --- 3. SELLAR LA CABECERA CON LA FOTO Y DATOS ---
+        for(const idC of comprasAfectadas) { 
+            const payloadCompra = { estado: 'Completada' };
+            if (!isProd) {
+                payloadCompra.numero_factura = nroFactura;
+                payloadCompra.total_factura = totalFactura;
+                payloadCompra.observaciones_factura = obsFactura;
+                if (rutaFotoGuardada) payloadCompra.url_foto_factura = rutaFotoGuardada;
+            }
+            await clienteSupabase.from('compras').update(payloadCompra).eq('id', idC); 
+        }
 
-        btn.innerText = "✅ Guardar Recepción"; btn.disabled = false;
+        if(btn) { btn.innerText = "✅ Guardar Recepción"; btn.disabled = false; }
         document.getElementById('modal-recepcion-masiva').classList.add('hidden');
         window.abrirTransitoSucursal(window.recepcionActivaSuc, document.getElementById('rm-sucursal').innerText.replace('🏭 En Producción para: ','').replace('🚚 En Camino a: ',''));
     } catch (error) {
         alert("Error al recepcionar: " + error.message);
-        btn.innerText = "✅ Guardar Recepción"; btn.disabled = false;
+        if(btn) { btn.innerText = "✅ Guardar Recepción"; btn.disabled = false; }
     }
 }
 
