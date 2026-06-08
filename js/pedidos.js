@@ -105,6 +105,21 @@ window.cargarPedidosPlanificados = async function() {
 
     window.proveedoresGlobal = provs || [];
     window.sugerenciasGlobal = [];
+    window.memoriaProveedoresXProducto = {};
+    try {
+        const { data: ultimasCompras } = await clienteSupabase
+            .from('compras_detalles')
+            .select('id_producto, compras!inner(id_proveedor)')
+            .eq('estado', 'Recibido')
+            .order('id', { ascending: false });
+
+        (ultimasCompras || []).forEach(d => {
+            const idProv = Array.isArray(d.compras) ? d.compras[0]?.id_proveedor : d.compras?.id_proveedor;
+            if (idProv && !window.memoriaProveedoresXProducto[d.id_producto]) {
+                window.memoriaProveedoresXProducto[d.id_producto] = idProv;
+            }
+        });
+    } catch (e) { console.warn("Memoria prov:", e); }
 
     // 3. CALCULAR SUGERENCIAS
     (sucursales||[]).forEach(suc => {
@@ -202,9 +217,9 @@ window.renderizarHTMLSugerencias = function(lista) {
             const badgeManual = p.esManual ? `<span class="bg-indigo-100 text-indigo-700 text-[9px] px-1.5 py-0.5 rounded ml-2 uppercase font-bold">Manual</span>` : '';
             const paramsParaBoton = `'${idSuc}', '${data.nombre}', '${p.idProd}', '${p.nombreProd.replace(/'/g, "\\'")}', ${p.sugeridoUC}, '${p.abrevUC}', ${p.precioRef}`;
 
-            // 👉 AUTO-SELECCIÓN DE PROVEEDOR (A prueba de balas)
-            const ultimoProvId = window.memoriaProveedoresXProducto[p.idProd];
-            const optsProvs = '<option value="">Elige Proveedor...</option>' + window.proveedoresGlobal.map(prov => {
+            // 👉 AUTO-SELECCIÓN DE PROVEEDOR (Única y definitiva)
+            const ultimoProvId = window.memoriaProveedoresXProducto ? window.memoriaProveedoresXProducto[p.idProd] : null;
+            const opcionesProveedor = '<option value="">Elige Proveedor...</option>' + window.proveedoresGlobal.map(prov => {
                 // Forzamos que ambos sean Textos (String) para que JavaScript no se confunda
                 const isSelected = String(prov.id) === String(ultimoProvId) ? 'selected' : '';
                 return `<option value="${prov.id}" ${isSelected}>${prov.nombre}</option>`;
@@ -221,7 +236,7 @@ window.renderizarHTMLSugerencias = function(lista) {
                     ${p.sugeridoUA} ${p.abrevUA} <br><span class="text-[10px] text-orange-500 uppercase">${p.sugeridoUC} ${p.abrevUC}</span>
                 </td>
                 <td class="px-4 py-3">
-                    <select id="prov-select-${idSuc}-${p.idProd}" class="w-full px-2 py-1 border border-orange-200 rounded text-xs outline-none bg-white">${optsProvs}</select>
+                    <select id="prov-select-${idSuc}-${p.idProd}" class="w-full px-2 py-1 border border-orange-200 rounded text-xs outline-none bg-white">${opcionesProveedor}</select>
                 </td>
                 <td class="px-4 py-3 text-center font-bold text-slate-600">
                     <div class="flex items-center justify-center gap-2">
