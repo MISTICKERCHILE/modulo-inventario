@@ -242,6 +242,42 @@
             <button onclick="acc_cambiarPagVen(1)" id="btn-next-rep-ven" class="px-4 py-2 bg-white border border-slate-300 shadow-sm rounded-md text-slate-600 hover:bg-slate-50 font-bold disabled:opacity-50 transition-colors">Siguiente</button>
         </div>
     </div>
+    <div id="modal-detalle-orden-global" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-4">
+    <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col border-t-4 border-emerald-500">
+        
+        <div class="flex justify-between items-center mb-4 border-b pb-4">
+            <div>
+                <h2 class="text-xl font-bold text-slate-800">Detalle de la Orden</h2>
+                <p class="text-sm text-slate-500 font-medium mt-1" id="subtitulo-modal-detalle-orden">Origen / Prov: Cargando...</p>
+            </div>
+            <button onclick="document.getElementById('modal-detalle-orden-global').classList.add('hidden')" class="text-slate-400 hover:text-slate-800 text-3xl font-bold transition-colors">&times;</button>
+        </div>
+
+        <div id="caja-observaciones-desglose" class="hidden mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p class="text-xs font-bold text-red-800 uppercase mb-1">⚠️ Observaciones de la Factura:</p>
+            <p class="text-sm text-red-700 font-medium italic" id="texto-observaciones-desglose"></p>
+        </div>
+
+        <div class="overflow-y-auto flex-1 bg-slate-50 rounded-lg border border-slate-200 p-2">
+            <table class="min-w-full divide-y divide-slate-200">
+                <thead class="bg-slate-100 sticky top-0 shadow-sm">
+                    <tr>
+                        <th class="px-4 py-2 text-left text-xs font-bold text-slate-600 uppercase">Producto</th>
+                        <th class="px-4 py-2 text-center text-xs font-bold text-slate-600 uppercase">Cant.</th>
+                        <th class="px-4 py-2 text-right text-xs font-bold text-slate-600 uppercase">Costo Unit.</th>
+                        <th class="px-4 py-2 text-right text-xs font-bold text-slate-600 uppercase">Subtotal</th>
+                        <th class="px-4 py-2 text-center text-xs font-bold text-slate-600 uppercase">Estado</th>
+                    </tr>
+                </thead>
+                <tbody id="lista-detalle-orden-global" class="divide-y divide-slate-100 bg-white text-sm">
+                    </tbody>
+            </table>
+        </div>
+
+        <div class="mt-4 flex justify-end pt-4 border-t border-slate-200">
+            <button onclick="document.getElementById('modal-detalle-orden-global').classList.add('hidden')" class="px-6 py-2 bg-slate-100 text-slate-700 rounded-md font-bold shadow-sm hover:bg-slate-200 transition-colors">Cerrar Desglose</button>
+        </div>
+    </div>
 </div>
 
 <style>

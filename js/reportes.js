@@ -377,6 +377,73 @@ window.verFotoFactura = async function(rutaStorage) {
     window.open(data.signedUrl, '_blank');
 }
 
+// 👉 MOTOR PARA VER EL DESGLOSE DE LOS PRODUCTOS DE UNA ORDEN
+window.abrirDetallesOrdenGlobal = async function(idCompra, nombreProveedor) {
+    document.getElementById('modal-detalle-orden-global').classList.remove('hidden');
+    document.getElementById('subtitulo-modal-detalle-orden').innerText = `Origen / Prov: ${nombreProveedor}`;
+    
+    const tbody = document.getElementById('lista-detalle-orden-global');
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-slate-400 font-bold animate-pulse">Consultando base de datos...</td></tr>';
+
+    const cajaObs = document.getElementById('caja-observaciones-desglose');
+    cajaObs.classList.add('hidden'); 
+
+    try {
+        // 1. Traer observaciones generales de la factura
+        const { data: compra } = await clienteSupabase.from('compras').select('observaciones_factura').eq('id', idCompra).single();
+        if (compra && compra.observaciones_factura) {
+            document.getElementById('texto-observaciones-desglose').innerText = compra.observaciones_factura;
+            cajaObs.classList.remove('hidden'); 
+        }
+
+        // 2. Traer los detalles (productos individuales) y motivos de rechazo
+        const { data: detalles, error } = await clienteSupabase.from('compras_detalles')
+            .select('cantidad_uc, precio_unitario_uc, subtotal, estado, motivo_no_recepcion, productos(nombre, id_unidad_compra(abreviatura))')
+            .eq('id_compra', idCompra);
+
+        if (error) throw error;
+
+        if (!detalles || detalles.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-slate-400 italic">No hay productos vinculados a esta orden.</td></tr>';
+            return;
+        }
+
+        // 3. Dibujar las filas
+        tbody.innerHTML = detalles.map(d => {
+            const abrev = d.productos?.id_unidad_compra?.abreviatura || 'Unid';
+            const nombre = d.productos?.nombre || 'Producto Desconocido';
+            
+            // Colores de los estados
+            let estColor = 'bg-slate-100 text-slate-600 border-slate-200';
+            if (d.estado === 'Recibido') estColor = 'bg-emerald-100 text-emerald-700 border-emerald-200';
+            if (d.estado === 'Postpuesto') estColor = 'bg-yellow-100 text-yellow-700 border-yellow-200';
+            if (d.estado === 'No Recibido') estColor = 'bg-red-100 text-red-700 border-red-200';
+            if (d.estado === 'En Tránsito') estColor = 'bg-blue-100 text-blue-700 border-blue-200';
+            
+            const estBadge = `<span class="${estColor} px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border">${d.estado}</span>`;
+
+            // Si fue rechazado, mostramos el motivo en rojo debajo del nombre
+            const txtMotivo = d.estado === 'No Recibido' && d.motivo_no_recepcion
+                ? `<br><span class="text-xs text-red-500 font-medium italic">↳ Motivo: ${d.motivo_no_recepcion}</span>`
+                : '';
+
+            return `
+            <tr class="hover:bg-slate-50 transition-colors border-b border-slate-100">
+                <td class="px-4 py-3 font-bold text-slate-700">${nombre} ${txtMotivo}</td>
+                <td class="px-4 py-3 text-center font-mono">${d.cantidad_uc} <span class="text-[10px] font-bold text-slate-400">${abrev}</span></td>
+                <td class="px-4 py-3 text-right font-mono text-slate-500">$${(d.precio_unitario_uc || 0).toLocaleString('es-CL')}</td>
+                <td class="px-4 py-3 text-right font-mono font-bold text-slate-800">$${(d.subtotal || 0).toLocaleString('es-CL')}</td>
+                <td class="px-4 py-3 text-center">${estBadge}</td>
+            </tr>
+            `;
+        }).join('');
+
+    } catch (err) {
+        console.error("Error al cargar desglose:", err);
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-red-500 font-bold">❌ Error al cargar los detalles.</td></tr>`;
+    }
+}
+
 window.acc_filtrarRepCom = function() {
     window.repComSearch = document.getElementById('busqueda-rep-com').value.toLowerCase().trim();
     window.repComFechaIn = document.getElementById('fecha-inicio-com').value;
@@ -398,6 +465,7 @@ window.acc_cambiarPagCom = function(dir) {
     window.repComPag += dir;
     window.acc_renderRepCom();
 }
+
 window.acc_renderRepCom = function() {
     const lista = document.getElementById('lista-historial-compras');
     if(!lista) return;
@@ -436,16 +504,32 @@ window.acc_renderRepCom = function() {
             const badgeTipo = isProd ? '<span class="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-[10px] font-bold">🏭 PROD</span>' : '<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold">🚚 COMPRA</span>';
             const fStr = c.fechaObj && !isNaN(c.fechaObj.getTime()) ? c.fechaObj.toLocaleDateString('es-CL') : '-';
             
-            let estColor = c.estado === 'Completada' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200';
-            let estBadge = `<span class="${estColor} border px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider">${c.estado === 'Completada' ? '✅ Ingresada' : c.estado}</span>`;
+            // 👉 LÓGICA MINIMALISTA: ESTADO CON LUZ VERDE O ROJA
+            let estColor = 'bg-slate-100 text-slate-600 border-slate-200';
+            let iconoLuz = '';
+            let textoEstado = c.estado;
 
-            // 👉 LÓGICA DE ICONOS DE FACTURACIÓN
+            if (c.estado === 'Completada') {
+                if (c.observaciones) {
+                    estColor = 'bg-red-50 text-red-700 border-red-200'; // Alerta rojita
+                    iconoLuz = '🔴 ';
+                    textoEstado = 'Ingresada (Obs)';
+                } else {
+                    estColor = 'bg-emerald-50 text-emerald-700 border-emerald-200'; // Limpio verdecito
+                    iconoLuz = '🟢 ';
+                    textoEstado = 'Ingresada';
+                }
+            }
+
+            // Agregamos un 'title' para que al pasar el mouse se lea la observación rápido
+            let estBadge = `<span class="${estColor} border px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider" ${c.observaciones ? `title="${c.observaciones}"` : ''}>${iconoLuz}${textoEstado}</span>`;
+
+            // 👉 LÓGICA DE FACTURACIÓN (Sin la advertencia extra)
             let htmlFactura = '<span class="text-slate-300 italic text-[10px]">No aplica</span>';
             if(!isProd) {
                 let btnFoto = c.rutaFoto ? `<button onclick="verFotoFactura('${c.rutaFoto}')" class="text-blue-600 hover:bg-blue-50 p-1 rounded transition-colors text-base shadow-sm border border-blue-200 bg-white" title="Abrir foto de Factura">📸</button>` : '';
                 let nroStr = c.nroFactura ? `Nº ${c.nroFactura}` : '<span class="text-slate-400 italic">Sin Factura</span>';
-                let obsWarn = c.observaciones ? `<span title="OBS: ${c.observaciones}" class="cursor-help text-red-500 bg-red-50 border border-red-200 p-1 rounded text-sm shadow-sm">⚠️</span>` : '';
-                htmlFactura = `<div class="flex items-center gap-2"><span class="font-bold text-slate-700 text-xs">${nroStr}</span> ${btnFoto} ${obsWarn}</div>`;
+                htmlFactura = `<div class="flex items-center gap-2"><span class="font-bold text-slate-700 text-xs">${nroStr}</span> ${btnFoto}</div>`;
             }
 
             const totalMostrar = isProd 
