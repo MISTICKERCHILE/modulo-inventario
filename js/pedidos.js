@@ -457,13 +457,70 @@ window.whatsappPedido = async function(idProv, nombreProv, idSuc, nombreSuc) {
 }
 
 // ==========================================
-// 4 Y 5. FLUJO DE GENERACIÓN Y FECHAS
+// 4 Y 5. FLUJO DE GENERACIÓN Y FECHAS BIDIRECCIONALES
 // ==========================================
-window.infoPedidoActual = null; // Guardará temporalmente los datos para el modal
+window.infoPedidoActual = null;
+
+// MOTOR 1: Escribes DÍAS -> Calcula FECHA
+window.sincronizarFechaDesdeDias = function() {
+    const dias = parseInt(document.getElementById('input-dias-entrega').value) || 0;
+    const esHabil = document.getElementById('check-dias-habiles').checked;
+    
+    let fecha = new Date();
+    if (dias > 0) {
+        if (esHabil) {
+            let agregados = 0;
+            while (agregados < dias) {
+                fecha.setDate(fecha.getDate() + 1);
+                if (fecha.getDay() !== 0 && fecha.getDay() !== 6) agregados++; // Ignora Sab/Dom
+            }
+        } else {
+            fecha.setDate(fecha.getDate() + dias);
+        }
+    }
+    document.getElementById('input-fecha-entrega').value = fecha.toISOString().split('T')[0];
+}
+
+// MOTOR 2: Eliges FECHA -> Calcula DÍAS
+window.sincronizarDiasDesdeFecha = function() {
+    // Usamos T12:00:00 para evitar que el cambio de zona horaria nos reste un día
+    const fechaTarget = new Date(document.getElementById('input-fecha-entrega').value + 'T12:00:00'); 
+    const esHabil = document.getElementById('check-dias-habiles').checked;
+    
+    let hoy = new Date();
+    hoy.setHours(12, 0, 0, 0); // Emparejamos las horas
+    
+    // Si elige una fecha en el pasado, lo reseteamos a hoy
+    if (fechaTarget < hoy) {
+        document.getElementById('input-fecha-entrega').value = hoy.toISOString().split('T')[0];
+        document.getElementById('input-dias-entrega').value = 0;
+        return;
+    }
+
+    let dias = 0;
+    let temp = new Date(hoy);
+    
+    while(temp < fechaTarget) {
+        temp.setDate(temp.getDate() + 1);
+        if (esHabil) {
+            if (temp.getDay() !== 0 && temp.getDay() !== 6) dias++;
+        } else {
+            dias++;
+        }
+    }
+    
+    document.getElementById('input-dias-entrega').value = dias;
+}
 
 window.abrirModalFechaEntrega = function(idProv, idSuc, nombreSuc) {
     window.infoPedidoActual = { idProv, idSuc, nombreSuc };
     document.getElementById('modal-fecha-entrega').classList.remove('hidden');
+    
+    // Valores por defecto al abrir
+    document.getElementById('input-dias-entrega').value = 2; 
+    document.getElementById('check-dias-habiles').checked = true;
+    window.sincronizarFechaDesdeDias(); // Auto-calcula la fecha de hoy + 2 días hábiles
+    
     document.getElementById('input-dias-entrega').focus();
 }
 
@@ -481,29 +538,10 @@ window.confirmarYGenerarPedido = async function() {
     const btn = document.getElementById('btn-confirmar-fecha-oc');
     btn.innerText = "⏳ Generando..."; btn.disabled = true;
 
-    // 1. CÁLCULO INTELIGENTE DE LA FECHA DE ENTREGA
-    const dias = parseInt(document.getElementById('input-dias-entrega').value) || 0;
-    const esHabil = document.getElementById('check-dias-habiles').checked;
-    
-    let fechaLlegada = new Date();
-    if (dias > 0) {
-        if (esHabil) {
-            let agregados = 0;
-            while (agregados < dias) {
-                fechaLlegada.setDate(fechaLlegada.getDate() + 1);
-                // 0 es Domingo, 6 es Sábado
-                if (fechaLlegada.getDay() !== 0 && fechaLlegada.getDay() !== 6) {
-                    agregados++;
-                }
-            }
-        } else {
-            fechaLlegada.setDate(fechaLlegada.getDate() + dias);
-        }
-    }
-    // Formateamos para Supabase (YYYY-MM-DD)
-    const fechaEstimadaSQL = fechaLlegada.toISOString().split('T')[0];
+    // Tomamos la fecha directamente del calendario (ya calculada)
+    const fechaEstimadaSQL = document.getElementById('input-fecha-entrega').value;
 
-    // 2. GENERAMOS EL CÓDIGO INTERNO (OC - TRES LETRAS SUCURSAL - 4 NÚMEROS RANDOM)
+    // GENERAMOS EL CÓDIGO INTERNO (OC - TRES LETRAS SUCURSAL - 4 NÚMEROS RANDOM)
     const prefijoSuc = nombreSuc.substring(0,3).toUpperCase();
     const numeroAleatorio = Math.floor(1000 + Math.random() * 9000);
     const codigoOC = `OC-${prefijoSuc}-${numeroAleatorio}`;
@@ -511,14 +549,13 @@ window.confirmarYGenerarPedido = async function() {
     const totalEstimado = items.reduce((sum, item) => sum + (item.cantUC * item.precioRef), 0);
 
     try {
-        // 3. INSERTAMOS EN COMPRAS CON LA FECHA Y EL CÓDIGO
         const { data: cabecera, error: errCabecera } = await clienteSupabase.from('compras').insert([{
             id_empresa: window.miEmpresaId, 
             id_proveedor: idProv, 
             total_compra: totalEstimado, 
             estado: 'En Tránsito',
             numero_documento: codigoOC,
-            fecha_entrega_estimada: fechaEstimadaSQL // <--- AQUÍ SE GUARDA
+            fecha_entrega_estimada: fechaEstimadaSQL 
         }]).select('id').single();
 
         if (errCabecera) throw errCabecera;
@@ -539,7 +576,6 @@ window.confirmarYGenerarPedido = async function() {
                 }
             }
             
-            // Borramos de la bandeja SOLO los items de este proveedor y sucursal
             const promesasBorrado = items.map(i => clienteSupabase.from('carrito_pedidos').delete().eq('id_empresa', window.miEmpresaId).eq('id_producto', i.idProd).eq('id_sucursal', i.idSuc));
             await Promise.all(promesasBorrado);
         }
@@ -548,7 +584,10 @@ window.confirmarYGenerarPedido = async function() {
         btn.innerText = "✅ Confirmar Fecha"; btn.disabled = false;
         
         window.cargarPedidosPlanificados(); 
-        alert(`✅ Orden ${codigoOC} generada exitosamente. Se espera su llegada el ${fechaLlegada.toLocaleDateString('es-CL')}.`);
+        
+        // Formateamos la fecha al estilo latino para el Alert
+        const fechaVisual = new Date(fechaEstimadaSQL + 'T12:00:00').toLocaleDateString('es-CL');
+        alert(`✅ Orden ${codigoOC} generada exitosamente. Se espera su llegada el ${fechaVisual}.`);
 
     } catch (error) {
         console.error("Error al generar pedido:", error);
