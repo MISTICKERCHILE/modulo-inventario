@@ -60,7 +60,7 @@ window.cargarPedidosPlanificados = async function() {
             .from('compras_detalles')
             .select('id_producto, id_compra')
             .eq('estado', 'Recibido')
-            .order('created_at', { ascending: false });
+            .order('id', { ascending: false });
 
         if (ultimosDetalles && ultimosDetalles.length > 0) {
             const primerasComprasPorProducto = [];
@@ -555,7 +555,7 @@ window.confirmarYGenerarPedido = async function() {
             total_compra: totalEstimado, 
             estado: 'En Tránsito',
             numero_documento: codigoOC,
-            fecha_entrega_estimada: fechaEstimadaSQL 
+            fecha_entrega_esperada: fechaEstimadaSQL 
         }]).select('id').single();
 
         if (errCabecera) throw errCabecera;
