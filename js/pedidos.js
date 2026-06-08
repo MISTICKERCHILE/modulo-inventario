@@ -366,18 +366,22 @@ window.renderizarBandejaPedidos = function() {
     lista.innerHTML = html;
 }
 
-// ==========================================
-// 2. IMPRIMIR PDF CON RAZÓN SOCIAL Y HORARIOS
-// ==========================================
+// ==================================================================
+// 2. IMPRIMIR PDF CON LÓGICA INTERNO/EXTERNO RAZON SOCIAL Y HORARIOS
+// ==================================================================
 window.imprimirPedido = async function(idProv, nombreProv, idSuc, nombreSuc) {
     const items = window.carritoPedidos.filter(i => i.idProv === idProv && i.idSuc === idSuc);
     if(items.length === 0) return alert("No hay productos en este pedido.");
 
-    // Traemos Razón Social de Empresa y Dirección/Horario de Sucursal
-    const [{ data: empData }, { data: sucData }] = await Promise.all([
+    // Traemos Razón Social, Dirección y TIPO de Proveedor
+    const [{ data: empData }, { data: sucData }, { data: provData }] = await Promise.all([
         clienteSupabase.from('empresas').select('nombre').eq('id', window.miEmpresaId).maybeSingle(),
-        clienteSupabase.from('sucursales').select('direccion, horarios_atencion').eq('id', idSuc).maybeSingle()
+        clienteSupabase.from('sucursales').select('direccion, horarios_atencion').eq('id', idSuc).maybeSingle(),
+        clienteSupabase.from('proveedores').select('tipo').eq('id', idProv).maybeSingle()
     ]);
+
+    const esInterno = provData?.tipo === 'Interno';
+    const tituloDocumento = esInterno ? 'ORDEN DE PRODUCCIÓN' : 'ORDEN DE COMPRA';
 
     const razonSocial = empData?.nombre || 'Mi Empresa';
     const direccionStr = sucData?.direccion || 'No registrada';
@@ -390,7 +394,7 @@ window.imprimirPedido = async function(idProv, nombreProv, idSuc, nombreSuc) {
     printWindow.document.write(`
         <html>
         <head>
-            <title>Orden de Compra - ${nombreSuc}</title>
+            <title>${tituloDocumento} - ${nombreSuc}</title>
             <style>
                 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
                 body { font-family: 'Inter', sans-serif; margin: 0; padding: 20px; color: #333; }
@@ -408,11 +412,11 @@ window.imprimirPedido = async function(idProv, nombreProv, idSuc, nombreSuc) {
         </head>
         <body>
             <div class="header-box">
-                <h1 class="header-title">ORDEN DE COMPRA</h1>
+                <h1 class="header-title">${tituloDocumento}</h1>
                 <div class="info-grid">
                     <div class="info-item"><strong>Facturar a (Razón Social):</strong><div style="font-size: 16px; font-weight: bold; margin-top: 4px;">${razonSocial}</div></div>
                     <div class="info-item"><strong>Fecha de Orden:</strong><div style="font-size: 16px; margin-top: 4px;">${fechaHoy}</div></div>
-                    <div class="info-item"><strong>Proveedor:</strong><div style="font-size: 16px; font-weight: bold; margin-top: 4px;">${nombreProv}</div></div>
+                    <div class="info-item"><strong>Proveedor / Origen:</strong><div style="font-size: 16px; font-weight: bold; margin-top: 4px;">${nombreProv}</div></div>
                     <div class="info-item"><strong>Sucursal Destino:</strong><div style="font-size: 14px; margin-top: 4px;">${nombreSuc}</div></div>
                     <div class="info-item"><strong>Dirección de Entrega:</strong><div style="font-size: 14px; margin-top: 4px;">${direccionStr}</div></div>
                     <div class="info-item"><strong>Horario de Recepción:</strong><div style="font-size: 14px; margin-top: 4px;">${horarioStr}</div></div>
@@ -430,7 +434,7 @@ window.imprimirPedido = async function(idProv, nombreProv, idSuc, nombreSuc) {
 }
 
 // ==========================================
-// 3. ENVIAR WHATSAPP CON FORMATO COMPLETO
+// 3. ENVIAR WHATSAPP CON LÓGICA INTERNO/EXTERNO
 // ==========================================
 window.whatsappPedido = async function(idProv, nombreProv, idSuc, nombreSuc) {
     const items = window.carritoPedidos.filter(i => i.idProv === idProv && i.idSuc === idSuc);
@@ -439,8 +443,11 @@ window.whatsappPedido = async function(idProv, nombreProv, idSuc, nombreSuc) {
     const [{ data: empData }, { data: sucData }, { data: provData }] = await Promise.all([
         clienteSupabase.from('empresas').select('nombre').eq('id', window.miEmpresaId).maybeSingle(),
         clienteSupabase.from('sucursales').select('direccion, horarios_atencion').eq('id', idSuc).maybeSingle(),
-        clienteSupabase.from('proveedores').select('whatsapp').eq('id', idProv).maybeSingle()
+        clienteSupabase.from('proveedores').select('whatsapp, tipo').eq('id', idProv).maybeSingle()
     ]);
+
+    const esInterno = provData?.tipo === 'Interno';
+    const tituloDocumento = esInterno ? 'ORDEN DE PRODUCCIÓN' : 'ORDEN DE COMPRA';
 
     let telf = provData?.whatsapp ? provData.whatsapp.replace(/\D/g,'') : '';
     const razonSocial = empData?.nombre || 'Nuestra Empresa';
@@ -448,7 +455,7 @@ window.whatsappPedido = async function(idProv, nombreProv, idSuc, nombreSuc) {
     const horarioStr = sucData?.horarios_atencion || 'No registrado';
     const fechaHoy = new Date().toLocaleDateString('es-CL');
 
-    let texto = `*NUEVA ORDEN DE COMPRA* 📝\n*Fecha:* ${fechaHoy}\n*Facturar a:* ${razonSocial}\n*Proveedor:* ${nombreProv}\n\n*📍 DATOS DE DESPACHO:*\n*Destino:* Sucursal ${nombreSuc}\n*Dirección:* ${direccionStr}\n*Horario Recepción:* ${horarioStr}\n\n*📦 PRODUCTOS SOLICITADOS:*\n`;
+    let texto = `*NUEVA ${tituloDocumento}* 📝\n*Fecha:* ${fechaHoy}\n*Facturar a:* ${razonSocial}\n*Proveedor / Origen:* ${nombreProv}\n\n*📍 DATOS DE DESPACHO:*\n*Destino:* Sucursal ${nombreSuc}\n*Dirección:* ${direccionStr}\n*Horario Recepción:* ${horarioStr}\n\n*📦 PRODUCTOS SOLICITADOS:*\n`;
     items.forEach(item => { texto += `▫️ ${item.cantUC} ${item.abrevUC} de ${item.nombreProd}\n`; });
     texto += `\nPor favor confirmar recepción del pedido y fecha de entrega. ¡Gracias!`;
 
@@ -538,17 +545,21 @@ window.confirmarYGenerarPedido = async function() {
     const btn = document.getElementById('btn-confirmar-fecha-oc');
     btn.innerText = "⏳ Generando..."; btn.disabled = true;
 
-    // Tomamos la fecha directamente del calendario (ya calculada)
-    const fechaEstimadaSQL = document.getElementById('input-fecha-entrega').value;
-
-    // GENERAMOS EL CÓDIGO INTERNO (OC - TRES LETRAS SUCURSAL - 4 NÚMEROS RANDOM)
-    const prefijoSuc = nombreSuc.substring(0,3).toUpperCase();
-    const numeroAleatorio = Math.floor(1000 + Math.random() * 9000);
-    const codigoOC = `OC-${prefijoSuc}-${numeroAleatorio}`;
-
-    const totalEstimado = items.reduce((sum, item) => sum + (item.cantUC * item.precioRef), 0);
-
     try {
+        // Consultamos si el proveedor es Interno o Externo
+        const { data: provData } = await clienteSupabase.from('proveedores').select('tipo').eq('id', idProv).maybeSingle();
+        const esInterno = provData?.tipo === 'Interno';
+        const prefijoDoc = esInterno ? 'OP' : 'OC'; // OP = Orden de Producción, OC = Orden de Compra
+
+        const fechaEstimadaSQL = document.getElementById('input-fecha-entrega').value;
+
+        // GENERAMOS EL CÓDIGO INTERNO (Ej: OP-MUT-4521 o OC-MUT-4521)
+        const prefijoSuc = nombreSuc.substring(0,3).toUpperCase();
+        const numeroAleatorio = Math.floor(1000 + Math.random() * 9000);
+        const codigoOC = `${prefijoDoc}-${prefijoSuc}-${numeroAleatorio}`;
+
+        const totalEstimado = items.reduce((sum, item) => sum + (item.cantUC * item.precioRef), 0);
+
         const { data: cabecera, error: errCabecera } = await clienteSupabase.from('compras').insert([{
             id_empresa: window.miEmpresaId, 
             id_proveedor: idProv, 
@@ -585,9 +596,9 @@ window.confirmarYGenerarPedido = async function() {
         
         window.cargarPedidosPlanificados(); 
         
-        // Formateamos la fecha al estilo latino para el Alert
         const fechaVisual = new Date(fechaEstimadaSQL + 'T12:00:00').toLocaleDateString('es-CL');
-        alert(`✅ Orden ${codigoOC} generada exitosamente. Se espera su llegada el ${fechaVisual}.`);
+        const nombreDocumentoVisual = esInterno ? 'Orden de Producción' : 'Orden de Compra';
+        alert(`✅ ${nombreDocumentoVisual} ${codigoOC} generada exitosamente. Se espera su llegada el ${fechaVisual}.`);
 
     } catch (error) {
         console.error("Error al generar pedido:", error);
