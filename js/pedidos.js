@@ -846,7 +846,8 @@ window.abrirModalRecepcionMasiva = async function(idSuc, nombreSuc, idProv, nomb
 
     document.getElementById('rm-titulo-modal').innerText = isProd ? "🏭 Registro de Trabajo / Producción" : "📦 Recepción de Pedido Externo";
     document.getElementById('rm-titulo-estado').innerText = isProd ? "Estado del Trabajo" : "Estado de Recepción";
-
+    document.getElementById('bloque-facturacion').classList.toggle('hidden', isProd);
+    
     const colorBorde = isProd ? 'border-purple-500' : 'border-blue-500';
     const modalBox = document.getElementById('rm-borde-modal');
     modalBox.classList.remove('border-blue-500', 'border-purple-500');
