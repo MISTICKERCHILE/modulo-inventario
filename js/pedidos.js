@@ -1067,7 +1067,7 @@ window.guardarRecepcionMasiva = async function() {
 
         // --- 3. SELLAR LA CABECERA CON LA FOTO Y DATOS ---
         for(const idC of comprasAfectadas) { 
-            const payloadCompra = { estado: 'Completada' };
+            const payloadCompra = { estado: 'Completada', responsable_recepcion: nombreResponsable };
             if (!isProd) {
                 payloadCompra.numero_factura = nroFactura;
                 payloadCompra.total_factura = totalFactura;
