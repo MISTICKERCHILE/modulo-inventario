@@ -285,32 +285,23 @@ window.cambiarUbicacionSaldo = async function(idSaldo, valorCompuestoStr) {
 window.abrirModalConteoMasivo = async function() {
     document.getElementById('cm-sucursal-nombre').innerText = window.sucursalActivaNombre;
     
-    // Traemos todo: productos, ubicaciones y sub-ubicaciones
-    const [{ data: ubicaciones }, { data: subUbis }, { data: productos }] = await Promise.all([
+    // Solo traemos ubicaciones principales
+    const [{ data: ubicaciones }, { data: productos }] = await Promise.all([
         clienteSupabase.from('ubicaciones_internas').select('id, nombre, orden').eq('id_sucursal', window.sucursalActivaID).order('orden'),
-        clienteSupabase.from('sub_ubicaciones').select('id, id_ubicacion, nombre, orden').eq('id_empresa', window.miEmpresaId).order('orden'),
         clienteSupabase.from('productos').select('id, nombre, id_unidad_almacenamiento(abreviatura), categorias(nombre)').eq('id_empresa', window.miEmpresaId).order('nombre')
     ]);
     
     window.productosGlobalConteo = productos || [];
     
-    // Armamos el selector tipo "Árbol"
     let optsUbi = '<option value="">Selecciona Ubicación a contar...</option>';
-    optsUbi += '<option value="GENERAL|NULL" class="font-bold bg-slate-100">🌎 General (Sin ubicación específica)</option>';
+    optsUbi += '<option value="GENERAL">General (Sin ubicación específica)</option>';
     
     (ubicaciones||[]).forEach(u => {
-        // La ubicación padre en negrita
-        optsUbi += `<option value="${u.id}|NULL" class="font-bold text-slate-800 bg-slate-50 mt-1">📦 ${u.nombre} (Completa / General)</option>`;
-        
-        // Las repisas tabuladas abajo
-        const repisas = (subUbis || []).filter(su => su.id_ubicacion === u.id);
-        repisas.forEach(su => {
-            optsUbi += `<option value="${u.id}|${su.id}" class="text-slate-600 pl-4">&nbsp;&nbsp;&nbsp;↳ ${su.nombre}</option>`;
-        });
+        optsUbi += `<option value="${u.id}">${u.nombre}</option>`;
     });
     
     document.getElementById('cm-ubicacion').innerHTML = optsUbi;
-    document.getElementById('cm-filas').innerHTML = '<tr><td colspan="4" class="text-center text-slate-400 py-8">Selecciona una ubicación arriba para cargar los productos.</td></tr>';
+    document.getElementById('cm-filas').innerHTML = '<tr><td colspan="5" class="text-center text-slate-400 py-8">Selecciona una ubicación arriba para cargar los productos.</td></tr>';
     
     document.getElementById('modal-conteo-masivo').classList.remove('hidden');
 }
@@ -318,6 +309,8 @@ window.abrirModalConteoMasivo = async function() {
 // =========================================================
 // CARGAR FILAS CONTEO MASIVO (Ahora con Código de Barras y Categoría)
 // =========================================================
+window.subUbicacionesActualesConteo = []; // Guardaremos las repisas aquí para cuando agreguemos productos nuevos
+
 window.cargarFilasConteoMasivo = async function(idUbicacion) {
     const tbody = document.getElementById('cm-filas');
     if(!idUbicacion) { 
@@ -325,92 +318,134 @@ window.cargarFilasConteoMasivo = async function(idUbicacion) {
         return; 
     }
     
-    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-emerald-600 py-8 font-bold animate-pulse">⏳ Cargando catálogo y saldos...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-emerald-600 py-8 font-bold animate-pulse">⏳ Cargando y agrupando repisas...</td></tr>';
 
     try {
-        // 1. Traemos TODOS los productos físicos del catálogo (Incluyendo Código de Barras y Categoría)
+        // 1. Traemos productos y saldos
         const { data: prodsFisicos } = await clienteSupabase.from('productos')
             .select('id, nombre, codigo_barras, categorias(nombre), id_unidad_almacenamiento(abreviatura)')
-            .eq('id_empresa', window.miEmpresaId)
-            .is('control_stock', true)
-            .order('nombre');
+            .eq('id_empresa', window.miEmpresaId).is('control_stock', true).order('nombre');
 
-        // 2. Traemos TODOS los saldos actuales de esta sucursal
-        const { data: saldosActuales } = await clienteSupabase.from('inventario_saldos')
-            .select('id_producto, cantidad_actual_ua, id_ubicacion')
-            .eq('id_sucursal', window.sucursalActivaID);
+        let querySaldos = clienteSupabase.from('inventario_saldos').select('id_producto, cantidad_actual_ua, id_ubicacion, id_sub_ubicacion').eq('id_sucursal', window.sucursalActivaID);
+        if(idUbicacion === 'GENERAL') querySaldos = querySaldos.is('id_ubicacion', null);
+        else querySaldos = querySaldos.eq('id_ubicacion', idUbicacion);
+        
+        const { data: saldosActuales } = await querySaldos;
 
-        let html = '';
-        let contadorFilas = 0;
+        // 2. Traemos las sub-ubicaciones respetando el orden del catálogo
+        let subUbicaciones = [];
+        let nombreUbiPadre = "General";
+        
+        if (idUbicacion !== 'GENERAL') {
+            const { data: subs } = await clienteSupabase.from('sub_ubicaciones').select('id, nombre, orden').eq('id_ubicacion', idUbicacion).order('orden');
+            subUbicaciones = subs || [];
+            const selectEl = document.getElementById('cm-ubicacion');
+            nombreUbiPadre = selectEl.options[selectEl.selectedIndex].text;
+        }
+        window.subUbicacionesActualesConteo = subUbicaciones;
 
-        // 3. Cruzamos los datos según la regla de negocio
+        // 3. Creamos los Grupos Plegables
+        const grupos = [];
+        grupos.push({ id: 'NULL', nombre: idUbicacion === 'GENERAL' ? 'Bodega General' : `${nombreUbiPadre} (Principal / Sin Repisa)`, items: [] });
+        
+        subUbicaciones.forEach(su => {
+            grupos.push({ id: su.id, nombre: `${nombreUbiPadre} / ${su.nombre}`, items: [] });
+        });
+
+        // 4. Distribuimos los productos en los grupos donde tienen stock
         (prodsFisicos || []).forEach(p => {
-            const saldosDelProducto = (saldosActuales || []).filter(s => s.id_producto === p.id);
-            let mostrar = false;
-            let cantActual = 0;
-
+            const saldosProd = (saldosActuales || []).filter(s => s.id_producto === p.id);
+            
             if (idUbicacion === 'GENERAL') {
-                const saldoGeneral = saldosDelProducto.find(s => s.id_ubicacion === null);
-                const sinNingunSaldo = saldosDelProducto.length === 0;
-
-                if (saldoGeneral || sinNingunSaldo) {
-                    mostrar = true;
-                    cantActual = saldoGeneral ? saldoGeneral.cantidad_actual_ua : 0;
-                }
+                const sGen = saldosProd.find(s => s.id_ubicacion === null);
+                if (sGen || saldosProd.length === 0) grupos[0].items.push({ p, cant: sGen ? sGen.cantidad_actual_ua : 0, subId: 'NULL' });
             } else {
-                const saldoEspecifico = saldosDelProducto.find(s => s.id_ubicacion === idUbicacion);
-                if (saldoEspecifico) {
-                    mostrar = true;
-                    cantActual = saldoEspecifico.cantidad_actual_ua;
+                let tieneStockEnAlgunaRepisa = false;
+                saldosProd.forEach(s => {
+                    const grupoDestino = grupos.find(gr => gr.id === (s.id_sub_ubicacion || 'NULL'));
+                    if (grupoDestino) {
+                        grupoDestino.items.push({ p, cant: s.cantidad_actual_ua, subId: s.id_sub_ubicacion || 'NULL' });
+                        tieneStockEnAlgunaRepisa = true;
+                    }
+                });
+                
+                // Si el producto no tiene stock en ninguna repisa de esta bodega, lo ponemos en "Principal" en 0 para que pueda contarlo.
+                if (!tieneStockEnAlgunaRepisa) {
+                    grupos[0].items.push({ p, cant: 0, subId: 'NULL' });
                 }
             }
+        });
 
-            // Si cumple la regla, dibujamos la fila escondiendo el código de barras y mostrando la categoría
-            if (mostrar) {
-                contadorFilas++;
-                const abrev = p.id_unidad_almacenamiento?.abreviatura || 'UA';
-                const categoriaStr = p.categorias?.nombre || 'Sin Categoría';
-                const codBarrasStr = p.codigo_barras || '';
+        // 5. Dibujamos el HTML
+        let html = '';
+        grupos.forEach(g => {
+            // Cabecera del grupo (Acordeón) - Siempre visible
+            html += `
+            <tr class="bg-slate-200 cursor-pointer hover:bg-slate-300 transition-colors fila-cabecera-grupo" onclick="toggleGrupoConteo('${g.id}')" data-grupo-id="${g.id}">
+                <td colspan="5" class="py-2 px-4 font-bold text-slate-800 text-sm flex items-center gap-2">
+                    <span id="icon-grupo-${g.id}" class="transition-transform duration-200 inline-block">▼</span>
+                    📦 ${g.nombre} <span class="text-xs font-normal text-slate-500 ml-2">(${g.items.length} prod.)</span>
+                </td>
+            </tr>`;
+
+            // Productos de este grupo
+            g.items.forEach(item => {
+                const abrev = item.p.id_unidad_almacenamiento?.abreviatura || 'UA';
+                const categoriaStr = item.p.categorias?.nombre || 'Sin Categoría';
+                const codBarrasStr = item.p.codigo_barras || '';
 
                 html += `
-                <tr class="border-b border-slate-100 fila-conteo-item hover:bg-slate-50 transition-colors" data-codigobarras="${codBarrasStr}" data-categoria="${categoriaStr.toLowerCase()}">
-                    <td class="py-3 px-4 font-medium text-sm text-slate-700">
-                        ${p.nombre}
-                        <input type="hidden" class="cm-select-prod" value="${p.id}">
-                        <input type="hidden" class="cm-cant-anterior" value="${cantActual}">
+                <tr class="border-b border-slate-100 fila-conteo-item fila-data-grupo-${g.id} hover:bg-slate-50 transition-colors" data-codigobarras="${codBarrasStr}" data-categoria="${categoriaStr.toLowerCase()}">
+                    <td class="py-3 px-4 font-medium text-sm text-slate-700 pl-8">
+                        ${item.p.nombre}
+                        <input type="hidden" class="cm-select-prod" value="${item.p.id}">
+                        <input type="hidden" class="cm-cant-anterior" value="${item.cant}">
+                        <input type="hidden" class="cm-sub-ubi" value="${item.subId}">
                     </td>
-                    <td class="py-3 px-4 text-xs font-bold text-slate-500 hidden md:table-cell">
-                        ${categoriaStr}
-                    </td>
+                    <td class="py-3 px-4 text-xs font-bold text-slate-500 hidden md:table-cell">${categoriaStr}</td>
                     <td class="py-3 px-4 text-center hidden sm:table-cell">
                         <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-100">${abrev}</span>
                     </td>
                     <td class="py-3 px-4 relative flex justify-center flex-col items-center">
-                        <span class="text-[10px] text-slate-400 font-bold mb-1">Stock: ${cantActual}</span>
-                        <input type="number" step="0.01" value="${cantActual}" class="w-24 px-2 py-1 border border-slate-300 rounded text-center cm-input-cant font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner">
+                        <span class="text-[10px] text-slate-400 font-bold mb-1">Stock: ${item.cant}</span>
+                        <input type="number" step="0.01" value="${item.cant}" class="w-24 px-2 py-1 border border-slate-300 rounded text-center cm-input-cant font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner">
                     </td>
                     <td class="py-3 px-4 text-right">
                         <button onclick="this.closest('tr').remove()" class="text-slate-300 hover:text-red-500 text-lg transition-transform hover:scale-110">🗑️</button>
                     </td>
                 </tr>`;
-            }
+            });
         });
 
-        if (contadorFilas === 0) {
-            tbody.innerHTML = `
-            <tr>
-                <td colspan="5" class="text-center text-slate-400 py-12">
-                    <p class="text-lg">📭 Ubicación Vacía</p>
-                    <p class="text-xs mt-1">No hay productos registrados aquí. Usa el botón "+ Agregar Producto" para sumar un producto a esta ubicación.</p>
-                </td>
-            </tr>`;
-        } else {
-            tbody.innerHTML = html;
-        }
+        tbody.innerHTML = html;
 
     } catch (error) {
         console.error(error);
         tbody.innerHTML = '<tr><td colspan="5" class="text-center text-red-500 py-8">❌ Error al cargar los datos.</td></tr>';
+    }
+}
+
+// Función que abre y cierra las pestañas
+window.toggleGrupoConteo = function(groupId) {
+    const filas = document.querySelectorAll(`.fila-data-grupo-${groupId}`);
+    const icono = document.getElementById(`icon-grupo-${groupId}`);
+    
+    if(filas.length === 0) return;
+    
+    const estaOculto = filas[0].classList.contains('hidden');
+    
+    filas.forEach(f => {
+        if(estaOculto) f.classList.remove('hidden');
+        else f.classList.add('hidden');
+    });
+
+    if(estaOculto) {
+        icono.innerText = '▼';
+        icono.style.transform = 'rotate(0deg)';
+    } else {
+        icono.innerText = '▶';
+        // Animación suave de rotación
+        icono.style.transform = 'rotate(-90deg)';
     }
 }
 
@@ -456,31 +491,38 @@ window.filtrarProductosConteo = function() {
 window.contadorFilasNuevasConteo = 0;
 window.agregarFilaConteo = function() {
     const tbody = document.getElementById('cm-filas');
-    if(tbody.innerHTML.includes('No hay productos') || tbody.innerHTML.includes('Ubicación Vacía')) tbody.innerHTML = '';
+    if(tbody.innerHTML.includes('No hay productos')) tbody.innerHTML = '';
     
     window.contadorFilasNuevasConteo++;
     const idx = window.contadorFilasNuevasConteo;
 
+    // Armamos un selector de repisas para la fila nueva
+    let optsSub = `<option value="NULL">-- Principal (Sin Repisa) --</option>`;
+    (window.subUbicacionesActualesConteo || []).forEach(su => {
+        optsSub += `<option value="${su.id}">${su.nombre}</option>`;
+    });
+
     const tr = document.createElement('tr');
-    // Le agregamos un data-categoria vacío para que no rompa el filtro
     tr.className = "border-b border-slate-200 fila-conteo-item bg-orange-50/50 dropdown-container";
     tr.setAttribute('data-categoria', '');
     
     tr.innerHTML = `
-        <td class="py-3 px-4 relative">
+        <td class="py-3 px-4 relative pl-8">
             <input type="hidden" class="cm-select-prod" id="hidden-cm-prod-${idx}" value="">
             <div class="relative">
                 <input type="text" id="search-cm-prod-${idx}" 
-                    class="w-full px-3 py-2 border border-orange-300 rounded bg-white text-sm focus:ring-2 focus:ring-orange-500 outline-none cursor-pointer"
+                    class="w-full px-3 py-1 border border-orange-300 rounded bg-white text-sm focus:ring-2 focus:ring-orange-500 outline-none cursor-pointer"
                     placeholder="-- Buscar producto --"
                     onfocus="abrirDropdownConteo(${idx})"
                     oninput="filtrarDropdownConteo(${idx}, this.value)"
                     autocomplete="off">
-                
                 <div id="dropdown-cm-${idx}" class="lista-dropdown-custom hidden absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded shadow-xl max-h-48 overflow-y-auto">
                     <ul id="ul-cm-prod-${idx}" class="py-1 text-sm text-slate-700 divide-y divide-slate-100"></ul>
                 </div>
             </div>
+            <select class="cm-sub-ubi w-full mt-1 px-2 py-1 text-[10px] border border-orange-200 rounded text-slate-600 bg-white outline-none">
+                ${optsSub}
+            </select>
         </td>
         <td class="py-3 px-4 text-xs font-bold text-slate-400 hidden md:table-cell" id="cat-cm-prod-${idx}">-</td>
         <td class="py-3 px-4 text-center hidden sm:table-cell">
@@ -493,7 +535,11 @@ window.agregarFilaConteo = function() {
         </td>
         <td class="py-3 px-4 text-right"><button onclick="this.closest('tr').remove()" class="text-red-400 hover:text-red-600 text-lg transition-transform hover:scale-110">🗑️</button></td>
     `;
-    tbody.appendChild(tr);
+    
+    // Lo agregamos al principio de la tabla para que no se pierda al final
+    if (tbody.firstChild) tbody.insertBefore(tr, tbody.firstChild);
+    else tbody.appendChild(tr);
+    
     setTimeout(() => document.getElementById(`search-cm-prod-${idx}`).focus(), 50);
 }
 
@@ -627,11 +673,17 @@ window.guardarConteoMasivo = async function() {
         const nuevaCant = parseFloat(tr.querySelector('.cm-input-cant').value);
         if(isNaN(nuevaCant)) continue;
 
+        // Leemos la repisa de la fila
+        const subUbiInput = tr.querySelector('.cm-sub-ubi');
+        let idSubUbi = subUbiInput ? subUbiInput.value : 'NULL';
+        if(idSubUbi === 'NULL') idSubUbi = null;
+
         const inputAnterior = tr.querySelector('.cm-cant-anterior');
         let cantAnterior = inputAnterior ? parseFloat(inputAnterior.value) : null;
 
         let query = clienteSupabase.from('inventario_saldos').select('id, cantidad_actual_ua').eq('id_producto', idProd).eq('id_sucursal', window.sucursalActivaID);
         if(idUbi) query = query.eq('id_ubicacion', idUbi); else query = query.is('id_ubicacion', null);
+        if(idSubUbi) query = query.eq('id_sub_ubicacion', idSubUbi); else query = query.is('id_sub_ubicacion', null);
         
         const { data: previo } = await query.maybeSingle();
         let dbCantAnterior = previo ? previo.cantidad_actual_ua : 0;
@@ -641,11 +693,11 @@ window.guardarConteoMasivo = async function() {
             if(previo) {
                 await clienteSupabase.from('inventario_saldos').update({ cantidad_actual_ua: nuevaCant, ultima_actualizacion: new Date() }).eq('id', previo.id);
             } else {
-                await clienteSupabase.from('inventario_saldos').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_sucursal: window.sucursalActivaID, id_ubicacion: idUbi, cantidad_actual_ua: nuevaCant }]);
+                await clienteSupabase.from('inventario_saldos').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_sucursal: window.sucursalActivaID, id_ubicacion: idUbi, id_sub_ubicacion: idSubUbi, cantidad_actual_ua: nuevaCant }]);
             }
             
             await clienteSupabase.from('movimientos_inventario').insert([{ 
-                id_empresa: window.miEmpresaId, id_producto: idProd, id_ubicacion: idUbi, 
+                id_empresa: window.miEmpresaId, id_producto: idProd, id_ubicacion: idUbi, id_sub_ubicacion: idSubUbi,
                 tipo_movimiento: 'AJUSTE_CONTEO', cantidad_movida: diferencia, referencia: 'Conteo Físico Masivo' 
             }]);
         }
@@ -767,42 +819,53 @@ window.imprimirPlanillaConteo = function() {
         return alert("❌ Por favor, selecciona una ubicación a contar primero para generar la planilla.");
     }
 
-    const filas = document.querySelectorAll('.fila-conteo-item');
-    if(filas.length === 0) {
-        return alert("❌ No hay productos en la lista para imprimir.");
-    }
-
     const nombreSucursal = window.sucursalActivaNombre || 'General';
     const nombreUbicacion = ubiSelect.options[ubiSelect.selectedIndex].text;
     const fechaHoy = new Date().toLocaleDateString('es-CL');
 
     let filasHtml = '';
-    filas.forEach(tr => {
-        let celdaNombre = tr.querySelector('td:nth-child(1)');
-        let inputBusqueda = celdaNombre.querySelector('input[type="text"]');
-        let nombreProd = "";
-        
-        if (inputBusqueda && inputBusqueda.value) {
-            nombreProd = inputBusqueda.value.trim();
-        } else {
-            let clone = celdaNombre.cloneNode(true);
-            clone.querySelectorAll('input, div').forEach(el => el.remove());
-            nombreProd = clone.textContent.trim();
+    const todasLasFilas = document.querySelectorAll('#cm-filas tr');
+    
+    let itemsVisibles = 0;
+
+    todasLasFilas.forEach(tr => {
+        // Si es la cabecera del grupo (la pestaña)
+        if (tr.classList.contains('fila-cabecera-grupo')) {
+            const tituloLimpio = tr.querySelector('td').innerText.replace('▼', '').replace('▶', '').trim();
+            filasHtml += `<tr><td colspan="3" style="background-color: #e2e8f0; font-weight: 900; text-align: left; padding: 15px 8px;">${tituloLimpio}</td></tr>`;
         }
+        // Si es un producto, verificamos que no esté oculto
+        else if (tr.classList.contains('fila-conteo-item') && !tr.classList.contains('hidden') && tr.style.display !== 'none') {
+            itemsVisibles++;
+            let celdaNombre = tr.querySelector('td:nth-child(1)');
+            let inputBusqueda = celdaNombre.querySelector('input[type="text"]');
+            let nombreProd = "";
+            
+            if (inputBusqueda && inputBusqueda.value) {
+                nombreProd = inputBusqueda.value.trim();
+            } else {
+                let clone = celdaNombre.cloneNode(true);
+                clone.querySelectorAll('input, div, select').forEach(el => el.remove());
+                nombreProd = clone.textContent.trim();
+            }
 
-        if(!nombreProd) return; 
-        
-        let abrev = tr.querySelector('td:nth-child(2)').textContent.trim();
+            let abrev = tr.querySelector('td:nth-child(3)').textContent.trim();
 
-        filasHtml += `
-            <tr>
-                <td class="prod-col">${nombreProd}</td>
-                <td class="box-col"></td>
-                <td class="unit-col">${abrev}</td>
-            </tr>
-        `;
+            filasHtml += `
+                <tr>
+                    <td class="prod-col" style="padding-left: 20px;">${nombreProd}</td>
+                    <td class="box-col"></td>
+                    <td class="unit-col">${abrev}</td>
+                </tr>
+            `;
+        }
     });
 
+    if(itemsVisibles === 0) {
+        return alert("❌ Debes desplegar (abrir) al menos un grupo de repisa para imprimir los productos.");
+    }
+
+    // ... (El resto del HTML de window.open es exactamente igual al que tenías) ...
     const printWindow = window.open('', '_blank', 'width=800,height=600');
     printWindow.document.write(`
         <html>
@@ -839,7 +902,7 @@ window.imprimirPlanillaConteo = function() {
                 </div>
             </div>
             <table>
-                <thead><tr><th>Producto / Insumo</th><th style="text-align: center;">Cantidad Contada</th><th style="text-align: center;">Unidad</th></tr></thead>
+                <thead><tr><th>Producto / Insumo / Ubicación</th><th style="text-align: center;">Cantidad Contada</th><th style="text-align: center;">Unidad</th></tr></thead>
                 <tbody>${filasHtml}</tbody>
             </table>
             <script>window.onload = function() { window.print(); setTimeout(function() { window.close(); }, 500); }</script>
