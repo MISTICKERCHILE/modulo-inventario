@@ -48,42 +48,55 @@ window.abrirInventarioSucursal = async function(idSuc, nombreSuc) {
     document.getElementById('inv-vista-detalle').classList.remove('hidden');
 
     const tbody = document.getElementById('lista-inventario');
-    tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-8 text-center text-slate-500 font-bold">⏳ Cargando inventario...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-8 text-center text-slate-500 font-bold">⏳ Cargando inventario estructurado...</td></tr>';
 
-    // 1. Traemos los datos de la base de datos (simplificamos la consulta de ubicación)
-    const [{ data: saldos }, { data: ubicaciones }, { data: reglas }] = await Promise.all([
+    // 1. Traemos TODOS los datos, incluyendo la sub_ubicacion y su orden
+    const [{ data: saldos }, { data: ubicaciones }, { data: subUbis }, { data: reglas }] = await Promise.all([
         clienteSupabase.from('inventario_saldos')
-            .select(`id, id_producto, cantidad_actual_ua, id_ubicacion, productos (nombre, id_unidad_almacenamiento(abreviatura))`) // <- LE QUITAMOS EL TEXTO DE UBICACIONES INTERNAS AQUÍ
+            .select(`id, id_producto, cantidad_actual_ua, id_ubicacion, id_sub_ubicacion, productos (nombre, id_unidad_almacenamiento(abreviatura))`)
             .eq('id_empresa', window.miEmpresaId)
             .eq('id_sucursal', idSuc),
-        clienteSupabase.from('ubicaciones_internas').select('id, nombre').eq('id_sucursal', idSuc),
+        clienteSupabase.from('ubicaciones_internas').select('id, nombre, orden').eq('id_sucursal', idSuc).order('orden'),
+        clienteSupabase.from('sub_ubicaciones').select('id, id_ubicacion, nombre, orden').eq('id_empresa', window.miEmpresaId).order('orden'),
         clienteSupabase.from('reglas_stock_sucursal').select('id_producto, stock_minimo_ua').eq('id_empresa', window.miEmpresaId).eq('id_sucursal', idSuc)
     ]);
 
-    window.ubicacionesGlobalSucursal = ubicaciones || [];
+    // 2. Armamos la estructura plana agrupada (Ej: "Bodega / Repisa A1")
+    let ubicacionesEstructuradas = [];
+    (ubicaciones || []).forEach(u => {
+        // Primero, la ubicación general
+        ubicacionesEstructuradas.push({ id_ubi: u.id, id_sub: null, texto: `${u.nombre} (General / Sin Repisa)`, val: `${u.id}|NULL` });
+        
+        // Luego, buscamos si tiene repisas y las agregamos justo debajo
+        const repisas = (subUbis || []).filter(su => su.id_ubicacion === u.id);
+        repisas.forEach(su => {
+            ubicacionesEstructuradas.push({ id_ubi: u.id, id_sub: su.id, texto: `${u.nombre} / ${su.nombre}`, val: `${u.id}|${su.id}` });
+        });
+    });
+    window.ubicacionesGlobalSucursal = ubicacionesEstructuradas; // Lo guardamos para el render
     
     const reglasMap = {};
     (reglas||[]).forEach(r => reglasMap[r.id_producto] = r.stock_minimo_ua);
 
-    // 2. Preparamos los datos en memoria para que no se borren
+    // 3. Preparamos los saldos mapeando con el nuevo nombre compuesto
     window.saldosGlobalMemoria = (saldos || []).map(s => {
-        // Buscamos el nombre de la ubicación en el array local que sí cargó bien
-        const ubiLocal = (ubicaciones || []).find(u => u.id === s.id_ubicacion);
-        
+        const ubiMatch = ubicacionesEstructuradas.find(ue => ue.id_ubi === s.id_ubicacion && ue.id_sub === s.id_sub_ubicacion);
+        const nombreUbiFinal = ubiMatch ? ubiMatch.texto : (s.id_ubicacion ? 'Ubicación Desconocida' : 'General / Sin Ubicación Asignada');
+
         return {
             id: s.id,
             id_producto: s.id_producto,
             id_ubicacion: s.id_ubicacion,
+            id_sub_ubicacion: s.id_sub_ubicacion,
             cantidad_actual_ua: s.cantidad_actual_ua,
             nombreProducto: s.productos?.nombre || 'Producto sin nombre',
-            nombreUbicacion: ubiLocal ? ubiLocal.nombre : 'General / Sin Ubicación Específica', // <- SOLUCIÓN INTELIGENTE LOCAL
+            nombreUbicacion: nombreUbiFinal,
             stockMinimo: reglasMap[s.id_producto] || 0,
             abreviatura: s.productos?.id_unidad_almacenamiento?.abreviatura || 'UA'
         };
     });
 
-    // 3. Mandamos a pintar la tabla
-    renderizarTablaInventario(window.saldosGlobalMemoria);
+    window.renderizarTablaInventario(window.saldosGlobalMemoria);
 }
 
 // FUNCION QUE PINTA LA TABLA CON LOS DATOS REALES
@@ -95,25 +108,31 @@ window.renderizarTablaInventario = function(datos) {
         return;
     }
 
-    const optsUbicacionesEdit = `<option value="NULL_UBI">General / Sin Ubicación Específica</option>` + 
-                                window.ubicacionesGlobalSucursal.map(u => `<option value="${u.id}">${u.nombre}</option>`).join('');
+    // Armamos el HTML de las opciones una sola vez
+    const optsBase = `<option value="NULL|NULL">General / Sin Ubicación Asignada</option>` + 
+                     window.ubicacionesGlobalSucursal.map(u => `<option value="${u.val}">${u.texto}</option>`).join('');
 
     let html = '';
-    
     datos.forEach(inv => {
         const estaBajo = inv.cantidad_actual_ua <= inv.stockMinimo;
         const iconoEstado = estaBajo 
             ? `<span class="flex items-center gap-1 text-red-600 font-bold text-[10px] bg-red-50 px-2 py-1 rounded-full w-max border border-red-200">🔴 Bajo Mínimo (${inv.stockMinimo})</span>` 
             : '<span class="flex items-center gap-1 text-emerald-600 font-bold text-[10px] bg-emerald-50 px-2 py-1 rounded-full w-max border border-emerald-200">🟢 OK</span>';
 
-        const ubiActualValue = inv.id_ubicacion || 'NULL_UBI';
+        // Valor compuesto actual para marcar el "selected"
+        const uVal = inv.id_ubicacion || 'NULL';
+        const suVal = inv.id_sub_ubicacion || 'NULL';
+        const valCompuestoActual = `${uVal}|${suVal}`;
+
+        // Inyectamos el "selected" en la opción correcta
+        const selectOptions = optsBase.replace(`value="${valCompuestoActual}"`, `value="${valCompuestoActual}" selected`);
 
         html += `
         <tr class="hover:bg-slate-50 border-b border-slate-100 transition-colors">
             <td class="px-6 py-3">${iconoEstado}</td>
             <td class="px-6 py-3">
-                <select class="w-full max-w-[180px] px-2 py-1 text-xs text-slate-600 border border-slate-200 rounded outline-none focus:ring-1 focus:ring-emerald-500 bg-white" onchange="cambiarUbicacionSaldo('${inv.id}', this.value)">
-                    ${optsUbicacionesEdit.replace(`value="${ubiActualValue}"`, `value="${ubiActualValue}" selected`)}
+                <select class="w-full max-w-[250px] px-2 py-1 text-xs text-slate-700 font-medium border border-slate-300 rounded outline-none focus:ring-2 focus:ring-emerald-500 bg-white shadow-sm" onchange="cambiarUbicacionSaldo('${inv.id}', this.value)">
+                    ${selectOptions}
                 </select>
             </td>
             <td class="px-6 py-3 font-bold text-slate-700">${inv.nombreProducto}</td>
@@ -218,11 +237,13 @@ window.agregarASugerenciaInteligente = async function(idProd, nombre) {
     }
 }
 
-window.cambiarUbicacionSaldo = async function(idSaldo, nuevoIdUbicacionStr) {
-    const idUbicacionFinal = nuevoIdUbicacionStr === 'NULL_UBI' ? null : nuevoIdUbicacionStr;
+window.cambiarUbicacionSaldo = async function(idSaldo, valorCompuestoStr) {
+    // Rompemos el string para sacar el id_ubicacion y el id_sub_ubicacion
+    const partes = valorCompuestoStr.split('|');
+    const idUbicacionFinal = partes[0] === 'NULL' ? null : partes[0];
+    const idSubUbicacionFinal = partes[1] === 'NULL' ? null : partes[1];
     
     try {
-        // 1. Primero, vemos qué producto y cuánta cantidad estamos intentando mover
         const { data: saldoActual, error: errActual } = await clienteSupabase.from('inventario_saldos')
             .select('id_producto, id_sucursal, cantidad_actual_ua')
             .eq('id', idSaldo)
@@ -230,41 +251,29 @@ window.cambiarUbicacionSaldo = async function(idSaldo, nuevoIdUbicacionStr) {
             
         if(errActual) throw errActual;
 
-        // 2. Revisamos si en la ubicación de DESTINO ya existe ese mismo producto
+        // Buscamos si en ese exacto estante ya hay del mismo producto
         let query = clienteSupabase.from('inventario_saldos')
             .select('id, cantidad_actual_ua')
             .eq('id_producto', saldoActual.id_producto)
             .eq('id_sucursal', saldoActual.id_sucursal);
             
-        if (idUbicacionFinal) {
-            query = query.eq('id_ubicacion', idUbicacionFinal);
-        } else {
-            query = query.is('id_ubicacion', null);
-        }
+        if (idUbicacionFinal) query = query.eq('id_ubicacion', idUbicacionFinal); else query = query.is('id_ubicacion', null);
+        if (idSubUbicacionFinal) query = query.eq('id_sub_ubicacion', idSubUbicacionFinal); else query = query.is('id_sub_ubicacion', null);
 
         const { data: saldoDestino } = await query.maybeSingle();
 
-        // 3. TOMAMOS LA DECISIÓN INTELIGENTE
         if (saldoDestino) {
-            // SI YA EXISTE: Sumamos las cantidades (Fusión) y borramos la caja vacía
+            // FUSIÓN: Sumamos las cantidades y borramos la fila vieja
             const nuevaCantidad = Number(saldoDestino.cantidad_actual_ua) + Number(saldoActual.cantidad_actual_ua);
-            
-            // Le sumamos el stock a la fila de destino
-            await clienteSupabase.from('inventario_saldos')
-                .update({ cantidad_actual_ua: nuevaCantidad, ultima_actualizacion: new Date() })
-                .eq('id', saldoDestino.id);
-                
-            // Eliminamos la fila original de donde sacamos el producto
+            await clienteSupabase.from('inventario_saldos').update({ cantidad_actual_ua: nuevaCantidad, ultima_actualizacion: new Date() }).eq('id', saldoDestino.id);
             await clienteSupabase.from('inventario_saldos').delete().eq('id', idSaldo);
-            
         } else {
-            // SI NO EXISTE: Simplemente cambiamos la etiqueta de ubicación (lo que hacía antes)
+            // TRASLADO NORMAL: Solo cambiamos las etiquetas
             await clienteSupabase.from('inventario_saldos')
-                .update({ id_ubicacion: idUbicacionFinal, ultima_actualizacion: new Date() })
+                .update({ id_ubicacion: idUbicacionFinal, id_sub_ubicacion: idSubUbicacionFinal, ultima_actualizacion: new Date() })
                 .eq('id', idSaldo);
         }
 
-        // 4. Recargamos la pantalla para ver la magia
         window.abrirInventarioSucursal(window.sucursalActivaID, window.sucursalActivaNombre); 
         
     } catch (error) {
