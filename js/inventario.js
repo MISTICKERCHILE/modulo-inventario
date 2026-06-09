@@ -50,7 +50,6 @@ window.abrirInventarioSucursal = async function(idSuc, nombreSuc) {
     const tbody = document.getElementById('lista-inventario');
     tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-8 text-center text-slate-500 font-bold">⏳ Cargando inventario estructurado...</td></tr>';
 
-    // 1. Traemos TODOS los datos, incluyendo la sub_ubicacion y su orden
     const [{ data: saldos }, { data: ubicaciones }, { data: subUbis }, { data: reglas }] = await Promise.all([
         clienteSupabase.from('inventario_saldos')
             .select(`id, id_producto, cantidad_actual_ua, id_ubicacion, id_sub_ubicacion, productos (nombre, id_unidad_almacenamiento(abreviatura))`)
@@ -61,13 +60,9 @@ window.abrirInventarioSucursal = async function(idSuc, nombreSuc) {
         clienteSupabase.from('reglas_stock_sucursal').select('id_producto, stock_minimo_ua').eq('id_empresa', window.miEmpresaId).eq('id_sucursal', idSuc)
     ]);
 
-    // 2. Armamos la estructura plana agrupada
     let ubicacionesEstructuradas = [];
     (ubicaciones || []).forEach(u => {
-        // 👉 AQUÍ EL CAMBIO: Ahora solo dice el nombre limpio (Ej: "Bodega Plásticos")
         ubicacionesEstructuradas.push({ id_ubi: u.id, id_sub: null, texto: u.nombre, val: `${u.id}|NULL` });
-        
-        // Luego, buscamos si tiene repisas y las agregamos justo debajo
         const repisas = (subUbis || []).filter(su => su.id_ubicacion === u.id);
         repisas.forEach(su => {
             ubicacionesEstructuradas.push({ id_ubi: u.id, id_sub: su.id, texto: `${u.nombre} / ${su.nombre}`, val: `${u.id}|${su.id}` });
@@ -78,7 +73,6 @@ window.abrirInventarioSucursal = async function(idSuc, nombreSuc) {
     const reglasMap = {};
     (reglas||[]).forEach(r => reglasMap[r.id_producto] = r.stock_minimo_ua);
 
-    // 3. Preparamos los saldos mapeando con el nuevo nombre compuesto
     window.saldosGlobalMemoria = (saldos || []).map(s => {
         const ubiMatch = ubicacionesEstructuradas.find(ue => ue.id_ubi === s.id_ubicacion && ue.id_sub === s.id_sub_ubicacion);
         const nombreUbiFinal = ubiMatch ? ubiMatch.texto : (s.id_ubicacion ? 'Ubicación Desconocida' : 'General / Sin Ubicación Asignada');
@@ -99,7 +93,6 @@ window.abrirInventarioSucursal = async function(idSuc, nombreSuc) {
     window.renderizarTablaInventario(window.saldosGlobalMemoria);
 }
 
-// FUNCION QUE PINTA LA TABLA CON LOS DATOS REALES
 window.renderizarTablaInventario = function(datos) {
     const tbody = document.getElementById('lista-inventario');
     
@@ -108,7 +101,6 @@ window.renderizarTablaInventario = function(datos) {
         return;
     }
 
-    // Armamos el HTML de las opciones una sola vez
     const optsBase = `<option value="NULL|NULL">General / Sin Ubicación Asignada</option>` + 
                      window.ubicacionesGlobalSucursal.map(u => `<option value="${u.val}">${u.texto}</option>`).join('');
 
@@ -119,12 +111,10 @@ window.renderizarTablaInventario = function(datos) {
             ? `<span class="flex items-center gap-1 text-red-600 font-bold text-[10px] bg-red-50 px-2 py-1 rounded-full w-max border border-red-200">🔴 Bajo Mínimo (${inv.stockMinimo})</span>` 
             : '<span class="flex items-center gap-1 text-emerald-600 font-bold text-[10px] bg-emerald-50 px-2 py-1 rounded-full w-max border border-emerald-200">🟢 OK</span>';
 
-        // Valor compuesto actual para marcar el "selected"
         const uVal = inv.id_ubicacion || 'NULL';
         const suVal = inv.id_sub_ubicacion || 'NULL';
         const valCompuestoActual = `${uVal}|${suVal}`;
 
-        // Inyectamos el "selected" en la opción correcta
         const selectOptions = optsBase.replace(`value="${valCompuestoActual}"`, `value="${valCompuestoActual}" selected`);
 
         html += `
@@ -154,7 +144,6 @@ window.renderizarTablaInventario = function(datos) {
     tbody.innerHTML = html;
 }
 
-// FILTRO INTELIGENTE (Sin recargar página)
 window.filtrarInventarioLocal = function(texto) {
     const term = texto.toLowerCase().trim();
     const filtrados = window.saldosGlobalMemoria.filter(s => 
@@ -164,7 +153,6 @@ window.filtrarInventarioLocal = function(texto) {
     renderizarTablaInventario(filtrados);
 }
 
-// ORDENAMIENTO (Igual que en productos)
 window.ordenarInventario = function(columna) {
     const dir = (window.ordenActualInv.col === columna && window.ordenActualInv.dir === 'asc') ? 'desc' : 'asc';
     window.ordenActualInv = { col: columna, dir: dir };
@@ -184,12 +172,10 @@ window.ordenarInventario = function(columna) {
     renderizarTablaInventario(datosOrdenados);
 }
 
-// ACCIÓN: AGREGAR A PEDIDO MANUAL (El Banderín Negativo 💎)
 window.agregarASugerenciaInteligente = async function(idProd, nombre) {
     if(!confirm(`¿Deseas agregar "${nombre}" a la lista de pedidos?`)) return;
 
     try {
-        // 1. Verificar si ya está en una orden en curso (Tránsito o Producción)
         const { data: enCurso, error: errCurso } = await clienteSupabase
             .from('compras_detalles')
             .select('id, estado, compras!inner(id_empresa)')
@@ -202,11 +188,9 @@ window.agregarASugerenciaInteligente = async function(idProd, nombre) {
 
         if (enCurso && enCurso.length > 0) {
             alert(`⚠️ "${nombre}" ya se encuentra en estado "${enCurso[0].estado}". Por favor, revisa tus órdenes en curso.`);
-            return; // Detenemos la ejecución
+            return; 
         }
 
-        // 2. Si no está en curso, lo agregamos a sugerencias.
-        // EL BANDERÍN NEGATIVO: Usamos números negativos como marcador operativo. Es físicamente imposible un mínimo negativo.
         const { data: regla } = await clienteSupabase.from('reglas_stock_sucursal')
             .select('id, stock_minimo_ua, stock_ideal_ua')
             .eq('id_sucursal', window.sucursalActivaID)
@@ -214,16 +198,14 @@ window.agregarASugerenciaInteligente = async function(idProd, nombre) {
             .maybeSingle();
 
         if(!regla) {
-            // Si no tenía regla, creamos una mínima negativa
             await clienteSupabase.from('reglas_stock_sucursal').insert({
                 id_empresa: window.miEmpresaId,
                 id_sucursal: window.sucursalActivaID,
                 id_producto: idProd,
-                stock_minimo_ua: -1, // Mínimo imposible = Banderín manual activo
+                stock_minimo_ua: -1, 
                 stock_ideal_ua: 0 
             });
         } else if (regla.stock_minimo_ua >= 0) {
-            // Si la regla existe y es operativa (positiva), la multiplicamos por -1 para marcarla manual sin perder el valor estratégico.
             await clienteSupabase.from('reglas_stock_sucursal')
                 .update({ stock_minimo_ua: regla.stock_minimo_ua * -1 })
                 .eq('id', regla.id);
@@ -238,7 +220,6 @@ window.agregarASugerenciaInteligente = async function(idProd, nombre) {
 }
 
 window.cambiarUbicacionSaldo = async function(idSaldo, valorCompuestoStr) {
-    // Rompemos el string para sacar el id_ubicacion y el id_sub_ubicacion
     const partes = valorCompuestoStr.split('|');
     const idUbicacionFinal = partes[0] === 'NULL' ? null : partes[0];
     const idSubUbicacionFinal = partes[1] === 'NULL' ? null : partes[1];
@@ -251,7 +232,6 @@ window.cambiarUbicacionSaldo = async function(idSaldo, valorCompuestoStr) {
             
         if(errActual) throw errActual;
 
-        // Buscamos si en ese exacto estante ya hay del mismo producto
         let query = clienteSupabase.from('inventario_saldos')
             .select('id, cantidad_actual_ua')
             .eq('id_producto', saldoActual.id_producto)
@@ -263,12 +243,10 @@ window.cambiarUbicacionSaldo = async function(idSaldo, valorCompuestoStr) {
         const { data: saldoDestino } = await query.maybeSingle();
 
         if (saldoDestino) {
-            // FUSIÓN: Sumamos las cantidades y borramos la fila vieja
             const nuevaCantidad = Number(saldoDestino.cantidad_actual_ua) + Number(saldoActual.cantidad_actual_ua);
             await clienteSupabase.from('inventario_saldos').update({ cantidad_actual_ua: nuevaCantidad, ultima_actualizacion: new Date() }).eq('id', saldoDestino.id);
             await clienteSupabase.from('inventario_saldos').delete().eq('id', idSaldo);
         } else {
-            // TRASLADO NORMAL: Solo cambiamos las etiquetas
             await clienteSupabase.from('inventario_saldos')
                 .update({ id_ubicacion: idUbicacionFinal, id_sub_ubicacion: idSubUbicacionFinal, ultima_actualizacion: new Date() })
                 .eq('id', idSaldo);
@@ -285,7 +263,6 @@ window.cambiarUbicacionSaldo = async function(idSaldo, valorCompuestoStr) {
 window.abrirModalConteoMasivo = async function() {
     document.getElementById('cm-sucursal-nombre').innerText = window.sucursalActivaNombre;
     
-    // Solo traemos ubicaciones principales
     const [{ data: ubicaciones }, { data: productos }] = await Promise.all([
         clienteSupabase.from('ubicaciones_internas').select('id, nombre, orden').eq('id_sucursal', window.sucursalActivaID).order('orden'),
         clienteSupabase.from('productos').select('id, nombre, id_unidad_almacenamiento(abreviatura), categorias(nombre)').eq('id_empresa', window.miEmpresaId).order('nombre')
@@ -306,10 +283,7 @@ window.abrirModalConteoMasivo = async function() {
     document.getElementById('modal-conteo-masivo').classList.remove('hidden');
 }
 
-// =========================================================
-// CARGAR FILAS CONTEO MASIVO (Ahora con Código de Barras y Categoría)
-// =========================================================
-window.subUbicacionesActualesConteo = []; // Guardaremos las repisas aquí para cuando agreguemos productos nuevos
+window.subUbicacionesActualesConteo = []; 
 
 window.cargarFilasConteoMasivo = async function(idUbicacion) {
     const tbody = document.getElementById('cm-filas');
@@ -321,7 +295,6 @@ window.cargarFilasConteoMasivo = async function(idUbicacion) {
     tbody.innerHTML = '<tr><td colspan="5" class="text-center text-emerald-600 py-8 font-bold animate-pulse">⏳ Cargando y agrupando repisas...</td></tr>';
 
     try {
-        // 1. Traemos productos y saldos
         const { data: prodsFisicos } = await clienteSupabase.from('productos')
             .select('id, nombre, codigo_barras, categorias(nombre), id_unidad_almacenamiento(abreviatura)')
             .eq('id_empresa', window.miEmpresaId).is('control_stock', true).order('nombre');
@@ -332,7 +305,6 @@ window.cargarFilasConteoMasivo = async function(idUbicacion) {
         
         const { data: saldosActuales } = await querySaldos;
 
-        // 2. Traemos las sub-ubicaciones respetando el orden del catálogo
         let subUbicaciones = [];
         let nombreUbiPadre = "General";
         
@@ -344,7 +316,6 @@ window.cargarFilasConteoMasivo = async function(idUbicacion) {
         }
         window.subUbicacionesActualesConteo = subUbicaciones;
 
-        // 3. Creamos los Grupos Plegables
         const grupos = [];
         grupos.push({ id: 'NULL', nombre: idUbicacion === 'GENERAL' ? 'Bodega General' : `${nombreUbiPadre}`, items: [] });
         
@@ -352,7 +323,6 @@ window.cargarFilasConteoMasivo = async function(idUbicacion) {
             grupos.push({ id: su.id, nombre: `${nombreUbiPadre} / ${su.nombre}`, items: [] });
         });
 
-        // 4. Distribuimos los productos en los grupos donde tienen stock
         (prodsFisicos || []).forEach(p => {
             const saldosProd = (saldosActuales || []).filter(s => s.id_producto === p.id);
             
@@ -369,17 +339,14 @@ window.cargarFilasConteoMasivo = async function(idUbicacion) {
                     }
                 });
                 
-                // Si el producto no tiene stock en ninguna repisa de esta bodega, lo ponemos en "Principal" en 0 para que pueda contarlo.
                 if (!tieneStockEnAlgunaRepisa) {
                     grupos[0].items.push({ p, cant: 0, subId: 'NULL' });
                 }
             }
         });
 
-        // 5. Dibujamos el HTML
         let html = '';
         grupos.forEach(g => {
-            // Cabecera del grupo (Acordeón) - Siempre visible
             html += `
             <tr class="bg-slate-200 cursor-pointer hover:bg-slate-300 transition-colors fila-cabecera-grupo" onclick="toggleGrupoConteo('${g.id}')" data-grupo-id="${g.id}">
                 <td colspan="5" class="py-2 px-4 font-bold text-slate-800 text-sm flex items-center gap-2">
@@ -388,7 +355,6 @@ window.cargarFilasConteoMasivo = async function(idUbicacion) {
                 </td>
             </tr>`;
 
-            // Productos de este grupo
             g.items.forEach(item => {
                 const abrev = item.p.id_unidad_almacenamiento?.abreviatura || 'UA';
                 const categoriaStr = item.p.categorias?.nombre || 'Sin Categoría';
@@ -425,7 +391,6 @@ window.cargarFilasConteoMasivo = async function(idUbicacion) {
     }
 }
 
-// Función que abre y cierra las pestañas
 window.toggleGrupoConteo = function(groupId) {
     const filas = document.querySelectorAll(`.fila-data-grupo-${groupId}`);
     const icono = document.getElementById(`icon-grupo-${groupId}`);
@@ -444,14 +409,10 @@ window.toggleGrupoConteo = function(groupId) {
         icono.style.transform = 'rotate(0deg)';
     } else {
         icono.innerText = '▶';
-        // Animación suave de rotación
         icono.style.transform = 'rotate(-90deg)';
     }
 }
 
-// =========================================================
-// FILTRAR PRODUCTOS CONTEO MASIVO (Ahora busca por Nombre, Categoría y Código)
-// =========================================================
 window.filtrarProductosConteo = function() {
     const textoBuscado = document.getElementById('cm-buscador-productos').value.toLowerCase().trim();
     const filasProductos = document.querySelectorAll('#cm-filas tr.fila-conteo-item'); 
@@ -459,20 +420,17 @@ window.filtrarProductosConteo = function() {
     if(filasProductos.length === 0) return;
 
     filasProductos.forEach(fila => {
-        // Obtenemos los 3 datos de la fila
         const nombreProducto = fila.cells[0].innerText.toLowerCase();
         const categoria = fila.getAttribute('data-categoria') || '';
         const codigoBarras = fila.getAttribute('data-codigobarras')?.toLowerCase() || '';
         
-        // Evaluamos si el texto buscado coincide con alguno de los 3
         const coincideNombre = nombreProducto.includes(textoBuscado);
         const coincideCategoria = categoria.includes(textoBuscado);
         const coincideCodigo = (textoBuscado !== '' && codigoBarras === textoBuscado);
 
         if (coincideNombre || coincideCategoria || coincideCodigo) {
-            fila.style.display = ''; // Lo mostramos
+            fila.style.display = ''; 
             
-            // Auto-Focus Mágico: Si fue un match exacto por código de barras, selecciona el input
             if (coincideCodigo) {
                 const inputCant = fila.querySelector('.cm-input-cant');
                 if (inputCant) {
@@ -483,11 +441,12 @@ window.filtrarProductosConteo = function() {
                 }
             }
         } else {
-            fila.style.display = 'none'; // Lo ocultamos
+            fila.style.display = 'none'; 
         }
     });
 }
 
+// 👉 AQUÍ ESTÁ LA ÚNICA Y VERDADERA FUNCIÓN DE AGREGAR FILA (Limpiada y única)
 window.contadorFilasNuevasConteo = 0;
 window.agregarFilaConteo = function() {
     const tbody = document.getElementById('cm-filas');
@@ -498,7 +457,6 @@ window.agregarFilaConteo = function() {
     window.contadorFilasNuevasConteo++;
     const idx = window.contadorFilasNuevasConteo;
 
-    // Armamos un selector de repisas súper claro para la fila nueva
     let optsSub = `<option value="NULL">📦 Principal (Sin repisa específica)</option>`;
     (window.subUbicacionesActualesConteo || []).forEach(su => {
         optsSub += `<option value="${su.id}">↳ ${su.nombre}</option>`;
@@ -508,7 +466,6 @@ window.agregarFilaConteo = function() {
     tr.className = "border-b border-orange-200 fila-conteo-item bg-orange-50/40 dropdown-container";
     tr.setAttribute('data-categoria', '');
     
-    // CUIDADO AQUÍ: Son exactamente 5 etiquetas <td> para que no se corran las columnas
     tr.innerHTML = `
         <td class="py-3 px-4 relative pl-4 sm:pl-8 border-l-4 border-orange-400">
             <input type="hidden" class="cm-select-prod" id="hidden-cm-prod-${idx}" value="">
@@ -530,67 +487,23 @@ window.agregarFilaConteo = function() {
                 </select>
             </div>
         </td>
-        
-        <td class="py-3 px-4 text-xs font-bold text-slate-500 hidden md:table-cell" id="cat-cm-prod-${idx}">
-            -
-        </td>
-        
+        <td class="py-3 px-4 text-xs font-bold text-slate-500 hidden md:table-cell" id="cat-cm-prod-${idx}">-</td>
         <td class="py-3 px-4 text-center hidden sm:table-cell">
             <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-100" id="abrev-cm-prod-${idx}">-</span>
         </td>
-        
         <td class="py-3 px-4 relative flex justify-center flex-col items-center">
             <input type="hidden" class="cm-cant-anterior" value="0">
             <span class="text-[10px] text-slate-400 font-bold mb-1 uppercase tracking-wider">Nuevo Ingre.</span>
             <input type="number" step="0.01" placeholder="0" class="w-20 sm:w-24 px-2 py-1.5 border border-orange-300 rounded text-center cm-input-cant font-bold text-slate-800 outline-none focus:ring-2 focus:ring-orange-500 shadow-inner">
         </td>
-        
         <td class="py-3 px-4 text-right">
             <button onclick="this.closest('tr').remove()" class="text-slate-300 hover:text-red-500 text-xl transition-transform hover:scale-110" title="Quitar fila">🗑️</button>
         </td>
     `;
     
-    // Lo agregamos arriba del todo para que sea fácil de ver
     if (tbody.firstChild) tbody.insertBefore(tr, tbody.firstChild);
     else tbody.appendChild(tr);
     
-    setTimeout(() => document.getElementById(`search-cm-prod-${idx}`).focus(), 50);
-}
-window.contadorFilasNuevasConteo = 0;
-window.agregarFilaConteo = function() {
-    const tbody = document.getElementById('cm-filas');
-    if(tbody.innerHTML.includes('No hay productos')) tbody.innerHTML = '';
-    
-    window.contadorFilasNuevasConteo++;
-    const idx = window.contadorFilasNuevasConteo;
-
-    const tr = document.createElement('tr');
-    tr.className = "border-b border-slate-200 fila-conteo-item bg-orange-50/50 dropdown-container";
-    
-    tr.innerHTML = `
-        <td class="py-3 px-4 relative">
-            <input type="hidden" class="cm-select-prod" id="hidden-cm-prod-${idx}" value="">
-            <div class="relative">
-                <input type="text" id="search-cm-prod-${idx}" 
-                    class="w-full px-3 py-2 border border-orange-300 rounded bg-white text-sm focus:ring-2 focus:ring-orange-500 outline-none cursor-pointer"
-                    placeholder="-- Buscar producto --"
-                    onfocus="abrirDropdownConteo(${idx})"
-                    oninput="filtrarDropdownConteo(${idx}, this.value)"
-                    autocomplete="off">
-                
-                <div id="dropdown-cm-${idx}" class="lista-dropdown-custom hidden absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded shadow-xl max-h-48 overflow-y-auto">
-                    <ul id="ul-cm-prod-${idx}" class="py-1 text-sm text-slate-700 divide-y divide-slate-100"></ul>
-                </div>
-            </div>
-        </td>
-        <td class="py-3 px-4 text-center text-xs font-bold text-slate-400" id="abrev-cm-prod-${idx}">-</td>
-        <td class="py-3 px-4 text-center">
-            <input type="hidden" class="cm-cant-anterior" value="0">
-            <input type="number" step="0.01" placeholder="0.00" class="w-24 px-2 py-2 border border-orange-300 rounded text-center cm-input-cant font-bold text-slate-800 outline-none focus:ring-2 focus:ring-orange-500">
-        </td>
-        <td class="py-3 px-4 text-right"><button onclick="this.closest('tr').remove()" class="text-red-400 hover:text-red-600 text-lg">🗑️</button></td>
-    `;
-    tbody.appendChild(tr);
     setTimeout(() => document.getElementById(`search-cm-prod-${idx}`).focus(), 50);
 }
 
@@ -626,38 +539,18 @@ window.filtrarDropdownConteo = function(index, texto) {
     document.getElementById(`dropdown-cm-${index}`).classList.remove('hidden');
 }
 
-window.seleccionarProductoConteo = function(index, idProd, nombreProd, abrev, categoria) {
-    // 1. Guardar ID y Nombre
-    document.getElementById(`hidden-cm-prod-${index}`).value = idProd;
-    const searchInput = document.getElementById(`search-cm-prod-${index}`);
-    searchInput.value = nombreProd;
-    searchInput.classList.replace('border-orange-300', 'border-slate-300');
-    
-    // 2. Pintar la Abreviatura (Unidad)
-    document.getElementById(`abrev-cm-prod-${index}`).innerText = abrev;
-    
-    // 3. Pintar la Categoría
-    const catEl = document.getElementById(`cat-cm-prod-${index}`);
-    if(catEl) catEl.innerText = categoria;
-    
-    // 4. Asignamos la categoría al TR oculto para que el filtro global funcione
-    document.getElementById(`search-cm-prod-${index}`).closest('tr').setAttribute('data-categoria', categoria.toLowerCase());
-
-    // 5. Ocultar dropdown
-    document.getElementById(`dropdown-cm-${index}`).classList.add('hidden');
-}
-
+// 👉 AQUÍ ESTÁ LA ÚNICA FUNCIÓN SELECCIONAR PRODUCTO
 window.seleccionarProductoConteo = function(index, idProd, nombreProd, abrev, categoria) {
     document.getElementById(`hidden-cm-prod-${index}`).value = idProd;
     const searchInput = document.getElementById(`search-cm-prod-${index}`);
     searchInput.value = nombreProd;
     searchInput.classList.replace('border-orange-300', 'border-slate-300');
+    
     document.getElementById(`abrev-cm-prod-${index}`).innerText = abrev;
     
     const catEl = document.getElementById(`cat-cm-prod-${index}`);
     if(catEl) catEl.innerText = categoria;
     
-    // Asignamos la categoría al tr para que el buscador global lo encuentre
     document.getElementById(`search-cm-prod-${index}`).closest('tr').setAttribute('data-categoria', categoria.toLowerCase());
 
     document.getElementById(`dropdown-cm-${index}`).classList.add('hidden');
@@ -707,7 +600,6 @@ window.guardarConteoMasivo = async function() {
         const nuevaCant = parseFloat(tr.querySelector('.cm-input-cant').value);
         if(isNaN(nuevaCant)) continue;
 
-        // Leemos la repisa de la fila
         const subUbiInput = tr.querySelector('.cm-sub-ubi');
         let idSubUbi = subUbiInput ? subUbiInput.value : 'NULL';
         if(idSubUbi === 'NULL') idSubUbi = null;
@@ -808,9 +700,8 @@ window.abrirAjusteRapido = function(idSaldo, idProd, nombreProd, ubiNombre, cant
     document.getElementById('modal-ajuste-rapido').classList.remove('hidden');
 }
 
-// NUEVO: EL CEREBRO DEL FORMULARIO DE AJUSTE RÁPIDO PARA QUE NO RECARGUE LA PÁGINA
 document.getElementById('form-ajuste-rapido')?.addEventListener('submit', async (e) => {
-    e.preventDefault(); // Evitamos que se recargue la pantalla
+    e.preventDefault(); 
     const idSaldo = document.getElementById('ar-id-saldo').value;
     const idProd = document.getElementById('ar-id-prod').value;
     const cantNueva = parseFloat(document.getElementById('ar-cant').value);
@@ -818,17 +709,14 @@ document.getElementById('form-ajuste-rapido')?.addEventListener('submit', async 
     const btn = e.target.querySelector('button[type="submit"]');
     btn.innerText = "⏳ Aplicando..."; btn.disabled = true;
 
-    // Buscamos el stock anterior y la ubicación en la base de datos
     const { data: previo } = await clienteSupabase.from('inventario_saldos').select('cantidad_actual_ua, id_ubicacion, id_sucursal').eq('id', idSaldo).single();
     
     if(previo) {
         const diferencia = cantNueva - previo.cantidad_actual_ua;
         
         if(diferencia !== 0) {
-            // Actualizamos la cantidad
             await clienteSupabase.from('inventario_saldos').update({ cantidad_actual_ua: cantNueva, ultima_actualizacion: new Date() }).eq('id', idSaldo);
             
-            // Guardamos el recibo (log) en el historial
             await clienteSupabase.from('movimientos_inventario').insert([{ 
                 id_empresa: window.miEmpresaId, id_producto: idProd, id_ubicacion: previo.id_ubicacion, 
                 tipo_movimiento: 'AJUSTE_CONTEO', cantidad_movida: diferencia, referencia: 'Ajuste Rápido Individual' 
@@ -839,7 +727,6 @@ document.getElementById('form-ajuste-rapido')?.addEventListener('submit', async 
     document.getElementById('modal-ajuste-rapido').classList.add('hidden');
     btn.innerText = "Aplicar"; btn.disabled = false;
     
-    // Refrescamos visualmente la tabla de fondo
     window.abrirInventarioSucursal(window.sucursalActivaID, window.sucursalActivaNombre);
 });
 
@@ -863,12 +750,10 @@ window.imprimirPlanillaConteo = function() {
     let itemsVisibles = 0;
 
     todasLasFilas.forEach(tr => {
-        // Si es la cabecera del grupo (la pestaña)
         if (tr.classList.contains('fila-cabecera-grupo')) {
             const tituloLimpio = tr.querySelector('td').innerText.replace('▼', '').replace('▶', '').trim();
             filasHtml += `<tr><td colspan="3" style="background-color: #e2e8f0; font-weight: 900; text-align: left; padding: 15px 8px;">${tituloLimpio}</td></tr>`;
         }
-        // Si es un producto, verificamos que no esté oculto
         else if (tr.classList.contains('fila-conteo-item') && !tr.classList.contains('hidden') && tr.style.display !== 'none') {
             itemsVisibles++;
             let celdaNombre = tr.querySelector('td:nth-child(1)');
@@ -899,7 +784,6 @@ window.imprimirPlanillaConteo = function() {
         return alert("❌ Debes desplegar (abrir) al menos un grupo de repisa para imprimir los productos.");
     }
 
-    // ... (El resto del HTML de window.open es exactamente igual al que tenías) ...
     const printWindow = window.open('', '_blank', 'width=800,height=600');
     printWindow.document.write(`
         <html>
