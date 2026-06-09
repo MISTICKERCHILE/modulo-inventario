@@ -346,7 +346,7 @@ window.cargarFilasConteoMasivo = async function(idUbicacion) {
 
         // 3. Creamos los Grupos Plegables
         const grupos = [];
-        grupos.push({ id: 'NULL', nombre: idUbicacion === 'GENERAL' ? 'Bodega General' : `${nombreUbiPadre} (Principal / Sin Repisa)`, items: [] });
+        grupos.push({ id: 'NULL', nombre: idUbicacion === 'GENERAL' ? 'Bodega General' : `${nombreUbiPadre}`, items: [] });
         
         subUbicaciones.forEach(su => {
             grupos.push({ id: su.id, nombre: `${nombreUbiPadre} / ${su.nombre}`, items: [] });
