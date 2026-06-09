@@ -61,11 +61,11 @@ window.abrirInventarioSucursal = async function(idSuc, nombreSuc) {
         clienteSupabase.from('reglas_stock_sucursal').select('id_producto, stock_minimo_ua').eq('id_empresa', window.miEmpresaId).eq('id_sucursal', idSuc)
     ]);
 
-    // 2. Armamos la estructura plana agrupada (Ej: "Bodega / Repisa A1")
+    // 2. Armamos la estructura plana agrupada
     let ubicacionesEstructuradas = [];
     (ubicaciones || []).forEach(u => {
-        // Primero, la ubicación general
-        ubicacionesEstructuradas.push({ id_ubi: u.id, id_sub: null, texto: `${u.nombre} (General / Sin Repisa)`, val: `${u.id}|NULL` });
+        // 👉 AQUÍ EL CAMBIO: Ahora solo dice el nombre limpio (Ej: "Bodega Plásticos")
+        ubicacionesEstructuradas.push({ id_ubi: u.id, id_sub: null, texto: u.nombre, val: `${u.id}|NULL` });
         
         // Luego, buscamos si tiene repisas y las agregamos justo debajo
         const repisas = (subUbis || []).filter(su => su.id_ubicacion === u.id);
@@ -73,7 +73,7 @@ window.abrirInventarioSucursal = async function(idSuc, nombreSuc) {
             ubicacionesEstructuradas.push({ id_ubi: u.id, id_sub: su.id, texto: `${u.nombre} / ${su.nombre}`, val: `${u.id}|${su.id}` });
         });
     });
-    window.ubicacionesGlobalSucursal = ubicacionesEstructuradas; // Lo guardamos para el render
+    window.ubicacionesGlobalSucursal = ubicacionesEstructuradas;
     
     const reglasMap = {};
     (reglas||[]).forEach(r => reglasMap[r.id_producto] = r.stock_minimo_ua);
