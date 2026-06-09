@@ -255,9 +255,15 @@
             <button onclick="document.getElementById('modal-detalle-orden-global').classList.add('hidden')" class="text-slate-400 hover:text-slate-800 text-3xl font-bold transition-colors">&times;</button>
         </div>
 
-        <div id="caja-observaciones-desglose" class="hidden mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-            <p class="text-xs font-bold text-red-800 uppercase mb-1">⚠️ Observaciones de la Factura:</p>
-            <p class="text-sm text-red-700 font-medium italic" id="texto-observaciones-desglose"></p>
+        <div id="caja-factura-desglose" class="hidden mb-4 p-3 bg-blue-50/50 border border-blue-200 rounded-lg flex flex-col gap-2 shadow-inner">
+            <div class="flex justify-between items-center">
+                <p class="text-sm font-bold text-blue-900 flex items-center gap-2">🧾 Factura Nº: <span id="txt-nro-factura-desglose" class="font-mono text-blue-700 text-base bg-white px-2 py-0.5 rounded border border-blue-100 shadow-sm"></span></p>
+                <div id="contenedor-btn-foto-desglose"></div>
+            </div>
+            <div id="contenedor-obs-desglose" class="hidden border-t border-blue-200/50 pt-2 mt-1">
+                <p class="text-[10px] font-bold text-red-600 uppercase mb-0.5">⚠️ Observaciones y Comentarios:</p>
+                <p class="text-xs text-blue-800 italic font-medium" id="texto-observaciones-desglose"></p>
+            </div>
         </div>
 
         <div class="overflow-y-auto flex-1 bg-slate-50 rounded-lg border border-slate-200 p-2">

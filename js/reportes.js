@@ -378,6 +378,7 @@ window.verFotoFactura = async function(rutaStorage) {
 }
 
 // 👉 MOTOR PARA VER EL DESGLOSE DE LOS PRODUCTOS DE UNA ORDEN
+// 👉 MOTOR PARA VER EL DESGLOSE DE LOS PRODUCTOS DE UNA ORDEN (CON FACTURA)
 window.abrirDetallesOrdenGlobal = async function(idCompra, nombreProveedor) {
     document.getElementById('modal-detalle-orden-global').classList.remove('hidden');
     document.getElementById('subtitulo-modal-detalle-orden').innerText = `Origen / Prov: ${nombreProveedor}`;
@@ -385,15 +386,37 @@ window.abrirDetallesOrdenGlobal = async function(idCompra, nombreProveedor) {
     const tbody = document.getElementById('lista-detalle-orden-global');
     tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-slate-400 font-bold animate-pulse">Consultando base de datos...</td></tr>';
 
-    const cajaObs = document.getElementById('caja-observaciones-desglose');
-    cajaObs.classList.add('hidden'); 
+    const cajaFactura = document.getElementById('caja-factura-desglose');
+    const cajaObs = document.getElementById('contenedor-obs-desglose');
+    const btnFotoContenedor = document.getElementById('contenedor-btn-foto-desglose');
+    
+    // Reseteamos la vista por si abrieron otro pedido antes
+    cajaFactura.classList.add('hidden'); 
+    cajaObs.classList.add('hidden');
+    btnFotoContenedor.innerHTML = '';
 
     try {
-        // 1. Traer observaciones generales de la factura
-        const { data: compra } = await clienteSupabase.from('compras').select('observaciones_factura').eq('id', idCompra).single();
-        if (compra && compra.observaciones_factura) {
-            document.getElementById('texto-observaciones-desglose').innerText = compra.observaciones_factura;
-            cajaObs.classList.remove('hidden'); 
+        // 1. Traer datos de cabecera: Factura, Foto y Observaciones
+        const { data: compra } = await clienteSupabase.from('compras')
+            .select('numero_factura, url_foto_factura, observaciones_factura')
+            .eq('id', idCompra)
+            .single();
+
+        // Si existe ALGO de información de factura, mostramos la caja
+        if (compra && (compra.numero_factura || compra.url_foto_factura || compra.observaciones_factura)) {
+            cajaFactura.classList.remove('hidden');
+            
+            document.getElementById('txt-nro-factura-desglose').innerText = compra.numero_factura || 'Sin Nro';
+            
+            if (compra.url_foto_factura) {
+                // Reutilizamos la misma función segura que ya creaste antes para generar el link de 60 segundos
+                btnFotoContenedor.innerHTML = `<button onclick="verFotoFactura('${compra.url_foto_factura}')" class="px-3 py-1 bg-white border border-blue-300 text-blue-700 hover:bg-blue-100 rounded text-xs font-bold shadow-sm transition-colors flex items-center gap-1">📸 Ver Documento / PDF</button>`;
+            }
+
+            if (compra.observaciones_factura) {
+                document.getElementById('texto-observaciones-desglose').innerText = compra.observaciones_factura;
+                cajaObs.classList.remove('hidden'); 
+            }
         }
 
         // 2. Traer los detalles (productos individuales) y motivos de rechazo
@@ -422,7 +445,6 @@ window.abrirDetallesOrdenGlobal = async function(idCompra, nombreProveedor) {
             
             const estBadge = `<span class="${estColor} px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border">${d.estado}</span>`;
 
-            // Si fue rechazado, mostramos el motivo en rojo debajo del nombre
             const txtMotivo = d.estado === 'No Recibido' && d.motivo_no_recepcion
                 ? `<br><span class="text-xs text-red-500 font-medium italic">↳ Motivo: ${d.motivo_no_recepcion}</span>`
                 : '';
