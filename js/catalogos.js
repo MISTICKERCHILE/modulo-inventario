@@ -161,11 +161,19 @@ if (!window.eventosCatalogosAtados) {
             const listadoPadre = document.getElementById(`sublist-${id_ubicacion}`);
             const proximoOrden = listadoPadre ? listadoPadre.children.length : 0;
 
-            const res = await clienteSupabase.from('sub_ubicaciones').insert([{id_ubicacion, nombre, orden: proximoOrden}]);
+            // 👉 AQUÍ ESTÁ LA MAGIA: Ahora enviamos el id_empresa
+            const res = await clienteSupabase.from('sub_ubicaciones').insert([{
+                id_empresa: window.miEmpresaId, 
+                id_ubicacion: id_ubicacion, 
+                nombre: nombre, 
+                orden: proximoOrden
+            }]);
+            
             if (res.error) return alert("❌ Error BD: " + res.error.message);
             
             document.getElementById('form-sub-ubicacion').reset();
-            window.cargarUbicaciones(); // Recargamos la vista completa
+            document.getElementById('form-sub-ubicacion').classList.add('hidden');
+            window.cargarUbicaciones(); 
         }
 
         // --- GUARDAR TIPO DE MOVIMIENTO ---

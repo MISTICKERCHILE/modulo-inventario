@@ -987,77 +987,82 @@ window.guardarRecepcionMasiva = async function() {
             if(btn) btn.innerText = "⏳ Subiendo factura...";
             const archivo = fileInput.files[0];
             const fileExt = archivo.name.split('.').pop();
-            // Creamos una ruta segura: Carpeta de la Empresa / Nombre con fecha
             const fileName = `${window.miEmpresaId}/factura_${Date.now()}.${fileExt}`;
 
-            const { data: uploadData, error: uploadError } = await clienteSupabase.storage
-                .from('facturas_compras')
-                .upload(fileName, archivo);
-
-            if (uploadError) {
-                console.error("Error subiendo foto:", uploadError);
-                alert("⚠️ Aviso: Hubo un problema subiendo el archivo (" + uploadError.message + "). El inventario se guardará igual.");
-            } else {
-                rutaFotoGuardada = uploadData.path; // Guardamos la ruta interna secreta
-            }
+            const { data: uploadData, error: uploadError } = await clienteSupabase.storage.from('facturas_compras').upload(fileName, archivo);
+            if (!uploadError) rutaFotoGuardada = uploadData.path;
         }
     }
 
-    // --- 2. CAPTURAR USUARIO RESPONSABLE REAL (DESDE SUPABASE) ---
+    // --- 2. CAPTURAR USUARIO RESPONSABLE REAL ---
     let nombreResponsable = 'Usuario Sistema';
     try {
         const { data: { user } } = await clienteSupabase.auth.getUser();
         if (user) {
             const { data: perfil } = await clienteSupabase.from('perfiles').select('nombre, rol').eq('id', user.id).maybeSingle();
-            if (perfil && perfil.nombre) {
-                nombreResponsable = `${perfil.nombre} (${perfil.rol || 'Sin rol'})`;
-            } else {
-                nombreResponsable = user.user_metadata?.nombre || user.email; 
-            }
+            if (perfil && perfil.nombre) nombreResponsable = `${perfil.nombre} (${perfil.rol || 'Sin rol'})`;
         }
-    } catch (err) {
-        console.warn("Aviso: No se pudo verificar la sesión", err);
-    }
+    } catch (err) { console.warn("Aviso sesión:", err); }
+
     try {
         if(btn) btn.innerText = "⏳ Actualizando Inventario...";
         
+        const itemsParaTicket = []; // 👉 Arreglo para la impresora térmica
+
         for (const fila of filas) {
             const idDetalle = fila.getAttribute('data-id-detalle');
             const idProd = fila.getAttribute('data-id-prod');
             const idCompraPadre = fila.getAttribute('data-id-compra');
             const factorConversion = parseFloat(fila.getAttribute('data-factor'));
             const estado = fila.querySelector('.select-estado-rec').value;
+            
+            // Extraer nombre visual del producto para el ticket (Ajusta la clase si tu HTML es distinto)
+            const nombreVisualProd = fila.querySelector('.nombre-producto-recepcion')?.innerText || 'Producto ID: ' + idProd.substring(0,6);
 
             if (estado === 'Recibido') {
                 const cantUC = parseFloat(fila.querySelector('.input-cant-real').value);
                 const precioRealUC = isProd ? 0 : (parseFloat(fila.querySelector('.input-precio-real').value) || 0);
-                const idUbi = fila.querySelector('.select-ubi-rec').value || null;
+                
+                // 👉 CAPTURAMOS UBICACIÓN Y SUB-UBICACIÓN
+                const elUbi = fila.querySelector('.select-ubi-rec');
+                const elSubUbi = fila.querySelector('.select-sub-ubi-rec');
+                const idUbi = elUbi?.value || null;
+                const idSubUbi = elSubUbi?.value || null;
+                
                 const cantUA = cantUC * factorConversion;
+
+                // Preparamos datos para el ticket
+                itemsParaTicket.push({
+                    producto: nombreVisualProd,
+                    cantidad: `${cantUC} (UC)`,
+                    ubicacion: idUbi && elUbi.options ? elUbi.options[elUbi.selectedIndex].text : null,
+                    subUbicacion: idSubUbi && elSubUbi.options ? elSubUbi.options[elSubUbi.selectedIndex].text : null
+                });
 
                 await clienteSupabase.from('compras_detalles').update({ estado: 'Recibido', cantidad_uc: cantUC, precio_unitario_uc: precioRealUC, subtotal: cantUC * precioRealUC }).eq('id', idDetalle);
 
+                // 👉 ACTUALIZAR INVENTARIO CONSIDERANDO LA REPISA
                 let query = clienteSupabase.from('inventario_saldos').select('id, cantidad_actual_ua').eq('id_producto', idProd).eq('id_sucursal', window.recepcionActivaSuc);
                 if(idUbi) query = query.eq('id_ubicacion', idUbi); else query = query.is('id_ubicacion', null);
+                if(idSubUbi) query = query.eq('id_sub_ubicacion', idSubUbi); else query = query.is('id_sub_ubicacion', null);
 
                 const { data: previo } = await query.maybeSingle();
                 if (previo) {
                     await clienteSupabase.from('inventario_saldos').update({ cantidad_actual_ua: previo.cantidad_actual_ua + cantUA, ultima_actualizacion: new Date() }).eq('id', previo.id);
                 } else {
-                    await clienteSupabase.from('inventario_saldos').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_sucursal: window.recepcionActivaSuc, id_ubicacion: idUbi, cantidad_actual_ua: cantUA }]);
+                    await clienteSupabase.from('inventario_saldos').insert([{ id_empresa: window.miEmpresaId, id_producto: idProd, id_sucursal: window.recepcionActivaSuc, id_ubicacion: idUbi, id_sub_ubicacion: idSubUbi, cantidad_actual_ua: cantUA }]);
                 }
 
-                const loteInput = isProd ? fila.querySelector('.input-lote-real').value.trim() : '';
-                const textoLote = loteInput ? `Lote/OT: ${loteInput}` : 'Producción Interna';
-                const tipoMov = isProd ? 'INGRESO_PRODUCCION' : 'INGRESO_COMPRA';
-                
-                // 👉 INYECTAMOS AL RESPONSABLE DIRECTAMENTE EN LA TRAZABILIDAD
-                const refMov = isProd ? `${textoLote} | Resp: ${nombreResponsable}` : `Factura: ${nroFactura || 'S/F'} | Resp: ${nombreResponsable}`;
+                // 👉 ACTUALIZAR MOVIMIENTOS (TRAZABILIDAD)
+                const textoLote = isProd ? `Lote/OT: ${fila.querySelector('.input-lote-real').value.trim()}` : 'Factura: ' + (nroFactura || 'S/F');
+                const refMov = `${textoLote} | Resp: ${nombreResponsable}`;
 
                 await clienteSupabase.from('movimientos_inventario').insert([{ 
                     id_empresa: window.miEmpresaId, 
                     id_producto: idProd, 
                     id_ubicacion: idUbi, 
-                    tipo_movimiento: tipoMov, 
+                    id_sub_ubicacion: idSubUbi,
+                    tipo_movimiento: isProd ? 'INGRESO_PRODUCCION' : 'INGRESO_COMPRA', 
                     cantidad_movida: cantUA, 
                     costo_unitario_movimiento: precioRealUC, 
                     referencia: refMov 
@@ -1075,7 +1080,7 @@ window.guardarRecepcionMasiva = async function() {
             }
         }
 
-        // --- 3. SELLAR LA CABECERA CON LA FOTO Y DATOS ---
+        // --- 3. SELLAR LA CABECERA ---
         for(const idC of comprasAfectadas) { 
             const payloadCompra = { estado: 'Completada', responsable_recepcion: nombreResponsable };
             if (!isProd) {
@@ -1090,10 +1095,77 @@ window.guardarRecepcionMasiva = async function() {
         if(btn) { btn.innerText = "✅ Guardar Recepción"; btn.disabled = false; }
         document.getElementById('modal-recepcion-masiva').classList.add('hidden');
         window.abrirTransitoSucursal(window.recepcionActivaSuc, document.getElementById('rm-sucursal').innerText.replace('🏭 En Producción para: ','').replace('🚚 En Camino a: ',''));
+
+        // 👉 ¡LANZAR PREGUNTA DE TICKET!
+        if (itemsParaTicket.length > 0) {
+            setTimeout(() => {
+                if(confirm("✅ Recepción guardada con éxito en bodega.\n\n¿Deseas imprimir el Ticket de Acomodo (58mm) para ordenar la mercadería?")) {
+                    window.imprimirTicketAcomodo58mm(itemsParaTicket);
+                }
+            }, 300);
+        }
+
     } catch (error) {
         alert("Error al recepcionar: " + error.message);
         if(btn) { btn.innerText = "✅ Guardar Recepción"; btn.disabled = false; }
     }
+}
+
+// ==========================================
+// IMPRESIÓN DE TICKET DE ACOMODO (58mm)
+// ==========================================
+window.imprimirTicketAcomodo58mm = function(datosTicket) {
+    const fecha = new Date().toLocaleDateString('es-CL') + ' ' + new Date().toLocaleTimeString('es-CL', {hour: '2-digit', minute:'2-digit'});
+    
+    let filasHtml = '';
+    datosTicket.forEach(d => {
+        filasHtml += `
+            <div style="border-bottom: 1px dashed #000; padding: 6px 0;">
+                <div style="font-weight: 900; font-size: 13px; line-height: 1.1; margin-bottom: 3px;">${d.producto}</div>
+                <div style="font-size: 11px; margin-bottom: 2px;">Cant: <b>${d.cantidad}</b></div>
+                <div style="font-size: 11px;">Zona: ${d.ubicacion || 'General'}</div>
+                <div style="font-size: 11px; font-weight: bold; padding: 2px; background: #eee; display: inline-block; margin-top: 2px;">
+                    Repisa: ${d.subUbicacion || '-'}
+                </div>
+            </div>
+        `;
+    });
+
+    const html = `
+        <html>
+        <head>
+            <title>Ticket Acomodo</title>
+            <style>
+                body { font-family: 'Courier New', Courier, monospace; width: 58mm; margin: 0; padding: 2mm; color: #000; box-sizing: border-box; }
+                .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 5px; }
+                .title { font-size: 14px; font-weight: 900; }
+                .date { font-size: 10px; margin-top: 3px; }
+                .footer { text-align: center; font-size: 10px; margin-top: 10px; font-style: italic; }
+                @media print { 
+                    @page { margin: 0; size: 58mm auto; } 
+                    body { padding: 0; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <div class="title">ORDEN DE ACOMODO</div>
+                <div class="date">${fecha}</div>
+            </div>
+            ${filasHtml}
+            <div class="footer">Buddy ERP<br>--- Fin del Ticket ---</div>
+            <script>
+                window.onload = function() { 
+                    window.print(); 
+                    setTimeout(function() { window.close(); }, 500); 
+                }
+            <\/script>
+        </body>
+        </html>
+    `;
+    const printWin = window.open('', '_blank', 'width=300,height=500');
+    printWin.document.write(html);
+    printWin.document.close();
 }
 
 // ==========================================
