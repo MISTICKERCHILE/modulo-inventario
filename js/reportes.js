@@ -333,13 +333,14 @@ window.acc_renderRepKar = function() {
     document.getElementById('btn-next-rep-kar').disabled = window.repKarPag === maxPag || total === 0;
 }
 
-// ================= COMPRAS LOGIC =================
+// ================= COMPRAS LOGIC (CON FACTURACIÓN Y RESPONSABLES) =================
 window.cargarHistorialComprasBD = async function() {
     const tbody = document.getElementById('lista-historial-compras');
-    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-16 animate-pulse text-slate-500 font-bold">⏳ Buscando en el archivo...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-16 animate-pulse text-slate-500 font-bold">⏳ Buscando en el archivo e importando facturas...</td></tr>';
     
+    // 👉 TRAEMOS LAS COLUMNAS NUEVAS DE FACTURACIÓN Y RESPONSABLE
     const { data } = await clienteSupabase.from('compras')
-        .select('id, created_at, total_compra, estado, proveedores(nombre, tipo)')
+        .select('id, created_at, total_compra, estado, numero_factura, total_factura, observaciones_factura, url_foto_factura, responsable_recepcion, proveedores(nombre, tipo)')
         .eq('id_empresa', window.miEmpresaId)
         .order('created_at', {ascending: false});
 
@@ -348,12 +349,121 @@ window.cargarHistorialComprasBD = async function() {
         fechaObj: new Date(c.created_at),
         tipoStr: c.proveedores?.tipo === 'Interno' ? 'Producción' : 'Compra',
         proveedor: c.proveedores?.nombre || 'General',
-        total: c.total_compra || 0,
+        totalEstimado: c.total_compra || 0,
         estado: c.estado || 'Desconocido',
-        responsable: 'Admin / Sistema' // Placeholder
+        responsable: c.responsable_recepcion || 'Usuario Sistema',
+        nroFactura: c.numero_factura || null,
+        totalFactura: c.total_factura || null,
+        observaciones: c.observaciones_factura || null,
+        rutaFoto: c.url_foto_factura || null
     }));
     
     window.acc_renderRepCom();
+}
+
+// 👉 EL MOTOR DE SEGURIDAD PARA VER LAS FOTOS PRIVADAS
+window.verFotoFactura = async function(rutaStorage) {
+    if(!rutaStorage) return;
+    
+    // Generamos un link temporal que se autodestruye en 60 segundos
+    const { data, error } = await clienteSupabase.storage.from('facturas_compras').createSignedUrl(rutaStorage, 60);
+    
+    if (error) {
+        console.error("Error obteniendo llave de foto:", error);
+        return alert("❌ No se pudo abrir la foto de la factura.");
+    }
+    
+    // Abrimos el link seguro en una nueva pestaña
+    window.open(data.signedUrl, '_blank');
+}
+
+// 👉 MOTOR PARA VER EL DESGLOSE DE LOS PRODUCTOS DE UNA ORDEN
+// 👉 MOTOR PARA VER EL DESGLOSE DE LOS PRODUCTOS DE UNA ORDEN (CON FACTURA)
+window.abrirDetallesOrdenGlobal = async function(idCompra, nombreProveedor) {
+    document.getElementById('modal-detalle-orden-global').classList.remove('hidden');
+    document.getElementById('subtitulo-modal-detalle-orden').innerText = `Origen / Prov: ${nombreProveedor}`;
+    
+    const tbody = document.getElementById('lista-detalle-orden-global');
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-slate-400 font-bold animate-pulse">Consultando base de datos...</td></tr>';
+
+    const cajaFactura = document.getElementById('caja-factura-desglose');
+    const cajaObs = document.getElementById('contenedor-obs-desglose');
+    const btnFotoContenedor = document.getElementById('contenedor-btn-foto-desglose');
+    
+    // Reseteamos la vista por si abrieron otro pedido antes
+    cajaFactura.classList.add('hidden'); 
+    cajaObs.classList.add('hidden');
+    btnFotoContenedor.innerHTML = '';
+
+    try {
+        // 1. Traer datos de cabecera: Factura, Foto y Observaciones
+        const { data: compra } = await clienteSupabase.from('compras')
+            .select('numero_factura, url_foto_factura, observaciones_factura')
+            .eq('id', idCompra)
+            .single();
+
+        // Si existe ALGO de información de factura, mostramos la caja
+        if (compra && (compra.numero_factura || compra.url_foto_factura || compra.observaciones_factura)) {
+            cajaFactura.classList.remove('hidden');
+            
+            document.getElementById('txt-nro-factura-desglose').innerText = compra.numero_factura || 'Sin Nro';
+            
+            if (compra.url_foto_factura) {
+                // Reutilizamos la misma función segura que ya creaste antes para generar el link de 60 segundos
+                btnFotoContenedor.innerHTML = `<button onclick="verFotoFactura('${compra.url_foto_factura}')" class="px-3 py-1 bg-white border border-blue-300 text-blue-700 hover:bg-blue-100 rounded text-xs font-bold shadow-sm transition-colors flex items-center gap-1">📸 Ver Documento / PDF</button>`;
+            }
+
+            if (compra.observaciones_factura) {
+                document.getElementById('texto-observaciones-desglose').innerText = compra.observaciones_factura;
+                cajaObs.classList.remove('hidden'); 
+            }
+        }
+
+        // 2. Traer los detalles (productos individuales) y motivos de rechazo
+        const { data: detalles, error } = await clienteSupabase.from('compras_detalles')
+            .select('cantidad_uc, precio_unitario_uc, subtotal, estado, motivo_no_recepcion, productos(nombre, id_unidad_compra(abreviatura))')
+            .eq('id_compra', idCompra);
+
+        if (error) throw error;
+
+        if (!detalles || detalles.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-slate-400 italic">No hay productos vinculados a esta orden.</td></tr>';
+            return;
+        }
+
+        // 3. Dibujar las filas
+        tbody.innerHTML = detalles.map(d => {
+            const abrev = d.productos?.id_unidad_compra?.abreviatura || 'Unid';
+            const nombre = d.productos?.nombre || 'Producto Desconocido';
+            
+            // Colores de los estados
+            let estColor = 'bg-slate-100 text-slate-600 border-slate-200';
+            if (d.estado === 'Recibido') estColor = 'bg-emerald-100 text-emerald-700 border-emerald-200';
+            if (d.estado === 'Postpuesto') estColor = 'bg-yellow-100 text-yellow-700 border-yellow-200';
+            if (d.estado === 'No Recibido') estColor = 'bg-red-100 text-red-700 border-red-200';
+            if (d.estado === 'En Tránsito') estColor = 'bg-blue-100 text-blue-700 border-blue-200';
+            
+            const estBadge = `<span class="${estColor} px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border">${d.estado}</span>`;
+
+            const txtMotivo = d.estado === 'No Recibido' && d.motivo_no_recepcion
+                ? `<br><span class="text-xs text-red-500 font-medium italic">↳ Motivo: ${d.motivo_no_recepcion}</span>`
+                : '';
+
+            return `
+            <tr class="hover:bg-slate-50 transition-colors border-b border-slate-100">
+                <td class="px-4 py-3 font-bold text-slate-700">${nombre} ${txtMotivo}</td>
+                <td class="px-4 py-3 text-center font-mono">${d.cantidad_uc} <span class="text-[10px] font-bold text-slate-400">${abrev}</span></td>
+                <td class="px-4 py-3 text-right font-mono text-slate-500">$${(d.precio_unitario_uc || 0).toLocaleString('es-CL')}</td>
+                <td class="px-4 py-3 text-right font-mono font-bold text-slate-800">$${(d.subtotal || 0).toLocaleString('es-CL')}</td>
+                <td class="px-4 py-3 text-center">${estBadge}</td>
+            </tr>
+            `;
+        }).join('');
+
+    } catch (err) {
+        console.error("Error al cargar desglose:", err);
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-red-500 font-bold">❌ Error al cargar los detalles.</td></tr>`;
+    }
 }
 
 window.acc_filtrarRepCom = function() {
@@ -377,13 +487,14 @@ window.acc_cambiarPagCom = function(dir) {
     window.repComPag += dir;
     window.acc_renderRepCom();
 }
+
 window.acc_renderRepCom = function() {
     const lista = document.getElementById('lista-historial-compras');
     if(!lista) return;
 
     let filtrados = [...window.repComData];
     
-    if(window.repComSearch) filtrados = filtrados.filter(t => t.proveedor.toLowerCase().includes(window.repComSearch));
+    if(window.repComSearch) filtrados = filtrados.filter(t => t.proveedor.toLowerCase().includes(window.repComSearch) || (t.nroFactura && t.nroFactura.toLowerCase().includes(window.repComSearch)));
     if(window.repComFechaIn) {
         const dIn = new Date(window.repComFechaIn); dIn.setHours(0,0,0,0);
         filtrados = filtrados.filter(t => t.fechaObj >= dIn);
@@ -412,21 +523,50 @@ window.acc_renderRepCom = function() {
     } else {
         lista.innerHTML = itemsPagina.map(c => {
             const isProd = c.tipoStr === 'Producción';
-            const badgeTipo = isProd ? '<span class="bg-purple-100 text-purple-700 px-2 py-1 rounded text-xs font-bold">🏭 Producción</span>' : '<span class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold">🚚 Compra Ext.</span>';
-            const fStr = c.fechaObj && !isNaN(c.fechaObj.getTime()) ? c.fechaObj.toLocaleDateString('es-CL') + ' ' + c.fechaObj.toLocaleTimeString('es-CL', {hour:'2-digit', minute:'2-digit'}) : '-';
+            const badgeTipo = isProd ? '<span class="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-[10px] font-bold">🏭 PROD</span>' : '<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold">🚚 COMPRA</span>';
+            const fStr = c.fechaObj && !isNaN(c.fechaObj.getTime()) ? c.fechaObj.toLocaleDateString('es-CL') : '-';
             
-            let estColor = c.estado === 'Completada' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600';
-            let estBadge = `<span class="${estColor} px-2 py-1 rounded text-xs font-bold">${c.estado === 'Completada' ? '✅ Ingresada' : c.estado}</span>`;
+            // 👉 LÓGICA MINIMALISTA: ESTADO CON LUZ VERDE O ROJA
+            let estColor = 'bg-slate-100 text-slate-600 border-slate-200';
+            let iconoLuz = '';
+            let textoEstado = c.estado;
+
+            if (c.estado === 'Completada') {
+                if (c.observaciones) {
+                    estColor = 'bg-red-50 text-red-700 border-red-200'; // Alerta rojita
+                    iconoLuz = '🔴 ';
+                    textoEstado = 'Ingresada (Obs)';
+                } else {
+                    estColor = 'bg-emerald-50 text-emerald-700 border-emerald-200'; // Limpio verdecito
+                    iconoLuz = '🟢 ';
+                    textoEstado = 'Ingresada';
+                }
+            }
+
+            // Agregamos un 'title' para que al pasar el mouse se lea la observación rápido
+            let estBadge = `<span class="${estColor} border px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider" ${c.observaciones ? `title="${c.observaciones}"` : ''}>${iconoLuz}${textoEstado}</span>`;
+
+            // 👉 LÓGICA DE FACTURACIÓN (Sin la advertencia extra)
+            let htmlFactura = '<span class="text-slate-300 italic text-[10px]">No aplica</span>';
+            if(!isProd) {
+                let btnFoto = c.rutaFoto ? `<button onclick="verFotoFactura('${c.rutaFoto}')" class="text-blue-600 hover:bg-blue-50 p-1 rounded transition-colors text-base shadow-sm border border-blue-200 bg-white" title="Abrir foto de Factura">📸</button>` : '';
+                let nroStr = c.nroFactura ? `Nº ${c.nroFactura}` : '<span class="text-slate-400 italic">Sin Factura</span>';
+                htmlFactura = `<div class="flex items-center gap-2"><span class="font-bold text-slate-700 text-xs">${nroStr}</span> ${btnFoto}</div>`;
+            }
+
+            const totalMostrar = isProd 
+                ? `<span class="text-slate-400 italic text-xs">Est: $${c.totalEstimado.toLocaleString('es-CL')}</span>` 
+                : `<span class="font-bold text-emerald-700">$${(c.totalFactura || c.totalEstimado).toLocaleString('es-CL')}</span>`;
 
             return `
             <tr class="hover:bg-slate-50 transition-colors border-b border-slate-100">
-                <td class="px-6 py-3 text-slate-600 font-medium text-sm whitespace-nowrap">${fStr}</td>
-                <td class="px-6 py-3">${badgeTipo}</td>
-                <td class="px-6 py-3 font-bold text-slate-800">${c.proveedor}</td>
-                <td class="px-6 py-3 text-slate-500 text-xs font-bold">${c.responsable}</td>
-                <td class="px-6 py-3 text-right font-mono text-slate-600 font-bold">$${c.total}</td>
-                <td class="px-6 py-3 text-center">${estBadge}</td>
-                <td class="px-6 py-3 text-center"><button onclick="abrirDetallesOrdenGlobal('${c.id}', '${c.proveedor.replace(/'/g, "\\'")}')" class="text-slate-500 hover:text-slate-800 bg-white border border-slate-300 shadow-sm px-3 py-1 rounded font-bold transition-transform hover:scale-105">👁️ Ver</button></td>
+                <td class="px-4 py-3 text-slate-600 font-medium text-xs whitespace-nowrap"><div class="flex flex-col gap-1 items-start"><span>${fStr}</span>${badgeTipo}</div></td>
+                <td class="px-4 py-3 font-bold text-slate-800 text-sm">${c.proveedor}</td>
+                <td class="px-4 py-3 text-slate-500 text-xs font-bold">${c.responsable}</td>
+                <td class="px-4 py-3">${htmlFactura}</td>
+                <td class="px-4 py-3 text-right font-mono text-sm">${totalMostrar}</td>
+                <td class="px-4 py-3 text-center">${estBadge}</td>
+                <td class="px-4 py-3 text-center"><button onclick="abrirDetallesOrdenGlobal('${c.id}', '${c.proveedor.replace(/'/g, "\\'")}')" class="text-slate-500 hover:text-slate-800 bg-white border border-slate-300 shadow-sm px-3 py-1 rounded font-bold transition-transform hover:scale-105 text-xs">👁️ Ver</button></td>
             </tr>`;
         }).join('');
     }
@@ -434,6 +574,106 @@ window.acc_renderRepCom = function() {
     document.getElementById('info-pag-rep-com').innerText = `Mostrando ${total===0?0:inicio+1} a ${Math.min(inicio+window.repComLimit, total)} de ${total}`;
     document.getElementById('btn-prev-rep-com').disabled = window.repComPag === 1;
     document.getElementById('btn-next-rep-com').disabled = window.repComPag === maxPag || total === 0;
+}
+
+// ================= MOTOR DE IMPRESIÓN GLOBAL (ACTUALIZADO) =================
+window.imprimirReporteActual = function() {
+    const fechaHoy = new Date().toLocaleDateString('es-CL');
+    const empresaActual = document.getElementById('lista-empresas-usuario')?.innerText.split('\n')[0].replace('🏢 ', '') || 'Empresa Global';
+    
+    let tituloRep = ""; let infoFiltros = ""; let tablaHtml = "";
+
+    if (window.tabActivaReportes === 'valorizacion') {
+        tituloRep = "Valorización de Inventario";
+        infoFiltros = `<div class="info-item"><strong>Categoría:</strong><div>${document.getElementById('filtro-cat-rep-val').options[document.getElementById('filtro-cat-rep-val').selectedIndex].text}</div></div>`;
+        
+        let filtrados = [...window.repValData];
+        if(window.repValSearch) filtrados = filtrados.filter(p => p.nombre.toLowerCase().includes(window.repValSearch));
+        if(window.repValCatFiltro !== 'TODOS') filtrados = filtrados.filter(p => p.idCat === window.repValCatFiltro);
+        
+        tablaHtml += `<thead><tr><th>Producto</th><th style="text-align: center;">Stock</th><th style="text-align: right;">Costo (UA)</th><th style="text-align: right;">Total Valorizado</th></tr></thead><tbody>`;
+        filtrados.forEach(p => {
+            tablaHtml += `<tr><td class="prod-col">${p.nombre}</td><td style="text-align: center;">${p.stock.toFixed(2)} ${p.abrev}</td><td style="text-align: right;">$${p.costo.toFixed(2)}</td><td style="text-align: right; font-weight: bold;">$${p.valorTotal.toLocaleString('es-CL')}</td></tr>`;
+        });
+        tablaHtml += `</tbody>`;
+
+    } else if (window.tabActivaReportes === 'kardex') {
+        tituloRep = "Auditoría Global (Kardex)";
+        const dIn = document.getElementById('fecha-inicio-kar').value || 'Inicio';
+        const dFin = document.getElementById('fecha-fin-kar').value || 'Hoy';
+        infoFiltros = `<div class="info-item"><strong>Período:</strong><div>Del ${dIn} al ${dFin}</div></div>`;
+
+        let filtrados = [...window.repKarData];
+        if(window.repKarSearch) filtrados = filtrados.filter(t => t.nombreProd.toLowerCase().includes(window.repKarSearch) || t.ref.toLowerCase().includes(window.repKarSearch));
+        
+        tablaHtml += `<thead><tr><th>Fecha y Hora</th><th>Producto</th><th>Acción</th><th style="text-align: right;">Cant.</th><th>Ubicación</th><th>Responsable</th><th>Referencia</th></tr></thead><tbody>`;
+        filtrados.forEach(t => {
+            const fStr = t.fechaObj && !isNaN(t.fechaObj.getTime()) ? t.fechaObj.toLocaleDateString('es-CL') + ' ' + t.fechaObj.toLocaleTimeString('es-CL', {hour:'2-digit', minute:'2-digit'}) : '-';
+            const cantStr = `${t.cantidad > 0 ? '+' : ''}${t.cantidad} ${t.abrev}`;
+            tablaHtml += `<tr><td>${fStr}</td><td class="prod-col">${t.nombreProd}</td><td>${t.accion}</td><td style="text-align: right; font-weight:bold;">${cantStr}</td><td>${t.ubicacion}</td><td>${t.responsable}</td><td style="font-size:10px;">${t.ref}</td></tr>`;
+        });
+        tablaHtml += `</tbody>`;
+
+    } else if (window.tabActivaReportes === 'compras') {
+        // 👉 AHORA EL PDF DE COMPRAS INCLUYE FACTURA Y RESPONSABLE
+        tituloRep = "Historial Compras y Producción";
+        const dIn = document.getElementById('fecha-inicio-com').value || 'Inicio';
+        const dFin = document.getElementById('fecha-fin-com').value || 'Hoy';
+        infoFiltros = `<div class="info-item"><strong>Período:</strong><div>Del ${dIn} al ${dFin}</div></div>`;
+
+        let filtrados = [...window.repComData];
+        if(window.repComSearch) filtrados = filtrados.filter(t => t.proveedor.toLowerCase().includes(window.repComSearch));
+        
+        tablaHtml += `<thead><tr><th>Fecha</th><th>Tipo</th><th>Origen / Proveedor</th><th>Responsable</th><th>Factura / Notas</th><th style="text-align: right;">Total / Monto</th><th style="text-align: center;">Estado</th></tr></thead><tbody>`;
+        filtrados.forEach(c => {
+            const fStr = c.fechaObj && !isNaN(c.fechaObj.getTime()) ? c.fechaObj.toLocaleDateString('es-CL') : '-';
+            const nroFacStr = c.nroFactura ? `Nº ${c.nroFactura}` : 'S/F';
+            const obsStr = c.observaciones ? `<br><i style="color:#c53030;">Obs: ${c.observaciones}</i>` : '';
+            const txtFactura = c.tipoStr === 'Producción' ? '-' : `${nroFacStr}${obsStr}`;
+            const totalMostrar = c.totalFactura || c.totalEstimado;
+
+            tablaHtml += `<tr><td>${fStr}</td><td>${c.tipoStr}</td><td class="prod-col">${c.proveedor}</td><td>${c.responsable}</td><td style="font-size: 10px;">${txtFactura}</td><td style="text-align: right;">$${totalMostrar.toLocaleString('es-CL')}</td><td style="text-align: center; font-weight:bold;">${c.estado}</td></tr>`;
+        });
+        tablaHtml += `</tbody>`;
+    }
+
+    const printWindow = window.open('', '_blank', 'width=1000,height=600');
+    printWindow.document.write(`
+        <html>
+        <head>
+            <title>${tituloRep}</title>
+            <style>
+                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+                body { font-family: 'Inter', sans-serif; margin: 0; padding: 20px; color: #333; }
+                .header-box { border: 2px solid #000; padding: 15px; border-radius: 8px; margin-bottom: 20px; background-color: #fff; }
+                .header-title { font-size: 24px; font-weight: 900; text-transform: uppercase; margin: 0 0 15px 0; text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; }
+                .info-grid { display: flex; flex-wrap: wrap; gap: 15px; }
+                .info-item { flex: 1 1 30%; font-size: 14px; }
+                .info-item strong { text-transform: uppercase; font-size: 12px; color: #555; display: block; }
+                table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+                th, td { border: 1px solid #000; padding: 8px 6px; text-align: left; }
+                th { background-color: #f1f5f9; font-weight: bold; text-transform: uppercase; }
+                thead { display: table-header-group; } 
+                tr { page-break-inside: avoid; }
+                .prod-col { font-weight: bold; }
+                @media print { body { padding: 0; } @page { margin: 15mm; size: landscape; } .header-box { background-color: white !important; -webkit-print-color-adjust: exact; } th { background-color: #f1f5f9 !important; -webkit-print-color-adjust: exact; } }
+            </style>
+        </head>
+        <body>
+            <div class="header-box">
+                <h1 class="header-title">${tituloRep}</h1>
+                <div class="info-grid">
+                    <div class="info-item"><strong>Empresa:</strong><div style="font-size: 16px; font-weight: bold; margin-top: 4px;">${empresaActual}</div></div>
+                    <div class="info-item"><strong>Fecha de Emisión:</strong><div style="font-size: 16px; margin-top: 4px;">${fechaHoy}</div></div>
+                    ${infoFiltros}
+                </div>
+            </div>
+            <table>${tablaHtml}</table>
+            <script>window.onload = function() { window.print(); setTimeout(function() { window.close(); }, 500); }<\/script>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
 }
 
 // ================= VENTAS LOGIC =================

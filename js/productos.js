@@ -41,13 +41,13 @@ window.cargarDatosSelects = async function() {
     }
 }
 
-// ==========================================
-// 2. LUEGO DEFINIMOS LA FUNCIÓN DEL MODAL
-// ==========================================
+// ==========================================================
+// 2. SÚPER MODAL PRODUCTOS UNIFICADO (Crear, Editar, Clonar)
+// ==========================================================
 window.abrirModalProducto = async function(esEdicion = false, nombreSugerido = '') {
     document.getElementById('modal-producto').classList.remove('hidden');
     
-    // Revisamos si el HTML está vacío
+    // 1. Cargamos las listas desplegables si están vacías
     const catSelect = document.getElementById('prod-categoria');
     if(!catSelect || catSelect.options.length <= 1) {
         await window.cargarDatosSelects();
@@ -55,7 +55,7 @@ window.abrirModalProducto = async function(esEdicion = false, nombreSugerido = '
     
     const { data: sucursales } = await clienteSupabase.from('sucursales').select('id, nombre').eq('id_empresa', window.miEmpresaId);
     
-    // ESTO DIBUJA LAS REGLAS DE STOCK (Mínimo / Ideal)
+    // 2. Dibujamos las reglas de stock
     let htmlReglas = '';
     (sucursales || []).forEach(suc => {
         htmlReglas += `
@@ -75,20 +75,42 @@ window.abrirModalProducto = async function(esEdicion = false, nombreSugerido = '
     });
     document.getElementById('contenedor-reglas-stock').innerHTML = htmlReglas;
 
+    // 3. LÓGICA DE NUEVO PRODUCTO (Limpieza Total)
     if(!esEdicion) {
-        window.cancelarEdicion('producto');
+        window.cancelarEdicion('producto'); // Por si tenías otra función de apoyo
+        window.modoEdicion = { activo: false, id: null, form: 'producto' };
+        
         document.getElementById('titulo-modal-producto').innerText = "Nuevo Producto / Insumo";
+        
+        // 👉 MAGIA DE UNIFICACIÓN: Reseteamos todo el formulario de golpe
+        document.getElementById('form-producto').reset();
+
+        // Valores por defecto seguros
         const aleatorio = Math.random().toString(36).substring(2, 8).toUpperCase();
         document.getElementById('prod-sku').value = 'PRD-' + aleatorio;
-        if(document.getElementById('prod-control-stock')) document.getElementById('prod-control-stock').checked = true;
         
-        // NUEVO: Asegurarnos de que la cajita de precios empiece oculta en un producto nuevo
+        document.getElementById('prod-cant-ua').value = 1;
+        document.getElementById('prod-cant-um').value = 1;
+        document.getElementById('prod-cant-ur').value = 1;
+
+        if(document.getElementById('prod-control-stock')) document.getElementById('prod-control-stock').checked = true;
+        if(document.getElementById('prod-costo-ref')) document.getElementById('prod-costo-ref').value = '';
+        if(document.getElementById('prod-codigo-barras')) document.getElementById('prod-codigo-barras').value = '';
+
         if(document.getElementById('contenedor-precios-pos')) {
             document.getElementById('contenedor-precios-pos').classList.add('hidden');
         }
         
         if (nombreSugerido) {
             document.getElementById('prod-nombre').value = nombreSugerido;
+        }
+
+        // 👉 RESTAURAR BOTÓN AL ESTADO DE "CREACIÓN" (Verde)
+        const btnGuardar = document.getElementById('btn-guardar-producto');
+        if(btnGuardar) {
+            btnGuardar.innerText = 'Guardar Producto';
+            btnGuardar.classList.remove('bg-blue-600', 'bg-purple-600');
+            btnGuardar.classList.add('bg-emerald-600');
         }
     }
 };
@@ -280,17 +302,24 @@ window.renderizarTablaProductos = function() {
     if(elNext) elNext.disabled = window.prodCurrentPage === totalPages || totalPages === 0;
 }
 
-window.duplicarProductoFull = async function(id) {
-    // 1. Traemos los datos del producto original
+// ==========================================
+// FUNCIÓN EDITAR PRODUCTO
+// ==========================================
+window.editarProductoFull = async function(id) {
     const { data } = await clienteSupabase.from('productos').select('*').eq('id', id).single();
     
-    // 2. Abrimos el modal simulando que es un producto "Nuevo" (false)
-    await window.abrirModalProducto(false); 
+    await window.abrirModalProducto(true); 
 
-    // 3. Llenamos los campos con los datos del original
-    document.getElementById('prod-nombre').value = "Copia de " + (data.nombre || '');
-    // Nota: El SKU nuevo ya lo generó automáticamente abrirModalProducto()
+    document.getElementById('prod-nombre').value = data.nombre || '';
     
+    const finalSku = data.sku || ('PRD-' + Math.random().toString(36).substring(2, 8).toUpperCase());
+    document.getElementById('prod-sku').value = finalSku;
+    
+    // 👉 AQUÍ CARGAMOS EL COSTO DE REFERENCIA
+    if(document.getElementById('prod-costo-ref')) {
+        document.getElementById('prod-costo-ref').value = data.ultimo_costo_uc || '';
+    }
+
     document.getElementById('prod-categoria').value = data.id_categoria || '';
     document.getElementById('prod-u-compra').value = data.id_unidad_compra || '';
     document.getElementById('prod-cant-ua').value = data.cant_en_ua_de_uc || 1;
@@ -301,7 +330,61 @@ window.duplicarProductoFull = async function(id) {
     document.getElementById('prod-u-receta').value = data.id_unidad_receta || '';
     document.getElementById('prod-tiene-receta').checked = data.tiene_receta || false;
 
-    // Configuración POS y Precios
+    if(document.getElementById('prod-codigo-barras')) document.getElementById('prod-codigo-barras').value = data.codigo_barras || '';
+    
+    const checkPos = document.getElementById('prod-vender-pos');
+    if(checkPos) {
+        checkPos.checked = data.vender_en_pos || false;
+        const cajaPrecios = document.getElementById('contenedor-precios-pos');
+        if(cajaPrecios) cajaPrecios.classList.toggle('hidden', !checkPos.checked);
+    }
+        
+    if(document.getElementById('prod-precio-neto')) document.getElementById('prod-precio-neto').value = data.precio_venta_neto || '';
+    if(document.getElementById('prod-precio-iva')) document.getElementById('prod-precio-iva').value = data.precio_venta_iva || '';
+    const checkControl = document.getElementById('prod-control-stock');
+    if(checkControl) {
+        checkControl.checked = data.control_stock !== false; 
+    }
+
+    const { data: reglas } = await clienteSupabase.from('reglas_stock_sucursal').select('*').eq('id_producto', id);
+    (reglas || []).forEach(r => {
+        const inputMin = document.getElementById(`regla-min-${r.id_sucursal}`);
+        const inputIdeal = document.getElementById(`regla-ideal-${r.id_sucursal}`);
+        if(inputMin) inputMin.value = r.stock_minimo_ua || 0;
+        if(inputIdeal) inputIdeal.value = r.stock_ideal_ua || 0;
+    });
+    
+    window.modoEdicion = { activo: true, id: id, form: 'producto' };
+    document.getElementById('titulo-modal-producto').innerText = "Editando Producto ✏️";
+    document.getElementById('btn-guardar-producto').innerText = 'Actualizar ✏️';
+    document.getElementById('btn-guardar-producto').classList.replace('bg-emerald-600', 'bg-blue-600');
+}
+
+// ==========================================
+// FUNCIÓN DUPLICAR PRODUCTO
+// ==========================================
+window.duplicarProductoFull = async function(id) {
+    const { data } = await clienteSupabase.from('productos').select('*').eq('id', id).single();
+    
+    await window.abrirModalProducto(false); 
+
+    document.getElementById('prod-nombre').value = "Copia de " + (data.nombre || '');
+    
+    // 👉 AQUÍ CARGAMOS EL COSTO DE REFERENCIA AL CLONAR
+    if(document.getElementById('prod-costo-ref')) {
+        document.getElementById('prod-costo-ref').value = data.ultimo_costo_uc || '';
+    }
+
+    document.getElementById('prod-categoria').value = data.id_categoria || '';
+    document.getElementById('prod-u-compra').value = data.id_unidad_compra || '';
+    document.getElementById('prod-cant-ua').value = data.cant_en_ua_de_uc || 1;
+    document.getElementById('prod-u-almacen').value = data.id_unidad_almacenamiento || '';
+    document.getElementById('prod-cant-um').value = data.cant_en_um_de_ua || 1;
+    document.getElementById('prod-u-menor').value = data.id_unidad_menor || '';
+    document.getElementById('prod-cant-ur').value = data.cant_en_ur_de_um || 1;
+    document.getElementById('prod-u-receta').value = data.id_unidad_receta || '';
+    document.getElementById('prod-tiene-receta').checked = data.tiene_receta || false;
+
     if(document.getElementById('prod-codigo-barras')) document.getElementById('prod-codigo-barras').value = data.codigo_barras || '';
     
     const checkPos = document.getElementById('prod-vender-pos');
@@ -319,7 +402,6 @@ window.duplicarProductoFull = async function(id) {
         checkControl.checked = data.control_stock !== false; 
     }
 
-    // Reglas de inventario (Mínimo e Ideal)
     const { data: reglas } = await clienteSupabase.from('reglas_stock_sucursal').select('*').eq('id_producto', id);
     (reglas || []).forEach(r => {
         const inputMin = document.getElementById(`regla-min-${r.id_sucursal}`);
@@ -328,13 +410,11 @@ window.duplicarProductoFull = async function(id) {
         if(inputIdeal) inputIdeal.value = r.stock_ideal_ua || 0;
     });
 
-    // 4. Maquillamos el modal para que el usuario sepa qué está pasando
     window.modoEdicion = { activo: false, id: null, form: 'producto' };
     document.getElementById('titulo-modal-producto').innerText = "Nuevo Producto (Clonado) 📑";
     
     const btnGuardar = document.getElementById('btn-guardar-producto');
     btnGuardar.innerText = 'Guardar Clon';
-    // Si veníamos de una edición, nos aseguramos de que el botón vuelva a ser verde
     btnGuardar.classList.remove('bg-blue-600');
     btnGuardar.classList.add('bg-emerald-600');
 }
@@ -345,7 +425,7 @@ window.duplicarProductoFull = async function(id) {
 if (!window.eventosFormProductoAtados) {
     document.addEventListener('submit', async (e) => {
         if (e.target.id === 'form-producto') {
-            e.preventDefault(); // ¡Freno de mano al navegador!
+            e.preventDefault(); 
             
             const btnSubmit = e.target.querySelector('button[type="submit"]');
             const textoOriginal = btnSubmit ? btnSubmit.innerText : 'Guardar';
@@ -353,7 +433,6 @@ if (!window.eventosFormProductoAtados) {
 
             const checkControl = document.getElementById('prod-control-stock');
             const valorControlStock = checkControl ? checkControl.checked : true;
-            const costoBorrador = document.getElementById('prod-costo-borrador') ? parseFloat(document.getElementById('prod-costo-borrador').value) : null;
 
             const payload = {
                 nombre: document.getElementById('prod-nombre').value, 
@@ -368,19 +447,13 @@ if (!window.eventosFormProductoAtados) {
                 id_unidad_receta: document.getElementById('prod-u-receta').value || null, 
                 tiene_receta: document.getElementById('prod-tiene-receta').checked,
                 control_stock: valorControlStock,
-                // NUEVOS CAMPOS DEL POS:
-                codigo_barras: document.getElementById('prod-codigo-barras') ? document.getElementById('prod-codigo-barras').value.trim() : null,
-                vender_en_pos: document.getElementById('prod-vender-pos') ? document.getElementById('prod-vender-pos').checked : false,
-                // NUEVOS CAMPOS DEL POS Y PRECIOS:
                 codigo_barras: document.getElementById('prod-codigo-barras') ? document.getElementById('prod-codigo-barras').value.trim() : null,
                 vender_en_pos: document.getElementById('prod-vender-pos') ? document.getElementById('prod-vender-pos').checked : false,
                 precio_venta_neto: parseFloat(document.getElementById('prod-precio-neto')?.value) || 0,
-                precio_venta_iva: parseFloat(document.getElementById('prod-precio-iva')?.value) || 0
+                precio_venta_iva: parseFloat(document.getElementById('prod-precio-iva')?.value) || 0,
+                // 👉 AQUÍ ESTÁ EL CAMBIO PRINCIPAL PARA GUARDAR EL COSTO
+                ultimo_costo_uc: parseFloat(document.getElementById('prod-costo-ref')?.value) || 0
             };
-            
-            if(costoBorrador !== null && !isNaN(costoBorrador)) {
-                payload.ultimo_costo_uc = costoBorrador;
-            }
             
             let idProdActual = null;
 
@@ -432,6 +505,7 @@ if (!window.eventosFormProductoAtados) {
     });
     window.eventosFormProductoAtados = true;
 }
+
 // ==========================================
 // --- RECETAS Y BUSCADOR INTELIGENTE ---
 // ==========================================
@@ -1338,7 +1412,6 @@ async function ejecutarClonacionReceta() {
         btnClonar.disabled = true;
 
         // 1. Buscamos los ingredientes de la receta origen en Supabase
-        // OJO: Cambia 'recetas_ingredientes' por el nombre real de tu tabla si es diferente
         const { data: ingredientesOrigen, error: errLectura } = await supabase
             .from('recetas_ingredientes') 
             .select('*')
@@ -1357,7 +1430,6 @@ async function ejecutarClonacionReceta() {
                 id_receta: recetaDestinoId,
                 id_insumo: ing.id_insumo,
                 cantidad: ing.cantidad
-                // Agrega aquí cualquier otra columna requerida por tu base de datos
             };
         });
 
@@ -1368,11 +1440,8 @@ async function ejecutarClonacionReceta() {
 
         if (errInsert) throw errInsert;
 
-        // Éxito
         document.getElementById('modal-clonar-receta').classList.add('hidden');
         
-        // Aquí recargamos la vista de la receta para que aparezcan los ingredientes nuevos
-        // Asumo que esta es la función que usas para cargar la tabla en pantalla
         seleccionarRecetaDesdeBuscador(recetaDestinoId); 
         
         alert("¡Receta clonada con éxito!");
@@ -1383,5 +1452,16 @@ async function ejecutarClonacionReceta() {
     } finally {
         btnClonar.innerText = "Clonar Ingredientes";
         btnClonar.disabled = false;
+    }
+}
+
+window.toggleObservacionesFactura = function() {
+    const caja = document.getElementById('caja-obs-factura');
+    if (document.getElementById('check-obs-factura').checked) {
+        caja.classList.remove('hidden');
+        document.getElementById('input-obs-factura').focus();
+    } else {
+        caja.classList.add('hidden');
+        document.getElementById('input-obs-factura').value = ''; // Limpiamos si se arrepiente
     }
 }

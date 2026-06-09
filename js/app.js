@@ -797,3 +797,97 @@ document.getElementById('form-nueva-pass').addEventListener('submit', async (e) 
     window.location.href = window.location.pathname; 
 });
 
+// ============================================================================
+// SISTEMA GLOBAL DE CÁMARA Y CÓDIGOS DE BARRAS
+// ============================================================================
+window.html5QrCode = null;
+
+window.abrirEscanerCamara = function(contexto) {
+    const modal = document.getElementById('modal-escaner');
+    if (!modal) return alert("Falta el modal del escáner en el HTML.");
+    
+    modal.classList.remove('hidden');
+
+    if (window.html5QrCode) {
+        window.html5QrCode.clear();
+    }
+
+    window.html5QrCode = new Html5Qrcode("lector-codigo-barras");
+
+    const anchoPantalla = window.innerWidth;
+    const boxWidth = anchoPantalla < 500 ? 250 : 300;
+    
+    const config = { 
+        fps: 15, 
+        qrbox: { width: boxWidth, height: 120 },
+        aspectRatio: 1.0,
+        formatsToSupport: [ 
+            Html5QrcodeSupportedFormats.EAN_13,
+            Html5QrcodeSupportedFormats.EAN_8,
+            Html5QrcodeSupportedFormats.UPC_A,
+            Html5QrcodeSupportedFormats.UPC_E,
+            Html5QrcodeSupportedFormats.CODE_128,
+            Html5QrcodeSupportedFormats.QR_CODE
+        ]
+    };
+
+    window.html5QrCode.start(
+        { facingMode: "environment" }, 
+        config,
+        (decodedText) => {
+            sonidoBeep();
+            window.cerrarEscaner();
+
+            if (contexto === 'PRODUCTO') {
+                const inputCodigo = document.getElementById('prod-codigo-barras');
+                if (inputCodigo) {
+                    inputCodigo.value = decodedText;
+                    inputCodigo.classList.add('ring-4', 'ring-emerald-500', 'bg-emerald-50');
+                    setTimeout(() => inputCodigo.classList.remove('ring-4', 'ring-emerald-500', 'bg-emerald-50'), 800);
+                }
+            } else if (contexto === 'INVENTARIO') {
+                const buscadorInv = document.getElementById('cm-buscador-productos');
+                if (buscadorInv) {
+                    buscadorInv.value = decodedText;
+                    if (typeof window.filtrarProductosConteo === 'function') window.filtrarProductosConteo();
+                }
+            } else if (contexto === 'POS') {
+                const buscadorPOS = document.getElementById('pos-input-buscador');
+                if (buscadorPOS) {
+                    buscadorPOS.value = decodedText;
+                    if (typeof window.buscarProductoPOS === 'function') {
+                        window.buscarProductoPOS(decodedText);
+                    }
+                }
+            }
+        },
+        (errorMessage) => { /* Ignoramos errores visuales menores */ }
+    ).catch((err) => {
+        console.error(err);
+        alert("❌ Error al iniciar la cámara. Verifica los permisos.");
+        window.cerrarEscaner();
+    });
+}; // <---- ESTA ES LA LLAVE MÁGICA QUE REVIVIRÁ TU APP 🪄
+
+window.cerrarEscaner = function() {
+    document.getElementById('modal-escaner').classList.add('hidden');
+    if (window.html5QrCode) {
+        window.html5QrCode.stop().then(() => {
+            window.html5QrCode.clear();
+        }).catch((err) => {
+            console.log("Error apagando la cámara", err);
+        });
+    }
+};
+
+function sonidoBeep() {
+    try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioCtx.createOscillator();
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(800, audioCtx.currentTime); 
+        oscillator.connect(audioCtx.destination);
+        oscillator.start();
+        setTimeout(() => oscillator.stop(), 100); 
+    } catch(e) { console.log("Audio no soportado"); }
+}

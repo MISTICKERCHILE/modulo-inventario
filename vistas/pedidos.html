@@ -52,6 +52,99 @@
     </div>
 </div>
 
+<!-- MODAL RECEPCIÓN DE PEDIDOS -->
+<div id="modal-recepcion-masiva" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-2 md:p-4">
+    <div class="bg-white p-4 md:p-6 rounded-xl shadow-2xl w-full max-w-5xl max-h-[95vh] flex flex-col border-t-4 border-blue-500" id="rm-borde-modal">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 border-b pb-3 gap-2">
+            <div>
+                <h2 class="text-xl md:text-2xl font-bold text-slate-800" id="rm-titulo-modal">📦 Recepción</h2>
+                <div class="flex flex-wrap items-center gap-2 mt-1">
+                    <p class="text-xs md:text-sm font-medium text-slate-500">De: <span id="rm-proveedor" class="font-bold text-slate-800"></span> | A: <span id="rm-sucursal" class="font-bold text-slate-800"></span></p>
+                    <div id="rm-contacto-container"></div>
+                </div>
+            </div>
+            <div class="text-left md:text-right hidden sm:block">
+                <p class="text-xs font-bold text-slate-400 uppercase">Fecha Recepción</p>
+                <p class="text-lg font-bold text-slate-700" id="rm-fecha-hoy"></p>
+            </div>
+        </div>
+        <div class="flex-1 overflow-auto bg-slate-50 border rounded-lg shadow-inner w-full">
+            <table class="min-w-full divide-y divide-slate-200">
+                <thead class="bg-slate-200 sticky top-0 z-10 shadow-sm text-xs font-bold text-slate-600 uppercase">
+                    <tr><th class="px-4 py-3 text-left whitespace-nowrap">Producto Esperado</th><th class="px-4 py-3 text-center w-24">Cant.</th><th class="px-4 py-3 text-left w-48" id="rm-titulo-estado">Estado</th><th class="px-4 py-3 text-left min-w-[200px]">Detalles</th></tr>
+                </thead>
+                <tbody id="rm-filas" class="divide-y divide-slate-200 bg-white"></tbody>
+            </table>
+        </div>
+
+        <div id="bloque-facturacion" class="mt-6 border-t border-slate-200 pt-4 bg-slate-50/50 p-4 rounded-lg">
+            <h3 class="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">🧾 Respaldo y Facturación</h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">Nro. Documento / Factura</label>
+                    <input type="text" id="input-nro-factura" placeholder="Ej: 904588" class="w-full px-3 py-2 border border-slate-300 rounded text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">Total Facturado ($)</label>
+                    <input type="number" id="input-total-factura" placeholder="Ej: 150000" class="w-full px-3 py-2 border border-slate-300 rounded text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">Adjuntar Foto / PDF</label>
+                    <input type="file" id="input-foto-factura" accept="image/*,.pdf" class="w-full text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer">
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 mb-2 mt-2">
+                <input type="checkbox" id="check-obs-factura" onchange="toggleObservacionesFactura()" class="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer">
+                <label for="check-obs-factura" class="text-sm font-bold text-slate-600 cursor-pointer">⚠️ Factura con observaciones / Rechazos</label>
+            </div>
+            
+            <div id="caja-obs-factura" class="hidden mt-2">
+                <textarea id="input-obs-factura" rows="2" placeholder="Explica aquí qué pasó (Ej: Se rechazaron 2 cajas por mal estado, se solicitó NC...)" class="w-full px-3 py-2 border border-red-300 rounded text-sm outline-none focus:ring-2 focus:ring-red-500 bg-red-50/30 resize-none"></textarea>
+            </div>
+        </div>
+        
+        <div class="flex flex-col-reverse md:flex-row justify-end gap-3 mt-4 pt-4 border-t w-full">
+            <button type="button" onclick="document.getElementById('modal-recepcion-masiva').classList.add('hidden')" class="w-full md:w-auto px-6 py-3 md:py-2 border text-slate-600 rounded font-bold text-center">Cancelar</button>
+            <button type="button" id="btn-guardar-recepcion" onclick="guardarRecepcionMasiva()" class="w-full md:w-auto px-8 py-3 md:py-2 bg-blue-600 text-white rounded font-bold shadow-md text-center">✅ Guardar</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL PARA FECHA DE ENTREGA -->
+<div id="modal-fecha-entrega" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-4">
+    <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-sm flex flex-col border-t-4 border-blue-500 transform transition-all">
+        <h2 class="text-xl font-bold text-slate-800 mb-2">🚚 Confirmar Llegada</h2>
+        <p class="text-xs text-slate-500 mb-4">Indica los días de demora o selecciona la fecha exacta en el calendario.</p>
+        
+        <div class="mb-4 grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Días aprox:</label>
+                <div class="flex items-center gap-1">
+                    <input type="number" id="input-dias-entrega" value="2" min="0" class="w-full px-2 py-2 border border-slate-300 rounded text-center font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500" oninput="sincronizarFechaDesdeDias()">
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Fecha exacta:</label>
+                <input type="date" id="input-fecha-entrega" class="w-full px-2 py-2 border border-slate-300 rounded text-center font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 text-sm cursor-pointer" onchange="sincronizarDiasDesdeFecha()">
+            </div>
+        </div>
+
+        <div class="mb-6 flex items-center gap-2">
+            <input type="checkbox" id="check-dias-habiles" checked class="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer" onchange="sincronizarFechaDesdeDias()">
+            <label for="check-dias-habiles" class="text-sm font-bold text-slate-600 cursor-pointer">Hábiles</label>
+        </div>
+
+        <div class="flex justify-end gap-3 mt-2">
+            <button onclick="document.getElementById('modal-fecha-entrega').classList.add('hidden')" class="px-4 py-2 border text-slate-600 rounded font-bold hover:bg-slate-50">Cancelar</button>
+            <button id="btn-confirmar-fecha-oc" onclick="confirmarYGenerarPedido()" class="px-4 py-2 bg-blue-600 text-white rounded font-bold shadow hover:bg-blue-700">✅ Confirmar Fecha</button>
+        </div>
+    </div>
+</div>
+
 <style>
     @media print {
         #sidebar-menu, header, button { display: none !important; }
