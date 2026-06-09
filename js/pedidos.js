@@ -866,21 +866,38 @@ window.abrirModalRecepcionMasiva = async function(idSuc, nombreSuc, idProv, nomb
     }
     document.getElementById('rm-contacto-container').innerHTML = btnContactHTML;
 
-    // Buscamos ubicaciones
+    // Buscamos ubicaciones principales
     const { data: ubicaciones } = await clienteSupabase.from('ubicaciones_internas').select('id, nombre').eq('id_sucursal', idSuc);
-    const optsUbi = '<option value="">-- General (Sin ubicación) --</option>' + (ubicaciones||[]).map(u => `<option value="${u.id}">${u.nombre}</option>`).join('');
+    
+    // 👉 Buscamos todas las sub-ubicaciones (repisas) disponibles para tenerlas en memoria
+    const { data: subUbicacionesTodas } = await clienteSupabase.from('sub_ubicaciones').select('id, id_ubicacion, nombre').eq('id_empresa', window.miEmpresaId);
 
-    // 👉 LA CONSULTA MAGISTRAL: Buscamos SOLAMENTE los ítems de esta orden específica
+    // Buscamos los detalles de la compra
     const { data: detalles } = await clienteSupabase.from('compras_detalles')
         .select('id, id_compra, cantidad_uc, precio_unitario_uc, id_producto, estado, motivo_no_recepcion, productos(nombre, cant_en_ua_de_uc, id_unidad_compra(abreviatura))')
         .eq('id_compra', idCompraEspecifica)
         .in('estado', ['En Tránsito', 'Postpuesto']);
+
+    // 👉 Buscamos DÓNDE está guardado el stock actual de estos productos para auto-asignar (Inteligencia WMS)
+    const idsProductos = detalles.map(d => d.id_producto);
+    let saldosInteligentes = [];
+    if(idsProductos.length > 0) {
+        const { data: saldos } = await clienteSupabase.from('inventario_saldos')
+            .select('id_producto, id_ubicacion, id_sub_ubicacion')
+            .in('id_producto', idsProductos)
+            .eq('id_sucursal', idSuc)
+            .gt('cantidad_actual_ua', 0); // Que haya stock real
+        saldosInteligentes = saldos || [];
+    }
 
     const txtRecibido = isProd ? '🟢 Producido / Finalizado' : '🟢 Sí, Recibido';
     const txtPostpuesto = isProd ? '🟡 En Proceso / Pausado' : '🟡 Postpuesto (No llegó hoy)';
     const txtNoRecibido = isProd ? '🔴 Fallido / Cancelado' : '🔴 No Recibido (Rechazado/Falta)';
     const txtCantReal = isProd ? 'Cant. Producida:' : 'Cant. Real Llegó:';
     const txtMotivo = isProd ? 'Motivo (Ej: Fallo máquina)...' : 'Motivo (Ej: Roto, Falta)...';
+
+    // Generamos las opciones de ubicación general una sola vez
+    const optsUbiBase = '<option value="">-- General (Sin ubicación) --</option>' + (ubicaciones||[]).map(u => `<option value="${u.id}">${u.nombre}</option>`).join('');
 
     const tbody = document.getElementById('rm-filas');
     tbody.innerHTML = (detalles||[]).map(d => {
@@ -889,6 +906,22 @@ window.abrirModalRecepcionMasiva = async function(idSuc, nombreSuc, idProv, nomb
         const labelPost = isPostpuesto ? `<span class="block mt-1 text-[10px] bg-yellow-100 text-yellow-800 px-2 py-1 rounded w-max">Estaba en espera</span>` : '';
         const colorInputCant = isProd ? 'text-purple-700' : 'text-emerald-700';
 
+        // Lógica Inteligente: ¿Dónde guardamos este producto la última vez?
+        const saldoEncontrado = saldosInteligentes.find(s => s.id_producto === d.id_producto);
+        const ubiSugeridaId = saldoEncontrado ? saldoEncontrado.id_ubicacion : '';
+        const subUbiSugeridaId = saldoEncontrado ? saldoEncontrado.id_sub_ubicacion : '';
+
+        // Pre-armar el menú de ubicaciones marcando la sugerida (si existe)
+        const optsUbi = optsUbiBase.replace(`value="${ubiSugeridaId}"`, `value="${ubiSugeridaId}" selected`);
+
+        // Generar las opciones de sub-ubicación (repisas) SOLAMENTE para la ubicación sugerida
+        let optsSubUbi = '<option value="">-- Sin Repisa --</option>';
+        if (ubiSugeridaId) {
+            const subsDeEstaUbi = subUbicacionesTodas.filter(su => su.id_ubicacion === ubiSugeridaId);
+            optsSubUbi += subsDeEstaUbi.map(su => `<option value="${su.id}" ${su.id === subUbiSugeridaId ? 'selected' : ''}>${su.nombre}</option>`).join('');
+        }
+
+        // El HTML extra (costo para compras, lote para producción)
         const bloqueExtra = isProd ? `
             <div class="flex items-center gap-2 mt-2 border-t pt-2 border-slate-100">
                 <span class="text-xs text-slate-500 font-bold w-24">Lote / OT:</span>
@@ -904,10 +937,12 @@ window.abrirModalRecepcionMasiva = async function(idSuc, nombreSuc, idProv, nomb
             </div>
         `;
 
-        // 👉 Pasamos el id_compra correctamente al dataset
+        // 👉 Inyectamos los datos como texto limpio para el ticket
+        const nombreProductoLimpio = d.productos?.nombre || 'Producto Desconocido';
+
         return `
         <tr class="fila-recepcion border-b border-slate-100 hover:bg-slate-50 transition-colors" data-id-detalle="${d.id}" data-id-prod="${d.id_producto}" data-factor="${d.productos?.cant_en_ua_de_uc || 1}" data-id-compra="${d.id_compra}">
-            <td class="px-4 py-3 font-bold text-slate-700 text-sm">${d.productos?.nombre} ${labelPost}</td>
+            <td class="px-4 py-3 font-bold text-slate-700 text-sm nombre-producto-recepcion">${nombreProductoLimpio} ${labelPost}</td>
             <td class="px-4 py-3 text-center font-mono font-bold text-slate-700 bg-slate-100/50">${d.cantidad_uc} <span class="text-xs text-slate-400">${abrev}</span></td>
             <td class="px-4 py-3">
                 <select class="w-full px-2 py-2 border border-slate-300 rounded bg-white text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 select-estado-rec" onchange="cambiarEstadoFilaRecepcion(this, '${d.id}', ${isProd})">
@@ -924,9 +959,14 @@ window.abrirModalRecepcionMasiva = async function(idSuc, nombreSuc, idProv, nomb
                         <input type="number" step="0.01" value="${d.cantidad_uc}" class="w-24 px-2 py-1 border rounded text-sm font-bold text-center ${colorInputCant} outline-none focus:ring-1 focus:ring-emerald-500 input-cant-real">
                         <span class="text-xs font-bold text-slate-400">${abrev}</span>
                     </div>
+                    
                     <div class="flex items-center gap-2">
                         <span class="text-xs text-slate-500 font-bold w-24">Guardar en:</span>
-                        <select class="flex-1 px-2 py-1 border rounded text-xs select-ubi-rec bg-white outline-none focus:ring-1 focus:ring-emerald-500">${optsUbi}</select>
+                        <div class="flex-1 flex flex-col gap-1">
+                            <select class="w-full px-2 py-1 border rounded text-xs select-ubi-rec bg-white outline-none focus:ring-1 focus:ring-emerald-500" onchange="actualizarSubUbicacionesRecepcion(this, '${d.id}')">${optsUbi}</select>
+                            
+                            <select id="select-sub-ubi-${d.id}" class="w-full px-2 py-1 border rounded text-xs select-sub-ubi-rec bg-blue-50 text-blue-800 font-medium outline-none focus:ring-1 focus:ring-emerald-500 ${!ubiSugeridaId ? 'hidden' : ''}">${optsSubUbi}</select>
+                        </div>
                     </div>
                     ${bloqueExtra}
                 </div>
@@ -938,7 +978,32 @@ window.abrirModalRecepcionMasiva = async function(idSuc, nombreSuc, idProv, nomb
         `;
     }).join('');
 
+    // Guardamos todas las repisas en la ventana global para usarlas cuando cambien el select
+    window.subUbicacionesEnMemoria = subUbicacionesTodas || [];
+
     document.getElementById('modal-recepcion-masiva').classList.remove('hidden');
+}
+
+// Función pequeña para cargar las repisas dinámicamente cuando el usuario cambia la zona principal
+window.actualizarSubUbicacionesRecepcion = function(selectElement, idDetalle) {
+    const idUbiSeleccionada = selectElement.value;
+    const selectSub = document.getElementById(`select-sub-ubi-${idDetalle}`);
+    
+    if (!idUbiSeleccionada) {
+        selectSub.classList.add('hidden');
+        selectSub.value = '';
+        return;
+    }
+
+    const repisas = window.subUbicacionesEnMemoria.filter(su => su.id_ubicacion === idUbiSeleccionada);
+    
+    if (repisas.length === 0) {
+        selectSub.classList.add('hidden');
+        selectSub.value = '';
+    } else {
+        selectSub.classList.remove('hidden');
+        selectSub.innerHTML = '<option value="">-- Sin Repisa --</option>' + repisas.map(r => `<option value="${r.id}">${r.nombre}</option>`).join('');
+    }
 }
 
 window.cambiarEstadoFilaRecepcion = function(selectTag, idFila, isProd) {
@@ -1112,7 +1177,7 @@ window.guardarRecepcionMasiva = async function() {
 }
 
 // ==========================================
-// IMPRESIÓN DE TICKET DE ACOMODO (58mm)
+// IMPRESIÓN DE TICKET DE ACOMODO (58mm) ANTI-BLOQUEO
 // ==========================================
 window.imprimirTicketAcomodo58mm = function(datosTicket) {
     const fecha = new Date().toLocaleDateString('es-CL') + ' ' + new Date().toLocaleTimeString('es-CL', {hour: '2-digit', minute:'2-digit'});
@@ -1132,40 +1197,30 @@ window.imprimirTicketAcomodo58mm = function(datosTicket) {
     });
 
     const html = `
-        <html>
-        <head>
-            <title>Ticket Acomodo</title>
-            <style>
-                body { font-family: 'Courier New', Courier, monospace; width: 58mm; margin: 0; padding: 2mm; color: #000; box-sizing: border-box; }
-                .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 5px; }
-                .title { font-size: 14px; font-weight: 900; }
-                .date { font-size: 10px; margin-top: 3px; }
-                .footer { text-align: center; font-size: 10px; margin-top: 10px; font-style: italic; }
-                @media print { 
-                    @page { margin: 0; size: 58mm auto; } 
-                    body { padding: 0; }
-                }
-            </style>
-        </head>
-        <body>
-            <div class="header">
-                <div class="title">ORDEN DE ACOMODO</div>
-                <div class="date">${fecha}</div>
-            </div>
+        <html><head><style>
+            body { font-family: 'Courier New', Courier, monospace; width: 58mm; margin: 0; padding: 2mm; color: #000; }
+            .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 5px; }
+            .title { font-size: 14px; font-weight: 900; }
+            @media print { @page { margin: 0; size: 58mm auto; } body { padding: 0; } }
+        </style></head><body>
+            <div class="header"><div class="title">ORDEN DE ACOMODO</div><div style="font-size:10px">${fecha}</div></div>
             ${filasHtml}
-            <div class="footer">Buddy ERP<br>--- Fin del Ticket ---</div>
-            <script>
-                window.onload = function() { 
-                    window.print(); 
-                    setTimeout(function() { window.close(); }, 500); 
-                }
-            <\/script>
-        </body>
-        </html>
+            <div style="text-align:center; font-size:10px; margin-top:10px;">Buddy ERP<br>--- Fin ---</div>
+        </body></html>
     `;
-    const printWin = window.open('', '_blank', 'width=300,height=500');
-    printWin.document.write(html);
-    printWin.document.close();
+
+    // Truco Anti-Bloqueo: Imprimir desde un iframe oculto
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
+    iframe.contentDocument.write(html);
+    iframe.contentDocument.close();
+    
+    setTimeout(() => {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+        setTimeout(() => document.body.removeChild(iframe), 1000); // Limpiamos la basura
+    }, 250);
 }
 
 // ==========================================
