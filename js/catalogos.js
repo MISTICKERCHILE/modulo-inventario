@@ -503,10 +503,26 @@ window.cargarUbicaciones = async function() {
                         const itemEl = evt.item;  // Elemento arrastrado
                         const tablaObj = evt.to.getAttribute('data-tabla'); // Sabemos si ordenamos ubicaciones o sub-ubicaciones
                         
-                        // Recolectamos el nuevo orden basado en la posición en la pantalla
+                        // Recolectamos el nuevo orden y datos obligatorios para evitar errores
                         const elementos = Array.from(evt.to.children);
                         const updates = elementos.map((el, index) => {
-                            return { id: el.getAttribute('data-id'), orden: index };
+                            const payload = { 
+                                id: el.getAttribute('data-id'), 
+                                orden: index,
+                                id_empresa: window.miEmpresaId // Obligatorio para el RLS
+                            };
+                            
+                            if (tablaObj === 'sub_ubicaciones') {
+                                payload.nombre = el.querySelector('.text-sm')?.innerText || 'Sub-ubicación'; 
+                                // id_ubicacion padre lo sacamos del contenedor
+                                payload.id_ubicacion = evt.to.id.replace('sublist-', '');
+                            } else if (tablaObj === 'ubicaciones_internas') {
+                                payload.nombre = el.querySelector('.font-bold')?.innerText || 'Ubicación';
+                                // id_sucursal lo sacamos del contenedor
+                                payload.id_sucursal = evt.to.id.replace('sucursal-', '');
+                            }
+                            
+                            return payload;
                         });
 
                         // Guardamos el nuevo orden en Supabase (Bulk Update)
