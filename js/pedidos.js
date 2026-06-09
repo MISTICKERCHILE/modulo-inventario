@@ -1004,8 +1004,7 @@ window.guardarRecepcionMasiva = async function() {
     }
 
     // --- 2. CAPTURAR USUARIO RESPONSABLE ---
-    // Tomamos el nombre del usuario activo (o "Valentina" que está en el menú superior)
-    const btnUsuario = document.querySelector('.top-bar-user-name, header button:contains("Valentina")'); 
+    const btnUsuario = document.querySelector('.top-bar-user-name');
     const nombreResponsable = window.nombreUsuarioActivo || (btnUsuario ? btnUsuario.innerText.trim() : 'Usuario Sistema');
 
     try {
