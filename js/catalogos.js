@@ -137,9 +137,35 @@ if (!window.eventosCatalogosAtados) {
             e.preventDefault();
             const nombre = document.getElementById('nombre-ubicacion').value;
             const id_sucursal = document.getElementById('sel-sucursal-ubi').value;
-            const res = await clienteSupabase.from('ubicaciones_internas').insert([{id_empresa: window.miEmpresaId, id_sucursal, nombre}]);
+            
+            // Calculamos el próximo orden (poniéndolo al final)
+            const listadoPadre = document.getElementById(`sucursal-${id_sucursal}`);
+            const proximoOrden = listadoPadre ? listadoPadre.children.length : 0;
+
+            let res;
+            if(window.modoEdicion.activo && window.modoEdicion.form === 'ubicacion') {
+                res = await clienteSupabase.from('ubicaciones_internas').update({nombre, id_sucursal}).eq('id', window.modoEdicion.id);
+            } else {
+                res = await clienteSupabase.from('ubicaciones_internas').insert([{id_empresa: window.miEmpresaId, id_sucursal, nombre, orden: proximoOrden}]);
+            }
             if (res.error) return alert("❌ Error BD: " + res.error.message);
             window.cancelarEdicion('ubicacion'); window.cargarUbicaciones();
+        }
+
+        // --- GUARDAR SUB-UBICACIÓN ---
+        else if (e.target.id === 'form-sub-ubicacion') {
+            e.preventDefault();
+            const nombre = document.getElementById('nombre-sub-ubicacion').value;
+            const id_ubicacion = document.getElementById('sub-ubi-id-ubicacion-padre').value;
+            
+            const listadoPadre = document.getElementById(`sublist-${id_ubicacion}`);
+            const proximoOrden = listadoPadre ? listadoPadre.children.length : 0;
+
+            const res = await clienteSupabase.from('sub_ubicaciones').insert([{id_ubicacion, nombre, orden: proximoOrden}]);
+            if (res.error) return alert("❌ Error BD: " + res.error.message);
+            
+            document.getElementById('form-sub-ubicacion').reset();
+            window.cargarUbicaciones(); // Recargamos la vista completa
         }
 
         // --- GUARDAR TIPO DE MOVIMIENTO ---
@@ -357,20 +383,142 @@ window.cargarSucursales = async function() {
     }
 }
 
+window.abrirFormSubUbicacion = function(idUbicacion, nombreUbicacion) {
+    const form = document.getElementById('form-sub-ubicacion');
+    form.classList.remove('hidden');
+    document.getElementById('sub-ubi-id-ubicacion-padre').value = idUbicacion;
+    document.getElementById('lbl-padre-sub-ubi').innerText = nombreUbicacion;
+    document.getElementById('nombre-sub-ubicacion').focus();
+    // Hacemos scroll suave hacia el formulario
+    form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+};
+
+window.cerrarFormSubUbicacion = function() {
+    document.getElementById('form-sub-ubicacion').classList.add('hidden');
+    document.getElementById('form-sub-ubicacion').reset();
+};
+
 window.cargarUbicaciones = async function() {
-    const { data } = await clienteSupabase.from('ubicaciones_internas').select('id, nombre, sucursales(nombre)').eq('id_empresa', window.miEmpresaId).order('nombre');
-    document.getElementById('lista-ubicaciones').innerHTML = (data||[]).map(u => `
-        <li class="px-6 py-4 flex justify-between items-center hover:bg-slate-50 transition-colors">
-            <div>
-                <span class="font-bold text-slate-700">${u.nombre}</span>
-                <span class="ml-2 text-xs text-slate-400">en ${u.sucursales?.nombre || 'Desconocida'}</span>
+    const contenedor = document.getElementById('lista-ubicaciones-agrupadas');
+    contenedor.innerHTML = '<div class="text-center py-8 text-slate-400">⏳ Cargando estructura...</div>';
+
+    try {
+        // Traemos ubicaciones (ordenadas) y sub-ubicaciones (ordenadas) de un solo golpe
+        const [ { data: ubis }, { data: subUbis } ] = await Promise.all([
+            clienteSupabase.from('ubicaciones_internas').select('id, nombre, orden, sucursales(id, nombre)').eq('id_empresa', window.miEmpresaId).order('orden'),
+            clienteSupabase.from('sub_ubicaciones').select('id, id_ubicacion, nombre, orden').order('orden')
+        ]);
+
+        // Agrupamos por Sucursal
+        const sucursalesMap = {};
+        (ubis || []).forEach(u => {
+            const sucId = u.sucursales?.id || 'sin-sucursal';
+            const sucNombre = u.sucursales?.nombre || 'General';
+            
+            if(!sucursalesMap[sucId]) {
+                sucursalesMap[sucId] = { nombre: sucNombre, ubicaciones: [] };
+            }
+            
+            // Le pegamos sus sub-ubicaciones a cada ubicación
+            u.subUbicaciones = (subUbis || []).filter(su => su.id_ubicacion === u.id);
+            sucursalesMap[sucId].ubicaciones.push(u);
+        });
+
+        // Dibujamos el HTML
+        let htmlFinal = '';
+        for (const [sucId, sucData] of Object.entries(sucursalesMap)) {
+            
+            let htmlUbis = sucData.ubicaciones.map(u => {
+                let htmlSubUbis = u.subUbicaciones.map(su => `
+                    <div data-id="${su.id}" class="flex justify-between items-center bg-white border border-slate-200 rounded p-2 pl-8 hover:bg-slate-50 transition-colors group">
+                        <div class="flex items-center gap-3">
+                            <span class="cursor-move text-slate-300 hover:text-blue-500 cursor-grab active:cursor-grabbing">↕️</span>
+                            <span class="text-sm font-medium text-slate-600">${su.nombre}</span>
+                        </div>
+                        <button onclick="eliminarReg('sub_ubicaciones', '${su.id}'); setTimeout(window.cargarUbicaciones, 500);" class="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" title="Eliminar sub-ubicación">🗑️</button>
+                    </div>
+                `).join('');
+
+                return `
+                <div data-id="${u.id}" class="bg-slate-50 border border-slate-200 rounded-lg overflow-hidden mb-2">
+                    <div class="flex justify-between items-center p-3 bg-white border-b border-slate-100">
+                        <div class="flex items-center gap-3">
+                            <span class="cursor-move text-slate-300 hover:text-emerald-500 cursor-grab active:cursor-grabbing text-lg">↕️</span>
+                            <span class="font-bold text-slate-800 text-lg">${u.nombre}</span>
+                        </div>
+                        <div class="flex gap-3">
+                            <button onclick="abrirFormSubUbicacion('${u.id}', '${u.nombre.replace(/'/g,"\\'")}')" class="text-xs bg-blue-50 text-blue-600 font-bold px-2 py-1 rounded border border-blue-200 hover:bg-blue-100 transition-colors">+ Añadir Nivel</button>
+                            <button onclick="activarEdicionGlobal('ubicacion', '${u.id}', {'nombre-ubicacion': '${u.nombre.replace(/'/g,"\\'")}', 'sel-sucursal-ubi': '${sucId}'})" class="text-blue-500 hover:text-blue-700 transition-transform hover:scale-110" title="Editar">✏️</button>
+                            <button onclick="eliminarReg('ubicaciones_internas', '${u.id}'); setTimeout(window.cargarUbicaciones, 500);" class="text-slate-400 hover:text-red-500 transition-transform hover:scale-110" title="Eliminar">🗑️</button>
+                        </div>
+                    </div>
+                    <div id="sublist-${u.id}" class="p-2 space-y-1 sortable-list min-h-[10px]" data-tabla="sub_ubicaciones">
+                        ${htmlSubUbis}
+                    </div>
+                </div>
+                `;
+            }).join('');
+
+            htmlFinal += `
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-6">
+                <div class="bg-slate-800 p-3 text-white">
+                    <h3 class="font-black tracking-wide uppercase text-sm flex items-center gap-2">🏢 SUCURSAL: ${sucData.nombre}</h3>
+                </div>
+                <div id="sucursal-${sucId}" class="p-4 sortable-list min-h-[50px]" data-tabla="ubicaciones_internas">
+                    ${htmlUbis}
+                </div>
             </div>
-            <div class="flex gap-4">
-                <button onclick="eliminarReg('ubicaciones_internas', '${u.id}'); setTimeout(window.cargarUbicaciones, 500);" class="text-slate-400 hover:text-red-500 text-lg transition-transform hover:scale-110" title="Eliminar">🗑️</button>
-            </div>
-        </li>
-    `).join('');
-}
+            `;
+        }
+
+        if(htmlFinal === '') {
+            contenedor.innerHTML = '<div class="text-center py-8 text-slate-400 italic">No hay ubicaciones registradas. Crea la primera arriba.</div>';
+            return;
+        }
+
+        contenedor.innerHTML = htmlFinal;
+
+        // 👉 MAGIA SORTABLE JS (Activar Drag & Drop)
+        setTimeout(() => {
+            if (typeof Sortable === 'undefined') {
+                console.warn("SortableJS no cargó correctamente en el <head>.");
+                return;
+            }
+
+            const listas = document.querySelectorAll('.sortable-list');
+            listas.forEach(lista => {
+                new Sortable(lista, {
+                    animation: 150,
+                    handle: '.cursor-move', // Solo se arrastra desde el ícono de flechas
+                    ghostClass: 'opacity-50', // Efecto visual al arrastrar
+                    onEnd: async function (evt) {
+                        const itemEl = evt.item;  // Elemento arrastrado
+                        const tablaObj = evt.to.getAttribute('data-tabla'); // Sabemos si ordenamos ubicaciones o sub-ubicaciones
+                        
+                        // Recolectamos el nuevo orden basado en la posición en la pantalla
+                        const elementos = Array.from(evt.to.children);
+                        const updates = elementos.map((el, index) => {
+                            return { id: el.getAttribute('data-id'), orden: index };
+                        });
+
+                        // Guardamos el nuevo orden en Supabase (Bulk Update)
+                        if (updates.length > 0) {
+                            try {
+                                const { error } = await clienteSupabase.from(tablaObj).upsert(updates, { onConflict: 'id' });
+                                if (error) console.error("Error guardando orden:", error);
+                            } catch (e) {
+                                console.error("Error BD:", e);
+                            }
+                        }
+                    },
+                });
+            });
+        }, 100); // Pequeño retraso para asegurar que el HTML se pintó
+
+    } catch (err) {
+        contenedor.innerHTML = `<div class="text-center py-8 text-red-500 font-bold">❌ Error cargando estructura: ${err.message}</div>`;
+    }
+};
 
 window.cargarTiposMovimiento = async function() {
     const { data } = await clienteSupabase.from('tipos_movimiento').select('*').eq('id_empresa', window.miEmpresaId).order('nombre');
