@@ -551,7 +551,6 @@ window.agregarFilaConteo = function() {
     `;
     
     // Lo agregamos arriba del todo para que sea fácil de ver
-    const tbody = document.getElementById('cm-filas');
     if (tbody.firstChild) tbody.insertBefore(tr, tbody.firstChild);
     else tbody.appendChild(tr);
     
