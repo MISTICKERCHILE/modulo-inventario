@@ -1003,10 +1003,21 @@ window.guardarRecepcionMasiva = async function() {
         }
     }
 
-    // --- 2. CAPTURAR USUARIO RESPONSABLE ---
-    const btnUsuario = document.querySelector('.top-bar-user-name');
-    const nombreResponsable = window.nombreUsuarioActivo || (btnUsuario ? btnUsuario.innerText.trim() : 'Usuario Sistema');
-
+    // --- 2. CAPTURAR USUARIO RESPONSABLE REAL (DESDE SUPABASE) ---
+    let nombreResponsable = 'Usuario Sistema';
+    try {
+        const { data: { user } } = await clienteSupabase.auth.getUser();
+        if (user) {
+            const { data: perfil } = await clienteSupabase.from('perfiles').select('nombre, rol').eq('id', user.id).maybeSingle();
+            if (perfil && perfil.nombre) {
+                nombreResponsable = `${perfil.nombre} (${perfil.rol || 'Sin rol'})`;
+            } else {
+                nombreResponsable = user.user_metadata?.nombre || user.email; 
+            }
+        }
+    } catch (err) {
+        console.warn("Aviso: No se pudo verificar la sesión", err);
+    }
     try {
         if(btn) btn.innerText = "⏳ Actualizando Inventario...";
         
