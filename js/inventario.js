@@ -491,28 +491,31 @@ window.filtrarProductosConteo = function() {
 window.contadorFilasNuevasConteo = 0;
 window.agregarFilaConteo = function() {
     const tbody = document.getElementById('cm-filas');
-    if(tbody.innerHTML.includes('No hay productos')) tbody.innerHTML = '';
+    if(tbody.innerHTML.includes('No hay productos') || tbody.innerHTML.includes('Ubicación Vacía')) {
+        tbody.innerHTML = '';
+    }
     
     window.contadorFilasNuevasConteo++;
     const idx = window.contadorFilasNuevasConteo;
 
-    // Armamos un selector de repisas para la fila nueva
-    let optsSub = `<option value="NULL">-- Principal (Sin Repisa) --</option>`;
+    // Armamos un selector de repisas súper claro para la fila nueva
+    let optsSub = `<option value="NULL">📦 Principal (Sin repisa específica)</option>`;
     (window.subUbicacionesActualesConteo || []).forEach(su => {
-        optsSub += `<option value="${su.id}">${su.nombre}</option>`;
+        optsSub += `<option value="${su.id}">↳ ${su.nombre}</option>`;
     });
 
     const tr = document.createElement('tr');
-    tr.className = "border-b border-slate-200 fila-conteo-item bg-orange-50/50 dropdown-container";
+    tr.className = "border-b border-orange-200 fila-conteo-item bg-orange-50/40 dropdown-container";
     tr.setAttribute('data-categoria', '');
     
+    // CUIDADO AQUÍ: Son exactamente 5 etiquetas <td> para que no se corran las columnas
     tr.innerHTML = `
-        <td class="py-3 px-4 relative pl-8">
+        <td class="py-3 px-4 relative pl-4 sm:pl-8 border-l-4 border-orange-400">
             <input type="hidden" class="cm-select-prod" id="hidden-cm-prod-${idx}" value="">
             <div class="relative">
                 <input type="text" id="search-cm-prod-${idx}" 
-                    class="w-full px-3 py-1 border border-orange-300 rounded bg-white text-sm focus:ring-2 focus:ring-orange-500 outline-none cursor-pointer"
-                    placeholder="-- Buscar producto --"
+                    class="w-full px-3 py-1.5 border border-orange-300 rounded font-medium text-slate-700 bg-white text-sm focus:ring-2 focus:ring-orange-500 outline-none cursor-pointer placeholder:font-normal"
+                    placeholder="🔍 Buscar producto..."
                     onfocus="abrirDropdownConteo(${idx})"
                     oninput="filtrarDropdownConteo(${idx}, this.value)"
                     autocomplete="off">
@@ -520,29 +523,40 @@ window.agregarFilaConteo = function() {
                     <ul id="ul-cm-prod-${idx}" class="py-1 text-sm text-slate-700 divide-y divide-slate-100"></ul>
                 </div>
             </div>
-            <select class="cm-sub-ubi w-full mt-1 px-2 py-1 text-[10px] border border-orange-200 rounded text-slate-600 bg-white outline-none">
-                ${optsSub}
-            </select>
+            <div class="mt-2 flex items-center gap-2 bg-white px-2 py-1 rounded border border-orange-200 shadow-sm">
+                <span class="text-[10px] font-bold text-slate-500 uppercase">Destino:</span>
+                <select class="cm-sub-ubi flex-1 text-xs bg-transparent text-slate-700 font-medium outline-none cursor-pointer">
+                    ${optsSub}
+                </select>
+            </div>
         </td>
-        <td class="py-3 px-4 text-xs font-bold text-slate-400 hidden md:table-cell" id="cat-cm-prod-${idx}">-</td>
+        
+        <td class="py-3 px-4 text-xs font-bold text-slate-500 hidden md:table-cell" id="cat-cm-prod-${idx}">
+            -
+        </td>
+        
         <td class="py-3 px-4 text-center hidden sm:table-cell">
             <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-100" id="abrev-cm-prod-${idx}">-</span>
         </td>
+        
         <td class="py-3 px-4 relative flex justify-center flex-col items-center">
             <input type="hidden" class="cm-cant-anterior" value="0">
-            <span class="text-[10px] text-slate-400 font-bold mb-1">Nuevo Ingre.</span>
-            <input type="number" step="0.01" placeholder="0.00" class="w-24 px-2 py-1 border border-orange-300 rounded text-center cm-input-cant font-bold text-slate-800 outline-none focus:ring-2 focus:ring-orange-500 shadow-inner">
+            <span class="text-[10px] text-slate-400 font-bold mb-1 uppercase tracking-wider">Nuevo Ingre.</span>
+            <input type="number" step="0.01" placeholder="0" class="w-20 sm:w-24 px-2 py-1.5 border border-orange-300 rounded text-center cm-input-cant font-bold text-slate-800 outline-none focus:ring-2 focus:ring-orange-500 shadow-inner">
         </td>
-        <td class="py-3 px-4 text-right"><button onclick="this.closest('tr').remove()" class="text-red-400 hover:text-red-600 text-lg transition-transform hover:scale-110">🗑️</button></td>
+        
+        <td class="py-3 px-4 text-right">
+            <button onclick="this.closest('tr').remove()" class="text-slate-300 hover:text-red-500 text-xl transition-transform hover:scale-110" title="Quitar fila">🗑️</button>
+        </td>
     `;
     
-    // Lo agregamos al principio de la tabla para que no se pierda al final
+    // Lo agregamos arriba del todo para que sea fácil de ver
+    const tbody = document.getElementById('cm-filas');
     if (tbody.firstChild) tbody.insertBefore(tr, tbody.firstChild);
     else tbody.appendChild(tr);
     
     setTimeout(() => document.getElementById(`search-cm-prod-${idx}`).focus(), 50);
 }
-
 window.contadorFilasNuevasConteo = 0;
 window.agregarFilaConteo = function() {
     const tbody = document.getElementById('cm-filas');
@@ -611,6 +625,27 @@ window.filtrarDropdownConteo = function(index, texto) {
 
     ul.innerHTML = html;
     document.getElementById(`dropdown-cm-${index}`).classList.remove('hidden');
+}
+
+window.seleccionarProductoConteo = function(index, idProd, nombreProd, abrev, categoria) {
+    // 1. Guardar ID y Nombre
+    document.getElementById(`hidden-cm-prod-${index}`).value = idProd;
+    const searchInput = document.getElementById(`search-cm-prod-${index}`);
+    searchInput.value = nombreProd;
+    searchInput.classList.replace('border-orange-300', 'border-slate-300');
+    
+    // 2. Pintar la Abreviatura (Unidad)
+    document.getElementById(`abrev-cm-prod-${index}`).innerText = abrev;
+    
+    // 3. Pintar la Categoría
+    const catEl = document.getElementById(`cat-cm-prod-${index}`);
+    if(catEl) catEl.innerText = categoria;
+    
+    // 4. Asignamos la categoría al TR oculto para que el filtro global funcione
+    document.getElementById(`search-cm-prod-${index}`).closest('tr').setAttribute('data-categoria', categoria.toLowerCase());
+
+    // 5. Ocultar dropdown
+    document.getElementById(`dropdown-cm-${index}`).classList.add('hidden');
 }
 
 window.seleccionarProductoConteo = function(index, idProd, nombreProd, abrev, categoria) {
