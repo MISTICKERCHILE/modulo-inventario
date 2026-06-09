@@ -457,7 +457,7 @@ window.agregarFilaConteo = function() {
     window.contadorFilasNuevasConteo++;
     const idx = window.contadorFilasNuevasConteo;
 
-    let optsSub = `<option value="NULL">📦 Principal (Sin repisa específica)</option>`;
+    let optsSub = `<option value="NULL">📦 Principal (Sin sub-ubicación específica)</option>`;
     (window.subUbicacionesActualesConteo || []).forEach(su => {
         optsSub += `<option value="${su.id}">↳ ${su.nombre}</option>`;
     });
