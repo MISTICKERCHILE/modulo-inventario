@@ -50,11 +50,12 @@ if (!window.eventosCatalogosAtados) {
         if (e.target.id === 'form-categoria') {
             e.preventDefault();
             const nombre = document.getElementById('nombre-categoria').value;
+            const proximoOrden = document.getElementById('lista-categorias').children.length;
             let res;
             if(window.modoEdicion.activo && window.modoEdicion.form === 'categoria') {
                 res = await clienteSupabase.from('categorias').update({nombre}).eq('id', window.modoEdicion.id);
             } else {
-                res = await clienteSupabase.from('categorias').insert([{id_empresa: window.miEmpresaId, nombre}]);
+                res = await clienteSupabase.from('categorias').insert([{id_empresa: window.miEmpresaId, nombre, orden: proximoOrden}]);
             }
             if (res.error) return alert("❌ Error BD: " + res.error.message);
             window.cancelarEdicion('categoria'); window.cargarCategorias();
@@ -181,11 +182,12 @@ if (!window.eventosCatalogosAtados) {
             e.preventDefault();
             const nombre = document.getElementById('nombre-tipo-mov').value;
             const operacion = document.getElementById('operacion-tipo-mov').value;
+            const proximoOrden = document.getElementById('lista-tipos-movimiento').children.length;
             let res;
             if(window.modoEdicion.activo && window.modoEdicion.form === 'tipo-movimiento') {
                 res = await clienteSupabase.from('tipos_movimiento').update({nombre, operacion}).eq('id', window.modoEdicion.id);
             } else {
-                res = await clienteSupabase.from('tipos_movimiento').insert([{id_empresa: window.miEmpresaId, nombre, operacion}]);
+                res = await clienteSupabase.from('tipos_movimiento').insert([{id_empresa: window.miEmpresaId, nombre, operacion, orden: proximoOrden}]);
             }
             if (res.error) return alert("❌ Error BD: " + res.error.message);
             window.cancelarEdicion('tipo-movimiento'); window.cargarTiposMovimiento();
@@ -256,16 +258,93 @@ window.volverMenuMobileCat = function() {
 }
 
 window.cargarCategorias = async function() {
-    const { data } = await clienteSupabase.from('categorias').select('*').eq('id_empresa', window.miEmpresaId).order('nombre');
-    document.getElementById('lista-categorias').innerHTML = (data||[]).map(c => `
-        <li class="px-6 py-4 flex justify-between items-center hover:bg-slate-50 transition-colors">
-            <span class="font-bold text-slate-700">${c.nombre}</span>
+    const { data } = await clienteSupabase.from('categorias')
+        .select('*')
+        .eq('id_empresa', window.miEmpresaId)
+        .order('orden', { ascending: true })
+        .order('nombre');
+
+    const lista = document.getElementById('lista-categorias');
+    lista.innerHTML = (data||[]).map(c => `
+        <li data-id="${c.id}" class="px-6 py-4 flex justify-between items-center hover:bg-slate-50 transition-colors">
+            <div class="flex items-center gap-3">
+                <span class="cursor-move text-slate-300 hover:text-emerald-500 cursor-grab active:cursor-grabbing text-lg">↕️</span>
+                <span class="font-bold text-slate-700 nombre-item">${c.nombre}</span>
+            </div>
             <div class="flex gap-4">
                 <button onclick="activarEdicionGlobal('categoria', '${c.id}', {'nombre-categoria': '${c.nombre.replace(/'/g,"\\'")}'})" class="text-blue-500 hover:text-blue-700 text-lg transition-transform hover:scale-110" title="Editar">✏️</button>
                 <button onclick="eliminarReg('categorias', '${c.id}')" class="text-slate-400 hover:text-red-500 text-lg transition-transform hover:scale-110" title="Eliminar">🗑️</button>
             </div>
         </li>
     `).join('');
+
+    setTimeout(() => {
+        if (typeof Sortable !== 'undefined') {
+            new Sortable(lista, {
+                animation: 150, handle: '.cursor-move', ghostClass: 'opacity-50',
+                onEnd: async function (evt) {
+                    const elementos = Array.from(evt.to.children);
+                    const updates = elementos.map((el, index) => ({
+                        id: el.getAttribute('data-id'),
+                        orden: index,
+                        nombre: el.querySelector('.nombre-item').innerText,
+                        id_empresa: window.miEmpresaId
+                    }));
+                    if (updates.length > 0) {
+                        const { error } = await clienteSupabase.from('categorias').upsert(updates, { onConflict: 'id' });
+                        if (error) console.error("Error guardando orden:", error);
+                    }
+                }
+            });
+        }
+    }, 100);
+}
+
+window.cargarTiposMovimiento = async function() {
+    const { data } = await clienteSupabase.from('tipos_movimiento')
+        .select('*')
+        .eq('id_empresa', window.miEmpresaId)
+        .order('orden', { ascending: true })
+        .order('nombre');
+
+    const lista = document.getElementById('lista-tipos-movimiento');
+    lista.innerHTML = (data||[]).map(t => {
+        const colorOp = t.operacion === '+' ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : 'text-red-600 bg-red-50 border-red-200';
+        return `
+        <li data-id="${t.id}" class="px-6 py-4 flex justify-between items-center hover:bg-slate-50 transition-colors">
+            <div class="flex items-center gap-3">
+                <span class="cursor-move text-slate-300 hover:text-emerald-500 cursor-grab active:cursor-grabbing text-lg">↕️</span>
+                <span class="font-bold text-slate-700 nombre-item">${t.nombre}</span>
+                <span class="px-2 py-0.5 text-xs font-bold rounded border ${colorOp} op-item" data-op="${t.operacion}">${t.operacion === '+' ? 'Suma (+)' : 'Resta (-)'}</span>
+            </div>
+            <div class="flex gap-4">
+                <button onclick="activarEdicionGlobal('tipo-movimiento', '${t.id}', {'nombre-tipo-mov': '${t.nombre.replace(/'/g,"\\'")}', 'operacion-tipo-mov': '${t.operacion}'})" class="text-blue-500 hover:text-blue-700 text-lg transition-transform hover:scale-110" title="Editar">✏️</button>
+                <button onclick="eliminarReg('tipos_movimiento', '${t.id}')" class="text-slate-400 hover:text-red-500 text-lg transition-transform hover:scale-110" title="Eliminar">🗑️</button>
+            </div>
+        </li>
+    `}).join('');
+
+    setTimeout(() => {
+        if (typeof Sortable !== 'undefined') {
+            new Sortable(lista, {
+                animation: 150, handle: '.cursor-move', ghostClass: 'opacity-50',
+                onEnd: async function (evt) {
+                    const elementos = Array.from(evt.to.children);
+                    const updates = elementos.map((el, index) => ({
+                        id: el.getAttribute('data-id'),
+                        orden: index,
+                        nombre: el.querySelector('.nombre-item').innerText,
+                        operacion: el.querySelector('.op-item').getAttribute('data-op'),
+                        id_empresa: window.miEmpresaId
+                    }));
+                    if (updates.length > 0) {
+                        const { error } = await clienteSupabase.from('tipos_movimiento').upsert(updates, { onConflict: 'id' });
+                        if (error) console.error("Error guardando orden:", error);
+                    }
+                }
+            });
+        }
+    }, 100);
 }
 
 window.cargarUnidades = async function() {
@@ -543,24 +622,6 @@ window.cargarUbicaciones = async function() {
         contenedor.innerHTML = `<div class="text-center py-8 text-red-500 font-bold">❌ Error cargando estructura: ${err.message}</div>`;
     }
 };
-
-window.cargarTiposMovimiento = async function() {
-    const { data } = await clienteSupabase.from('tipos_movimiento').select('*').eq('id_empresa', window.miEmpresaId).order('nombre');
-    document.getElementById('lista-tipos-movimiento').innerHTML = (data||[]).map(t => {
-        const colorOp = t.operacion === '+' ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : 'text-red-600 bg-red-50 border-red-200';
-        return `
-        <li class="px-6 py-4 flex justify-between items-center hover:bg-slate-50 transition-colors">
-            <div>
-                <span class="font-bold text-slate-700">${t.nombre}</span>
-                <span class="ml-2 px-2 py-0.5 text-xs font-bold rounded border ${colorOp}">${t.operacion === '+' ? 'Suma (+)' : 'Resta (-)'}</span>
-            </div>
-            <div class="flex gap-4">
-                <button onclick="activarEdicionGlobal('tipo-movimiento', '${t.id}', {'nombre-tipo-mov': '${t.nombre.replace(/'/g,"\\'")}', 'operacion-tipo-mov': '${t.operacion}'})" class="text-blue-500 hover:text-blue-700 text-lg transition-transform hover:scale-110" title="Editar">✏️</button>
-                <button onclick="eliminarReg('tipos_movimiento', '${t.id}')" class="text-slate-400 hover:text-red-500 text-lg transition-transform hover:scale-110" title="Eliminar">🗑️</button>
-            </div>
-        </li>
-    `}).join('');
-}
 
 window.cargarClientes = async function() {
     const { data } = await clienteSupabase.from('clientes').select('*').eq('id_empresa', window.miEmpresaId).order('nombre');
