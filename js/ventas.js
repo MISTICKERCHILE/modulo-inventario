@@ -585,7 +585,7 @@ window.confirmarVentaPOS = async function() {
     
     const btn = document.getElementById('btn-confirmar-venta');
     const textoOriginal = btn.innerText; 
-    btn.innerText = "⏳ Procesando...";
+    btn.innerText = "⏳ Procesando y Descontando Stock...";
     btn.disabled = true;
 
     try {
@@ -602,6 +602,7 @@ window.confirmarVentaPOS = async function() {
             id_cliente: window.clienteSeleccionadoPOS ? window.clienteSeleccionadoPOS.id : null
         };
 
+        // 1. Guardamos el registro de la venta
         const { data: ventaGuardada, error: errorVenta } = await clienteSupabase
             .from('ventas')
             .insert([payloadVenta])
@@ -609,6 +610,63 @@ window.confirmarVentaPOS = async function() {
             .single();
 
         if (errorVenta) throw errorVenta;
+
+        // ==========================================
+        // 🚀 LA MAGIA DE LA CASCADA: DESCUENTO INTELIGENTE
+        // ==========================================
+        for (const item of window.carritoPos) {
+            let cantidadFaltantePorDescontar = item.cantidad;
+
+            // A. Buscamos dónde hay stock positivo, trayendo el "orden" de esa ubicación
+            const { data: saldos } = await clienteSupabase
+                .from('inventario_saldos')
+                .select('id, cantidad_actual_ua, id_ubicacion, id_sub_ubicacion, ubicaciones_internas(orden)')
+                .eq('id_empresa', window.miEmpresaId)
+                .eq('id_producto', item.id)
+                .gt('cantidad_actual_ua', 0);
+
+            if (saldos && saldos.length > 0) {
+                // B. Ordenamos por el número de orden de la ubicación (1. Barra, 2. Vitrina, etc.)
+                saldos.sort((a, b) => {
+                    const ordenA = a.ubicaciones_internas?.orden || 999;
+                    const ordenB = b.ubicaciones_internas?.orden || 999;
+                    return ordenA - ordenB;
+                });
+
+                // C. Descontamos repisa por repisa hasta cumplir lo que el cliente compró
+                for (const saldo of saldos) {
+                    if (cantidadFaltantePorDescontar <= 0) break; // Ya descontamos todo, salimos del ciclo
+
+                    // Sacamos lo que pida la venta, o lo que quede en esta repisa (lo que sea menor)
+                    const cantidadADescontarDeAqui = Math.min(cantidadFaltantePorDescontar, saldo.cantidad_actual_ua);
+                    
+                    cantidadFaltantePorDescontar -= cantidadADescontarDeAqui;
+
+                    // Actualizamos la base de datos (Saldo)
+                    await clienteSupabase
+                        .from('inventario_saldos')
+                        .update({ 
+                            cantidad_actual_ua: saldo.cantidad_actual_ua - cantidadADescontarDeAqui, 
+                            ultima_actualizacion: new Date() 
+                        })
+                        .eq('id', saldo.id);
+
+                    // Dejamos el rastro perfecto en el Historial (Kardex)
+                    await clienteSupabase
+                        .from('movimientos_inventario')
+                        .insert([{
+                            id_empresa: window.miEmpresaId,
+                            id_producto: item.id,
+                            id_ubicacion: saldo.id_ubicacion,
+                            id_sub_ubicacion: saldo.id_sub_ubicacion,
+                            tipo_movimiento: 'VENTA_POS',
+                            cantidad_movida: -cantidadADescontarDeAqui, // Negativo porque sale
+                            referencia: `Venta POS #${ventaGuardada.id}`
+                        }]);
+                }
+            }
+        }
+        // ==========================================
 
         if (checkoutMetodoPago.tipo === 'CREDITO') {
             const fechaVence = new Date();
@@ -624,14 +682,8 @@ window.confirmarVentaPOS = async function() {
                 fecha_vencimiento: fechaVence.toISOString().split('T')[0] 
             };
 
-            const { error: errorCxC } = await clienteSupabase
-                .from('cuentas_por_cobrar')
-                .insert([payloadCuentasPorCobrar]);
-
-            if (errorCxC) {
-                console.error("Error al registrar en cuentas por cobrar:", errorCxC);
-                alert("⚠️ La venta se guardó, pero hubo un error al registrar la deuda en cuentas por cobrar.");
-            }
+            const { error: errorCxC } = await clienteSupabase.from('cuentas_por_cobrar').insert([payloadCuentasPorCobrar]);
+            if (errorCxC) console.error("Error al registrar en cuentas por cobrar:", errorCxC);
         }
 
         window.carritoPos = [];
