@@ -294,19 +294,34 @@ window.carritoPos = [];
 window.cargarCatalogoPOS = async function() {
     document.getElementById('pos-productos-grid').innerHTML = '<p class="col-span-full text-center text-slate-400 font-bold mt-10 animate-pulse">Cargando catálogo...</p>';
 
-    const { data: prods, error } = await clienteSupabase
-        .from('productos')
-        .select('*, categorias(nombre)')
-        .eq('id_empresa', window.miEmpresaId)
-        .eq('vender_en_pos', true)
-        .order('nombre');
+    // 👉 EL CAMBIO: Traemos los productos Y el inventario al mismo tiempo
+    const [ { data: prods, error }, { data: saldos } ] = await Promise.all([
+        clienteSupabase.from('productos').select('*, categorias(nombre)').eq('id_empresa', window.miEmpresaId).eq('vender_en_pos', true).order('nombre'),
+        clienteSupabase.from('inventario_saldos').select('id_producto, cantidad_actual_ua, ubicaciones_internas(nombre), sub_ubicaciones(nombre)').eq('id_empresa', window.miEmpresaId).gt('cantidad_actual_ua', 0)
+    ]);
 
     if (error) {
         console.error("Error cargando catálogo POS:", error);
         return;
     }
 
-    window.productosPosMemoria = prods || [];
+    // 👉 Cruzamos los datos y buscamos dónde hay más stock
+    window.productosPosMemoria = (prods || []).map(p => {
+        const misSaldos = (saldos || []).filter(s => s.id_producto === p.id);
+        let txtUbicacion = "Sin stock registrado";
+
+        if(misSaldos.length > 0) {
+            // Ordenamos de mayor a menor para recomendar la repisa más llena
+            misSaldos.sort((a, b) => b.cantidad_actual_ua - a.cantidad_actual_ua);
+            const saldoPrincipal = misSaldos[0];
+            const ubi = saldoPrincipal.ubicaciones_internas?.nombre || 'General';
+            const sub = saldoPrincipal.sub_ubicaciones?.nombre ? ` / ${saldoPrincipal.sub_ubicaciones.nombre}` : '';
+            txtUbicacion = `📍 ${ubi}${sub}`;
+        }
+
+        return { ...p, ubicacionTexto: txtUbicacion };
+    });
+
     window.renderizarCategoriasPOS();
     window.renderizarProductosPOS('TODOS');
 }
@@ -345,8 +360,16 @@ window.renderizarProductosPOS = function(idCategoria) {
 
     grid.innerHTML = filtrados.map(p => `
         <div onclick="agregarAlCarrito('${p.id}')" class="bg-white p-4 rounded-2xl shadow-sm hover:shadow-md hover:border-emerald-400 border-2 border-transparent cursor-pointer transition-all flex flex-col h-36 relative group select-none overflow-hidden">
+            
+            <div class="absolute top-2 left-2 z-20 group/tooltip" onclick="event.stopPropagation()">
+                <div class="w-5 h-5 rounded-full border border-slate-200 flex items-center justify-center text-[10px] text-slate-400 font-bold bg-white hover:bg-slate-50 hover:text-slate-600 transition-colors shadow-sm cursor-help">i</div>
+                <div class="absolute top-6 left-0 bg-slate-800 text-white text-[10px] font-bold px-2 py-1.5 rounded shadow-lg opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all whitespace-nowrap z-30 pointer-events-none">
+                    ${p.ubicacionTexto}
+                </div>
+            </div>
+
             <div class="absolute top-0 right-0 w-16 h-16 bg-emerald-50 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-150 z-0"></div>
-            <h3 class="font-bold text-slate-800 leading-tight relative z-10 line-clamp-2">${p.nombre}</h3>
+            <h3 class="font-bold text-slate-800 leading-tight relative z-10 line-clamp-2 mt-4 pl-1">${p.nombre}</h3>
             <div class="mt-auto flex justify-between items-end relative z-10">
                 <span class="font-black text-emerald-600 text-lg">$${p.precio_venta_iva || 0}</span>
                 <div class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center font-black group-hover:bg-emerald-500 group-hover:text-white transition-colors text-xl">+</div>
@@ -467,10 +490,18 @@ window.buscarProductoPOS = function(texto) {
 
     grid.innerHTML = filtrados.map(p => `
         <div onclick="agregarAlCarrito('${p.id}')" class="bg-white p-4 rounded-2xl shadow-sm hover:shadow-md hover:border-emerald-400 border-2 border-transparent cursor-pointer transition-all flex flex-col h-36 relative group select-none overflow-hidden">
+            
+            <div class="absolute top-2 left-2 z-20 group/tooltip" onclick="event.stopPropagation()">
+                <div class="w-5 h-5 rounded-full border border-slate-200 flex items-center justify-center text-[10px] text-slate-400 font-bold bg-white hover:bg-slate-50 hover:text-slate-600 transition-colors shadow-sm cursor-help">i</div>
+                <div class="absolute top-6 left-0 bg-slate-800 text-white text-[10px] font-bold px-2 py-1.5 rounded shadow-lg opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all whitespace-nowrap z-30 pointer-events-none">
+                    ${p.ubicacionTexto}
+                </div>
+            </div>
+
             <div class="absolute top-0 right-0 w-16 h-16 bg-emerald-50 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-150 z-0"></div>
-            <h3 class="font-bold text-slate-800 leading-tight relative z-10 line-clamp-2">${p.nombre}</h3>
+            <h3 class="font-bold text-slate-800 leading-tight relative z-10 line-clamp-2 mt-4 pl-1">${p.nombre}</h3>
             <div class="mt-auto flex justify-between items-end relative z-10">
-                <span class="font-black text-emerald-600 text-lg">$${p.ultimo_costo_uc || 0}</span>
+                <span class="font-black text-emerald-600 text-lg">$${p.precio_venta_iva || 0}</span>
                 <div class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center font-black group-hover:bg-emerald-500 group-hover:text-white transition-colors text-xl">+</div>
             </div>
         </div>

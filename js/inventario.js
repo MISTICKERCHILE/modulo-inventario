@@ -640,8 +640,9 @@ window.abrirHistorialKardex = async function(idProd, nombreProd) {
     const timeline = document.getElementById('hm-timeline');
     timeline.innerHTML = '<p class="text-center py-8 text-slate-500">⏳ Trazando movimientos...</p>';
 
+    // 👉 EL CAMBIO MAGISTRAL: Traemos sub_ubicaciones(nombre)
     const { data } = await clienteSupabase.from('movimientos_inventario')
-        .select('fecha_movimiento, tipo_movimiento, cantidad_movida, referencia, ubicaciones_internas(nombre)')
+        .select('fecha_movimiento, tipo_movimiento, cantidad_movida, referencia, ubicaciones_internas(nombre), sub_ubicaciones(nombre)')
         .eq('id_empresa', window.miEmpresaId)
         .eq('id_producto', idProd)
         .order('fecha_movimiento', { ascending: true }); 
@@ -664,7 +665,12 @@ window.abrirHistorialKardex = async function(idProd, nombreProd) {
         const isPos = d.cantidad_movida > 0;
         const color = isPos ? 'text-emerald-600' : 'text-red-600';
         const bg = isPos ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100';
+        
+        // 👉 EL CAMBIO VISUAL: Unimos Ubicación y Repisa
         const ubi = d.ubicaciones_internas?.nombre || 'Bodega General';
+        const subUbi = d.sub_ubicaciones?.nombre ? ` / ${d.sub_ubicaciones.nombre}` : '';
+        const ubiFinal = `${ubi}${subUbi}`;
+        
         const signo = isPos ? '+' : '';
 
         return `
@@ -678,7 +684,7 @@ window.abrirHistorialKardex = async function(idProd, nombreProd) {
                 <div class="flex justify-between items-end mt-2">
                     <div>
                         <p class="text-sm font-bold text-slate-800 uppercase">${d.tipo_movimiento.replace(/_/g, ' ')}</p>
-                        <p class="text-xs text-slate-500 mt-0.5">📍 ${ubi} <br> <span class="italic text-[10px]">"${d.referencia || ''}"</span></p>
+                        <p class="text-xs text-slate-500 mt-0.5">📍 ${ubiFinal} <br> <span class="italic text-[10px]">"${d.referencia || ''}"</span></p>
                     </div>
                     <div class="text-right">
                         <span class="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Stock Histórico</span>
@@ -709,7 +715,8 @@ document.getElementById('form-ajuste-rapido')?.addEventListener('submit', async 
     const btn = e.target.querySelector('button[type="submit"]');
     btn.innerText = "⏳ Aplicando..."; btn.disabled = true;
 
-    const { data: previo } = await clienteSupabase.from('inventario_saldos').select('cantidad_actual_ua, id_ubicacion, id_sucursal').eq('id', idSaldo).single();
+    // 👉 EL CAMBIO: Traemos id_sub_ubicacion también
+    const { data: previo } = await clienteSupabase.from('inventario_saldos').select('cantidad_actual_ua, id_ubicacion, id_sub_ubicacion, id_sucursal').eq('id', idSaldo).single();
     
     if(previo) {
         const diferencia = cantNueva - previo.cantidad_actual_ua;
@@ -717,9 +724,15 @@ document.getElementById('form-ajuste-rapido')?.addEventListener('submit', async 
         if(diferencia !== 0) {
             await clienteSupabase.from('inventario_saldos').update({ cantidad_actual_ua: cantNueva, ultima_actualizacion: new Date() }).eq('id', idSaldo);
             
+            // 👉 EL CAMBIO: Enviamos el id_sub_ubicacion al historial
             await clienteSupabase.from('movimientos_inventario').insert([{ 
-                id_empresa: window.miEmpresaId, id_producto: idProd, id_ubicacion: previo.id_ubicacion, 
-                tipo_movimiento: 'AJUSTE_CONTEO', cantidad_movida: diferencia, referencia: 'Ajuste Rápido Individual' 
+                id_empresa: window.miEmpresaId, 
+                id_producto: idProd, 
+                id_ubicacion: previo.id_ubicacion, 
+                id_sub_ubicacion: previo.id_sub_ubicacion, // <-- LA CLAVE
+                tipo_movimiento: 'AJUSTE_CONTEO', 
+                cantidad_movida: diferencia, 
+                referencia: 'Ajuste Rápido Individual' 
             }]);
         }
     }
