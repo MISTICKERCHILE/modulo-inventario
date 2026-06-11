@@ -331,7 +331,9 @@ window.editarProductoFull = async function(id) {
     document.getElementById('prod-tiene-receta').checked = data.tiene_receta || false;
 
     if(document.getElementById('prod-codigo-barras')) document.getElementById('prod-codigo-barras').value = data.codigo_barras || '';
-    
+    // Cargar impuesto adicional
+    if(document.getElementById('prod-impuesto-adicional')) document.getElementById('prod-impuesto-adicional').value = data.porcentaje_impuesto_adicional || 0;
+
     const checkPos = document.getElementById('prod-vender-pos');
     if(checkPos) {
         checkPos.checked = data.vender_en_pos || false;
@@ -386,6 +388,8 @@ window.duplicarProductoFull = async function(id) {
     document.getElementById('prod-tiene-receta').checked = data.tiene_receta || false;
 
     if(document.getElementById('prod-codigo-barras')) document.getElementById('prod-codigo-barras').value = data.codigo_barras || '';
+    // Cargar impuesto adicional
+    if(document.getElementById('prod-impuesto-adicional')) document.getElementById('prod-impuesto-adicional').value = data.porcentaje_impuesto_adicional || 0;
     
     const checkPos = document.getElementById('prod-vender-pos');
     if(checkPos) {
@@ -451,8 +455,9 @@ if (!window.eventosFormProductoAtados) {
                 vender_en_pos: document.getElementById('prod-vender-pos') ? document.getElementById('prod-vender-pos').checked : false,
                 precio_venta_neto: parseFloat(document.getElementById('prod-precio-neto')?.value) || 0,
                 precio_venta_iva: parseFloat(document.getElementById('prod-precio-iva')?.value) || 0,
-                // 👉 AQUÍ ESTÁ EL CAMBIO PRINCIPAL PARA GUARDAR EL COSTO
-                ultimo_costo_uc: parseFloat(document.getElementById('prod-costo-ref')?.value) || 0
+                ultimo_costo_uc: parseFloat(document.getElementById('prod-costo-ref')?.value) || 0,
+                // 👉 AQUÍ CAPTURAMOS EL IMPUESTO ADICIONAL
+                porcentaje_impuesto_adicional: parseFloat(document.getElementById('prod-impuesto-adicional')?.value) || 0
             };
             
             let idProdActual = null;
