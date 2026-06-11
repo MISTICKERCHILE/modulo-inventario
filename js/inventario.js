@@ -348,27 +348,26 @@ window.cargarFilasConteoMasivo = async function(idUbicacion) {
         (prodsFisicos || []).forEach(p => {
             const saldosProd = (saldosActuales || []).filter(s => s.id_producto === p.id);
             
+            // Si el producto no tiene saldo en esta ubicación, lo saltamos
+            if (saldosProd.length === 0) return; 
+
             if (idUbicacion === 'GENERAL') {
                 const sGen = saldosProd.find(s => s.id_ubicacion === null);
-                if (sGen || saldosProd.length === 0) grupos[0].items.push({ p, cant: sGen ? sGen.cantidad_actual_ua : 0, subId: 'NULL' });
+                if (sGen) grupos[0].items.push({ p, cant: sGen.cantidad_actual_ua, subId: 'NULL' });
             } else {
-                let tieneStockEnAlgunaRepisa = false;
                 saldosProd.forEach(s => {
                     const grupoDestino = grupos.find(gr => gr.id === (s.id_sub_ubicacion || 'NULL'));
                     if (grupoDestino) {
                         grupoDestino.items.push({ p, cant: s.cantidad_actual_ua, subId: s.id_sub_ubicacion || 'NULL' });
-                        tieneStockEnAlgunaRepisa = true;
                     }
                 });
-                
-                if (!tieneStockEnAlgunaRepisa) {
-                    grupos[0].items.push({ p, cant: 0, subId: 'NULL' });
-                }
             }
         });
 
         let html = '';
         grupos.forEach(g => {
+            if (g.items.length === 0) return; // <-- NUEVA LÍNEA: Si la repisa está vacía, no dibuja el título
+            
             html += `
             <tr class="bg-slate-200 cursor-pointer hover:bg-slate-300 transition-colors fila-cabecera-grupo" onclick="toggleGrupoConteo('${g.id}')" data-grupo-id="${g.id}">
                 <td colspan="5" class="py-2 px-4 font-bold text-slate-800 text-sm flex items-center gap-2">
