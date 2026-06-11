@@ -770,7 +770,6 @@ window.abrirAjusteRapido = function(idSaldo, idProd, nombreProd, ubiNombre, cant
     document.getElementById('modal-ajuste-rapido').classList.remove('hidden');
 }
 
-
 // ==========================================
 // --- IMPRESIÓN DE PLANILLA FÍSICA ---
 // ==========================================
