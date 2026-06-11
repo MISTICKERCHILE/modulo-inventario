@@ -1,10 +1,12 @@
-let pinActual = "";
-const PIN_CORRECTO = "1234";
+// ==========================================
+// --- MÓDULO: PUNTO DE VENTA (VENTAS Y CARRITO) ---
+// ==========================================
 
-window.turnoActual = null;
-window.cajeroActivo = null; 
-window.metodosPagoMemoria = []; 
-window.estadoCierreActual = []; 
+window.productosPosMemoria = [];
+window.carritoPos = [];
+window.clienteSeleccionadoPOS = null; 
+let checkoutMetodoPago = '';
+let checkoutTotalVenta = 0;
 
 window.cargarVentas = function() {
     console.log("💰 Cargando Módulo POS...");
@@ -13,74 +15,7 @@ window.cargarVentas = function() {
     document.getElementById('main-content').classList.add('p-0', 'md:p-0'); 
     document.getElementById('pos-wrapper').classList.remove('hidden');
     document.getElementById('pos-wrapper').classList.add('flex');
-    window.borrarTodoElPin();
-}
-
-window.entrarAlPos = async function() {
-    document.getElementById('pos-pin-screen').classList.add('hidden');
-    document.getElementById('pos-pin-screen').classList.remove('flex');
-
-    try {
-        const { data: turnoAbierto, error } = await clienteSupabase
-            .from('pos_turnos').select('*').eq('id_empresa', window.miEmpresaId).eq('estado', 'ABIERTO').maybeSingle();
-
-        if (error) throw error;
-
-        if (turnoAbierto) {
-            window.turnoActual = turnoAbierto;
-            window.mostrarDashboardPos();
-        } else {
-            window.abrirTurnoNuevo();
-        }
-    } catch (error) {
-        console.error("Error verificando turnos:", error);
-        alert("Hubo un error al verificar el turno. Revisa la consola.");
-    }
-}
-
-window.mostrarDashboardPos = function() {
-    document.getElementById('pos-pin-screen').classList.add('hidden');
-    document.getElementById('pos-pin-screen').classList.remove('flex');
-
-    const opcionesFecha = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
-    document.getElementById('pos-fecha-actual').innerText = new Date().toLocaleDateString('es-ES', opcionesFecha).toUpperCase();
-    
-    document.getElementById('pos-dashboard-screen').classList.remove('hidden');
-    document.getElementById('pos-dashboard-screen').classList.add('flex');
-}
-
-window.abrirTurnoNuevo = async function() {
-    const montoInicial = prompt(`💵 Apertura de Caja (${window.cajeroActivo.nombre})\n\nIngresa el monto de efectivo inicial (Sencillo/Fondo de caja). Deja en 0 si la caja está vacía:`, "0");
-    
-    if (montoInicial === null) {
-        document.getElementById('pos-pin-screen').classList.remove('hidden');
-        document.getElementById('pos-pin-screen').classList.add('flex');
-        window.borrarTodoElPin();
-        return;
-    }
-
-    const fondoCaja = parseFloat(montoInicial) || 0;
-
-    try {
-        const payloadTurno = {
-            id_empresa: window.miEmpresaId,
-            abierto_por: window.cajeroActivo.id, 
-            monto_inicial_efectivo: fondoCaja,
-            estado: 'ABIERTO'
-        };
-
-        const { data: nuevoTurno, error } = await clienteSupabase.from('pos_turnos').insert([payloadTurno]).select().single();
-
-        if (error) throw error;
-
-        window.turnoActual = nuevoTurno;
-        alert(`✅ Turno abierto por ${window.cajeroActivo.nombre} con fondo de: $${fondoCaja.toLocaleString('es-CL')}`);
-        window.mostrarDashboardPos();
-
-    } catch (error) {
-        console.error("Error abriendo turno:", error);
-        alert("Error al intentar abrir la caja. Revisa la consola.");
-    }
+    if (typeof window.borrarTodoElPin === 'function') window.borrarTodoElPin();
 }
 
 window.togglePosMenu = function() {
@@ -101,9 +36,6 @@ window.volverAlPosDashboard = function() {
     document.getElementById('pos-dashboard-screen').classList.remove('hidden');
     document.getElementById('pos-dashboard-screen').classList.add('flex');
 }
-
-window.productosPosMemoria = [];
-window.carritoPos = [];
 
 window.cargarCatalogoPOS = async function() {
     document.getElementById('pos-productos-grid').innerHTML = '<p class="col-span-full text-center text-slate-400 font-bold mt-10 animate-pulse">Cargando catálogo...</p>';
@@ -171,14 +103,12 @@ window.renderizarProductosPOS = function(idCategoria) {
 
     grid.innerHTML = filtrados.map(p => `
         <div onclick="agregarAlCarrito('${p.id}')" class="bg-white p-4 rounded-2xl shadow-sm hover:shadow-md hover:border-emerald-400 border-2 border-transparent cursor-pointer transition-all flex flex-col h-36 relative group select-none overflow-hidden">
-            
             <div class="absolute top-2 left-2 z-20 group/tooltip" onclick="event.stopPropagation()">
                 <div class="w-5 h-5 rounded-full border border-slate-200 flex items-center justify-center text-[10px] text-slate-400 font-bold bg-white hover:bg-slate-50 hover:text-slate-600 transition-colors shadow-sm cursor-help">i</div>
                 <div class="absolute top-6 left-0 bg-slate-800 text-white text-[10px] font-bold px-2 py-1.5 rounded shadow-lg opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all whitespace-nowrap z-30 pointer-events-none">
                     ${p.ubicacionTexto}
                 </div>
             </div>
-
             <div class="absolute top-0 right-0 w-16 h-16 bg-emerald-50 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-150 z-0"></div>
             <h3 class="font-bold text-slate-800 leading-tight relative z-10 line-clamp-2 mt-4 pl-1">${p.nombre}</h3>
             <div class="mt-auto flex justify-between items-end relative z-10">
@@ -306,9 +236,6 @@ window.buscarProductoPOS = function(texto) {
     `).join('');
 }
 
-let checkoutMetodoPago = '';
-let checkoutTotalVenta = 0;
-
 window.abrirCheckout = function() {
     if(window.carritoPos.length === 0) return alert("⚠️ El carrito está vacío. Agrega productos primero.");
 
@@ -368,6 +295,7 @@ window.calcularVuelto = function() {
     document.getElementById('checkout-vuelto').innerText = "$" + vuelto.toLocaleString('es-CL');
 }
 
+// 👉 AQUÍ ESTÁ LA SOLUCIÓN DEL ERROR NULL
 window.confirmarVentaPOS = async function() {
     if(!checkoutMetodoPago) return alert("Selecciona un método de pago.");
     if(window.carritoPos.length === 0) return alert("El carrito está vacío.");
@@ -378,15 +306,28 @@ window.confirmarVentaPOS = async function() {
     btn.disabled = true;
 
     try {
+        // Aseguramos de tener una sucursal para evitar el error
+        let sucursalVenta = window.sucursalActivaID;
+        if (!sucursalVenta) {
+            const { data: sucursalPorDefecto } = await clienteSupabase
+                .from('sucursales').select('id').eq('id_empresa', window.miEmpresaId).limit(1).single();
+            if (sucursalPorDefecto) {
+                sucursalVenta = sucursalPorDefecto.id;
+                window.sucursalActivaID = sucursalVenta; 
+            } else {
+                throw new Error("No tienes ninguna sucursal creada.");
+            }
+        }
+
         const estadoVenta = checkoutMetodoPago.tipo === 'CREDITO' ? 'POR_COBRAR' : 'COMPLETADA';
 
         const payloadVenta = {
             id_empresa: window.miEmpresaId,
-            id_sucursal: null, 
+            id_sucursal: sucursalVenta, // ✔️ AQUÍ SE ENVÍA LA SUCURSAL
             total: checkoutTotalVenta,
             metodo_pago: checkoutMetodoPago.nombre,
             estado: estadoVenta,
-            cajero: window.cajeroActivo.id,
+            cajero: window.cajeroActivo ? window.cajeroActivo.id : null,
             origen: 'POS',
             id_cliente: window.clienteSeleccionadoPOS ? window.clienteSeleccionadoPOS.id : null
         };
@@ -402,6 +343,7 @@ window.confirmarVentaPOS = async function() {
                 .from('inventario_saldos')
                 .select('id, cantidad_actual_ua, id_ubicacion, id_sub_ubicacion, ubicaciones_internas(orden)')
                 .eq('id_empresa', window.miEmpresaId)
+                .eq('id_sucursal', sucursalVenta)
                 .eq('id_producto', item.id)
                 .gt('cantidad_actual_ua', 0);
 
@@ -596,136 +538,6 @@ window.cerrarEscanerCamara = function() {
     }
 }
 
-window.abrirModalSalidaPOS = function() {
-    document.getElementById('pos-dropdown-menu').classList.add('hidden');
-    document.getElementById('modal-salida-pos').classList.remove('hidden');
-}
-
-window.pausarTurno = function() {
-    document.getElementById('modal-salida-pos').classList.add('hidden');
-    alert("☕ Pausa registrada en RRHH. La caja se bloqueará.");
-    document.getElementById('pos-dashboard-screen').classList.add('hidden');
-    document.getElementById('pos-dashboard-screen').classList.remove('flex');
-    document.getElementById('pos-pin-screen').classList.remove('hidden');
-    document.getElementById('pos-pin-screen').classList.add('flex');
-    window.borrarTodoElPin();
-}
-
-window.iniciarCierreDeCaja = async function() {
-    if (!window.turnoActual) return alert("❌ No hay un turno activo para cerrar.");
-    document.getElementById('modal-salida-pos').classList.add('hidden');
-
-    try {
-        const { count, error: errCuentas } = await clienteSupabase.from('pos_cuentas_abiertas').select('*', { count: 'exact', head: true }).eq('id_empresa', window.miEmpresaId);
-        if (errCuentas) throw errCuentas;
-        if (count > 0) {
-            const confirmar = confirm(`⚠️ ALERTA DE SEGURIDAD\n\nTienes ${count} cuenta(s) en espera (Mesas/Comandas sin cobrar).\n¿Estás absolutamente seguro de que deseas cerrar tu caja y dejarle esta deuda/responsabilidad al siguiente turno?`);
-            if (!confirmar) { document.getElementById('modal-salida-pos').classList.remove('hidden'); return; }
-        }
-    } catch (error) { console.error("Error validando cuentas en espera:", error); }
-
-    document.getElementById('cierre-cajero-nombre').innerText = window.cajeroActivo ? window.cajeroActivo.nombre : 'Cajero';
-
-    try {
-        const { data: ventasTurno, error } = await clienteSupabase.from('ventas').select('total, metodo_pago').eq('id_empresa', window.miEmpresaId).gte('created_at', window.turnoActual.fecha_apertura).in('estado', ['COMPLETADA']);
-        if (error) throw error;
-
-        window.estadoCierreActual = window.metodosPagoMemoria.map(mp => {
-            const totalEsperado = (ventasTurno || []).filter(v => v.metodo_pago === mp.nombre).reduce((sum, v) => sum + Number(v.total), 0);
-            let fondoCaja = mp.tipo === 'EFECTIVO' ? (Number(window.turnoActual.monto_inicial_efectivo) || 0) : 0;
-            return { id: mp.id, nombre: mp.nombre, tipo: mp.tipo, esperado: totalEsperado + fondoCaja, real: 0, diferencia: 0 };
-        });
-
-        window.renderizarCalculadoraCierre();
-        document.getElementById('modal-cierre-caja').classList.remove('hidden');
-    } catch (error) {
-        console.error("Error calculando el cierre:", error);
-        alert("Hubo un error al calcular los totales de caja.");
-    }
-}
-
-window.renderizarCalculadoraCierre = function() {
-    const container = document.getElementById('cierre-dinamico-container');
-    container.innerHTML = window.estadoCierreActual.map(item => {
-        let color = 'slate'; let icono = '🪙';
-        if (item.tipo === 'EFECTIVO') { color = 'emerald'; icono = '💵'; }
-        if (item.tipo === 'TARJETA') { color = 'blue'; icono = '💳'; }
-        if (item.tipo === 'TRANSFERENCIA') { color = 'purple'; icono = '📱'; }
-
-        return `
-        <div class="bg-${color}-50 rounded-2xl p-4 border border-${color}-100 relative">
-            <div class="absolute -top-3 left-4 bg-${color}-500 text-white text-[10px] font-black uppercase px-3 py-1 rounded-full shadow-sm">${icono} ${item.nombre}</div>
-            <div class="flex justify-between items-end mt-2 mb-3">
-                <p class="text-sm font-bold text-${color}-700">El sistema calculó:</p>
-                <p class="text-xl font-black text-${color}-900">$${item.esperado.toLocaleString('es-CL')}</p>
-            </div>
-            <div class="bg-white p-3 rounded-xl shadow-inner border border-${color}-200">
-                <label class="block text-xs font-bold text-slate-500 mb-1 uppercase">Suma real contada:</label>
-                <div class="relative">
-                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-bold text-lg">$</span>
-                    <input type="number" id="cierre-real-${item.id}" oninput="calcularDiferenciaCaja()" placeholder="0" class="w-full pl-8 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-2xl font-black text-slate-800 focus:ring-2 focus:ring-${color}-500 outline-none transition-all">
-                </div>
-            </div>
-        </div>`;
-    }).join('');
-    window.calcularDiferenciaCaja(); 
-}
-
-window.calcularDiferenciaCaja = function() {
-    let totalDiferencia = 0;
-    window.estadoCierreActual.forEach(item => {
-        const inputReal = document.getElementById(`cierre-real-${item.id}`);
-        const valorReal = inputReal ? Number(inputReal.value) || 0 : 0;
-        item.real = valorReal; item.diferencia = valorReal - item.esperado;
-        totalDiferencia += item.diferencia;
-    });
-
-    const panel = document.getElementById('cierre-resultado-panel');
-    const montoTexto = document.getElementById('cierre-diferencia-monto');
-    const descTexto = document.getElementById('cierre-diferencia-texto');
-
-    montoTexto.innerText = `$${Math.abs(totalDiferencia).toLocaleString('es-CL')}`;
-    panel.classList.remove('border-emerald-400', 'bg-emerald-50', 'border-red-400', 'bg-red-50', 'border-slate-200', 'bg-slate-50');
-    montoTexto.classList.remove('text-emerald-700', 'text-red-700', 'text-slate-800');
-
-    if (totalDiferencia === 0) {
-        panel.classList.add('border-emerald-400', 'bg-emerald-50'); montoTexto.classList.add('text-emerald-700'); descTexto.innerText = "✅ Caja Cuadrada Perfectamente";
-    } else if (totalDiferencia > 0) {
-        panel.classList.add('border-slate-200', 'bg-slate-50'); montoTexto.classList.add('text-slate-800'); descTexto.innerText = "⚠️ Sobra dinero en caja";
-    } else if (totalDiferencia < 0) {
-        panel.classList.add('border-red-400', 'bg-red-50'); montoTexto.classList.add('text-red-700'); descTexto.innerText = "❌ Falta dinero (Descuadre)";
-    }
-}
-
-window.confirmarCierreCaja = async function() {
-    if (!window.turnoActual) return alert("❌ No hay un turno activo para cerrar.");
-    const btn = Array.from(document.querySelectorAll('#modal-cierre-caja button')).find(b => b.textContent.includes('Cerrar'));
-    const textoOriginal = btn ? btn.innerText : "Cerrar Turno";
-    if (btn) { btn.innerText = "⏳ Cerrando..."; btn.disabled = true; }
-
-    try {
-        const { error } = await clienteSupabase.from('pos_turnos').update({
-            fecha_cierre: new Date().toISOString(), cerrado_por: window.cajeroActivo.id, desglose_cierre: window.estadoCierreActual, estado: 'CERRADO'
-        }).eq('id', window.turnoActual.id);
-        if (error) throw error;
-
-        window.turnoActual = null; window.cajeroActivo = null;
-        alert("🔒 ¡Cierre de caja registrado exitosamente!");
-
-        document.getElementById('modal-cierre-caja').classList.add('hidden');
-        document.getElementById('pos-dashboard-screen').classList.add('hidden');
-        document.getElementById('pos-dashboard-screen').classList.remove('flex');
-        document.getElementById('pos-pin-screen').classList.remove('hidden');
-        document.getElementById('pos-pin-screen').classList.add('flex');
-        window.borrarTodoElPin();
-    } catch (error) {
-        console.error("Error guardando cierre:", error);
-        alert("❌ Ocurrió un error al intentar cerrar la caja.");
-    } finally {
-        if (btn) { btn.innerText = textoOriginal; btn.disabled = false; }
-    }
-}
-
 window.cargarMetodosPagoPOS = async function() {
     try {
         const { data, error } = await clienteSupabase.from('metodos_pago').select('*').eq('id_empresa', window.miEmpresaId).eq('activo', true).order('nombre');
@@ -754,8 +566,6 @@ window.renderizarMetodosPagoPOS = function() {
             </button>`;
     }).join('');
 }
-
-window.clienteSeleccionadoPOS = null; 
 
 window.abrirModalClientesPOS = function() {
     document.getElementById('modal-clientes-pos').classList.remove('hidden');
