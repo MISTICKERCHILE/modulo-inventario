@@ -340,3 +340,8 @@ window.salirDePOS = function() {
 
     window.cambiarVista('home');
 }
+
+window.abrirModalSalidaPOS = function() {
+    document.getElementById('pos-dropdown-menu').classList.add('hidden');
+    document.getElementById('modal-salida-pos').classList.remove('hidden');
+}
