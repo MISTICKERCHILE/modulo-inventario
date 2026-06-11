@@ -226,7 +226,7 @@ window.cambiarUbicacionSaldo = async function(idSaldo, valorCompuestoStr) {
     
     try {
         const { data: saldoActual, error: errActual } = await clienteSupabase.from('inventario_saldos')
-            .select('id_producto, id_sucursal, cantidad_actual_ua')
+            .select('id_producto, id_sucursal, cantidad_actual_ua, id_ubicacion, id_sub_ubicacion')
             .eq('id', idSaldo)
             .single();
             
@@ -252,7 +252,29 @@ window.cambiarUbicacionSaldo = async function(idSaldo, valorCompuestoStr) {
                 .eq('id', idSaldo);
         }
 
-        window.abrirInventarioSucursal(window.sucursalActivaID, window.sucursalActivaNombre); 
+        // 1. REGISTRO EN KARDEX (Mapea la salida del origen y la entrada al destino)
+        await clienteSupabase.from('movimientos_inventario').insert([
+            { id_empresa: window.miEmpresaId, id_producto: saldoActual.id_producto, id_ubicacion: saldoActual.id_ubicacion, id_sub_ubicacion: saldoActual.id_sub_ubicacion, tipo_movimiento: 'TRASLADO_SALIDA', cantidad_movida: -saldoActual.cantidad_actual_ua, referencia: 'Cambio de Ubicación' },
+            { id_empresa: window.miEmpresaId, id_producto: saldoActual.id_producto, id_ubicacion: idUbicacionFinal, id_sub_ubicacion: idSubUbicacionFinal, tipo_movimiento: 'TRASLADO_ENTRADA', cantidad_movida: saldoActual.cantidad_actual_ua, referencia: 'Cambio de Ubicación' }
+        ]);
+
+        // 2. CAPTURAR EL TEXTO DEL BUSCADOR ANTES DE REFRESCAR LA PANTALLA
+        const inputBuscar = document.getElementById('busqueda-inventario');
+        const busquedaActual = inputBuscar ? inputBuscar.value : '';
+
+        // Refrescamos la tabla de inventario
+        await window.abrirInventarioSucursal(window.sucursalActivaID, window.sucursalActivaNombre); 
+
+        // 3. APLICAR EL FILTRO EN TIEMPO REAL PARA QUE LA LÍNEA SE FUSIONE O DESAPAREZCA SIN MOVER AL USUARIO
+        if (busquedaActual) {
+            const nuevoInput = document.getElementById('busqueda-inventario');
+            if (nuevoInput) {
+                nuevoInput.value = busquedaActual;
+                if (typeof window.filtrarInventarioLocal === 'function') {
+                    window.filtrarInventarioLocal(busquedaActual);
+                }
+            }
+        }
         
     } catch (error) {
         console.error("Error al transferir stock:", error);
