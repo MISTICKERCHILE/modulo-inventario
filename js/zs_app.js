@@ -1,12 +1,32 @@
 // ==========================================
-// CEREBRO ZEUS (GOD MODE)
+// CEREBRO ZEUS (GOD MODE) - BLINDADO
 // ==========================================
 
 window.zeusUser = null;
-let pinTemporalGenerado = null; // Guardaremos el PIN en memoria temporalmente
+let pinTemporalGenerado = null; 
 
-// Al arrancar, cargamos la vista de login
-document.addEventListener('DOMContentLoaded', () => {
+// 1. EL RADAR: Esperamos a Vercel y tu archivo supabase.js
+async function esperarConexionSegura() {
+    return new Promise((resolve) => {
+        // Si ya conectó instantáneamente, pasamos
+        if (window.clienteSupabase) return resolve();
+        
+        console.log("⏳ [ZEUS] Esperando inyección de seguridad de Vercel...");
+        
+        // Si no, revisamos cada 100ms hasta que exista
+        const intervalo = setInterval(() => {
+            if (window.clienteSupabase) {
+                clearInterval(intervalo);
+                console.log("✅ [ZEUS] Conexión segura establecida.");
+                resolve();
+            }
+        }, 100);
+    });
+}
+
+// Arrancamos solo cuando la conexión segura esté garantizada
+document.addEventListener('DOMContentLoaded', async () => {
+    await esperarConexionSegura();
     cargarVistaZeus('zs_acceso');
 });
 
@@ -18,7 +38,6 @@ async function cargarVistaZeus(vista) {
         if (!response.ok) throw new Error('Vista no encontrada');
         main.innerHTML = await response.text();
         
-        // Si cargamos el acceso, bindeamos los formularios
         if (vista === 'zs_acceso') {
             bindearFormulariosAcceso();
         }
@@ -34,7 +53,6 @@ function bindearFormulariosAcceso() {
     const formFase1 = document.getElementById('zs-form-fase1');
     const formFase2 = document.getElementById('zs-form-fase2');
 
-    // FASE 1: Validar Contraseña y Permisos Zeus
     formFase1.addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = document.getElementById('zs-email').value.trim();
@@ -43,7 +61,7 @@ function bindearFormulariosAcceso() {
         
         btn.innerText = "Verificando..."; btn.disabled = true;
 
-        // 1. Validamos credenciales usando TU cliente global
+        // 2. Usamos tu cliente global blindado
         const { data: authData, error: authErr } = await window.clienteSupabase.auth.signInWithPassword({ email, password });
         
         if (authErr) {
@@ -51,35 +69,28 @@ function bindearFormulariosAcceso() {
             return alert("Acceso Denegado: Credenciales incorrectas.");
         }
 
-        // 2. Validamos si este usuario tiene el permiso de Dios en la tabla perfiles
+        // 3. Validamos permiso Zeus en tabla perfiles
         const { data: perfilData, error: perfilErr } = await window.clienteSupabase
             .from('perfiles')
             .select('es_zeus')
             .eq('id_usuario', authData.user.id)
             .single();
 
-        // Si no tiene el booleano en true, lo pateamos del sistema
         if (perfilErr || !perfilData || perfilData.es_zeus !== true) {
-            await window.clienteSupabase.auth.signOut(); // Cerramos la sesión que se abrió
+            await window.clienteSupabase.auth.signOut(); 
             btn.innerText = "Verificar Credenciales"; btn.disabled = false;
             return alert("🛑 ALERTA DE INTRUSIÓN: No posees autorización nivel Zeus.");
         }
 
-        // 3. Si llegó hasta aquí, ES EL SUPER ADMIN
         window.zeusUser = authData.user;
-
-        // 4. Generamos un PIN matemático de 6 dígitos
         pinTemporalGenerado = Math.floor(100000 + Math.random() * 900000).toString();
         
-        // 🚨 AQUÍ SIMULAMOS EL ENVÍO DEL CORREO
         await enviarCorreoPIN(window.zeusUser.email, pinTemporalGenerado);
 
-        // Pasamos a la Fase 2 visualmente
         formFase1.classList.add('hidden');
         formFase2.classList.remove('hidden');
     });
 
-    // FASE 2: Validar PIN
     formFase2.addEventListener('submit', async (e) => {
         e.preventDefault();
         const inputPin = document.getElementById('zs-pin').value.trim();
@@ -88,11 +99,8 @@ function bindearFormulariosAcceso() {
         btn.innerText = "Desencriptando..."; btn.disabled = true;
 
         if (inputPin === pinTemporalGenerado) {
-            // ¡ÉXITO!
             await enviarAlertaIngreso(window.zeusUser.email);
-            
-            // alert("Acceso Autorizado. Bienvenido, Zeus.");
-            cargarVistaZeus('zs_dashboard'); // Cargamos tu God Mode
+            cargarVistaZeus('zs_dashboard'); 
         } else {
             btn.innerText = "Desbloquear Terminal"; btn.disabled = false;
             alert("PIN Incorrecto. Intento registrado.");
@@ -102,15 +110,10 @@ function bindearFormulariosAcceso() {
 }
 
 window.cancelarZeusLogin = async function() {
-    if (window.clienteSupabase) {
-        await window.clienteSupabase.auth.signOut();
-    }
+    if (window.clienteSupabase) await window.clienteSupabase.auth.signOut();
     window.location.reload();
 }
 
-// ==========================================
-// SIMULADORES DE CORREO (Consola)
-// ==========================================
 async function enviarCorreoPIN(email, pin) {
     console.log(`%c[ZEUS SECURITY] %cSimulando envío a ${email}. Tu PIN es: %c${pin}`, 'color: #10b981; font-weight: bold;', 'color: white;', 'color: #fbbf24; font-size: 16px; font-weight: bold;');
 }
