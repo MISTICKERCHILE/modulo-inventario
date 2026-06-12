@@ -1,9 +1,6 @@
 // ==========================================
-// CONFIGURACIÓN SUPABASE (Exclusiva para Zeus)
+// CEREBRO ZEUS (GOD MODE)
 // ==========================================
-const SUPABASE_URL = 'TU_URL_DE_SUPABASE';
-const SUPABASE_KEY = 'TU_ANON_KEY_DE_SUPABASE';
-const zeusSupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 window.zeusUser = null;
 let pinTemporalGenerado = null; // Guardaremos el PIN en memoria temporalmente
@@ -37,7 +34,7 @@ function bindearFormulariosAcceso() {
     const formFase1 = document.getElementById('zs-form-fase1');
     const formFase2 = document.getElementById('zs-form-fase2');
 
-    // FASE 1: Validar Contraseña y Rol
+    // FASE 1: Validar Contraseña y Permisos Zeus
     formFase1.addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = document.getElementById('zs-email').value.trim();
@@ -46,22 +43,35 @@ function bindearFormulariosAcceso() {
         
         btn.innerText = "Verificando..."; btn.disabled = true;
 
-        // 1. Validamos en Supabase Auth
-        const { data: authData, error: authErr } = await zeusSupabase.auth.signInWithPassword({ email, password });
+        // 1. Validamos credenciales usando TU cliente global
+        const { data: authData, error: authErr } = await window.clienteSupabase.auth.signInWithPassword({ email, password });
         
         if (authErr) {
             btn.innerText = "Verificar Credenciales"; btn.disabled = false;
             return alert("Acceso Denegado: Credenciales incorrectas.");
         }
 
-        // 2. Aquí deberíamos verificar si este usuario TIENE EL ROL "Administrador Supremo" en la base de datos
-        // (Asumimos que pasó la validación por ahora)
+        // 2. Validamos si este usuario tiene el permiso de Dios en la tabla perfiles
+        const { data: perfilData, error: perfilErr } = await window.clienteSupabase
+            .from('perfiles')
+            .select('es_zeus')
+            .eq('id_usuario', authData.user.id)
+            .single();
+
+        // Si no tiene el booleano en true, lo pateamos del sistema
+        if (perfilErr || !perfilData || perfilData.es_zeus !== true) {
+            await window.clienteSupabase.auth.signOut(); // Cerramos la sesión que se abrió
+            btn.innerText = "Verificar Credenciales"; btn.disabled = false;
+            return alert("🛑 ALERTA DE INTRUSIÓN: No posees autorización nivel Zeus.");
+        }
+
+        // 3. Si llegó hasta aquí, ES EL SUPER ADMIN
         window.zeusUser = authData.user;
 
-        // 3. Generamos un PIN matemático de 6 dígitos
+        // 4. Generamos un PIN matemático de 6 dígitos
         pinTemporalGenerado = Math.floor(100000 + Math.random() * 900000).toString();
         
-        // 🚨 4. AQUÍ DISPARAMOS EL CORREO CON EL PIN
+        // 🚨 AQUÍ SIMULAMOS EL ENVÍO DEL CORREO
         await enviarCorreoPIN(window.zeusUser.email, pinTemporalGenerado);
 
         // Pasamos a la Fase 2 visualmente
@@ -79,10 +89,9 @@ function bindearFormulariosAcceso() {
 
         if (inputPin === pinTemporalGenerado) {
             // ¡ÉXITO!
-            // 🚨 AQUÍ DISPARAMOS EL CORREO DE "ALERTA DE INICIO DE SESIÓN"
             await enviarAlertaIngreso(window.zeusUser.email);
             
-            alert("Acceso Autorizado. Bienvenido, Zeus.");
+            // alert("Acceso Autorizado. Bienvenido, Zeus.");
             cargarVistaZeus('zs_dashboard'); // Cargamos tu God Mode
         } else {
             btn.innerText = "Desbloquear Terminal"; btn.disabled = false;
@@ -93,19 +102,19 @@ function bindearFormulariosAcceso() {
 }
 
 window.cancelarZeusLogin = async function() {
-    await zeusSupabase.auth.signOut();
+    if (window.clienteSupabase) {
+        await window.clienteSupabase.auth.signOut();
+    }
     window.location.reload();
 }
 
 // ==========================================
-// FUNCIONES DE CORREO (A conectar)
+// SIMULADORES DE CORREO (Consola)
 // ==========================================
 async function enviarCorreoPIN(email, pin) {
-    console.log(`Simulando envío de correo a ${email}. Tu PIN es: ${pin}`);
-    // Aquí conectaremos la tabla para enviar el correo real
+    console.log(`%c[ZEUS SECURITY] %cSimulando envío a ${email}. Tu PIN es: %c${pin}`, 'color: #10b981; font-weight: bold;', 'color: white;', 'color: #fbbf24; font-size: 16px; font-weight: bold;');
 }
 
 async function enviarAlertaIngreso(email) {
-    console.log(`Simulando alerta de ingreso enviada a ${email}.`);
-    // Aquí conectaremos la alerta real
+    console.log(`%c[ZEUS SECURITY] %cAlerta enviada a ${email}: Nuevo ingreso detectado.`, 'color: #ef4444; font-weight: bold;', 'color: white;');
 }
