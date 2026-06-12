@@ -351,6 +351,21 @@ window.iniciarSesionEmpresa = async function(id, nombre, email, nombreUsuario, r
         id: id, nombre: nombre, email: email, nombreUsuario: nombreUsuario, rol: rol
     }));
 
+    // 👇 NUEVO: Vamos a buscar las suscripciones de esta empresa
+    try {
+        const { data: empresaData } = await clienteSupabase
+            .from('empresas')
+            .select('suscripciones')
+            .eq('id', id)
+            .single();
+        
+        // Si por alguna razón está vacío, le damos un objeto vacío por defecto
+        window.suscripcionesEmpresa = empresaData?.suscripciones || {};
+    } catch (e) {
+        console.error("Error obteniendo suscripciones:", e);
+        window.suscripcionesEmpresa = {};
+    }
+
     const login = document.getElementById('login-container');
     const selector = document.getElementById('selector-empresa-container');
     const dashboard = document.getElementById('dashboard-container');
@@ -452,10 +467,9 @@ document.addEventListener('click', (e) => {
 
 // CARGA DINÁMICA DE VISTAS
 window.cambiarVista = async function(vista) {
-    // 👉 AQUÍ ANOTAMOS EN LA LIBRETA CADA VEZ QUE CAMBIA DE PANTALLA
     localStorage.setItem('pantalla_actual', vista);
     
-    // Mostrar u ocultar el submenú de inventario inteligentemente
+    // 1. Mostrar u ocultar submenús inteligentemente (Lo que ya tenías)
     const vistasInventario = ['dashboard', 'inventario', 'pedidos', 'movimientos', 'productos', 'recetas'];
     const submenuInv = document.getElementById('submenu-inventario');
     
@@ -468,8 +482,6 @@ window.cambiarVista = async function(vista) {
             submenuInv.classList.add('hidden');
         }
     }
-
-    // 👉 NUEVO: Mostrar u ocultar el submenú de Ventas inteligentemente
     const vistasVentas = ['dashboard_ventas', 'ventas', 'cuentas_cobrar', 'cotizaciones', 'ranking'];
     const submenuVen = document.getElementById('submenu-dashboard_ventas');
     
@@ -481,8 +493,6 @@ window.cambiarVista = async function(vista) {
             submenuVen.classList.add('hidden');
         }
     }
-
-    // 👉 NUEVO: Mostrar u ocultar el submenú de Personas inteligentemente
     const vistasPersonas = ['dashboard_personas', 'hr_calendario', 'hr_colaboradores', 'hr_documentos', 'hr_formacion', 'hr_solicitudes'];
     const submenuPersonas = document.getElementById('submenu-dashboard_personas');
     
@@ -493,9 +503,42 @@ window.cambiarVista = async function(vista) {
             submenuPersonas.classList.add('hidden');
         }
     }
-
     const main = document.getElementById('main-content');
-    // Reemplazamos el texto aburrido por tu GIF personalizado
+    
+    // 👇 NUEVO: EL GUARDIA DE LA PUERTA (Validación de Suscripciones)
+    let moduloRequerido = null;
+    let nombreModulo = "";
+    
+    if (vistasVentas.includes(vista)) { moduloRequerido = 'ventas'; nombreModulo = "Ventas"; }
+    else if (vistasInventario.includes(vista)) { moduloRequerido = 'inventario'; nombreModulo = "Inventario"; }
+    else if (vistasPersonas.includes(vista)) { moduloRequerido = 'personas'; nombreModulo = "Personas y RRHH"; }
+
+    // Verificamos si la suscripción existe y está inactiva
+    if (moduloRequerido && window.suscripcionesEmpresa[moduloRequerido] && window.suscripcionesEmpresa[moduloRequerido].activo === false) {
+        
+        document.querySelectorAll('#sidebar-menu button').forEach(b => {
+            b.classList.remove('bg-emerald-600', 'text-white', 'shadow-md');
+            b.classList.add('hover:bg-slate-700');
+        });
+
+        // Mostramos el Paywall (Aviso) dependiendo del Rol
+        const esAdmin = (window.miRol === 'Dueño' || window.miRol === 'Administrador Supremo');
+        
+        main.innerHTML = `
+            <div class="flex flex-col items-center justify-center h-full text-center space-y-6">
+                <div class="text-6xl">🔒</div>
+                <h2 class="text-3xl font-bold text-slate-800">Módulo Bloqueado</h2>
+                <p class="text-slate-600 max-w-md">El módulo de <strong>${nombreModulo}</strong> no está activo en tu plan actual.</p>
+                ${esAdmin 
+                    ? `<button onclick="alert('Abriendo pasarela de pagos...')" class="bg-emerald-600 text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:bg-emerald-700 transition-colors">Actualizar Plan y Desbloquear</button>` 
+                    : `<p class="bg-orange-100 text-orange-800 px-6 py-3 rounded-lg font-medium border border-orange-200">Contacta al líder o Dueño de tu empresa para gestionar el acceso.</p>`}
+            </div>
+        `;
+        return; // Detenemos la función aquí, NO CARGA LA VISTA
+    }
+    // 👆 FIN DEL GUARDIA
+
+    // Si pasó el peaje, ponemos el loader y cargamos la vista normal
     main.innerHTML = `
         <div class="flex flex-col h-full items-center justify-center space-y-4 transition-opacity duration-300">
             <img src="/img/img/loading.gif" alt="Cargando módulo..." class="w-16 h-16 object-contain">
@@ -545,7 +588,7 @@ window.cambiarVista = async function(vista) {
         if(vista === 'hr_colaboradores' && typeof window.cambiarTabHR === 'function') window.cambiarTabHR('fichas');
         if(vista === 'hr_calendario' && typeof window.toggleConfiguracionHR === 'function') window.toggleConfiguracionHR(false);
 
-    } catch (error) {
+   } catch (error) {
         main.innerHTML = `<div class="p-8 text-center text-red-500"><p class="text-4xl mb-4">❌</p><h2 class="text-xl font-bold">Error cargando la vista: ${vista}.html</h2></div>`;
     }
 }
