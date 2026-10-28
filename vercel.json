@@ -1,8 +1,13 @@
 {
+  "cleanUrls": true,
+  "trailingSlash": false,
   "rewrites": [
-    {
-      "source": "/config.js",
-      "destination": "/api/config"
-    }
+    { "source": "/config.js", "destination": "/api/config" },
+    { "source": "/planes", "destination": "/vistas/planes" },
+    { "source": "/contacto", "destination": "/vistas/contacto" }
+  ],
+  "redirects": [
+    { "source": "/vistas/planes", "destination": "/planes", "permanent": true },
+    { "source": "/vistas/contacto", "destination": "/contacto", "permanent": true }
   ]
 }

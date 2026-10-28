@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function cargarVistaZeus(vista) {
     const main = document.getElementById('zs-main-content');
     try {
-        const response = await fetch(`vistas/${vista}.html`);
+        const response = await fetch(`/vistas/${vista}`);
         if (!response.ok) throw new Error('Vista no encontrada');
         main.innerHTML = await response.text();
         if (vista === 'zs_acceso') bindearFormulariosAcceso();

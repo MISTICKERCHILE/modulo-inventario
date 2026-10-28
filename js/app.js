@@ -323,7 +323,7 @@ document.getElementById('form-register-invite').addEventListener('submit', async
     alert(`🎉 ¡Listo, ${nombre}! Ya eres parte de ${nombreEmpresa}.`);
     
     // Lo mandamos al login para que entre directo
-    window.location.href = 'app.html';
+    window.location.href = '/app';
 });
 
 window.iniciarSesionEmpresa = async function(id, nombre, email, nombreUsuario, rol) {
@@ -413,7 +413,7 @@ window.cerrarSesion = async function() {
         await clienteSupabase.auth.signOut();
     }
     
-    window.location.href = 'app.html'; 
+    window.location.href = '/app'; 
 }
 
 // --- NAVEGACIÓN Y UI ---
@@ -549,7 +549,7 @@ window.cambiarVista = async function(vista) {
     }
 
     try {
-        const response = await fetch(`vistas/${vista}.html`);
+        const response = await fetch(`/vistas/${vista}`);
         if (!response.ok) throw new Error('Vista no encontrada');
         const html = await response.text();
         main.innerHTML = html;
