@@ -1,5 +1,10 @@
 window.empresasDisponibles = [];
 
+// Evita que nombres o correos con caracteres especiales rompan (o inyecten) HTML
+function escaparHTML(texto) {
+    return String(texto ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 window.cargarEmpresas = async function() {
     const contenedor = document.getElementById('lista-mis-empresas') || document.querySelector('#seccion-mis-empresas div.bg-white') || document.querySelector('div:has(> p:contains("Cargando"))');
     
@@ -52,10 +57,9 @@ window.cargarUsuariosDeEmpresa = async function(idEmpresa, nombreEmpresa) {
     const lista = document.getElementById('lista-usuarios-empresa');
     lista.innerHTML = '<li class="p-8 text-center text-slate-400 font-bold animate-pulse">⏳ Buscando equipo e invitaciones...</li>';
 
-    // 1. Buscamos los usuarios activos
-    const { data: accesos, error: errAcc } = await clienteSupabase.from('usuarios_empresas')
-        .select('id, id_usuario, rol')
-        .eq('id_empresa', idEmpresa);
+    // 1. Buscamos el equipo (función segura: nombre, apellido, correo y rol de cada miembro)
+    const { data: accesos, error: errAcc } = await clienteSupabase
+        .rpc('listar_equipo_empresa', { p_id_empresa: idEmpresa });
 
     // 2. Buscamos las invitaciones pendientes
     const { data: invitaciones, error: errInv } = await clienteSupabase.from('invitaciones')
@@ -70,29 +74,24 @@ window.cargarUsuariosDeEmpresa = async function(idEmpresa, nombreEmpresa) {
 
     let htmlFinal = `
         <li class="px-6 py-3 bg-slate-200/50 text-xs font-bold text-slate-500 uppercase tracking-wider">
-            Equipo en: ${nombreEmpresa}
+            Equipo en: ${escaparHTML(nombreEmpresa)}
         </li>
     `;
 
     // Renderizamos a los usuarios ACTIVOS
     if (accesos && accesos.length > 0) {
-        const idsUsuarios = accesos.map(a => a.id_usuario);
-        const { data: perfiles } = await clienteSupabase.from('perfiles')
-            .select('id_usuario, nombre, apellido, email')
-            .in('id_usuario', idsUsuarios);
-
         htmlFinal += accesos.map(acceso => {
-            const perfil = (perfiles || []).find(p => p.id_usuario === acceso.id_usuario);
-            const nombreStr = perfil?.nombre || 'Usuario';
-            const apellidoStr = perfil?.apellido || '';
+            const nombreStr = escaparHTML(acceso.nombre || 'Usuario');
+            const apellidoStr = escaparHTML(acceso.apellido || '');
             const nombreCompleto = `${nombreStr} ${apellidoStr}`.trim();
-            const iniciales = (nombreStr.substring(0,1) + (apellidoStr ? apellidoStr.substring(0,1) : nombreStr.substring(1,2))).toUpperCase();
+            const iniciales = ((acceso.nombre || 'U').substring(0,1) + (acceso.apellido ? acceso.apellido.substring(0,1) : (acceso.nombre || 'U').substring(1,2))).toUpperCase();
+            const perfil = { email: escaparHTML(acceso.email || '') };
 
             return `
             <li class="px-6 py-4 hover:bg-white transition-colors flex justify-between items-center bg-slate-50/50">
                 <div class="flex items-center gap-3">
                     <div class="w-8 h-8 rounded-full bg-slate-300 flex items-center justify-center text-slate-600 font-bold text-xs uppercase shadow-sm">
-                        ${iniciales}
+                        ${escaparHTML(iniciales)}
                     </div>
                     <div class="flex flex-col">
                         <span class="font-bold text-slate-800">${nombreCompleto}</span>
@@ -122,7 +121,7 @@ window.cargarUsuariosDeEmpresa = async function(idEmpresa, nombreEmpresa) {
                         ⏳
                     </div>
                     <div class="flex flex-col">
-                        <span class="font-bold text-slate-700">${inv.email_invitado}</span>
+                        <span class="font-bold text-slate-700">${escaparHTML(inv.email_invitado)}</span>
                         <span class="text-[10px] font-bold text-orange-500 uppercase tracking-wide">Esperando registro como ${inv.rol}</span>
                     </div>
                 </div>
@@ -151,11 +150,20 @@ if(!window.eventosEmpresasAtados) {
     document.addEventListener('submit', async (e) => {
         if (e.target.id === 'form-nueva-empresa') {
             e.preventDefault();
-            const nombre = document.getElementById('ne-nombre').value;
+            // Freno al doble envío: si ya se está creando, ignoramos el segundo clic/Enter
+            if (window.creandoEmpresa) return;
+            const nombre = document.getElementById('ne-nombre').value.trim();
+            if (!nombre) return alert("⚠️ Escribe el nombre de la empresa.");
 
-            // La base de datos crea la empresa, su Casa Matriz y te deja como Dueño
+            const btnCrear = e.target.querySelector('button[type="submit"]');
+            window.creandoEmpresa = true;
+            if (btnCrear) btnCrear.disabled = true;
+
+            // La base de datos crea la empresa, su Casa Matriz, sus roles y te deja como Dueño
             const { error } = await clienteSupabase.rpc('crear_empresa', { p_nombre: nombre });
 
+            window.creandoEmpresa = false;
+            if (btnCrear) btnCrear.disabled = false;
             if(error) return alert("❌ Error: " + error.message);
             
             alert(`✅ ¡Entorno "${nombre}" creado con éxito!`);
