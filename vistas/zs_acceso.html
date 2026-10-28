@@ -1,0 +1,43 @@
+<div class="h-full w-full flex items-center justify-center bg-slate-900 relative">
+    
+    <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-slate-900 via-emerald-500 to-slate-900"></div>
+
+    <div class="bg-slate-800 p-8 rounded-2xl shadow-2xl w-full max-w-md border border-slate-700">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-black text-white tracking-widest uppercase">Z E U S</h1>
+            <p class="text-slate-400 text-sm mt-2 font-mono">Terminal de Comando Central</p>
+        </div>
+
+        <form id="zs-form-fase1" class="space-y-6">
+            <div>
+                <label class="block text-slate-400 text-xs font-bold mb-2 uppercase">Identificación</label>
+                <input type="email" id="zs-email" required class="w-full bg-slate-900 border border-slate-700 text-white px-4 py-3 rounded-lg focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors" placeholder="admin@buddyerp.com">
+            </div>
+            <div>
+                <label class="block text-slate-400 text-xs font-bold mb-2 uppercase">Clave Maestra</label>
+                <input type="password" id="zs-password" required class="w-full bg-slate-900 border border-slate-700 text-white px-4 py-3 rounded-lg focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors" placeholder="••••••••">
+            </div>
+            <button type="submit" id="zs-btn-fase1" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-lg transition-colors shadow-lg shadow-emerald-900/50">
+                Verificar Credenciales
+            </button>
+        </form>
+
+        <form id="zs-form-fase2" class="space-y-6 hidden">
+            <div class="bg-slate-900 p-4 rounded-lg border border-emerald-900 text-center mb-4">
+                <span class="text-emerald-400 text-2xl block mb-2">✉️</span>
+                <p class="text-sm text-slate-300">Hemos enviado un PIN de 6 dígitos a tu correo de seguridad. Tienes 5 minutos para ingresarlo.</p>
+            </div>
+            
+            <div>
+                <label class="block text-slate-400 text-xs font-bold mb-2 uppercase text-center">Código de Acceso</label>
+                <input type="text" id="zs-pin" maxlength="6" required autocomplete="off" class="w-full bg-slate-900 border border-slate-700 text-emerald-400 text-center text-3xl tracking-[1em] px-4 py-3 rounded-lg focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors font-mono placeholder-slate-700" placeholder="000000">
+            </div>
+            <button type="submit" id="zs-btn-fase2" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-lg transition-colors shadow-lg shadow-emerald-900/50">
+                Desbloquear Terminal
+            </button>
+            <button type="button" onclick="cancelarZeusLogin()" class="w-full text-slate-500 text-sm hover:text-white transition-colors mt-2">
+                Cancelar y abortar
+            </button>
+        </form>
+    </div>
+</div>
