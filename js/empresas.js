@@ -138,7 +138,8 @@ window.cargarUsuariosDeEmpresa = async function(idEmpresa, nombreEmpresa) {
 // Nueva función para cancelar una invitación que aún no ha sido aceptada
 window.cancelarInvitacion = async function(idInvitacion) {
     if(confirm("¿Seguro que deseas cancelar esta invitación? El enlace dejará de funcionar.")) {
-        await clienteSupabase.from('invitaciones').delete().eq('id', idInvitacion);
+        const { error } = await clienteSupabase.rpc('cancelar_invitacion', { p_id: idInvitacion });
+        if (error) return alert("❌ " + error.message);
         // Recargamos la lista (usamos un truco para re-simular el click en la empresa actual)
         window.cargarEmpresas(); 
         document.getElementById('lista-usuarios-empresa').innerHTML = '<li class="p-8 text-center text-slate-400 font-medium text-sm">👈 Selecciona una empresa a la izquierda para ver su equipo.</li>';
@@ -150,16 +151,10 @@ if(!window.eventosEmpresasAtados) {
     document.addEventListener('submit', async (e) => {
         if (e.target.id === 'form-nueva-empresa') {
             e.preventDefault();
-            const { data: { user } } = await clienteSupabase.auth.getUser();
             const nombre = document.getElementById('ne-nombre').value;
-            const nuevoIdEmpresa = crypto.randomUUID(); 
 
-            const { error } = await clienteSupabase.from('usuarios_empresas').insert({
-                id_usuario: user.id,
-                id_empresa: nuevoIdEmpresa,
-                nombre_empresa: nombre,
-                rol: 'Admin'
-            });
+            // La base de datos crea la empresa, su Casa Matriz y te deja como Dueño
+            const { error } = await clienteSupabase.rpc('crear_empresa', { p_nombre: nombre });
 
             if(error) return alert("❌ Error: " + error.message);
             
@@ -177,28 +172,16 @@ if(!window.eventosEmpresasAtados) {
             const emailTarget = document.getElementById('vu-email').value.trim().toLowerCase(); // Aseguramos minúsculas
             const rolAsignado = document.getElementById('vu-rol').value;
 
-            // 1. Verificamos si ese usuario YA está en la empresa (para no invitarlo doble)
-            const { data: perfilExistente } = await clienteSupabase.from('perfiles').select('id_usuario').eq('email', emailTarget).maybeSingle();
-            
-            if (perfilExistente) {
-                const { data: yaExiste } = await clienteSupabase.from('usuarios_empresas').select('id').eq('id_usuario', perfilExistente.id_usuario).eq('id_empresa', idEmpresa).maybeSingle();
-                if (yaExiste) return alert("⚠️ Este usuario ya es parte activa de esta empresa.");
-            }
+            // La base de datos valida permisos, rol permitido, miembros existentes
+            // e invitaciones pendientes duplicadas antes de crearla.
+            const { data: idNuevaInv, error: errInv } = await clienteSupabase.rpc('crear_invitacion', {
+                p_id_empresa: idEmpresa,
+                p_email: emailTarget,
+                p_rol: rolAsignado
+            });
 
-            // 2. Verificamos si ya hay una invitación pendiente para él
-            const { data: invPendiente } = await clienteSupabase.from('invitaciones').select('id').eq('email_invitado', emailTarget).eq('id_empresa', idEmpresa).eq('estado', 'Pendiente').maybeSingle();
-            if (invPendiente) return alert("⏳ Ya hay una invitación pendiente enviada a este correo para esta empresa.");
-
-            // 3. GUARDAMOS LA INVITACIÓN EN LA BASE DE DATOS
-            const { data: nuevaInv, error: errInv } = await clienteSupabase.from('invitaciones').insert({
-                id_empresa: idEmpresa,
-                nombre_empresa: nombreEmpresa,
-                email_invitado: emailTarget,
-                rol: rolAsignado,
-                estado: 'Pendiente'
-            }).select('id').single();
-
-            if (errInv) return alert("❌ Error al crear la invitación: " + errInv.message);
+            if (errInv) return alert("❌ No se pudo crear la invitación: " + errInv.message);
+            const nuevaInv = { id: idNuevaInv };
 
             // 4. Armamos el Link Mágico CORTITO con el ID de la invitación
             const baseUrl = window.location.origin + window.location.pathname; 
@@ -220,7 +203,8 @@ if(!window.eventosEmpresasAtados) {
 
 window.eliminarAcceso = async function(idRegistro) {
     if(confirm("¿Seguro que deseas revocar el acceso a este usuario para esta empresa?")) {
-        await clienteSupabase.from('usuarios_empresas').delete().eq('id', idRegistro);
+        const { error } = await clienteSupabase.rpc('quitar_miembro', { p_id_registro: idRegistro });
+        if (error) return alert("❌ " + error.message);
         document.getElementById('lista-usuarios-empresa').innerHTML = '<li class="p-8 text-center text-slate-400 font-medium text-sm">👈 Selecciona una empresa a la izquierda para ver su equipo.</li>';
         window.cargarEmpresas();
     }

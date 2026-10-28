@@ -121,44 +121,29 @@ window.cerrarPosAdminUsuarios = function() {
 window.cargarUsuariosPOSAdmin = async function() {
     const contenedor = document.getElementById('lista-admin-usuarios');
     try {
-        // ⚡ SOLUCIÓN AL PGRST200: Hacemos dos consultas separadas (infalible)
-        const { data: accesos, error: errAccesos } = await clienteSupabase
-            .from('usuarios_empresas')
-            .select('id_usuario, rol')
-            .eq('id_empresa', window.miEmpresaId);
+        // Función segura: devuelve el equipo de la empresa SIN exponer los PIN
+        const { data: equipo, error: errEquipo } = await clienteSupabase
+            .rpc('listar_equipo_pos', { p_id_empresa: window.miEmpresaId });
 
-        if (errAccesos) throw errAccesos;
-        if (!accesos || accesos.length === 0) {
+        if (errEquipo) throw errEquipo;
+        if (!equipo || equipo.length === 0) {
             contenedor.innerHTML = '<p class="col-span-full text-slate-400 text-center">No hay usuarios en esta empresa.</p>';
             return;
         }
 
-        // Consultamos los perfiles usando los IDs obtenidos
-        const idsUsuarios = accesos.map(a => a.id_usuario);
-        const { data: perfiles, error: errPerfiles } = await clienteSupabase
-            .from('perfiles')
-            .select('id_usuario, nombre, pin_seguridad')
-            .in('id_usuario', idsUsuarios);
-
-        if (errPerfiles) throw errPerfiles;
-
-        // Pintamos uniendo la info
-        contenedor.innerHTML = accesos.map(acceso => {
-            const perfil = perfiles.find(p => p.id_usuario === acceso.id_usuario);
-            if(!perfil) return '';
-            
-            const pinVisual = perfil.pin_seguridad ? '••••' : 'SIN PIN';
-            const colorPin = perfil.pin_seguridad ? 'text-emerald-600 bg-emerald-50' : 'text-red-600 bg-red-50';
+        contenedor.innerHTML = equipo.map(miembro => {
+            const pinVisual = miembro.tiene_pin ? '••••' : 'SIN PIN';
+            const colorPin = miembro.tiene_pin ? 'text-emerald-600 bg-emerald-50' : 'text-red-600 bg-red-50';
 
             return `
             <div class="border border-slate-200 rounded-xl p-4 flex justify-between items-center bg-slate-50">
                 <div>
-                    <h4 class="font-black text-slate-800">${perfil.nombre || 'Usuario'}</h4>
-                    <p class="text-xs font-bold text-slate-400 uppercase">${acceso.rol}</p>
+                    <h4 class="font-black text-slate-800">${miembro.nombre || 'Usuario'}</h4>
+                    <p class="text-xs font-bold text-slate-400 uppercase">${miembro.rol}</p>
                 </div>
                 <div class="flex items-center gap-3">
                     <span class="font-mono font-bold px-2 py-1 rounded text-sm ${colorPin}">${pinVisual}</span>
-                    <button onclick="cambiarPinUsuarioPOS('${perfil.id_usuario}')" class="text-blue-600 hover:bg-blue-100 p-2 rounded-lg transition-colors" title="Cambiar PIN">✏️</button>
+                    <button onclick="cambiarPinUsuarioPOS('${miembro.id_usuario}')" class="text-blue-600 hover:bg-blue-100 p-2 rounded-lg transition-colors" title="Cambiar PIN">✏️</button>
                 </div>
             </div>`;
         }).join('');
@@ -178,17 +163,19 @@ window.cambiarPinUsuarioPOS = async function(idUsuario) {
     }
 
     try {
-        const { error } = await clienteSupabase
-            .from('perfiles')
-            .update({ pin_seguridad: nuevoPin })
-            .eq('id_usuario', idUsuario);
+        // La base de datos valida permisos, que el PIN no esté repetido en la empresa, y lo guarda cifrado
+        const { error } = await clienteSupabase.rpc('asignar_pin', {
+            p_id_empresa: window.miEmpresaId,
+            p_id_usuario: idUsuario,
+            p_pin: nuevoPin
+        });
 
         if (error) throw error;
         alert("✅ PIN actualizado exitosamente.");
-        window.cargarUsuariosPOSAdmin(); 
+        window.cargarUsuariosPOSAdmin();
     } catch (err) {
         console.error("Error actualizando PIN:", err);
-        alert("❌ No se pudo actualizar el PIN.");
+        alert("❌ No se pudo actualizar el PIN: " + (err.message || 'error desconocido'));
     }
 }
 

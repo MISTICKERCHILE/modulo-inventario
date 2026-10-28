@@ -60,8 +60,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('form-register-step-2').classList.add('hidden');
 
         try {
-            // Buscamos la invitación
-            const { data: inv, error } = await clienteSupabase.from('invitaciones').select('*').eq('id', inviteId).single();
+            // Buscamos la invitación (función segura: solo devuelve ESTA invitación)
+            const { data: inv, error } = await clienteSupabase.rpc('ver_invitacion', { p_id: inviteId });
             if (error || !inv) throw new Error("Invitación no encontrada");
             
             if (inv.estado !== 'Pendiente') {
@@ -72,10 +72,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return;
             }
 
-            // ¿El usuario ya existe en nuestra base de datos?
-            const { data: userExists } = await clienteSupabase.from('perfiles').select('id_usuario').eq('email', inv.email_invitado).maybeSingle();
-
-            if (userExists) {
+            // ¿El usuario ya tiene cuenta? (lo resuelve ver_invitacion)
+            if (inv.usuario_existe) {
                 // SÍ EXISTE: Mostramos el Login con Banner
                 document.getElementById('form-login-view').classList.remove('hidden');
                 document.getElementById('login-invite-banner').classList.remove('hidden');
@@ -158,14 +156,14 @@ document.getElementById('form-login-view').addEventListener('submit', async (e) 
 
     // MAGIA: Si estaba invitado a algo, lo procesamos aquí
     if (window.invitacionPendiente) {
-        await clienteSupabase.from('usuarios_empresas').insert({
-            id_usuario: data.user.id,
-            id_empresa: window.invitacionPendiente.id_empresa,
-            nombre_empresa: window.invitacionPendiente.nombre_empresa,
-            rol: window.invitacionPendiente.rol
-        });
-        await clienteSupabase.from('invitaciones').update({estado: 'Aceptada'}).eq('id', window.invitacionPendiente.id);
-        alert(`🎉 ¡Invitación aceptada! Bienvenido al equipo de ${window.invitacionPendiente.nombre_empresa}`);
+        // La base de datos valida que el correo coincida y crea la membresía en una sola operación
+        const { error: errInv } = await clienteSupabase.rpc('aceptar_invitacion', { p_id: window.invitacionPendiente.id });
+        if (errInv) {
+            alert("⚠️ No se pudo aceptar la invitación: " + errInv.message);
+        } else {
+            alert(`🎉 ¡Invitación aceptada! Bienvenido al equipo de ${window.invitacionPendiente.nombre_empresa}`);
+        }
+        window.invitacionPendiente = null;
     }
 
     const { data: perfil } = await clienteSupabase.from('perfiles').select('nombre').eq('id_usuario', data.user.id).maybeSingle();
@@ -287,9 +285,7 @@ document.getElementById('form-register-invite').addEventListener('submit', async
     const rutPersonal = document.getElementById('inv-user-rut').value.replace(/[\.\-]/g, '').trim().toUpperCase();
     const pin = document.getElementById('inv-user-pin').value;
     
-    const idEmpresa = document.getElementById('invite-empresa-id').value;
     const nombreEmpresa = document.getElementById('invite-empresa-nombre').innerText;
-    const rol = document.getElementById('invite-rol').value;
     const idInvitacion = document.getElementById('invite-id-registro').value;
 
     // A. Registramos al usuario en Supabase Auth
@@ -308,29 +304,21 @@ document.getElementById('form-register-invite').addEventListener('submit', async
         return alert("❌ Error: " + authErr.message);
     }
 
-    const userId = authData.user.id;
+    if (!authData.session) {
+        btnFinal.innerText = "Unirme al Equipo 🚀"; btnFinal.disabled = false;
+        return alert("📧 Revisa tu correo para confirmar la cuenta. Luego vuelve a abrir el link de invitación e inicia sesión.");
+    }
 
-    // B. Creamos su Perfil Manualmente
-    await clienteSupabase.from('perfiles').insert({
-        id_usuario: userId,
-        id_empresa: idEmpresa,
-        nombre: nombre,
-        apellido: apellido,
-        email: email,
-        pin_seguridad: pin,
-        rut_o_identificacion: rutPersonal
+    // B. La base de datos crea el perfil, la membresía y cierra la invitación en una sola operación
+    const { error: errAceptar } = await clienteSupabase.rpc('aceptar_invitacion', {
+        p_id: idInvitacion,
+        p_perfil: { nombre: nombre, apellido: apellido, rut: rutPersonal, pin: pin }
     });
 
-    // C. Lo vinculamos a la empresa
-    await clienteSupabase.from('usuarios_empresas').insert({
-        id_usuario: userId,
-        id_empresa: idEmpresa,
-        nombre_empresa: nombreEmpresa,
-        rol: rol
-    });
-
-    // D. Marcamos la invitación como aceptada
-    await clienteSupabase.from('invitaciones').update({estado: 'Aceptada'}).eq('id', idInvitacion);
+    if (errAceptar) {
+        btnFinal.innerText = "Unirme al Equipo 🚀"; btnFinal.disabled = false;
+        return alert("❌ Tu cuenta fue creada, pero no se pudo aceptar la invitación: " + errAceptar.message + "\n\nInicia sesión desde el mismo link para reintentar.");
+    }
 
     alert(`🎉 ¡Listo, ${nombre}! Ya eres parte de ${nombreEmpresa}.`);
     
@@ -342,11 +330,9 @@ window.iniciarSesionEmpresa = async function(id, nombre, email, nombreUsuario, r
     window.miEmpresaId = id;
     window.usuarioActual = nombreUsuario;
     window.miRol = rol; 
-    
-    // LA CURA DEFINITIVA: 
-    // Cada vez que entras a una empresa, estampamos ese ID en tu Carnet de Seguridad (JWT)
-    await clienteSupabase.auth.updateUser({ data: { id_empresa: id } });
-    
+    // Nota de seguridad: el acceso por empresa lo valida la base de datos (RLS con
+    // tiene_acceso_a_empresa sobre usuarios_empresas). Ya no se usa user_metadata.
+
     localStorage.setItem('sesion_activa_olympia', JSON.stringify({
         id: id, nombre: nombre, email: email, nombreUsuario: nombreUsuario, rol: rol
     }));
