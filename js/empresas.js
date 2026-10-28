@@ -98,7 +98,12 @@ window.cargarUsuariosDeEmpresa = async function(idEmpresa, nombreEmpresa) {
                         <span class="text-[10px] font-bold text-emerald-600 uppercase tracking-wide">${acceso.rol || 'Operador'} • <span class="text-slate-400 normal-case">${perfil?.email || ''}</span></span>
                     </div>
                 </div>
-                <button onclick="eliminarAcceso('${acceso.id}')" class="text-red-400 hover:text-red-600 font-bold text-xs bg-red-50 px-3 py-1.5 rounded shadow-sm transition-transform hover:scale-105" title="Revocar Acceso">Revocar</button>
+                <div class="flex items-center gap-2">
+                    <button data-empresa="${escaparHTML(idEmpresa)}" data-usuario="${escaparHTML(acceso.id_usuario)}" data-nombre="${nombreCompleto}"
+                            onclick="asignarPinMiembro(this.dataset.empresa, this.dataset.usuario, this.dataset.nombre)"
+                            class="text-blue-500 hover:text-blue-700 font-bold text-xs bg-blue-50 px-3 py-1.5 rounded shadow-sm transition-transform hover:scale-105" title="Asignar PIN del POS">🔑 PIN</button>
+                    <button onclick="eliminarAcceso('${acceso.id}')" class="text-red-400 hover:text-red-600 font-bold text-xs bg-red-50 px-3 py-1.5 rounded shadow-sm transition-transform hover:scale-105" title="Revocar Acceso">Revocar</button>
+                </div>
             </li>
             `;
         }).join('');

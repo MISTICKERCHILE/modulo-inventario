@@ -681,6 +681,43 @@ window.validarPasswordsInv = function() {
 }
 
 // ============================================================================
+// PIN DEL POS (asignación sin necesidad de entrar al POS)
+// ============================================================================
+
+// Pide un PIN nuevo dos veces y devuelve el PIN válido, o null si se cancela.
+window.pedirPinNuevo = function(paraQuien) {
+    const pin1 = prompt(`🔑 Nuevo PIN de 4 dígitos para ${paraQuien}:`);
+    if (pin1 === null) return null;
+    if (!/^\d{4}$/.test(pin1.trim())) { alert("❌ El PIN debe tener exactamente 4 números."); return null; }
+    const pin2 = prompt("🔁 Repite el PIN para confirmar:");
+    if (pin2 === null) return null;
+    if (pin1.trim() !== pin2.trim()) { alert("❌ Los PIN no coinciden."); return null; }
+    return pin1.trim();
+}
+
+// Asigna un PIN a un miembro de la empresa. La base valida permisos
+// (el propio usuario, o un Dueño/Admin) y que no se repita dentro de la empresa.
+window.asignarPinMiembro = async function(idEmpresa, idUsuario, nombre) {
+    const pin = window.pedirPinNuevo(nombre);
+    if (!pin) return;
+
+    const { error } = await clienteSupabase.rpc('asignar_pin', {
+        p_id_empresa: idEmpresa,
+        p_id_usuario: idUsuario,
+        p_pin: pin
+    });
+    if (error) return alert("❌ No se pudo guardar el PIN: " + error.message);
+    alert(`✅ PIN guardado para ${nombre}.`);
+}
+
+window.cambiarMiPin = async function() {
+    if (!window.miEmpresaId) return alert("⚠️ Primero entra a una empresa.");
+    const { data: { user } } = await clienteSupabase.auth.getUser();
+    if (!user) return;
+    await window.asignarPinMiembro(window.miEmpresaId, user.id, 'ti');
+}
+
+// ============================================================================
 // SISTEMA DE PERMISOS VISUALES (SIDEBAR Y MENÚS)
 // ============================================================================
 window.aplicarPermisosVisuales = async function() {

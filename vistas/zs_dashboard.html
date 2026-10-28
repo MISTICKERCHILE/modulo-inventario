@@ -5,24 +5,48 @@
             <h1 class="text-xl font-black text-white tracking-widest uppercase">Zeus Control</h1>
         </div>
         <div class="flex items-center gap-4">
-            <span class="text-slate-400 text-sm font-mono" id="zs-user-display">admin@buddyerp.com</span>
+            <span class="text-slate-400 text-sm font-mono hidden sm:inline" id="zs-user-display"></span>
             <button onclick="cancelarZeusLogin()" class="bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors">
                 Cerrar Sesión
             </button>
         </div>
     </header>
 
-    <main class="flex-1 overflow-y-auto p-6 md:p-8">
+    <main class="flex-1 overflow-y-auto p-4 md:p-8">
         <div class="max-w-7xl mx-auto space-y-6">
-            
-            <div class="flex justify-between items-end">
+
+            <!-- Resumen general -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-slate-800 border border-slate-700 rounded-xl p-4">
+                    <div class="text-[10px] uppercase tracking-wider font-bold text-slate-500">Empresas</div>
+                    <div id="zs-kpi-empresas" class="text-2xl font-black text-white mt-1">—</div>
+                </div>
+                <div class="bg-slate-800 border border-slate-700 rounded-xl p-4">
+                    <div class="text-[10px] uppercase tracking-wider font-bold text-slate-500">Usuarios</div>
+                    <div id="zs-kpi-usuarios" class="text-2xl font-black text-white mt-1">—</div>
+                </div>
+                <div class="bg-slate-800 border border-slate-700 rounded-xl p-4">
+                    <div class="text-[10px] uppercase tracking-wider font-bold text-slate-500">Con ventas (30 días)</div>
+                    <div id="zs-kpi-activas" class="text-2xl font-black text-emerald-400 mt-1">—</div>
+                </div>
+                <div class="bg-slate-800 border border-slate-700 rounded-xl p-4">
+                    <div class="text-[10px] uppercase tracking-wider font-bold text-slate-500">Vendido por clientes (30 días)</div>
+                    <div id="zs-kpi-monto" class="text-2xl font-black text-white mt-1">—</div>
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-3">
                 <div>
                     <h2 class="text-2xl font-bold text-white mb-1">Empresas Registradas</h2>
-                    <p class="text-slate-400 text-sm">Control de módulos y accesos en tiempo real.</p>
+                    <p class="text-slate-400 text-sm">Haz clic en una empresa para ver su equipo. Los cambios de módulos quedan registrados.</p>
                 </div>
-                <button onclick="cargarTablaEmpresasZeus()" class="text-emerald-500 hover:text-emerald-400 font-bold text-sm flex items-center gap-2">
-                    <span>🔄</span> Actualizar Datos
-                </button>
+                <div class="flex items-center gap-3">
+                    <input id="zs-buscar" type="search" placeholder="Buscar empresa, RUT o dueño..."
+                           class="bg-slate-800 border border-slate-700 text-white text-sm px-3 py-2 rounded-lg focus:outline-none focus:border-emerald-500 w-full sm:w-64">
+                    <button onclick="cargarTablaEmpresasZeus()" class="text-emerald-500 hover:text-emerald-400 font-bold text-sm flex items-center gap-2 shrink-0">
+                        <span>🔄</span> Actualizar
+                    </button>
+                </div>
             </div>
 
             <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow-2xl">
@@ -31,14 +55,17 @@
                         <thead>
                             <tr class="bg-slate-900/50 text-slate-400 text-xs uppercase tracking-wider font-bold">
                                 <th class="p-4 border-b border-slate-700">Empresa</th>
-                                <th class="p-4 border-b border-slate-700 text-center">Módulo Ventas</th>
-                                <th class="p-4 border-b border-slate-700 text-center">Módulo Inventario</th>
-                                <th class="p-4 border-b border-slate-700 text-center">Módulo Personas</th>
+                                <th class="p-4 border-b border-slate-700 text-center">Equipo</th>
+                                <th class="p-4 border-b border-slate-700 text-center">Configuración</th>
+                                <th class="p-4 border-b border-slate-700 text-center">Actividad (30 días)</th>
+                                <th class="p-4 border-b border-slate-700 text-center">Ventas</th>
+                                <th class="p-4 border-b border-slate-700 text-center">Inventario</th>
+                                <th class="p-4 border-b border-slate-700 text-center">Personas</th>
                             </tr>
                         </thead>
                         <tbody id="zs-tabla-empresas" class="text-sm divide-y divide-slate-700/50">
                             <tr>
-                                <td colspan="4" class="p-8 text-center text-slate-500">
+                                <td colspan="7" class="p-8 text-center text-slate-500">
                                     <div class="animate-pulse">Cargando base de datos global...</div>
                                 </td>
                             </tr>
