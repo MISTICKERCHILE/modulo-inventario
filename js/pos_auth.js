@@ -59,18 +59,18 @@ window.solicitarAccesoERP = function(destino) {
 
 window.validarPin = async function() {
     try {
-        const { data: perfil, error: errPerfil } = await clienteSupabase
-            .from('perfiles').select('id_usuario, nombre').eq('pin_seguridad', window.pinActual).maybeSingle();
+        // La base de datos compara el PIN cifrado, solo entre miembros de ESTA empresa
+        const { data: cajero, error: errPin } = await clienteSupabase
+            .rpc('validar_pin', { p_id_empresa: window.miEmpresaId, p_pin: window.pinActual });
 
-        if (errPerfil || !perfil) return window.errorPinAnimation();
-
-        const { data: acceso, error: errAcceso } = await clienteSupabase
-            .from('usuarios_empresas').select('rol').eq('id_empresa', window.miEmpresaId).eq('id_usuario', perfil.id_usuario).maybeSingle();
-
-        if (errAcceso || !acceso) {
-            alert("❌ El usuario no tiene acceso a esta empresa.");
+        if (errPin) {
+            alert("⚠️ " + errPin.message);
             return window.errorPinAnimation();
         }
+        if (!cajero) return window.errorPinAnimation();
+
+        const perfil = { id_usuario: cajero.id_usuario, nombre: cajero.nombre };
+        const acceso = { rol: cajero.rol };
 
         const nombreRol = (acceso.rol || '').toLowerCase();
         const esAdminODueno = nombreRol.includes('admin') || nombreRol.includes('dueño') || nombreRol.includes('dueno');
