@@ -1,0 +1,15 @@
+/* Estilos de las páginas públicas (inicio, planes, contacto, legales).
+   Compilar con:  tailwindcss (v3.4.17, ejecutable de github.com/tailwindlabs/tailwindcss/releases) -c tailwind.config.js -i css/entrada.css -o css/sitio.css --minify  */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+    .legal h1 { @apply text-3xl md:text-4xl font-black text-slate-900 tracking-tight; }
+    .legal .actualizado { @apply text-sm text-slate-400 mt-2 mb-8; }
+    .legal h2 { @apply text-lg md:text-xl font-bold text-slate-900 mt-10 mb-3; }
+    .legal p { @apply text-slate-600 leading-relaxed mt-3; }
+    .legal ul { @apply list-disc pl-6 mt-3 space-y-2 text-slate-600 leading-relaxed; }
+    .legal a { @apply text-emerald-700 font-semibold underline underline-offset-2 hover:text-emerald-800; }
+    .legal .pendiente { @apply bg-amber-100 text-amber-900 font-semibold px-1 rounded; }
+}

@@ -7,7 +7,7 @@
     
     <link rel="icon" type="image/png" href="/img/img/favicon.png">
 
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/css/sitio.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
     <style>
@@ -21,26 +21,31 @@
         <p class="text-emerald-600 font-bold mt-4 animate-pulse tracking-widest text-sm">CARGANDO...</p>
     </div>
 
-    <header class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
-        <div class="py-3 px-6 border-b border-slate-100">
-            <div class="max-w-7xl mx-auto flex items-center justify-between">
-                <a href="/" class="flex items-center gap-2">
-                    <img src="/img/img/light%20logo.png" alt="Buddy ERP Logo" class="h-10 w-auto">
-                    <span class="text-2xl font-black text-slate-800 tracking-tight">| ERP Buddy</span>
-                </a>
-                <div class="flex items-center gap-4">
-                    <a href="/app" class="text-slate-600 font-bold hover:text-emerald-600 text-sm transition-colors">Iniciar Sesión</a>
-                    <a href="/app?registro=true" class="bg-emerald-600 text-white px-5 py-2 rounded-lg font-bold hover:bg-emerald-700 shadow-sm transition-all text-sm">Registrarse</a>
-                </div>
+    <header class="bg-white/95 backdrop-blur border-b border-slate-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+            <a href="/" class="flex items-center gap-3 shrink-0" aria-label="Buddy ERP, inicio">
+                <img src="/img/img/light%20logo.png" alt="" class="h-9 w-auto">
+                <span class="hidden sm:inline text-lg font-bold text-slate-500 tracking-tight border-l border-slate-200 pl-3">Buddy ERP</span>
+            </a>
+            <nav class="hidden md:flex items-center gap-8" aria-label="Principal">
+                <a href="/" class="text-sm font-semibold transition-colors text-slate-500 hover:text-emerald-600">Inicio</a>
+                <a href="/planes" class="text-sm font-semibold transition-colors text-emerald-600" aria-current="page">Planes</a>
+                <a href="/contacto" class="text-sm font-semibold transition-colors text-slate-500 hover:text-emerald-600">Contacto</a>
+            </nav>
+            <div class="flex items-center gap-2 sm:gap-3">
+                <a href="/app" class="text-sm font-bold text-slate-600 hover:text-emerald-600 whitespace-nowrap px-2 py-2">Iniciar sesión</a>
+                <a href="/app?registro=true" class="hidden sm:inline-flex bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-emerald-700 shadow-sm transition-colors text-sm whitespace-nowrap">Registrarse</a>
+                <button type="button" id="btn-menu-movil" class="md:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100" aria-label="Abrir menú" aria-expanded="false" aria-controls="menu-movil">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" d="M4 7h16M4 12h16M4 17h16"/></svg>
+                </button>
             </div>
         </div>
-        <nav class="py-3 px-6 bg-slate-50/80 backdrop-blur-sm">
-            <div class="max-w-7xl mx-auto flex justify-center md:justify-start gap-8 font-bold text-slate-500 text-sm">
-                <a href="/" class="hover:text-emerald-600 transition-colors">Inicio</a>
-                <a href="/planes" class="text-emerald-600 border-b-2 border-emerald-600 pb-1">Planes</a>
-                <a href="/contacto" class="hover:text-emerald-600 transition-colors">Contacto</a>
-            </div>
-        </nav>
+        <div id="menu-movil" class="md:hidden hidden border-t border-slate-100 bg-white px-4 py-3 space-y-1">
+            <a href="/" class="block px-3 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50">Inicio</a>
+            <a href="/planes" class="block px-3 py-2 rounded-lg text-sm font-semibold bg-emerald-50 text-emerald-700" aria-current="page">Planes</a>
+            <a href="/contacto" class="block px-3 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50">Contacto</a>
+            <a href="/app?registro=true" class="block mt-2 text-center bg-emerald-600 text-white px-4 py-2.5 rounded-lg font-bold text-sm">Registrarse</a>
+        </div>
     </header>
 
     <main class="flex-grow py-20 px-6">
@@ -137,35 +142,35 @@
         </div>
     </main>
 
-    <footer class="bg-slate-900 text-slate-400 py-16 border-t border-slate-800 mt-auto">
-        <div class="max-w-7xl mx-auto px-6 grid md:grid-cols-4 gap-8 text-sm">
-            <div class="col-span-1 md:col-span-2">
-                <div class="flex items-center gap-2 mb-4 text-white">
-                    <img src="/img/img/dark%20logo.png" alt="Buddy ERP Logo" class="h-8 w-auto">
-                    <span class="text-xl font-black tracking-tight">| Buddy ERP</span>
+    <footer class="bg-slate-900 text-slate-400 pt-14 pb-8 border-t border-slate-800 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 grid gap-10 sm:grid-cols-2 md:grid-cols-4 text-sm">
+            <div class="sm:col-span-2">
+                <div class="flex items-center gap-3 mb-4">
+                    <img src="/img/img/dark%20logo.png" alt="" class="h-8 w-auto">
+                    <span class="text-lg font-bold text-slate-300 border-l border-slate-700 pl-3">Buddy ERP</span>
                 </div>
-                <p class="max-w-xs mb-4">La herramienta definitiva para llevar tu negocio al siguiente nivel, sin complicaciones.</p>
+                <p class="max-w-xs">Tu partner en la administración de tu negocio. Simple, desde donde estés.</p>
             </div>
             <div>
-                <h4 class="text-white font-bold mb-4 uppercase tracking-wider text-xs">Mapa del Sitio</h4>
+                <h4 class="text-white font-bold mb-4 uppercase tracking-wider text-xs">Mapa del sitio</h4>
                 <ul class="space-y-2">
                     <li><a href="/" class="hover:text-emerald-400 transition-colors">Inicio</a></li>
-                    <li><a href="/planes" class="hover:text-emerald-400 transition-colors">Ver Planes</a></li>
-                    <li><a href="/app" class="hover:text-emerald-400 transition-colors">Iniciar Sesión</a></li>
-                    <li><a href="/app?registro=true" class="hover:text-emerald-400 transition-colors">Crear Cuenta</a></li>
+                    <li><a href="/planes" class="hover:text-emerald-400 transition-colors">Planes</a></li>
+                    <li><a href="/contacto" class="hover:text-emerald-400 transition-colors">Contacto</a></li>
+                    <li><a href="/app" class="hover:text-emerald-400 transition-colors">Iniciar sesión</a></li>
                 </ul>
             </div>
             <div>
-                <h4 class="text-white font-bold mb-4 uppercase tracking-wider text-xs">Contacto & Legal</h4>
+                <h4 class="text-white font-bold mb-4 uppercase tracking-wider text-xs">Contacto y legal</h4>
                 <ul class="space-y-2">
-                    <li><a href="/contacto" class="hover:text-emerald-400 transition-colors">Agendar Demo</a></li>
-                    <li><a href="#" class="hover:text-emerald-400 transition-colors">Términos y Condiciones</a></li>
-                    <li><a href="#" class="hover:text-emerald-400 transition-colors">Políticas de Privacidad</a></li>
+                    <li><a href="/contacto?asunto=demo" class="hover:text-emerald-400 transition-colors">Agendar demo</a></li>
+                    <li><a href="/terminos" class="hover:text-emerald-400 transition-colors">Términos y Condiciones</a></li>
+                    <li><a href="/privacidad" class="hover:text-emerald-400 transition-colors">Política de Privacidad</a></li>
                 </ul>
             </div>
         </div>
-        <div class="max-w-7xl mx-auto px-6 mt-12 pt-8 border-t border-slate-800 text-center text-xs">
-            &copy; 2026 Buddy ERP. Marca Registrada. Todos los derechos reservados.
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 mt-12 pt-6 border-t border-slate-800 text-center text-xs">
+            &copy; 2026 Buddy ERP. Todos los derechos reservados.
         </div>
     </footer>
 
@@ -182,5 +187,16 @@
         });
     </script>
     
+    <script>
+        (function () {
+            const btn = document.getElementById('btn-menu-movil');
+            const menu = document.getElementById('menu-movil');
+            if (!btn || !menu) return;
+            btn.addEventListener('click', function () {
+                const abierto = !menu.classList.toggle('hidden');
+                btn.setAttribute('aria-expanded', String(abierto));
+            });
+        })();
+    </script>
 </body>
 </html>

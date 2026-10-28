@@ -2,12 +2,47 @@
   "cleanUrls": true,
   "trailingSlash": false,
   "rewrites": [
-    { "source": "/config.js", "destination": "/api/config" },
-    { "source": "/planes", "destination": "/vistas/planes" },
-    { "source": "/contacto", "destination": "/vistas/contacto" }
+    {
+      "source": "/config.js",
+      "destination": "/api/config"
+    },
+    {
+      "source": "/planes",
+      "destination": "/vistas/planes"
+    },
+    {
+      "source": "/contacto",
+      "destination": "/vistas/contacto"
+    },
+    {
+      "source": "/terminos",
+      "destination": "/legal/terminos"
+    },
+    {
+      "source": "/privacidad",
+      "destination": "/legal/privacidad"
+    }
   ],
   "redirects": [
-    { "source": "/vistas/planes", "destination": "/planes", "permanent": true },
-    { "source": "/vistas/contacto", "destination": "/contacto", "permanent": true }
+    {
+      "source": "/vistas/planes",
+      "destination": "/planes",
+      "permanent": true
+    },
+    {
+      "source": "/vistas/contacto",
+      "destination": "/contacto",
+      "permanent": true
+    },
+    {
+      "source": "/legal/terminos",
+      "destination": "/terminos",
+      "permanent": true
+    },
+    {
+      "source": "/legal/privacidad",
+      "destination": "/privacidad",
+      "permanent": true
+    }
   ]
 }
