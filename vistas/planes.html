@@ -48,95 +48,154 @@
         </div>
     </header>
 
-    <main class="flex-grow py-20 px-6">
+    <main class="flex-grow py-14 md:py-20 px-4 sm:px-6">
         <div class="max-w-7xl mx-auto">
-            
-            <div class="text-center mb-16" data-aos="fade-up">
-                <h1 class="text-4xl md:text-5xl font-black text-slate-800 mb-4 tracking-tight">Elige el plan perfecto para tu PyMe</h1>
-                <p class="text-xl text-slate-500 max-w-2xl mx-auto">Sin contratos forzosos. Comienza gratis, paga cuando tu negocio crezca.</p>
+
+            <div class="text-center mb-10" data-aos="fade-up">
+                <h1 class="text-4xl md:text-5xl font-black text-slate-800 mb-4 tracking-tight">Paga solo por lo que tu negocio usa</h1>
+                <p class="text-lg md:text-xl text-slate-500 max-w-2xl mx-auto">Elige tus módulos. Sin contratos: cancela cuando quieras.</p>
+                <div class="flex flex-wrap justify-center gap-2 mt-6 text-sm font-semibold">
+                    <span class="bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-1 rounded-full">14 días de prueba</span>
+                    <span class="bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-1 rounded-full">Implementación gratis</span>
+                    <span class="bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-1 rounded-full">Usuarios ilimitados</span>
+                </div>
             </div>
 
-            <div class="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto items-center">
-                
-                <div data-aos="fade-up" data-aos-delay="100" class="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm hover:border-emerald-200 transition-all flex flex-col h-full">
-                    <div class="mb-6">
-                        <h3 class="text-lg font-bold text-slate-500 uppercase tracking-wide mb-2">Starter</h3>
-                        <div class="flex items-baseline gap-1">
-                            <span class="text-4xl font-black text-slate-800">$0</span>
-                            <span class="text-slate-400 font-medium">/mes</span>
-                        </div>
-                        <p class="text-sm text-slate-500 mt-2">Perfecto para negocios que recién comienzan.</p>
-                    </div>
-                    
-                    <ul class="space-y-4 mb-8 flex-1">
-                        <li class="flex items-start gap-3 text-sm text-slate-600 font-medium"><span class="text-emerald-500">✓</span> 1 Usuario (Dueño)</li>
-                        <li class="flex items-start gap-3 text-sm text-slate-600 font-medium"><span class="text-emerald-500">✓</span> 1 Sucursal / Bodega</li>
-                        <li class="flex items-start gap-3 text-sm text-slate-600 font-medium"><span class="text-emerald-500">✓</span> Inventario Básico (100 SKUs)</li>
-                        <li class="flex items-start gap-3 text-sm text-slate-600 font-medium"><span class="text-emerald-500">✓</span> Ventas POS Limitadas</li>
-                    </ul>
-                    
-                    <a href="/app?registro=true&plan=starter" class="w-full py-3 rounded-xl border-2 border-slate-200 text-slate-700 font-bold hover:bg-slate-50 hover:border-slate-300 transition-all text-center block">Comenzar Gratis</a>
+            <!-- Mensual / Anual -->
+            <div class="flex justify-center mb-12" data-aos="fade-up">
+                <div class="inline-flex bg-white border border-slate-200 rounded-full p-1 shadow-sm" role="group" aria-label="Período de pago">
+                    <button type="button" data-periodo="mensual" class="btn-periodo px-5 py-2 rounded-full text-sm font-bold transition-colors bg-emerald-600 text-white" aria-pressed="true">Mensual</button>
+                    <button type="button" data-periodo="anual" class="btn-periodo px-5 py-2 rounded-full text-sm font-bold transition-colors text-slate-600" aria-pressed="false">Anual <span class="font-black etiqueta-anual text-emerald-600">· 1 mes gratis</span></button>
                 </div>
-
-                <div data-aos="fade-up" data-aos-delay="200" class="bg-white p-8 rounded-3xl border-2 border-emerald-500 shadow-2xl relative flex flex-col h-full transform scale-105 z-10">
-                    <div class="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gradient-to-r from-emerald-500 to-teal-400 text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wide shadow-md">
-                        Más Popular
-                    </div>
-                    <div class="mb-6">
-                        <h3 class="text-lg font-bold text-emerald-600 uppercase tracking-wide mb-2">Profesional</h3>
-                        <div class="flex items-baseline gap-1">
-                            <span class="text-5xl font-black text-slate-800">$29.990</span>
-                            <span class="text-slate-400 font-medium">/mes</span>
-                        </div>
-                        <p class="text-sm text-slate-500 mt-2">Para empresas establecidas en crecimiento.</p>
-                    </div>
-                    
-                    <ul class="space-y-4 mb-8 flex-1">
-                        <li class="flex items-start gap-3 text-sm text-slate-600 font-medium"><span class="text-emerald-500 font-bold">✓</span> <strong class="text-slate-800">5 Usuarios</strong> incluidos</li>
-                        <li class="flex items-start gap-3 text-sm text-slate-600 font-medium"><span class="text-emerald-500 font-bold">✓</span> Hasta 3 Sucursales</li>
-                        <li class="flex items-start gap-3 text-sm text-slate-600 font-medium"><span class="text-emerald-500 font-bold">✓</span> Inventario Ilimitado & Recetas</li>
-                        <li class="flex items-start gap-3 text-sm text-slate-600 font-medium"><span class="text-emerald-500 font-bold">✓</span> Punto de Venta (POS) Ilimitado</li>
-                        <li class="flex items-start gap-3 text-sm text-slate-600 font-medium"><span class="text-emerald-500 font-bold">✓</span> Reportes Avanzados</li>
-                    </ul>
-                    
-                    <a href="/app?registro=true&plan=pro" class="w-full py-4 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all text-center block text-lg">Elegir Profesional</a>
-                </div>
-
-                <div data-aos="fade-up" data-aos-delay="300" class="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm hover:border-emerald-200 transition-all flex flex-col h-full">
-                    <div class="mb-6">
-                        <h3 class="text-lg font-bold text-slate-500 uppercase tracking-wide mb-2">Corporativo</h3>
-                        <div class="flex items-baseline gap-1">
-                            <span class="text-4xl font-black text-slate-800">$69.990</span>
-                            <span class="text-slate-400 font-medium">/mes</span>
-                        </div>
-                        <p class="text-sm text-slate-500 mt-2">Control total para grandes operaciones.</p>
-                    </div>
-                    
-                    <ul class="space-y-4 mb-8 flex-1">
-                        <li class="flex items-start gap-3 text-sm text-slate-600 font-medium"><span class="text-emerald-500">✓</span> <strong class="text-slate-800">Usuarios Ilimitados</strong></li>
-                        <li class="flex items-start gap-3 text-sm text-slate-600 font-medium"><span class="text-emerald-500">✓</span> Sucursales Ilimitadas</li>
-                        <li class="flex items-start gap-3 text-sm text-slate-600 font-medium"><span class="text-emerald-500">✓</span> Todas las funciones Pro</li>
-                        <li class="flex items-start gap-3 text-sm text-slate-600 font-medium"><span class="text-emerald-500">✓</span> Integración contable (SII)</li>
-                        <li class="flex items-start gap-3 text-sm text-slate-600 font-medium"><span class="text-emerald-500">✓</span> Soporte Prioritario 24/7</li>
-                    </ul>
-                    
-                    <a href="/app?registro=true&plan=corp" class="w-full py-3 rounded-xl border-2 border-slate-200 text-slate-700 font-bold hover:bg-slate-50 hover:border-slate-300 transition-all text-center block">Contactar Ventas</a>
-                </div>
-
             </div>
 
-            <div class="mt-24 max-w-3xl mx-auto" data-aos="fade-up">
-                <h3 class="text-2xl font-bold text-center mb-8">Dudas sobre facturación</h3>
+            <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-4 max-w-6xl mx-auto items-stretch">
+
+                <!-- Ventas -->
+                <div data-aos="fade-up" data-aos-delay="100" class="bg-white p-7 rounded-3xl border border-slate-200 shadow-sm hover:border-emerald-200 transition-all flex flex-col">
+                    <img src="/img/iconos/ventas.webp" alt="" width="56" height="56" class="w-14 h-14 mb-4">
+                    <h3 class="text-lg font-bold text-slate-800">Ventas</h3>
+                    <p class="text-sm text-slate-500 mt-1">Vende y cobra sin enredos.</p>
+                    <div class="mt-5 mb-6">
+                        <span class="text-4xl font-black text-slate-800 precio" data-mensual="7500" data-anual="82500">$7.500</span>
+                        <span class="text-slate-400 font-medium sufijo">/mes</span>
+                        <p class="text-xs text-slate-400 mt-1 equivalente h-4"></p>
+                    </div>
+                    <ul class="space-y-3 mb-8 flex-1 text-sm text-slate-600">
+                        <li class="flex gap-2"><span class="text-emerald-500 font-bold">✓</span> Punto de venta (POS) con PIN por cajero</li>
+                        <li class="flex gap-2"><span class="text-emerald-500 font-bold">✓</span> Apertura y cierre de caja</li>
+                        <li class="flex gap-2"><span class="text-emerald-500 font-bold">✓</span> Clientes y cuentas por cobrar</li>
+                        <li class="flex gap-2"><span class="text-emerald-500 font-bold">✓</span> Ranking de productos más vendidos</li>
+                    </ul>
+                    <a href="/app?registro=true&plan=ventas" class="w-full py-3 rounded-xl border-2 border-slate-200 text-slate-700 font-bold hover:bg-slate-50 hover:border-slate-300 transition-all text-center block">Probar 14 días</a>
+                </div>
+
+                <!-- Inventario -->
+                <div data-aos="fade-up" data-aos-delay="150" class="bg-white p-7 rounded-3xl border border-slate-200 shadow-sm hover:border-emerald-200 transition-all flex flex-col">
+                    <img src="/img/iconos/inventario.webp" alt="" width="56" height="56" class="w-14 h-14 mb-4">
+                    <h3 class="text-lg font-bold text-slate-800">Inventario</h3>
+                    <p class="text-sm text-slate-500 mt-1">Sabe siempre qué tienes y dónde.</p>
+                    <div class="mt-5 mb-6">
+                        <span class="text-4xl font-black text-slate-800 precio" data-mensual="7500" data-anual="82500">$7.500</span>
+                        <span class="text-slate-400 font-medium sufijo">/mes</span>
+                        <p class="text-xs text-slate-400 mt-1 equivalente h-4"></p>
+                    </div>
+                    <ul class="space-y-3 mb-8 flex-1 text-sm text-slate-600">
+                        <li class="flex gap-2"><span class="text-emerald-500 font-bold">✓</span> Stock por sucursal y ubicación</li>
+                        <li class="flex gap-2"><span class="text-emerald-500 font-bold">✓</span> Compras, pedidos y proveedores</li>
+                        <li class="flex gap-2"><span class="text-emerald-500 font-bold">✓</span> Recetas y control de producción</li>
+                        <li class="flex gap-2"><span class="text-emerald-500 font-bold">✓</span> Movimientos, ajustes y reportes</li>
+                    </ul>
+                    <a href="/app?registro=true&plan=inventario" class="w-full py-3 rounded-xl border-2 border-slate-200 text-slate-700 font-bold hover:bg-slate-50 hover:border-slate-300 transition-all text-center block">Probar 14 días</a>
+                </div>
+
+                <!-- Personas -->
+                <div data-aos="fade-up" data-aos-delay="200" class="bg-white p-7 rounded-3xl border border-slate-200 shadow-sm hover:border-emerald-200 transition-all flex flex-col">
+                    <img src="/img/iconos/personas.webp" alt="" width="56" height="56" class="w-14 h-14 mb-4">
+                    <h3 class="text-lg font-bold text-slate-800">Personas</h3>
+                    <p class="text-sm text-slate-500 mt-1">Tu equipo, ordenado.</p>
+                    <div class="mt-5 mb-6">
+                        <span class="text-4xl font-black text-slate-800 precio" data-mensual="7500" data-anual="82500">$7.500</span>
+                        <span class="text-slate-400 font-medium sufijo">/mes</span>
+                        <p class="text-xs text-slate-400 mt-1 equivalente h-4"></p>
+                    </div>
+                    <ul class="space-y-3 mb-8 flex-1 text-sm text-slate-600">
+                        <li class="flex gap-2"><span class="text-emerald-500 font-bold">✓</span> Fichas de colaboradores y cargos</li>
+                        <li class="flex gap-2"><span class="text-emerald-500 font-bold">✓</span> Turnos y calendario por sucursal</li>
+                        <li class="flex gap-2"><span class="text-emerald-500 font-bold">✓</span> Solicitudes y permisos</li>
+                        <li class="flex gap-2"><span class="text-emerald-500 font-bold">✓</span> Feriados y fechas especiales</li>
+                    </ul>
+                    <a href="/app?registro=true&plan=personas" class="w-full py-3 rounded-xl border-2 border-slate-200 text-slate-700 font-bold hover:bg-slate-50 hover:border-slate-300 transition-all text-center block">Probar 14 días</a>
+                </div>
+
+                <!-- Todo Buddy -->
+                <div data-aos="fade-up" data-aos-delay="250" class="bg-white p-7 rounded-3xl border-2 border-emerald-500 shadow-2xl relative flex flex-col lg:-my-3">
+                    <div class="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gradient-to-r from-emerald-500 to-teal-400 text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wide shadow-md whitespace-nowrap">El más conveniente</div>
+                    <div class="flex items-center gap-2 mb-4 h-14">
+                        <img src="/img/iconos/ventas.webp" alt="" width="40" height="40" class="w-10 h-10">
+                        <img src="/img/iconos/inventario.webp" alt="" width="40" height="40" class="w-10 h-10">
+                        <img src="/img/iconos/personas.webp" alt="" width="40" height="40" class="w-10 h-10">
+                    </div>
+                    <h3 class="text-lg font-bold text-emerald-700">Todo Buddy</h3>
+                    <p class="text-sm text-slate-500 mt-1">Todos los módulos, en un solo pago.</p>
+                    <div class="mt-5 mb-6">
+                        <span class="block text-slate-400 line-through text-base font-semibold precio-tachado" data-mensual="22500" data-anual="247500">$22.500</span>
+                        <span class="text-4xl font-black text-slate-800 precio" data-mensual="18000" data-anual="198000">$18.000</span>
+                        <span class="text-slate-400 font-medium sufijo">/mes</span>
+                        <p class="text-xs text-slate-400 mt-1 equivalente h-4"></p>
+                    </div>
+                    <ul class="space-y-3 mb-8 flex-1 text-sm text-slate-600">
+                        <li class="flex gap-2"><span class="text-emerald-500 font-bold">✓</span> <strong class="text-slate-800">Ventas, Inventario y Personas</strong></li>
+                        <li class="flex gap-2"><span class="text-emerald-500 font-bold">✓</span> La información fluye entre módulos</li>
+                        <li class="flex gap-2"><span class="text-emerald-500 font-bold">✓</span> Los módulos nuevos, a precio preferente</li>
+                    </ul>
+                    <a href="/app?registro=true&plan=todo" class="w-full py-4 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all text-center block text-lg">Probar 14 días</a>
+                </div>
+            </div>
+
+            <!-- Incluido en todos -->
+            <div class="max-w-6xl mx-auto mt-14 bg-white rounded-3xl border border-slate-200 p-6 sm:p-8" data-aos="fade-up">
+                <h2 class="text-xl font-bold text-slate-800 mb-5 text-center md:text-left">Incluido en todos los planes</h2>
+                <ul class="grid gap-x-8 gap-y-3 sm:grid-cols-2 lg:grid-cols-3 text-sm text-slate-600">
+                    <li class="flex gap-2"><span class="text-emerald-500 font-bold">✓</span> Usuarios ilimitados, con roles y permisos</li>
+                    <li class="flex gap-2"><span class="text-emerald-500 font-bold">✓</span> 1 sucursal incluida (adicional: $4.990/mes)</li>
+                    <li class="flex gap-2"><span class="text-emerald-500 font-bold">✓</span> Implementación y puesta en marcha gratis</li>
+                    <li class="flex gap-2"><span class="text-emerald-500 font-bold">✓</span> Carga y descarga de tus datos en Excel/CSV</li>
+                    <li class="flex gap-2"><span class="text-emerald-500 font-bold">✓</span> Actualizaciones y mejoras sin costo</li>
+                    <li class="flex gap-2"><span class="text-emerald-500 font-bold">✓</span> Soporte por correo</li>
+                </ul>
+            </div>
+
+            <!-- Recomienda -->
+            <div class="max-w-6xl mx-auto mt-6 rounded-3xl bg-gradient-to-r from-emerald-600 to-teal-500 text-white p-6 sm:p-8 flex flex-col md:flex-row md:items-center gap-4 md:gap-8" data-aos="fade-up">
+                <div class="text-4xl" aria-hidden="true">🤝</div>
+                <div class="flex-1">
+                    <h2 class="text-xl font-bold">Recomienda Buddy y ganen los dos</h2>
+                    <p class="text-emerald-50 mt-1 text-sm md:text-base">Cuando una empresa que invitaste se suscribe, <strong>tú y ella reciben 1 mes gratis</strong>.</p>
+                </div>
+            </div>
+
+            <div class="mt-20 max-w-3xl mx-auto" data-aos="fade-up">
+                <h3 class="text-2xl font-bold text-center mb-8">Preguntas frecuentes</h3>
                 <div class="space-y-4">
                     <div class="bg-white p-6 rounded-xl border border-slate-100">
-                        <h4 class="font-bold text-slate-800">¿Puedo cambiar de plan más adelante?</h4>
-                        <p class="text-sm text-slate-500 mt-1">Sí, puedes subir o bajar de plan en cualquier momento desde la configuración de tu empresa. El cobro se ajustará proporcionalmente.</p>
+                        <h4 class="font-bold text-slate-800">¿Cómo funciona la prueba de 14 días?</h4>
+                        <p class="text-sm text-slate-500 mt-1">Te registras y usas Buddy completo durante 14 días, sin ingresar medios de pago. Antes de que termine te ayudamos a elegir los módulos que tu negocio necesita.</p>
                     </div>
                     <div class="bg-white p-6 rounded-xl border border-slate-100">
-                        <h4 class="font-bold text-slate-800">¿Los precios incluyen IVA?</h4>
-                        <p class="text-sm text-slate-500 mt-1">Todos los valores expresados son netos. Se agregará el 19% de IVA al momento de la facturación electrónica.</p>
+                        <h4 class="font-bold text-slate-800">¿Puedo agregar o quitar módulos después?</h4>
+                        <p class="text-sm text-slate-500 mt-1">Sí. Activas solo lo que usas y puedes sumar o quitar módulos cuando tu negocio lo necesite.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl border border-slate-100">
+                        <h4 class="font-bold text-slate-800">¿Qué incluye la implementación gratis?</h4>
+                        <p class="text-sm text-slate-500 mt-1">Te ayudamos a configurar tu empresa, sucursales y usuarios, y a cargar tu catálogo inicial desde una planilla.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl border border-slate-100">
+                        <h4 class="font-bold text-slate-800">¿Y si decido no continuar?</h4>
+                        <p class="text-sm text-slate-500 mt-1">No hay contratos ni permanencia mínima. Tus datos son tuyos: puedes descargarlos en cualquier momento.</p>
                     </div>
                 </div>
+                <p class="text-center text-xs text-slate-400 mt-8">Valores en pesos chilenos.</p>
             </div>
 
         </div>
@@ -163,7 +222,7 @@
             <div>
                 <h4 class="text-white font-bold mb-4 uppercase tracking-wider text-xs">Contacto y legal</h4>
                 <ul class="space-y-2">
-                    <li><a href="/contacto?asunto=demo" class="hover:text-emerald-400 transition-colors">Agendar demo</a></li>
+                    <li><a href="/contacto#demo" class="hover:text-emerald-400 transition-colors">Agendar demo</a></li>
                     <li><a href="/terminos" class="hover:text-emerald-400 transition-colors">Términos y Condiciones</a></li>
                     <li><a href="/privacidad" class="hover:text-emerald-400 transition-colors">Política de Privacidad</a></li>
                 </ul>
@@ -175,7 +234,7 @@
     </footer>
 
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
-    <script>AOS.init({ duration: 800, once: true, offset: 50 });</script>
+    <script>if (window.AOS) AOS.init({ duration: 800, once: true, offset: 50 });</script>
 
     <script>
         window.addEventListener('load', function() {
@@ -196,6 +255,30 @@
                 const abierto = !menu.classList.toggle('hidden');
                 btn.setAttribute('aria-expanded', String(abierto));
             });
+        })();
+    </script>
+    <script>
+        // Precios mensual / anual (anual = 11 meses: 1 mes gratis)
+        (function () {
+            const clp = n => '$' + Number(n).toLocaleString('es-CL');
+            function aplicar(periodo) {
+                document.querySelectorAll('.btn-periodo').forEach(b => {
+                    const activo = b.dataset.periodo === periodo;
+                    b.classList.toggle('bg-emerald-600', activo);
+                    b.classList.toggle('text-white', activo);
+                    b.classList.toggle('text-slate-600', !activo);
+                    b.setAttribute('aria-pressed', String(activo));
+                    const etiqueta = b.querySelector('.etiqueta-anual');
+                    if (etiqueta) { etiqueta.classList.toggle('text-white', activo); etiqueta.classList.toggle('text-emerald-600', !activo); }
+                });
+                document.querySelectorAll('.precio, .precio-tachado').forEach(el => { el.textContent = clp(el.dataset[periodo]); });
+                document.querySelectorAll('.sufijo').forEach(el => { el.textContent = periodo === 'anual' ? '/año' : '/mes'; });
+                document.querySelectorAll('.precio').forEach(el => {
+                    const eq = el.parentElement.querySelector('.equivalente');
+                    if (eq) eq.textContent = periodo === 'anual' ? 'Equivale a ' + clp(Math.round(el.dataset.anual / 12)) + ' al mes' : '';
+                });
+            }
+            document.querySelectorAll('.btn-periodo').forEach(b => b.addEventListener('click', () => aplicar(b.dataset.periodo)));
         })();
     </script>
 </body>

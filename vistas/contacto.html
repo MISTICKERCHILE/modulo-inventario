@@ -56,13 +56,29 @@
                 <p class="text-xl text-slate-500 max-w-2xl mx-auto">Agenda una demostración guiada de 30 minutos o escríbenos si tienes dudas puntuales.</p>
             </div>
 
+            <section id="demo" class="max-w-5xl mx-auto mb-16 scroll-mt-24" data-aos="fade-up">
+                <div class="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden">
+                    <div class="px-6 sm:px-10 pt-8 pb-4 text-center md:text-left">
+                        <span class="inline-block bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide border border-emerald-200">Demo gratuita · 30 min</span>
+                        <h2 class="text-2xl md:text-3xl font-bold text-slate-800 mt-3">Agenda tu demostración</h2>
+                        <p class="text-slate-500 mt-1">Elige el día y la hora que te acomoden. Te mostramos Buddy con ejemplos de tu propio negocio.</p>
+                    </div>
+                    <div id="calendario-demo" class="w-full min-h-[640px] px-2 sm:px-4 pb-4"></div>
+                    <p class="text-center text-sm text-slate-500 pb-6 px-6">¿No carga el calendario? <a href="https://cal.com/buddyerp/30min" target="_blank" rel="noopener" class="text-emerald-700 font-semibold underline">Ábrelo aquí</a>.</p>
+                </div>
+            </section>
+
+            <div class="text-center mb-8" data-aos="fade-up">
+                <h2 class="text-2xl font-bold text-slate-800">¿Prefieres escribirnos?</h2>
+            </div>
+
             <div class="max-w-3xl mx-auto" data-aos="fade-up" data-aos-delay="100">
                 <div class="bg-white p-8 md:p-10 rounded-3xl border border-slate-200 shadow-xl relative">
                     <div class="absolute top-0 right-8 transform -translate-y-1/2 bg-emerald-100 text-emerald-800 px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wide border border-emerald-200">
                         Contacto Directo
                     </div>
                     
-                    <h3 class="text-2xl font-bold text-slate-800 mb-6 text-center md:text-left">Escríbenos</h3>
+                    <h3 class="text-2xl font-bold text-slate-800 mb-6 text-center md:text-left">Envíanos un mensaje</h3>
                     
                     <form id="form-contacto" class="space-y-5" novalidate>
                         <div class="hidden" aria-hidden="true"><label>Sitio web <input type="text" name="sitio_web" tabindex="-1" autocomplete="off"></label></div>
@@ -139,7 +155,7 @@
             <div>
                 <h4 class="text-white font-bold mb-4 uppercase tracking-wider text-xs">Contacto y legal</h4>
                 <ul class="space-y-2">
-                    <li><a href="/contacto?asunto=demo" class="hover:text-emerald-400 transition-colors">Agendar demo</a></li>
+                    <li><a href="/contacto#demo" class="hover:text-emerald-400 transition-colors">Agendar demo</a></li>
                     <li><a href="/terminos" class="hover:text-emerald-400 transition-colors">Términos y Condiciones</a></li>
                     <li><a href="/privacidad" class="hover:text-emerald-400 transition-colors">Política de Privacidad</a></li>
                 </ul>
@@ -151,7 +167,7 @@
     </footer>
 
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
-    <script>AOS.init({ duration: 800, once: true, offset: 50 });</script>
+    <script>if (window.AOS) AOS.init({ duration: 800, once: true, offset: 50 });</script>
 
     <script>
         window.addEventListener('load', function() {
@@ -182,9 +198,9 @@
             const boton = document.getElementById('btn-enviar-contacto');
             const cargadoEn = Date.now();
 
-            // /contacto?asunto=demo preselecciona "Agendar una demo"
+            // /contacto#demo preselecciona "Agendar una demo"
             const params = new URLSearchParams(location.search);
-            if (params.get('asunto') === 'demo') form.asunto.value = 'Agendar Demo';
+            if (params.get('asunto') === 'demo' || location.hash === '#demo') form.asunto.value = 'Agendar Demo';
 
             function mostrar(tipo, html) {
                 estado.className = 'rounded-xl px-4 py-3 text-sm font-semibold ' +
@@ -234,6 +250,13 @@
                 }
             });
         })();
+    </script>
+    <script>
+        // Calendario de Cal.com (agendamiento de demos)
+        (function (C, A, L) { let p = function (a, ar) { a.q.push(ar); }; let d = C.document; C.Cal = C.Cal || function () { let cal = C.Cal; let ar = arguments; if (!cal.loaded) { cal.ns = {}; cal.q = cal.q || []; d.head.appendChild(d.createElement("script")).src = A; cal.loaded = true; } if (ar[0] === L) { const api = function () { p(api, arguments); }; const namespace = ar[1]; api.q = api.q || []; if (typeof namespace === "string") { cal.ns[namespace] = cal.ns[namespace] || api; p(cal.ns[namespace], ar); p(cal, ["initNamespace", namespace]); } else p(cal, ar); return; } p(cal, ar); }; })(window, "https://app.cal.com/embed/embed.js", "init");
+        Cal("init", "demo", { origin: "https://cal.com" });
+        Cal.ns.demo("inline", { elementOrSelector: "#calendario-demo", calLink: "buddyerp/30min", config: { layout: "month_view", theme: "light" } });
+        Cal.ns.demo("ui", { theme: "light", hideEventTypeDetails: false, layout: "month_view", cssVarsPerTheme: { light: { "cal-brand": "#059669" } } });
     </script>
 </body>
 </html>
