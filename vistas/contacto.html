@@ -211,7 +211,7 @@
 
             function enlaceCorreo(d) {
                 const cuerpo = `Nombre: ${d.nombre}\nEmpresa: ${d.empresa}\nCorreo: ${d.email}\n\n${d.mensaje}`;
-                return 'mailto:buddyerp@outlook.com?subject=' + encodeURIComponent('[Web] ' + d.asunto) +
+                return 'mailto:hola@buddyerp.com?subject=' + encodeURIComponent('[Web] ' + d.asunto) +
                        '&body=' + encodeURIComponent(cuerpo);
             }
 
@@ -240,10 +240,10 @@
                         mostrar('aviso', 'Revisa los datos: falta información o el correo no es válido.');
                     } else {
                         mostrar('aviso', 'No pudimos enviar el mensaje desde aquí. ' +
-                            `<a class="underline" href="${enlaceCorreo(d)}">Envíalo desde tu correo</a> o escríbenos a buddyerp@outlook.com.`);
+                            `<a class="underline" href="${enlaceCorreo(d)}">Envíalo desde tu correo</a> o escríbenos a hola@buddyerp.com.`);
                     }
                 } catch (_) {
-                    mostrar('aviso', 'Sin conexión. Intenta nuevamente o escríbenos a buddyerp@outlook.com.');
+                    mostrar('aviso', 'Sin conexión. Intenta nuevamente o escríbenos a hola@buddyerp.com.');
                 } finally {
                     boton.disabled = false;
                     boton.textContent = textoBoton;

@@ -4,8 +4,8 @@
 //
 // Variables de entorno (Vercel → Settings → Environment Variables):
 //   RESEND_API_KEY     (obligatoria)  clave de API de Resend
-//   CONTACTO_DESTINO   (opcional)     por defecto buddyerp@outlook.com
-//   CONTACTO_REMITENTE (opcional)     por defecto "Buddy ERP <contacto@buddyerp.com>"
+//   CONTACTO_DESTINO   (opcional)     por defecto hola@buddyerp.com
+//   CONTACTO_REMITENTE (opcional)     por defecto "Buddy ERP <hola@buddyerp.com>"
 //                                     (el dominio debe estar verificado en Resend)
 //
 // Si RESEND_API_KEY no está configurada responde 503 y la página ofrece
@@ -58,8 +58,8 @@ export default async function handler(req, res) {
     const clave = process.env.RESEND_API_KEY;
     if (!clave) return res.status(503).json({ ok: false, error: 'no_configurado' });
 
-    const destino = process.env.CONTACTO_DESTINO || 'buddyerp@outlook.com';
-    const remitente = process.env.CONTACTO_REMITENTE || 'Buddy ERP <contacto@buddyerp.com>';
+    const destino = process.env.CONTACTO_DESTINO || 'hola@buddyerp.com';
+    const remitente = process.env.CONTACTO_REMITENTE || 'Buddy ERP <hola@buddyerp.com>';
     const titulo = `[Web] ${datos.asunto} · ${datos.nombre}${datos.empresa ? ' (' + datos.empresa + ')' : ''}`;
 
     const texto = [
