@@ -7,7 +7,7 @@
     
     <link rel="icon" type="image/png" href="img/img/favicon.png">
 
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/css/sitio.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
     <style>
@@ -42,26 +42,32 @@
         <p class="text-emerald-600 font-bold mt-4 animate-pulse tracking-widest text-sm">CARGANDO...</p>
     </div>
 
-    <div class="bg-white border-b border-slate-200 py-3 px-6 z-50 relative">
-        <div class="max-w-7xl mx-auto flex items-center justify-between">
-            <div class="flex items-center gap-2">
-                <img src="img/img/light%20logo.png" alt="Buddy ERP Logo" class="h-10 w-auto">
-                <span class="text-2xl font-black text-slate-900 tracking-tight">| Buddy ERP</span>
-            </div>
-            <div class="flex items-center gap-4">
-                <a href="/app" class="text-slate-700 font-bold hover:text-emerald-600 text-sm transition-colors">Iniciar Sesión</a>
-                <a href="/app?registro=true" class="bg-emerald-600 text-white px-5 py-2 rounded-lg font-bold hover:bg-emerald-700 shadow-sm transition-all text-sm">Registrarse</a>
+    <header class="bg-white/95 backdrop-blur border-b border-slate-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+            <a href="/" class="flex items-center gap-3 shrink-0" aria-label="Buddy ERP, inicio">
+                <img src="/img/img/light%20logo.png" alt="" class="h-9 w-auto">
+                <span class="hidden sm:inline text-lg font-bold text-slate-500 tracking-tight border-l border-slate-200 pl-3">Buddy ERP</span>
+            </a>
+            <nav class="hidden md:flex items-center gap-8" aria-label="Principal">
+                <a href="/" class="text-sm font-semibold transition-colors text-emerald-600" aria-current="page">Inicio</a>
+                <a href="/planes" class="text-sm font-semibold transition-colors text-slate-500 hover:text-emerald-600">Planes</a>
+                <a href="/contacto" class="text-sm font-semibold transition-colors text-slate-500 hover:text-emerald-600">Contacto</a>
+            </nav>
+            <div class="flex items-center gap-2 sm:gap-3">
+                <a href="/app" class="text-sm font-bold text-slate-600 hover:text-emerald-600 whitespace-nowrap px-2 py-2">Iniciar sesión</a>
+                <a href="/app?registro=true" class="hidden sm:inline-flex bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-emerald-700 shadow-sm transition-colors text-sm whitespace-nowrap">Registrarse</a>
+                <button type="button" id="btn-menu-movil" class="md:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100" aria-label="Abrir menú" aria-expanded="false" aria-controls="menu-movil">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" d="M4 7h16M4 12h16M4 17h16"/></svg>
+                </button>
             </div>
         </div>
-    </div>
-
-    <nav class="bg-slate-50 border-b border-slate-200 py-3 px-6 sticky top-0 z-40 shadow-sm">
-        <div class="max-w-7xl mx-auto flex justify-center md:justify-start gap-8 font-bold text-slate-500 text-sm">
-            <a href="/" class="text-emerald-600 border-b-2 border-emerald-600 pb-1">Inicio</a>
-            <a href="/planes" class="hover:text-emerald-600 transition-colors">Planes</a>
-            <a href="/contacto" class="hover:text-emerald-600 transition-colors">Contacto</a>
+        <div id="menu-movil" class="md:hidden hidden border-t border-slate-100 bg-white px-4 py-3 space-y-1">
+            <a href="/" class="block px-3 py-2 rounded-lg text-sm font-semibold bg-emerald-50 text-emerald-700" aria-current="page">Inicio</a>
+            <a href="/planes" class="block px-3 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50">Planes</a>
+            <a href="/contacto" class="block px-3 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50">Contacto</a>
+            <a href="/app?registro=true" class="block mt-2 text-center bg-emerald-600 text-white px-4 py-2.5 rounded-lg font-bold text-sm">Registrarse</a>
         </div>
-    </nav>
+    </header>
 
     <section id="inicio" class="bg-hero-pattern py-32 px-6 text-center text-white">
         <div class="max-w-4xl mx-auto">
@@ -83,27 +89,27 @@
             
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 text-center">
                 <div data-aos="fade-up" data-aos-delay="100" class="p-6 bg-slate-50 rounded-2xl border border-slate-100 hover:border-emerald-300 hover:shadow-md transition-all group">
-                    <div class="text-4xl mb-3 group-hover:scale-110 transition-transform">👥</div>
+                    <img src="/img/iconos/personas.webp" alt="" width="80" height="80" loading="lazy" class="w-16 h-16 md:w-20 md:h-20 mx-auto mb-3 group-hover:scale-110 transition-transform">
                     <h4 class="font-bold text-slate-700">Personas</h4>
                 </div>
                 <div data-aos="fade-up" data-aos-delay="200" class="p-6 bg-slate-50 rounded-2xl border border-slate-100 hover:border-emerald-300 hover:shadow-md transition-all group">
-                    <div class="text-4xl mb-3 group-hover:scale-110 transition-transform">💰</div>
+                    <img src="/img/iconos/finanzas.webp" alt="" width="80" height="80" loading="lazy" class="w-16 h-16 md:w-20 md:h-20 mx-auto mb-3 group-hover:scale-110 transition-transform">
                     <h4 class="font-bold text-slate-700">Finanzas</h4>
                 </div>
                 <div data-aos="fade-up" data-aos-delay="300" class="p-6 bg-slate-50 rounded-2xl border border-slate-100 hover:border-emerald-300 hover:shadow-md transition-all group">
-                    <div class="text-4xl mb-3 group-hover:scale-110 transition-transform">🛒</div>
+                    <img src="/img/iconos/compras.webp" alt="" width="80" height="80" loading="lazy" class="w-16 h-16 md:w-20 md:h-20 mx-auto mb-3 group-hover:scale-110 transition-transform">
                     <h4 class="font-bold text-slate-700">Compras</h4>
                 </div>
                 <div data-aos="fade-up" data-aos-delay="400" class="p-6 bg-slate-50 rounded-2xl border border-slate-100 hover:border-emerald-300 hover:shadow-md transition-all group">
-                    <div class="text-4xl mb-3 group-hover:scale-110 transition-transform">🚀</div>
+                    <img src="/img/iconos/ventas.webp" alt="" width="80" height="80" loading="lazy" class="w-16 h-16 md:w-20 md:h-20 mx-auto mb-3 group-hover:scale-110 transition-transform">
                     <h4 class="font-bold text-slate-700">Ventas</h4>
                 </div>
                 <div data-aos="fade-up" data-aos-delay="500" class="p-6 bg-slate-50 rounded-2xl border border-slate-100 hover:border-emerald-300 hover:shadow-md transition-all group">
-                    <div class="text-4xl mb-3 group-hover:scale-110 transition-transform">📦</div>
+                    <img src="/img/iconos/inventario.webp" alt="" width="80" height="80" loading="lazy" class="w-16 h-16 md:w-20 md:h-20 mx-auto mb-3 group-hover:scale-110 transition-transform">
                     <h4 class="font-bold text-slate-700">Inventarios</h4>
                 </div>
                 <div data-aos="fade-up" data-aos-delay="600" class="p-6 bg-slate-50 rounded-2xl border border-slate-100 hover:border-emerald-300 hover:shadow-md transition-all group">
-                    <div class="text-4xl mb-3 group-hover:scale-110 transition-transform">📊</div>
+                    <img src="/img/iconos/proyectos.webp" alt="" width="80" height="80" loading="lazy" class="w-16 h-16 md:w-20 md:h-20 mx-auto mb-3 group-hover:scale-110 transition-transform">
                     <h4 class="font-bold text-slate-700">Proyectos</h4>
                 </div>
             </div>
@@ -158,51 +164,48 @@
                 ¿Tu empresa está creciendo? ¡Felicidades! <br>
                 <span class="text-slate-700 font-medium text-xl md:text-2xl block mt-4">Deja de ser el bombero de tu empresa.</span>
             </h3>
-            <a href="/contacto" class="inline-block mt-4 bg-emerald-600 text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-emerald-700 shadow-md transition-all">
+            <a href="/contacto#demo" class="inline-block mt-4 bg-emerald-600 text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-emerald-700 shadow-md transition-all">
                 Agendar Demo
             </a>
         </div>
     </section>
 
-    <footer id="contacto" class="bg-slate-900 text-slate-400 py-16 border-t border-slate-800">
-        <div class="max-w-7xl mx-auto px-6 grid md:grid-cols-4 gap-8 text-sm">
-            <div class="col-span-1 md:col-span-2">
-                <div class="flex items-center gap-2 mb-4 text-white">
-                    <img src="img/img/dark%20logo.png" alt="Buddy ERP Logo" class="h-8 w-auto">
-                    <span class="text-xl font-black tracking-tight">| ERP Buddy</span>
+    <footer class="bg-slate-900 text-slate-400 pt-14 pb-8 border-t border-slate-800 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 grid gap-10 sm:grid-cols-2 md:grid-cols-4 text-sm">
+            <div class="sm:col-span-2">
+                <div class="flex items-center gap-3 mb-4">
+                    <img src="/img/img/dark%20logo.png" alt="" class="h-8 w-auto">
+                    <span class="text-lg font-bold text-slate-300 border-l border-slate-700 pl-3">Buddy ERP</span>
                 </div>
-                <p class="max-w-xs mb-4">La herramienta definitiva para llevar tu negocio al siguiente nivel, sin complicaciones.</p>
+                <p class="max-w-xs">Tu partner en la administración de tu negocio. Simple, desde donde estés.</p>
             </div>
-            
             <div>
-                <h4 class="text-white font-bold mb-4 uppercase tracking-wider text-xs">Mapa del Sitio</h4>
+                <h4 class="text-white font-bold mb-4 uppercase tracking-wider text-xs">Mapa del sitio</h4>
                 <ul class="space-y-2">
                     <li><a href="/" class="hover:text-emerald-400 transition-colors">Inicio</a></li>
-                    <li><a href="/planes" class="hover:text-emerald-400 transition-colors">Ver Planes</a></li>
-                    <li><a href="/app" class="hover:text-emerald-400 transition-colors">Iniciar Sesión</a></li>
-                    <li><a href="/app?registro=true" class="hover:text-emerald-400 transition-colors">Crear Cuenta</a></li>
+                    <li><a href="/planes" class="hover:text-emerald-400 transition-colors">Planes</a></li>
+                    <li><a href="/contacto" class="hover:text-emerald-400 transition-colors">Contacto</a></li>
+                    <li><a href="/app" class="hover:text-emerald-400 transition-colors">Iniciar sesión</a></li>
                 </ul>
             </div>
-
             <div>
-                <h4 class="text-white font-bold mb-4 uppercase tracking-wider text-xs">Contacto & Legal</h4>
+                <h4 class="text-white font-bold mb-4 uppercase tracking-wider text-xs">Contacto y legal</h4>
                 <ul class="space-y-2">
-                    <li><a href="mailto:buddyerp@outlook.com" class="hover:text-emerald-400 transition-colors">Agendar Demo</a></li>
-                    <li><a href="#" class="hover:text-emerald-400 transition-colors">Términos y Condiciones</a></li>
-                    <li><a href="#" class="hover:text-emerald-400 transition-colors">Políticas de Privacidad</a></li>
+                    <li><a href="/contacto#demo" class="hover:text-emerald-400 transition-colors">Agendar demo</a></li>
+                    <li><a href="/terminos" class="hover:text-emerald-400 transition-colors">Términos y Condiciones</a></li>
+                    <li><a href="/privacidad" class="hover:text-emerald-400 transition-colors">Política de Privacidad</a></li>
                 </ul>
             </div>
         </div>
-        
-        <div class="max-w-7xl mx-auto px-6 mt-12 pt-8 border-t border-slate-800 text-center text-xs">
-            &copy; 2026 Buddy ERP. Marca Registrada. Todos los derechos reservados.
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 mt-12 pt-6 border-t border-slate-800 text-center text-xs">
+            &copy; 2026 Buddy ERP. Todos los derechos reservados.
         </div>
     </footer>
 
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
         <script>
             // Inicializamos las animaciones
-            AOS.init({
+            if (window.AOS) AOS.init({
                 duration: 800, 
                 once: true,    
                 offset: 100    
@@ -219,5 +222,16 @@
         });
     </script>   
 
+    <script>
+        (function () {
+            const btn = document.getElementById('btn-menu-movil');
+            const menu = document.getElementById('menu-movil');
+            if (!btn || !menu) return;
+            btn.addEventListener('click', function () {
+                const abierto = !menu.classList.toggle('hidden');
+                btn.setAttribute('aria-expanded', String(abierto));
+            });
+        })();
+    </script>
 </body>
 </html>

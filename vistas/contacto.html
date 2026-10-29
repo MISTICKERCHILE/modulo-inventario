@@ -7,7 +7,7 @@
     
     <link rel="icon" type="image/png" href="/img/img/favicon.png">
 
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/css/sitio.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
     <style>
@@ -21,26 +21,31 @@
         <p class="text-emerald-600 font-bold mt-4 animate-pulse tracking-widest text-sm">CARGANDO...</p>
     </div>
 
-    <header class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
-        <div class="py-3 px-6 border-b border-slate-100">
-            <div class="max-w-7xl mx-auto flex items-center justify-between">
-                <a href="/" class="flex items-center gap-2">
-                    <img src="/img/img/light%20logo.png" alt="Buddy ERP Logo" class="h-10 w-auto">
-                    <span class="text-2xl font-black text-slate-800 tracking-tight">| ERP Buddy</span>
-                </a>
-                <div class="flex items-center gap-4">
-                    <a href="/app" class="text-slate-600 font-bold hover:text-emerald-600 text-sm transition-colors">Iniciar Sesión</a>
-                    <a href="/app?registro=true" class="bg-emerald-600 text-white px-5 py-2 rounded-lg font-bold hover:bg-emerald-700 shadow-sm transition-all text-sm">Registrarse</a>
-                </div>
+    <header class="bg-white/95 backdrop-blur border-b border-slate-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+            <a href="/" class="flex items-center gap-3 shrink-0" aria-label="Buddy ERP, inicio">
+                <img src="/img/img/light%20logo.png" alt="" class="h-9 w-auto">
+                <span class="hidden sm:inline text-lg font-bold text-slate-500 tracking-tight border-l border-slate-200 pl-3">Buddy ERP</span>
+            </a>
+            <nav class="hidden md:flex items-center gap-8" aria-label="Principal">
+                <a href="/" class="text-sm font-semibold transition-colors text-slate-500 hover:text-emerald-600">Inicio</a>
+                <a href="/planes" class="text-sm font-semibold transition-colors text-slate-500 hover:text-emerald-600">Planes</a>
+                <a href="/contacto" class="text-sm font-semibold transition-colors text-emerald-600" aria-current="page">Contacto</a>
+            </nav>
+            <div class="flex items-center gap-2 sm:gap-3">
+                <a href="/app" class="text-sm font-bold text-slate-600 hover:text-emerald-600 whitespace-nowrap px-2 py-2">Iniciar sesión</a>
+                <a href="/app?registro=true" class="hidden sm:inline-flex bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-emerald-700 shadow-sm transition-colors text-sm whitespace-nowrap">Registrarse</a>
+                <button type="button" id="btn-menu-movil" class="md:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100" aria-label="Abrir menú" aria-expanded="false" aria-controls="menu-movil">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" d="M4 7h16M4 12h16M4 17h16"/></svg>
+                </button>
             </div>
         </div>
-        <nav class="py-3 px-6 bg-slate-50/80 backdrop-blur-sm">
-            <div class="max-w-7xl mx-auto flex justify-center md:justify-start gap-8 font-bold text-slate-500 text-sm">
-                <a href="/" class="hover:text-emerald-600 transition-colors">Inicio</a>
-                <a href="/planes" class="hover:text-emerald-600 transition-colors">Planes</a>
-                <a href="/contacto" class="text-emerald-600 border-b-2 border-emerald-600 pb-1">Contacto</a>
-            </div>
-        </nav>
+        <div id="menu-movil" class="md:hidden hidden border-t border-slate-100 bg-white px-4 py-3 space-y-1">
+            <a href="/" class="block px-3 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50">Inicio</a>
+            <a href="/planes" class="block px-3 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50">Planes</a>
+            <a href="/contacto" class="block px-3 py-2 rounded-lg text-sm font-semibold bg-emerald-50 text-emerald-700" aria-current="page">Contacto</a>
+            <a href="/app?registro=true" class="block mt-2 text-center bg-emerald-600 text-white px-4 py-2.5 rounded-lg font-bold text-sm">Registrarse</a>
+        </div>
     </header>
 
     <main class="flex-grow py-20 px-6">
@@ -51,40 +56,58 @@
                 <p class="text-xl text-slate-500 max-w-2xl mx-auto">Agenda una demostración guiada de 30 minutos o escríbenos si tienes dudas puntuales.</p>
             </div>
 
+            <section id="demo" class="max-w-5xl mx-auto mb-16 scroll-mt-24" data-aos="fade-up">
+                <div class="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden">
+                    <div class="px-6 sm:px-10 pt-8 pb-4 text-center md:text-left">
+                        <span class="inline-block bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide border border-emerald-200">Demo gratuita · 30 min</span>
+                        <h2 class="text-2xl md:text-3xl font-bold text-slate-800 mt-3">Agenda tu demostración</h2>
+                        <p class="text-slate-500 mt-1">Elige el día y la hora que te acomoden. Te mostramos Buddy con ejemplos de tu propio negocio.</p>
+                    </div>
+                    <div id="calendario-demo" class="w-full min-h-[640px] px-2 sm:px-4 pb-4"></div>
+                    <p class="text-center text-sm text-slate-500 pb-6 px-6">¿No carga el calendario? <a href="https://cal.com/buddyerp/30min" target="_blank" rel="noopener" class="text-emerald-700 font-semibold underline">Ábrelo aquí</a>.</p>
+                </div>
+            </section>
+
+            <div class="text-center mb-8" data-aos="fade-up">
+                <h2 class="text-2xl font-bold text-slate-800">¿Prefieres escribirnos?</h2>
+            </div>
+
             <div class="max-w-3xl mx-auto" data-aos="fade-up" data-aos-delay="100">
                 <div class="bg-white p-8 md:p-10 rounded-3xl border border-slate-200 shadow-xl relative">
                     <div class="absolute top-0 right-8 transform -translate-y-1/2 bg-emerald-100 text-emerald-800 px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wide border border-emerald-200">
                         Contacto Directo
                     </div>
                     
-                    <h3 class="text-2xl font-bold text-slate-800 mb-6 text-center md:text-left">Escríbenos</h3>
+                    <h3 class="text-2xl font-bold text-slate-800 mb-6 text-center md:text-left">Envíanos un mensaje</h3>
                     
-                    <form class="space-y-5">
+                    <form id="form-contacto" class="space-y-5" novalidate>
+                        <div class="hidden" aria-hidden="true"><label>Sitio web <input type="text" name="sitio_web" tabindex="-1" autocomplete="off"></label></div>
                         <div class="grid md:grid-cols-2 gap-5">
                             <div>
                                 <label class="block text-sm font-bold text-slate-700 mb-1">Tu Nombre</label>
-                                <input type="text" placeholder="Ej: Juan Pérez" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all bg-slate-50 focus:bg-white" required>
+                                <input type="text" name="nombre" maxlength="120" placeholder="Ej: Juan Pérez" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all bg-slate-50 focus:bg-white" required>
                             </div>
                             <div>
                                 <label class="block text-sm font-bold text-slate-700 mb-1">Nombre de la Empresa</label>
-                                <input type="text" placeholder="Ej: Mi Pyme SpA" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all bg-slate-50 focus:bg-white" required>
+                                <input type="text" name="empresa" maxlength="160" placeholder="Ej: Mi Pyme SpA" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all bg-slate-50 focus:bg-white">
                             </div>
                         </div>
 
                         <div>
                             <label class="block text-sm font-bold text-slate-700 mb-1">Correo Electrónico</label>
-                            <input type="email" placeholder="correo@empresa.cl" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all bg-slate-50 focus:bg-white" required>
+                            <input type="email" name="email" maxlength="254" placeholder="correo@empresa.cl" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all bg-slate-50 focus:bg-white" required>
                         </div>
 
                         <div>
                             <label class="block text-sm font-bold text-slate-700 mb-1">Asunto</label>
                             <div class="relative">
-                                <select class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all bg-slate-50 focus:bg-white appearance-none cursor-pointer text-slate-700 font-medium" required>
+                                <select name="asunto" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all bg-slate-50 focus:bg-white appearance-none cursor-pointer text-slate-700 font-medium" required>
                                     <option value="" disabled selected>Selecciona una opción...</option>
                                     <option value="General">General</option>
-                                    <option value="Agendar Demo">Agendar Demo</option>
+                                    <option value="Agendar Demo">Agendar una demo</option>
+                                    <option value="Planes y precios">Planes y precios</option>
+                                    <option value="Soporte">Soporte</option>
                                     <option value="Sugerencia">Sugerencia</option>
-                                    <option value="Felicitaciones">Felicitaciones</option>
                                     <option value="Otros">Otros</option>
                                 </select>
                                 <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
@@ -95,10 +118,12 @@
 
                         <div>
                             <label class="block text-sm font-bold text-slate-700 mb-1">Mensaje / ¿En qué te podemos ayudar?</label>
-                            <textarea rows="5" placeholder="Escribe aquí tu mensaje..." class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all bg-slate-50 focus:bg-white resize-none" required></textarea>
+                            <textarea name="mensaje" rows="5" maxlength="5000" placeholder="Escribe aquí tu mensaje..." class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all bg-slate-50 focus:bg-white resize-none" required></textarea>
                         </div>
 
-                        <button type="submit" class="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all text-lg mt-4">
+                        <div id="contacto-estado" class="hidden rounded-xl px-4 py-3 text-sm font-semibold" role="status"></div>
+
+                        <button type="submit" id="btn-enviar-contacto" class="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all text-lg mt-4 disabled:opacity-60 disabled:cursor-wait">
                             Enviar Mensaje
                         </button>
                     </form>
@@ -109,40 +134,40 @@
         </div>
     </main>
 
-    <footer class="bg-slate-900 text-slate-400 py-16 border-t border-slate-800 mt-auto">
-        <div class="max-w-7xl mx-auto px-6 grid md:grid-cols-4 gap-8 text-sm">
-            <div class="col-span-1 md:col-span-2">
-                <div class="flex items-center gap-2 mb-4 text-white">
-                    <img src="/img/img/dark%20logo.png" alt="Buddy ERP Logo" class="h-8 w-auto">
-                    <span class="text-xl font-black tracking-tight">| Buddy ERP</span>
+    <footer class="bg-slate-900 text-slate-400 pt-14 pb-8 border-t border-slate-800 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 grid gap-10 sm:grid-cols-2 md:grid-cols-4 text-sm">
+            <div class="sm:col-span-2">
+                <div class="flex items-center gap-3 mb-4">
+                    <img src="/img/img/dark%20logo.png" alt="" class="h-8 w-auto">
+                    <span class="text-lg font-bold text-slate-300 border-l border-slate-700 pl-3">Buddy ERP</span>
                 </div>
-                <p class="max-w-xs mb-4">La herramienta definitiva para llevar tu negocio al siguiente nivel, sin complicaciones.</p>
+                <p class="max-w-xs">Tu partner en la administración de tu negocio. Simple, desde donde estés.</p>
             </div>
             <div>
-                <h4 class="text-white font-bold mb-4 uppercase tracking-wider text-xs">Mapa del Sitio</h4>
+                <h4 class="text-white font-bold mb-4 uppercase tracking-wider text-xs">Mapa del sitio</h4>
                 <ul class="space-y-2">
                     <li><a href="/" class="hover:text-emerald-400 transition-colors">Inicio</a></li>
-                    <li><a href="/planes" class="hover:text-emerald-400 transition-colors">Ver Planes</a></li>
-                    <li><a href="/app" class="hover:text-emerald-400 transition-colors">Iniciar Sesión</a></li>
-                    <li><a href="/app?registro=true" class="hover:text-emerald-400 transition-colors">Crear Cuenta</a></li>
+                    <li><a href="/planes" class="hover:text-emerald-400 transition-colors">Planes</a></li>
+                    <li><a href="/contacto" class="hover:text-emerald-400 transition-colors">Contacto</a></li>
+                    <li><a href="/app" class="hover:text-emerald-400 transition-colors">Iniciar sesión</a></li>
                 </ul>
             </div>
             <div>
-                <h4 class="text-white font-bold mb-4 uppercase tracking-wider text-xs">Contacto & Legal</h4>
+                <h4 class="text-white font-bold mb-4 uppercase tracking-wider text-xs">Contacto y legal</h4>
                 <ul class="space-y-2">
-                    <li><a href="/contacto" class="hover:text-emerald-400 transition-colors">Agendar Demo</a></li>
-                    <li><a href="#" class="hover:text-emerald-400 transition-colors">Términos y Condiciones</a></li>
-                    <li><a href="#" class="hover:text-emerald-400 transition-colors">Políticas de Privacidad</a></li>
+                    <li><a href="/contacto#demo" class="hover:text-emerald-400 transition-colors">Agendar demo</a></li>
+                    <li><a href="/terminos" class="hover:text-emerald-400 transition-colors">Términos y Condiciones</a></li>
+                    <li><a href="/privacidad" class="hover:text-emerald-400 transition-colors">Política de Privacidad</a></li>
                 </ul>
             </div>
         </div>
-        <div class="max-w-7xl mx-auto px-6 mt-12 pt-8 border-t border-slate-800 text-center text-xs">
-            &copy; 2026 Buddy ERP. Marca Registrada. Todos los derechos reservados.
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 mt-12 pt-6 border-t border-slate-800 text-center text-xs">
+            &copy; 2026 Buddy ERP. Todos los derechos reservados.
         </div>
     </footer>
 
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
-    <script>AOS.init({ duration: 800, once: true, offset: 50 });</script>
+    <script>if (window.AOS) AOS.init({ duration: 800, once: true, offset: 50 });</script>
 
     <script>
         window.addEventListener('load', function() {
@@ -154,5 +179,84 @@
         });
     </script>
     
+    <script>
+        (function () {
+            const btn = document.getElementById('btn-menu-movil');
+            const menu = document.getElementById('menu-movil');
+            if (!btn || !menu) return;
+            btn.addEventListener('click', function () {
+                const abierto = !menu.classList.toggle('hidden');
+                btn.setAttribute('aria-expanded', String(abierto));
+            });
+        })();
+    </script>
+    <script>
+        (function () {
+            const form = document.getElementById('form-contacto');
+            if (!form) return;
+            const estado = document.getElementById('contacto-estado');
+            const boton = document.getElementById('btn-enviar-contacto');
+            const cargadoEn = Date.now();
+
+            // /contacto#demo preselecciona "Agendar una demo"
+            const params = new URLSearchParams(location.search);
+            if (params.get('asunto') === 'demo' || location.hash === '#demo') form.asunto.value = 'Agendar Demo';
+
+            function mostrar(tipo, html) {
+                estado.className = 'rounded-xl px-4 py-3 text-sm font-semibold ' +
+                    (tipo === 'ok' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                                   : 'bg-amber-50 text-amber-800 border border-amber-200');
+                estado.innerHTML = html;
+            }
+
+            function enlaceCorreo(d) {
+                const cuerpo = `Nombre: ${d.nombre}\nEmpresa: ${d.empresa}\nCorreo: ${d.email}\n\n${d.mensaje}`;
+                return 'mailto:buddyerp@outlook.com?subject=' + encodeURIComponent('[Web] ' + d.asunto) +
+                       '&body=' + encodeURIComponent(cuerpo);
+            }
+
+            form.addEventListener('submit', async function (e) {
+                e.preventDefault();
+                if (!form.reportValidity()) return;
+
+                const d = Object.fromEntries(new FormData(form).entries());
+                d.ms_llenado = Date.now() - cargadoEn;
+
+                boton.disabled = true;
+                const textoBoton = boton.textContent;
+                boton.textContent = 'Enviando...';
+
+                try {
+                    const r = await fetch('/api/contacto', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(d)
+                    });
+                    const res = await r.json().catch(() => ({}));
+                    if (r.ok && res.ok) {
+                        form.reset();
+                        mostrar('ok', '¡Gracias! Recibimos tu mensaje y te responderemos a la brevedad.');
+                    } else if (res.error === 'datos_invalidos') {
+                        mostrar('aviso', 'Revisa los datos: falta información o el correo no es válido.');
+                    } else {
+                        mostrar('aviso', 'No pudimos enviar el mensaje desde aquí. ' +
+                            `<a class="underline" href="${enlaceCorreo(d)}">Envíalo desde tu correo</a> o escríbenos a buddyerp@outlook.com.`);
+                    }
+                } catch (_) {
+                    mostrar('aviso', 'Sin conexión. Intenta nuevamente o escríbenos a buddyerp@outlook.com.');
+                } finally {
+                    boton.disabled = false;
+                    boton.textContent = textoBoton;
+                }
+            });
+        })();
+    </script>
+    <script>
+        // Calendario de Cal.com (agendamiento de demos)
+        (function (C, A, L) { let p = function (a, ar) { a.q.push(ar); }; let d = C.document; C.Cal = C.Cal || function () { let cal = C.Cal; let ar = arguments; if (!cal.loaded) { cal.ns = {}; cal.q = cal.q || []; d.head.appendChild(d.createElement("script")).src = A; cal.loaded = true; } if (ar[0] === L) { const api = function () { p(api, arguments); }; const namespace = ar[1]; api.q = api.q || []; if (typeof namespace === "string") { cal.ns[namespace] = cal.ns[namespace] || api; p(cal.ns[namespace], ar); p(cal, ["initNamespace", namespace]); } else p(cal, ar); return; } p(cal, ar); }; })(window, "https://app.cal.com/embed/embed.js", "init");
+        Cal("init", "demo", { origin: "https://cal.com" });
+        Cal.ns.demo("inline", { elementOrSelector: "#calendario-demo", calLink: "buddyerp/30min", config: { layout: "month_view", theme: "light" } });
+        Cal.ns.demo("ui", { theme: "light", hideEventTypeDetails: false, layout: "month_view", cssVarsPerTheme: { light: { "cal-brand": "#059669" } } });
+    </script>
 </body>
 </html>
