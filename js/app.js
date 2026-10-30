@@ -191,6 +191,20 @@ document.getElementById('form-login-view').addEventListener('submit', async (e) 
 });
 
 // 2. PASO 1 DE EMPRESA NUEVA
+// País de operación: "Otro" despliega la lista de países
+window.paisSeleccionadoRegistro = function() {
+    const pais = document.getElementById('reg-pais').value;
+    return pais === 'Otro' ? (document.getElementById('reg-pais-otro').value || 'Otro') : pais;
+}
+document.getElementById('reg-pais')?.addEventListener('change', (e) => {
+    const otro = document.getElementById('reg-pais-otro');
+    if (!otro) return;
+    const esOtro = e.target.value === 'Otro';
+    otro.classList.toggle('hidden', !esOtro);
+    otro.required = esOtro;
+    if (esOtro) otro.focus(); else otro.value = '';
+});
+
 document.getElementById('form-register-step-1').addEventListener('submit', async (e) => {
     e.preventDefault();
     const rutInputRaw = document.getElementById('reg-rut').value;
@@ -243,7 +257,7 @@ document.getElementById('form-register-step-2').addEventListener('submit', async
 
     const datosMeta = {
         tipo_registro: 'nueva_empresa',
-        pais: document.getElementById('reg-pais').value,
+        pais: window.paisSeleccionadoRegistro(),
         rut_empresa: document.getElementById('reg-rut').value.replace(/[\.\-]/g, '').trim().toUpperCase(),
         nombre_empresa: document.getElementById('reg-razon-social').value.trim(),
         nombre_comercial: document.getElementById('reg-nombre-comercial').value.trim(),
@@ -312,7 +326,14 @@ document.getElementById('form-register-invite').addEventListener('submit', async
     // B. La base de datos crea el perfil, la membresía y cierra la invitación en una sola operación
     const { error: errAceptar } = await clienteSupabase.rpc('aceptar_invitacion', {
         p_id: idInvitacion,
-        p_perfil: { nombre: nombre, apellido: apellido, rut: rutPersonal, pin: pin }
+        p_perfil: {
+            nombre: nombre,
+            apellido: apellido,
+            rut: rutPersonal,
+            pin: pin,
+            telefono: document.getElementById('inv-user-telefono').value.trim(),
+            fecha_nacimiento: document.getElementById('inv-user-nacimiento').value
+        }
     });
 
     if (errAceptar) {
@@ -368,6 +389,7 @@ window.iniciarSesionEmpresa = async function(id, nombre, email, nombreUsuario, r
 
     if(window.actualizarTopBar) window.actualizarTopBar(nombre, rol);
     if (window.aplicarPermisosVisuales) window.aplicarPermisosVisuales();
+    if (window.revisarPerfilCompleto) window.revisarPerfilCompleto(); // sin await: no bloquea la carga
 
     const urlParams = new URLSearchParams(window.location.search);
     const vistaDirecta = urlParams.get('v');
@@ -631,12 +653,19 @@ window.actualizarTopBar = function(nombreEmpresa, rolUsuario) {
 }
 
 // --- UTILIDAD: Mostrar/Ocultar Contraseñas y PIN ---
-window.togglePasswordVisibility = function(inputId) {
+window.togglePasswordVisibility = function(inputId, boton) {
     const input = document.getElementById(inputId);
-    if (input.type === "password") {
-        input.type = "text";
-    } else {
-        input.type = "password";
+    if (!input) return;
+    const mostrar = input.type === "password";
+    input.type = mostrar ? "text" : "password";
+
+    // Ícono: ojo abierto = "mostrar"; ojo tachado = "ocultar"
+    const icono = boton?.querySelector('img');
+    if (icono) icono.src = mostrar ? '/img/iconos/ojo-ocultar.svg' : '/img/iconos/ojo-mostrar.svg';
+    if (boton) {
+        const texto = mostrar ? 'Ocultar contraseña' : 'Mostrar contraseña';
+        boton.setAttribute('aria-label', texto);
+        boton.setAttribute('title', texto);
     }
 }
 
@@ -679,6 +708,81 @@ window.validarPasswordsInv = function() {
         msg.className = "col-span-2 text-[10px] font-bold mt-0 text-red-500";
     }
 }
+
+// ============================================================================
+// MI PERFIL (completar o editar los datos del usuario)
+// ============================================================================
+
+window.abrirMiPerfil = async function(obligatorio = false) {
+    const { data: { user } } = await clienteSupabase.auth.getUser();
+    if (!user) return;
+
+    const { data: perfil } = await clienteSupabase.from('perfiles')
+        .select('nombre, apellido, email, telefono, fecha_nacimiento, rut_o_identificacion')
+        .eq('id_usuario', user.id).maybeSingle();
+
+    const email = perfil?.email || user.email || '';
+    // Si el nombre es solo la primera parte del correo, lo dejamos vacío para que lo escriba
+    const nombre = perfil?.nombre && perfil.nombre.toLowerCase() !== email.split('@')[0].toLowerCase() ? perfil.nombre : '';
+
+    document.getElementById('perfil-nombre').value = nombre;
+    document.getElementById('perfil-apellido').value = perfil?.apellido || '';
+    document.getElementById('perfil-rut').value = perfil?.rut_o_identificacion || '';
+    document.getElementById('perfil-telefono').value = perfil?.telefono || '';
+    document.getElementById('perfil-nacimiento').value = perfil?.fecha_nacimiento || '';
+    document.getElementById('perfil-email').value = email;
+    document.getElementById('perfil-error').classList.add('hidden');
+
+    document.getElementById('perfil-titulo').innerText = obligatorio ? 'Completa tu perfil' : 'Mi perfil';
+    document.getElementById('perfil-subtitulo').innerText = obligatorio
+        ? 'Nos faltan algunos datos tuyos. Así tu equipo te reconoce y podemos ayudarte mejor.'
+        : 'Actualiza tus datos personales.';
+    document.getElementById('btn-perfil-despues').innerText = obligatorio ? 'Más tarde' : 'Cancelar';
+
+    document.getElementById('modal-mi-perfil').classList.remove('hidden');
+    document.getElementById('perfil-nombre').focus();
+}
+
+window.cerrarMiPerfil = function(pospuesto = false) {
+    document.getElementById('modal-mi-perfil').classList.add('hidden');
+    // "Más tarde": no volvemos a preguntar durante esta sesión del navegador
+    if (pospuesto) { try { sessionStorage.setItem('perfil_pospuesto', '1'); } catch (_) {} }
+}
+
+window.revisarPerfilCompleto = async function() {
+    try { if (sessionStorage.getItem('perfil_pospuesto') === '1') return; } catch (_) {}
+    const { data: incompleto, error } = await clienteSupabase.rpc('perfil_incompleto');
+    if (!error && incompleto === true) window.abrirMiPerfil(true);
+}
+
+document.getElementById('form-mi-perfil')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('btn-perfil-guardar');
+    const errorEl = document.getElementById('perfil-error');
+    btn.disabled = true; btn.innerText = 'Guardando...';
+
+    const datos = {
+        nombre: document.getElementById('perfil-nombre').value.trim(),
+        apellido: document.getElementById('perfil-apellido').value.trim(),
+        rut: document.getElementById('perfil-rut').value.trim(),
+        telefono: document.getElementById('perfil-telefono').value.trim(),
+        fecha_nacimiento: document.getElementById('perfil-nacimiento').value
+    };
+
+    const { error } = await clienteSupabase.rpc('actualizar_mi_perfil', { p_datos: datos });
+    btn.disabled = false; btn.innerText = 'Guardar';
+
+    if (error) {
+        errorEl.innerText = '❌ ' + error.message;
+        errorEl.classList.remove('hidden');
+        return;
+    }
+
+    window.cerrarMiPerfil(false);
+    const spanUsuario = document.getElementById('user-name-display');
+    if (spanUsuario) spanUsuario.innerText = datos.nombre;
+    window.usuarioActual = datos.nombre;
+});
 
 // ============================================================================
 // PIN DEL POS (asignación sin necesidad de entrar al POS)
