@@ -358,20 +358,9 @@ window.iniciarSesionEmpresa = async function(id, nombre, email, nombreUsuario, r
         id: id, nombre: nombre, email: email, nombreUsuario: nombreUsuario, rol: rol
     }));
 
-    // 👇 NUEVO: Vamos a buscar las suscripciones de esta empresa
-    try {
-        const { data: empresaData } = await clienteSupabase
-            .from('empresas')
-            .select('suscripciones')
-            .eq('id', id)
-            .single();
-        
-        // Si por alguna razón está vacío, le damos un objeto vacío por defecto
-        window.suscripcionesEmpresa = empresaData?.suscripciones || {};
-    } catch (e) {
-        console.error("Error obteniendo suscripciones:", e);
-        window.suscripcionesEmpresa = {};
-    }
+    // Suscripción: la base de datos calcula qué módulos puede usar la empresa
+    // (contratados por Zeus o en prueba gratuita vigente) y los días de prueba.
+    await window.cargarEstadoSuscripcion(id);
 
     const login = document.getElementById('login-container');
     const selector = document.getElementById('selector-empresa-container');
@@ -529,17 +518,21 @@ window.cambiarVista = async function(vista) {
             b.classList.add('hover:bg-slate-700');
         });
 
-        // Mostramos el Paywall (Aviso) dependiendo del Rol
-        const esAdmin = (window.miRol === 'Dueño' || window.miRol === 'Administrador Supremo');
-        
+        // Mostramos el aviso de módulo bloqueado dependiendo del Rol
+        const esAdmin = ['Dueño', 'Admin', 'Administrador Supremo'].includes(window.miRol);
+        const pruebaVencida = window.estadoSuscripcion?.prueba_vencida === true;
+
         main.innerHTML = `
-            <div class="flex flex-col items-center justify-center h-full text-center space-y-6">
+            <div class="flex flex-col items-center justify-center h-full text-center space-y-6 px-4">
                 <div class="text-6xl">🔒</div>
-                <h2 class="text-3xl font-bold text-slate-800">Módulo Bloqueado</h2>
-                <p class="text-slate-600 max-w-md">El módulo de <strong>${nombreModulo}</strong> no está activo en tu plan actual.</p>
-                ${esAdmin 
-                    ? `<button onclick="alert('Abriendo pasarela de pagos...')" class="bg-emerald-600 text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:bg-emerald-700 transition-colors">Actualizar Plan y Desbloquear</button>` 
-                    : `<p class="bg-orange-100 text-orange-800 px-6 py-3 rounded-lg font-medium border border-orange-200">Contacta al líder o Dueño de tu empresa para gestionar el acceso.</p>`}
+                <h2 class="text-3xl font-bold text-slate-800">Módulo bloqueado</h2>
+                <p class="text-slate-600 max-w-md">${pruebaVencida
+                    ? `Tu prueba gratuita terminó. El módulo de <strong>${nombreModulo}</strong> está en pausa, pero <strong>tu información sigue guardada</strong>.`
+                    : `El módulo de <strong>${nombreModulo}</strong> no está activo en tu plan actual.`}</p>
+                ${esAdmin
+                    ? `<a href="/contacto?asunto=planes" target="_blank" rel="noopener" class="bg-emerald-600 text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:bg-emerald-700 transition-colors">Activar ${nombreModulo}</a>
+                       <a href="/planes" target="_blank" rel="noopener" class="text-sm font-semibold text-emerald-700 underline underline-offset-2">Ver planes y precios</a>`
+                    : `<p class="bg-orange-100 text-orange-800 px-6 py-3 rounded-lg font-medium border border-orange-200">Contacta al Dueño o Administrador de tu empresa para activar este módulo.</p>`}
             </div>
         `;
         return; // Detenemos la función aquí, NO CARGA LA VISTA
@@ -707,6 +700,64 @@ window.validarPasswordsInv = function() {
         msg.innerText = "❌ Las contraseñas no coinciden";
         msg.className = "col-span-2 text-[10px] font-bold mt-0 text-red-500";
     }
+}
+
+// ============================================================================
+// SUSCRIPCIÓN Y PRUEBA GRATUITA
+// ============================================================================
+
+window.estadoSuscripcion = null;
+
+window.cargarEstadoSuscripcion = async function(idEmpresa) {
+    window.suscripcionesEmpresa = {};
+    window.estadoSuscripcion = null;
+    try {
+        const { data, error } = await clienteSupabase.rpc('estado_suscripcion', { p_id_empresa: idEmpresa });
+        if (error) throw error;
+        window.estadoSuscripcion = data;
+        // Mismo formato que usa el control de acceso de cambiarVista()
+        Object.entries(data?.modulos || {}).forEach(([modulo, disponible]) => {
+            window.suscripcionesEmpresa[modulo] = { activo: disponible === true };
+        });
+    } catch (e) {
+        console.error("Error obteniendo la suscripción:", e);
+    }
+    window.mostrarBarraPrueba();
+}
+
+window.mostrarBarraPrueba = function() {
+    const barra = document.getElementById('barra-prueba');
+    const texto = document.getElementById('barra-prueba-texto');
+    const cta = document.getElementById('barra-prueba-cta');
+    const est = window.estadoSuscripcion;
+    if (!barra || !texto || !est) return;
+
+    let oculta = false;
+    try { oculta = sessionStorage.getItem('barra_prueba_oculta') === window.miEmpresaId; } catch (_) {}
+
+    const esAdmin = ['Dueño', 'Admin', 'Administrador Supremo'].includes(window.miRol);
+    const algunoContratado = Object.values(est.contratados || {}).some(Boolean);
+    barra.className = 'hidden shrink-0 px-4 md:px-6 py-2 text-sm flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center border-b';
+
+    if (est.en_prueba && !algunoContratado && !oculta) {
+        const d = est.dias_restantes;
+        texto.innerHTML = d <= 3
+            ? `⏳ <strong>Tu prueba gratuita termina ${d === 1 ? 'mañana' : 'en ' + d + ' días'}.</strong>`
+            : `🎁 Estás en tu prueba gratuita: te quedan <strong>${d} días</strong> con todos los módulos.`;
+        barra.classList.remove('hidden');
+        barra.classList.add(...(d <= 3 ? ['bg-amber-50', 'text-amber-900', 'border-amber-200'] : ['bg-emerald-50', 'text-emerald-900', 'border-emerald-200']));
+        cta.classList.toggle('hidden', !esAdmin);
+    } else if (est.prueba_vencida && !algunoContratado) {
+        texto.innerHTML = '🔒 <strong>Tu prueba gratuita terminó.</strong> Tus datos están guardados: elige tu plan para seguir usando Buddy.';
+        barra.classList.remove('hidden');
+        barra.classList.add('bg-slate-800', 'text-white', 'border-slate-700');
+        cta.classList.toggle('hidden', !esAdmin);
+    }
+}
+
+window.cerrarBarraPrueba = function() {
+    document.getElementById('barra-prueba')?.classList.add('hidden');
+    try { sessionStorage.setItem('barra_prueba_oculta', window.miEmpresaId); } catch (_) {}
 }
 
 // ============================================================================

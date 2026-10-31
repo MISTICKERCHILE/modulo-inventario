@@ -362,6 +362,13 @@
             </div>
         </header>
 
+        <!-- AVISO DE PRUEBA GRATUITA / PRUEBA VENCIDA -->
+        <div id="barra-prueba" class="hidden shrink-0 px-4 md:px-6 py-2 text-sm flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center border-b" role="status">
+            <span id="barra-prueba-texto"></span>
+            <a id="barra-prueba-cta" href="/contacto?asunto=planes" target="_blank" rel="noopener" class="font-bold underline underline-offset-2 whitespace-nowrap">Elegir mi plan</a>
+            <button type="button" onclick="cerrarBarraPrueba()" class="ml-1 opacity-60 hover:opacity-100 font-bold" aria-label="Ocultar aviso">✕</button>
+        </div>
+
         <div class="flex flex-1 overflow-hidden relative">
             <div id="sidebar-backdrop" class="fixed inset-0 bg-slate-900/60 z-30 hidden md:hidden backdrop-blur-sm" onclick="toggleMenu()"></div>
 

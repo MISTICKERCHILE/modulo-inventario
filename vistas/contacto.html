@@ -201,6 +201,10 @@
             // /contacto#demo preselecciona "Agendar una demo"
             const params = new URLSearchParams(location.search);
             if (params.get('asunto') === 'demo' || location.hash === '#demo') form.asunto.value = 'Agendar Demo';
+            if (params.get('asunto') === 'planes') {
+                form.asunto.value = 'Planes y precios';
+                document.getElementById('form-contacto').scrollIntoView({ block: 'start' });
+            }
 
             function mostrar(tipo, html) {
                 estado.className = 'rounded-xl px-4 py-3 text-sm font-semibold ' +
