@@ -184,6 +184,7 @@ async function cargarTablaEmpresasZeus() {
     window.listaEmpresasGlobal = empresas || [];
     renderizarKpisZeus(window.listaEmpresasGlobal);
     renderizarTablaEmpresas(window.listaEmpresasGlobal);
+    cargarReferidosZeus();
 }
 window.cargarTablaEmpresasZeus = cargarTablaEmpresasZeus;
 
@@ -384,4 +385,34 @@ window.cambiarEstadoModulo = async function(empresaId, modulo, nuevoEstado) {
     // Solo actualizamos la pantalla cuando la base confirmó el cambio
     empresa.suscripciones = nuevasSuscripciones;
     renderizarTablaEmpresas(window.listaEmpresasGlobal);
+}
+
+
+// Tabla de recomendaciones (quién recomendó a quién y si ya se ganó el mes)
+async function cargarReferidosZeus() {
+    const tbody = document.getElementById('zs-tabla-referidos');
+    if (!tbody) return;
+    const { data, error } = await window.clienteSupabase.rpc('zeus_referidos');
+    if (error) {
+        tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-red-400">Error: ${escZ(error.message)}</td></tr>`;
+        return;
+    }
+    if (!data || data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-slate-500">Aún no hay empresas recomendadas.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = data.map(r => {
+        const enPrueba = r.prueba_hasta && new Date(r.prueba_hasta) > new Date();
+        const estado = r.mes_ganado_en
+            ? `<span class="text-[11px] font-bold border rounded-full px-2 py-0.5 bg-emerald-500/15 text-emerald-300 border-emerald-600/50">Cliente · mes ganado ${fechaCorta(r.mes_ganado_en)}</span>`
+            : enPrueba
+                ? '<span class="text-[11px] font-bold border rounded-full px-2 py-0.5 bg-sky-500/15 text-sky-300 border-sky-600/50">En prueba</span>'
+                : '<span class="text-[11px] font-bold border rounded-full px-2 py-0.5 bg-slate-600/30 text-slate-300 border-slate-600">Sin plan</span>';
+        return `<tr>
+            <td class="p-4"><div class="font-bold text-white">${escZ(r.referente)}</div><div class="text-xs font-mono text-slate-500">${escZ(r.codigo)}</div></td>
+            <td class="p-4 font-semibold">${escZ(r.referida)}</td>
+            <td class="p-4 text-xs">${fechaCorta(r.desde)}</td>
+            <td class="p-4">${estado}</td>
+        </tr>`;
+    }).join('');
 }
