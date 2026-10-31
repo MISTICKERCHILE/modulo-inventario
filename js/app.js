@@ -169,6 +169,9 @@ document.getElementById('form-login-view').addEventListener('submit', async (e) 
     const { data: perfil } = await clienteSupabase.from('perfiles').select('nombre').eq('id_usuario', data.user.id).maybeSingle();
     const nombreReal = perfil?.nombre || emailInput.split('@')[0];
 
+    // Invitaciones pendientes a su correo (por si entró sin usar el link del correo)
+    await window.ofrecerInvitacionesPendientes();
+
     const { data: empresasAsignadas } = await clienteSupabase.from('usuarios_empresas').select('id_empresa, nombre_empresa, rol').eq('id_usuario', data.user.id);
 
     if (!empresasAsignadas || empresasAsignadas.length === 0) {
@@ -189,6 +192,24 @@ document.getElementById('form-login-view').addEventListener('submit', async (e) 
         `).join('');
     }
 });
+
+window.ofrecerInvitacionesPendientes = async function() {
+    try {
+        const { data: pendientes, error } = await clienteSupabase.rpc('mis_invitaciones_pendientes');
+        if (error || !pendientes || pendientes.length === 0) return;
+        for (const inv of pendientes) {
+            const rol = inv.rol === 'Admin' ? 'Administrador' : inv.rol;
+            const quien = inv.invitado_por ? ` (te invitó ${inv.invitado_por})` : '';
+            if (!confirm(`📩 Tienes una invitación para unirte a "${inv.nombre_empresa}" como ${rol}${quien}.\n\n¿Quieres aceptarla ahora?`)) continue;
+            const { error: errAceptar } = await clienteSupabase.rpc('aceptar_invitacion', { p_id: inv.id });
+            alert(errAceptar
+                ? `⚠️ No se pudo aceptar la invitación: ${errAceptar.message}`
+                : `🎉 ¡Listo! Ya eres parte de ${inv.nombre_empresa}.`);
+        }
+    } catch (e) {
+        console.error('Error revisando invitaciones pendientes:', e);
+    }
+}
 
 // 2. PASO 1 DE EMPRESA NUEVA
 // País de operación: "Otro" despliega la lista de países

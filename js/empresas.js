@@ -63,7 +63,7 @@ window.cargarUsuariosDeEmpresa = async function(idEmpresa, nombreEmpresa) {
 
     // 2. Buscamos las invitaciones pendientes
     const { data: invitaciones, error: errInv } = await clienteSupabase.from('invitaciones')
-        .select('id, email_invitado, rol, estado')
+        .select('id, email_invitado, rol, estado, enviada_en, envios')
         .eq('id_empresa', idEmpresa)
         .eq('estado', 'Pendiente');
 
@@ -127,16 +127,45 @@ window.cargarUsuariosDeEmpresa = async function(idEmpresa, nombreEmpresa) {
                     </div>
                     <div class="flex flex-col">
                         <span class="font-bold text-slate-700">${escaparHTML(inv.email_invitado)}</span>
-                        <span class="text-[10px] font-bold text-orange-500 uppercase tracking-wide">Esperando registro como ${inv.rol}</span>
+                        <span class="text-[10px] font-bold text-orange-500 uppercase tracking-wide">Esperando registro como ${escaparHTML(inv.rol)}</span>
+                        <span class="text-[10px] text-slate-400">${inv.enviada_en ? '✉️ Correo enviado el ' + new Date(inv.enviada_en).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' }) + (inv.envios > 1 ? ' (' + inv.envios + ' envíos)' : '') : 'Correo no enviado'}</span>
                     </div>
                 </div>
-                <button onclick="cancelarInvitacion('${inv.id}')" class="text-slate-400 hover:text-slate-600 font-bold text-xs bg-white border border-slate-200 px-3 py-1.5 rounded shadow-sm transition-transform hover:scale-105" title="Cancelar Invitación">Cancelar</button>
+                <div class="flex items-center gap-2">
+                    <button onclick="reenviarInvitacion('${inv.id}', this)" class="text-emerald-600 hover:text-emerald-800 font-bold text-xs bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded shadow-sm transition-transform hover:scale-105 disabled:opacity-50" title="Enviar el correo de invitación otra vez">${inv.enviada_en ? 'Reenviar' : 'Enviar correo'}</button>
+                    <button onclick="cancelarInvitacion('${inv.id}')" class="text-slate-400 hover:text-slate-600 font-bold text-xs bg-white border border-slate-200 px-3 py-1.5 rounded shadow-sm transition-transform hover:scale-105" title="Cancelar Invitación">Cancelar</button>
+                </div>
             </li>
             `;
         }).join('');
     }
 
     lista.innerHTML = htmlFinal;
+}
+
+// Envía (o reenvía) el correo de invitación. La función del servidor verifica
+// en la base de datos que quien envía sea Dueño/Admin de la empresa.
+window.enviarCorreoInvitacion = async function(idInvitacion) {
+    try {
+        const { data: { session } } = await clienteSupabase.auth.getSession();
+        if (!session) return { ok: false, mensaje: 'Tu sesión expiró.' };
+        const r = await fetch('/api/invitacion', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+            body: JSON.stringify({ id: idInvitacion })
+        });
+        const res = await r.json().catch(() => ({}));
+        return { ok: r.ok && res.ok === true, mensaje: res.mensaje || 'No se pudo enviar el correo.' };
+    } catch (_) {
+        return { ok: false, mensaje: 'Sin conexión: no se pudo enviar el correo.' };
+    }
+}
+
+window.reenviarInvitacion = async function(idInvitacion, boton) {
+    if (boton) { boton.disabled = true; boton.innerText = 'Enviando...'; }
+    const envio = await window.enviarCorreoInvitacion(idInvitacion);
+    if (boton) { boton.disabled = false; boton.innerText = envio.ok ? '✓ Enviado' : 'Reenviar'; }
+    if (!envio.ok) alert('⚠️ ' + envio.mensaje);
 }
 
 // Nueva función para cancelar una invitación que aún no ha sido aceptada
@@ -206,7 +235,18 @@ if(!window.eventosEmpresasAtados) {
             // 6. Ocultamos el formulario y mostramos el resultado
             document.getElementById('vu-step-1').classList.add('hidden');
             document.getElementById('vu-step-2').classList.remove('hidden');
-            
+            document.getElementById('vu-envio-icono').innerText = '✉️';
+            document.getElementById('vu-envio-titulo').innerText = 'Enviando invitación...';
+            document.getElementById('vu-envio-detalle').innerText = `Estamos enviando el correo a ${emailTarget}.`;
+
+            // 7. Enviamos el correo de invitación (si falla, queda el enlace para compartir)
+            const envio = await window.enviarCorreoInvitacion(nuevaInv.id);
+            document.getElementById('vu-envio-icono').innerText = envio.ok ? '🎉' : '⚠️';
+            document.getElementById('vu-envio-titulo').innerText = envio.ok ? '¡Invitación enviada!' : 'Invitación creada';
+            document.getElementById('vu-envio-detalle').innerText = envio.ok
+                ? `Le enviamos un correo a ${emailTarget} con un botón para unirse a tu equipo.`
+                : `${envio.mensaje} Comparte el enlace de abajo por WhatsApp o correo.`;
+
             // Refrescamos la lista para que el dueño vea la invitación "Pendiente"
             window.cargarUsuariosDeEmpresa(idEmpresa, nombreEmpresa);
         }
