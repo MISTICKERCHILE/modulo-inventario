@@ -191,9 +191,53 @@ function renderizarKpisZeus(empresas) {
     const set = (id, valor) => { const el = document.getElementById(id); if (el) el.innerText = valor; };
     const activas = empresas.filter(e => e.ventas_30d > 0).length;
     set('zs-kpi-empresas', empresas.length);
+    const estados = empresas.map(e => estadoPlanZeus(e).tipo);
+    const clientes = estados.filter(t => t === 'cliente').length;
+    const enPrueba = estados.filter(t => t === 'prueba' || t === 'prueba-fin').length;
+    set('zs-kpi-empresas-detalle', `${clientes} cliente(s) · ${enPrueba} en prueba`);
     set('zs-kpi-usuarios', empresas.reduce((s, e) => s + (e.miembros || 0), 0));
     set('zs-kpi-activas', `${activas} / ${empresas.length}`);
     set('zs-kpi-monto', pesos(empresas.reduce((s, e) => s + Number(e.monto_30d || 0), 0)));
+}
+
+// Estado comercial de la empresa: cliente (algún módulo contratado), en prueba, prueba vencida o sin plan
+function estadoPlanZeus(emp) {
+    const subs = emp.suscripciones || {};
+    const contratados = MODULOS_ZEUS.filter(m => subs[m.clave]?.activo === true).length;
+    const hasta = emp.prueba_hasta ? new Date(emp.prueba_hasta) : null;
+    const dias = hasta ? Math.ceil((hasta.getTime() - Date.now()) / 86400000) : null;
+    if (contratados > 0) return { tipo: 'cliente', texto: `Cliente · ${contratados} módulo(s)` };
+    if (hasta && dias > 0) return { tipo: dias <= 3 ? 'prueba-fin' : 'prueba', texto: `En prueba · ${dias} día(s)`, dias };
+    if (hasta) return { tipo: 'vencida', texto: `Prueba vencida · ${fechaCorta(emp.prueba_hasta)}` };
+    return { tipo: 'sin-plan', texto: 'Sin módulos activos' };
+}
+
+function etiquetaPlanZeus(emp) {
+    const e = estadoPlanZeus(emp);
+    const estilos = {
+        'cliente':    'bg-emerald-500/15 text-emerald-300 border-emerald-600/50',
+        'prueba':     'bg-sky-500/15 text-sky-300 border-sky-600/50',
+        'prueba-fin': 'bg-amber-500/15 text-amber-300 border-amber-600/50',
+        'vencida':    'bg-red-500/15 text-red-300 border-red-600/50',
+        'sin-plan':   'bg-slate-600/30 text-slate-300 border-slate-600'
+    };
+    return `<span class="text-[11px] font-bold border rounded-full px-2 py-0.5 ${estilos[e.tipo]}">${escZ(e.texto)}</span>`;
+}
+
+window.extenderPruebaZeus = async function(empresaId) {
+    const empresa = window.listaEmpresasGlobal.find(e => e.id === empresaId);
+    if (!empresa) return;
+    const respuesta = prompt(`¿Cuántos días de prueba quieres dar a ${empresa.nombre}? (1 a 90)`, '7');
+    if (respuesta === null) return;
+    const dias = parseInt(respuesta, 10);
+    if (!Number.isInteger(dias) || dias < 1 || dias > 90) return alert('Ingresa un número entre 1 y 90.');
+
+    const { data: nuevaFecha, error } = await window.clienteSupabase.rpc('zeus_extender_prueba', { p_id_empresa: empresaId, p_dias: dias });
+    if (error) return alert('❌ No se pudo extender la prueba: ' + error.message);
+
+    empresa.prueba_hasta = nuevaFecha;
+    renderizarKpisZeus(window.listaEmpresasGlobal);
+    renderizarTablaEmpresas(window.listaEmpresasGlobal);
 }
 
 function renderizarTablaEmpresas(empresas) {
@@ -224,6 +268,10 @@ function renderizarTablaEmpresas(empresas) {
                 </div>
                 <div class="text-xs text-slate-400 font-mono mt-1">RUT: ${escZ(emp.rut || 'N/A')} · ${escZ(emp.pais || '—')} · desde ${fechaCorta(emp.fecha_creacion)}</div>
                 <div class="text-xs text-slate-500 mt-1 truncate max-w-xs" title="${escZ(emp.duenos || '')}">Dueño: ${escZ(emp.duenos || 'sin Dueño ⚠️')}</div>
+                <div class="mt-2 flex items-center gap-2 flex-wrap" onclick="event.stopPropagation()">
+                    ${etiquetaPlanZeus(emp)}
+                    <button onclick="extenderPruebaZeus('${emp.id}')" class="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 border border-emerald-700/60 hover:border-emerald-500 rounded px-2 py-0.5" title="Dar o extender días de prueba gratuita">+ días de prueba</button>
+                </div>
             </td>
             <td class="p-4 text-center text-slate-300">
                 <div class="font-bold">${emp.miembros}</div>
