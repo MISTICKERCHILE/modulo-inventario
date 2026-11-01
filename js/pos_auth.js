@@ -361,3 +361,20 @@ window.abrirModalSalidaPOS = function() {
     document.getElementById('pos-dropdown-menu').classList.add('hidden');
     document.getElementById('modal-salida-pos').classList.remove('hidden');
 }
+
+// Teclado del computador para el PIN (además de los botones en pantalla)
+document.addEventListener('keydown', function(e) {
+    const pantalla = document.getElementById('pos-pin-screen');
+    if (!pantalla || pantalla.classList.contains('hidden')) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (/^[0-9]$/.test(e.key)) {
+        e.preventDefault();
+        window.teclearPin(e.key);
+    } else if (e.key === 'Backspace') {
+        e.preventDefault();
+        window.borrarPin();
+    } else if (e.key === 'Delete' || e.key === 'Escape') {
+        e.preventDefault();
+        window.borrarTodoElPin();
+    }
+});
