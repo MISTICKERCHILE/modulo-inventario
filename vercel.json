@@ -43,6 +43,11 @@
       "source": "/legal/privacidad",
       "destination": "/privacidad",
       "permanent": true
+    },
+    {
+      "source": "/r/:codigo",
+      "destination": "/?ref=:codigo",
+      "permanent": false
     }
   ]
 }

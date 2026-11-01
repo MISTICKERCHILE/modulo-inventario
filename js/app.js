@@ -212,6 +212,55 @@ window.ofrecerInvitacionesPendientes = async function() {
 }
 
 // 2. PASO 1 DE EMPRESA NUEVA
+// Código de recomendado: viene en el link (/r/CODIGO → ?ref=) o lo escribe la persona
+window.codigoReferidoValido = null;
+
+window.mostrarCampoReferido = function() {
+    document.getElementById('btn-mostrar-referido')?.classList.add('hidden');
+    document.getElementById('campo-referido')?.classList.remove('hidden');
+    document.getElementById('reg-codigo-referido')?.focus();
+}
+
+window.validarCodigoReferido = async function() {
+    const input = document.getElementById('reg-codigo-referido');
+    const estado = document.getElementById('referido-estado');
+    if (!input || !estado) return;
+    const codigo = input.value.trim().toUpperCase();
+    window.codigoReferidoValido = null;
+    if (!codigo) { estado.classList.add('hidden'); return; }
+
+    const { data: empresa, error } = await clienteSupabase.rpc('validar_codigo_referido', { p_codigo: codigo });
+    estado.classList.remove('hidden');
+    if (!error && empresa) {
+        window.codigoReferidoValido = codigo;
+        estado.className = 'text-xs font-semibold mt-1 text-emerald-700';
+        estado.innerText = `✓ Te recomendó ${empresa}: tendrás 44 días de prueba gratis.`;
+    } else {
+        estado.className = 'text-xs font-semibold mt-1 text-amber-700';
+        estado.innerText = 'No encontramos ese código. Puedes continuar sin él.';
+    }
+}
+
+;(function prepararReferido() {
+    let codigo = new URLSearchParams(location.search).get('ref');
+    if (!codigo) {
+        try {
+            const guardado = JSON.parse(localStorage.getItem('buddy_ref') || 'null');
+            if (guardado && guardado.hasta > Date.now()) codigo = guardado.codigo;
+        } catch (_) {}
+    }
+    const input = document.getElementById('reg-codigo-referido');
+    if (!input) return;
+    input.addEventListener('change', window.validarCodigoReferido);
+    if (codigo && /^[A-Za-z0-9-]{3,20}$/.test(codigo)) {
+        input.value = codigo.toUpperCase();
+        window.mostrarCampoReferido();
+        // Esperamos a que exista el cliente de Supabase antes de validar
+        const intentar = (n) => window.clienteSupabase ? window.validarCodigoReferido() : (n > 0 && setTimeout(() => intentar(n - 1), 300));
+        intentar(20);
+    }
+})();
+
 // País de operación: "Otro" despliega la lista de países
 window.paisSeleccionadoRegistro = function() {
     const pais = document.getElementById('reg-pais').value;
@@ -287,7 +336,8 @@ document.getElementById('form-register-step-2').addEventListener('submit', async
         telefono: document.getElementById('reg-user-telefono').value.trim(),
         rut_personal: rutPersonal,
         fecha_nacimiento: fechaLimpia,
-        pin_seguridad: document.getElementById('reg-user-pin').value
+        pin_seguridad: document.getElementById('reg-user-pin').value,
+        codigo_referido: window.codigoReferidoValido || undefined
     };
 
     const { data, error } = await clienteSupabase.auth.signUp({ email: emailInput, password: pass1, options: { data: datosMeta } });
@@ -295,6 +345,7 @@ document.getElementById('form-register-step-2').addEventListener('submit', async
         btnFinal.innerText = "Crear Empresa y Entrar 🚀"; btnFinal.disabled = false;
         return alert("❌ Error al registrar: " + error.message);
     }
+    try { localStorage.removeItem('buddy_ref'); } catch (_) {}
     alert(`🎉 ¡Felicidades, ${datosMeta.nombre}! Tu empresa ha sido creada con éxito. Inicia sesión para comenzar.`);
     
     document.getElementById('form-register-step-1').reset();
@@ -400,6 +451,8 @@ window.iniciarSesionEmpresa = async function(id, nombre, email, nombreUsuario, r
     if(window.actualizarTopBar) window.actualizarTopBar(nombre, rol);
     if (window.aplicarPermisosVisuales) window.aplicarPermisosVisuales();
     if (window.revisarPerfilCompleto) window.revisarPerfilCompleto(); // sin await: no bloquea la carga
+    // "Recomienda y gana" solo para el Dueño de la empresa
+    document.getElementById('btn-menu-recomienda')?.classList.toggle('hidden', rol !== 'Dueño');
 
     const urlParams = new URLSearchParams(window.location.search);
     const vistaDirecta = urlParams.get('v');
@@ -779,6 +832,59 @@ window.mostrarBarraPrueba = function() {
 window.cerrarBarraPrueba = function() {
     document.getElementById('barra-prueba')?.classList.add('hidden');
     try { sessionStorage.setItem('barra_prueba_oculta', window.miEmpresaId); } catch (_) {}
+}
+
+// ============================================================================
+// RECOMIENDA Y GANA (solo Dueño)
+// ============================================================================
+
+window.abrirRecomiendaYGana = async function() {
+    const modal = document.getElementById('modal-recomienda');
+    const lista = document.getElementById('rec-lista');
+    lista.innerHTML = '<li class="p-4 text-sm text-slate-400 animate-pulse">Cargando...</li>';
+    modal.classList.remove('hidden');
+
+    const { data, error } = await clienteSupabase.rpc('mi_programa_referidos', { p_id_empresa: window.miEmpresaId });
+    if (error) {
+        lista.innerHTML = `<li class="p-4 text-sm text-red-600">${error.message}</li>`;
+        return;
+    }
+
+    const link = `${window.location.origin}/r/${data.codigo}`;
+    document.getElementById('rec-link').value = link;
+    document.getElementById('rec-codigo').innerText = data.codigo;
+    document.getElementById('rec-meses').innerText = data.meses_ganados;
+
+    const mensaje = `¡Hola! Uso Buddy ERP para administrar mi negocio y me ha servido mucho. Si te registras con mi link tienes 44 días de prueba gratis: ${link}`;
+    document.getElementById('rec-whatsapp').href = 'https://wa.me/?text=' + encodeURIComponent(mensaje);
+
+    const esc = t => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const etiquetas = {
+        cliente:   '<span class="text-[11px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">Cliente · ganaste 1 mes</span>',
+        en_prueba: '<span class="text-[11px] font-bold bg-sky-100 text-sky-800 px-2 py-0.5 rounded-full">En prueba</span>',
+        sin_plan:  '<span class="text-[11px] font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">Aún no es cliente</span>'
+    };
+    lista.innerHTML = data.referidos.length === 0
+        ? '<li class="p-4 text-sm text-slate-500">Aún no has recomendado a ninguna empresa. ¡Comparte tu link!</li>'
+        : data.referidos.map(r => `
+            <li class="p-4 flex items-center justify-between gap-3">
+                <div class="min-w-0">
+                    <p class="font-bold text-slate-800 truncate">${esc(r.empresa)}</p>
+                    <p class="text-xs text-slate-400">Desde ${new Date(r.desde).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                </div>
+                ${etiquetas[r.estado] || ''}
+            </li>`).join('');
+}
+
+window.cerrarRecomiendaYGana = function() {
+    document.getElementById('modal-recomienda').classList.add('hidden');
+}
+
+window.copiarLinkRecomendado = function() {
+    const link = document.getElementById('rec-link').value;
+    navigator.clipboard.writeText(link)
+        .then(() => alert('✅ Link copiado. ¡Compártelo con otros negocios!'))
+        .catch(() => alert('Copia el link manualmente: ' + link));
 }
 
 // ============================================================================

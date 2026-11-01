@@ -132,6 +132,14 @@
                     <label class="block text-xs font-bold text-slate-500 mb-1">Nombre Comercial (Fantasía)</label>
                     <input type="text" id="reg-nombre-comercial" placeholder="Ej: Tienda Buddy" required class="w-full px-4 py-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 focus:bg-white">
                 </div>
+                <div id="bloque-referido">
+                    <button type="button" id="btn-mostrar-referido" onclick="mostrarCampoReferido()" class="text-xs font-bold text-emerald-700 hover:text-emerald-800 underline underline-offset-2">🎁 ¿Te recomendó alguien?</button>
+                    <div id="campo-referido" class="hidden">
+                        <label class="block text-xs font-bold text-slate-500 mb-1" for="reg-codigo-referido">Código de recomendado</label>
+                        <input type="text" id="reg-codigo-referido" maxlength="20" placeholder="Ej: OLYMPIA-7KM" autocomplete="off" class="w-full px-4 py-3 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 focus:bg-white uppercase font-mono">
+                        <p id="referido-estado" class="hidden text-xs font-semibold mt-1"></p>
+                    </div>
+                </div>
                 <button type="submit" id="btn-continuar-reg" class="w-full py-3 mt-2 bg-slate-800 text-white rounded-lg font-bold hover:bg-slate-900 transition-colors shadow-md flex justify-center items-center gap-2">Continuar <span class="text-xl leading-none">→</span></button>
             </form>
 
@@ -210,6 +218,37 @@
 
 
 
+
+
+    <!-- MODAL: RECOMIENDA Y GANA (solo Dueño) -->
+    <div id="modal-recomienda" class="hidden fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="recomienda-titulo">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto">
+            <div class="bg-gradient-to-r from-emerald-600 to-teal-500 text-white p-6 sm:p-8 rounded-t-2xl relative">
+                <button type="button" onclick="cerrarRecomiendaYGana()" class="absolute top-4 right-4 text-white/80 hover:text-white text-xl font-bold" aria-label="Cerrar">✕</button>
+                <h3 id="recomienda-titulo" class="text-2xl font-black">🎁 Recomienda y gana</h3>
+                <p class="text-emerald-50 text-sm mt-2">Comparte tu link. La empresa que llegue con él prueba Buddy <strong>44 días gratis</strong>, y cuando se vuelva cliente, <strong>tú ganas 1 mes gratis</strong>.</p>
+                <div class="mt-5 flex items-end gap-3">
+                    <span id="rec-meses" class="text-5xl font-black leading-none">0</span>
+                    <span class="text-sm font-semibold text-emerald-50 pb-1">meses gratis ganados</span>
+                </div>
+            </div>
+            <div class="p-6 sm:p-8 space-y-6">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2" for="rec-link">Tu link de recomendado</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="rec-link" readonly class="flex-1 min-w-0 px-3 py-3 border border-emerald-200 bg-emerald-50 rounded-lg text-sm font-mono text-emerald-800 outline-none">
+                        <button type="button" onclick="copiarLinkRecomendado()" class="px-4 bg-slate-800 text-white rounded-lg font-bold text-sm hover:bg-slate-700 whitespace-nowrap">Copiar</button>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-2">Código: <strong id="rec-codigo" class="font-mono text-slate-700">—</strong> (también pueden escribirlo al registrarse)</p>
+                    <a id="rec-whatsapp" href="#" target="_blank" rel="noopener" class="mt-3 inline-flex items-center gap-2 bg-[#25D366] text-white px-4 py-2.5 rounded-lg font-bold text-sm hover:opacity-90">Compartir por WhatsApp</a>
+                </div>
+                <div>
+                    <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Empresas que recomendaste</h4>
+                    <ul id="rec-lista" class="divide-y divide-slate-100 border border-slate-100 rounded-xl"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- MODAL: COMPLETAR / EDITAR MI PERFIL -->
     <div id="modal-mi-perfil" class="hidden fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="perfil-titulo">
@@ -340,6 +379,10 @@
                     
                         <button onclick="cambiarVista('empresas'); toggleUserMenu();" class="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 font-bold transition-colors border-b border-slate-100">
                             ⚙️ Administrar Empresas
+                        </button>
+
+                        <button id="btn-menu-recomienda" onclick="toggleUserMenu(); abrirRecomiendaYGana();" class="hidden w-full text-left px-4 py-3 text-sm text-emerald-700 hover:bg-emerald-50 font-bold transition-colors border-b border-slate-100">
+                            🎁 Recomienda y gana
                         </button>
 
                         <button onclick="toggleUserMenu(); abrirMiPerfil();" class="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 font-bold transition-colors border-b border-slate-100">

@@ -69,6 +69,13 @@
         </div>
     </header>
 
+    
+    <!-- Aviso para quien llega con link de recomendado (/r/CODIGO) -->
+    <div id="aviso-referido" class="hidden bg-emerald-600 text-white text-center text-sm font-semibold px-4 py-2.5">
+        🎁 ¡Vienes recomendado! Al registrarte tendrás <strong>44 días de prueba gratis</strong> en vez de 14.
+        <a href="/app?registro=true" class="underline underline-offset-2 ml-1 whitespace-nowrap">Crear mi cuenta →</a>
+    </div>
+
     <section id="inicio" class="bg-hero-pattern py-32 px-6 text-center text-white">
         <div class="max-w-4xl mx-auto">
             <h1 class="text-4xl md:text-6xl font-black mb-8 leading-tight drop-shadow-lg">
@@ -231,6 +238,18 @@
                 const abierto = !menu.classList.toggle('hidden');
                 btn.setAttribute('aria-expanded', String(abierto));
             });
+        })();
+    </script>
+    <script>
+        // Link de recomendado: guardamos el código para usarlo al registrarse
+        (function () {
+            const ref = new URLSearchParams(location.search).get('ref');
+            if (ref && /^[A-Za-z0-9-]{3,20}$/.test(ref)) {
+                try { localStorage.setItem('buddy_ref', JSON.stringify({ codigo: ref.toUpperCase(), hasta: Date.now() + 30 * 86400000 })); } catch (_) {}
+            }
+            let guardado = null;
+            try { guardado = JSON.parse(localStorage.getItem('buddy_ref') || 'null'); } catch (_) {}
+            if (guardado && guardado.hasta > Date.now()) document.getElementById('aviso-referido')?.classList.remove('hidden');
         })();
     </script>
 </body>
