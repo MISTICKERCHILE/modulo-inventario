@@ -295,109 +295,51 @@ window.calcularVuelto = function() {
     document.getElementById('checkout-vuelto').innerText = "$" + vuelto.toLocaleString('es-CL');
 }
 
-// 👉 AQUÍ ESTÁ LA SOLUCIÓN DEL ERROR NULL
+// La venta completa (ticket, detalle, stock, recetas, crédito) se guarda en UNA sola
+// operación en la base de datos: o se guarda todo o no se guarda nada.
 window.confirmarVentaPOS = async function() {
     if(!checkoutMetodoPago) return alert("Selecciona un método de pago.");
     if(window.carritoPos.length === 0) return alert("El carrito está vacío.");
-    
+    if(!window.turnoActual || !window.sucursalActivaID) return alert("⚠️ No hay una caja abierta. Vuelve al inicio del POS y abre la caja.");
+
     const btn = document.getElementById('btn-confirmar-venta');
-    const textoOriginal = btn.innerText; 
-    btn.innerText = "⏳ Procesando y Descontando Stock...";
+    const textoOriginal = btn.innerText;
+    btn.innerText = "⏳ Registrando venta...";
     btn.disabled = true;
 
     try {
-        // Aseguramos de tener una sucursal para evitar el error
-        let sucursalVenta = window.sucursalActivaID;
-        if (!sucursalVenta) {
-            const { data: sucursalPorDefecto } = await clienteSupabase
-                .from('sucursales').select('id').eq('id_empresa', window.miEmpresaId).limit(1).single();
-            if (sucursalPorDefecto) {
-                sucursalVenta = sucursalPorDefecto.id;
-                window.sucursalActivaID = sucursalVenta; 
-            } else {
-                throw new Error("No tienes ninguna sucursal creada.");
-            }
-        }
+        const idCliente = (window.clienteSeleccionadoPOS && window.clienteSeleccionadoPOS.id !== 'anonimo')
+            ? window.clienteSeleccionadoPOS.id : null;
 
-        const estadoVenta = checkoutMetodoPago.tipo === 'CREDITO' ? 'POR_COBRAR' : 'COMPLETADA';
-
-        const payloadVenta = {
-            id_empresa: window.miEmpresaId,
-            id_sucursal: sucursalVenta, // ✔️ AQUÍ SE ENVÍA LA SUCURSAL
-            total: checkoutTotalVenta,
-            metodo_pago: checkoutMetodoPago.nombre,
-            estado: estadoVenta,
-            cajero: window.cajeroActivo ? window.cajeroActivo.id : null,
-            origen: 'POS',
-            id_cliente: window.clienteSeleccionadoPOS ? window.clienteSeleccionadoPOS.id : null
-        };
-
-        const { data: ventaGuardada, error: errorVenta } = await clienteSupabase.from('ventas').insert([payloadVenta]).select().single();
-        if (errorVenta) throw errorVenta;
-
-        // CASCADA INTELIGENTE
-        for (const item of window.carritoPos) {
-            let cantidadFaltante = item.cantidad;
-
-            const { data: saldos } = await clienteSupabase
-                .from('inventario_saldos')
-                .select('id, cantidad_actual_ua, id_ubicacion, id_sub_ubicacion, ubicaciones_internas(orden)')
-                .eq('id_empresa', window.miEmpresaId)
-                .eq('id_sucursal', sucursalVenta)
-                .eq('id_producto', item.id)
-                .gt('cantidad_actual_ua', 0);
-
-            if (saldos && saldos.length > 0) {
-                saldos.sort((a, b) => (a.ubicaciones_internas?.orden || 999) - (b.ubicaciones_internas?.orden || 999));
-
-                for (const saldo of saldos) {
-                    if (cantidadFaltante <= 0) break; 
-
-                    const aDescontar = Math.min(cantidadFaltante, saldo.cantidad_actual_ua);
-                    cantidadFaltante -= aDescontar;
-
-                    await clienteSupabase.from('inventario_saldos').update({ 
-                        cantidad_actual_ua: saldo.cantidad_actual_ua - aDescontar, 
-                        ultima_actualizacion: new Date() 
-                    }).eq('id', saldo.id);
-
-                    await clienteSupabase.from('movimientos_inventario').insert([{
-                        id_empresa: window.miEmpresaId,
-                        id_producto: item.id,
-                        id_ubicacion: saldo.id_ubicacion,
-                        id_sub_ubicacion: saldo.id_sub_ubicacion,
-                        tipo_movimiento: 'VENTA_POS',
-                        cantidad_movida: -aDescontar, 
-                        referencia: `Venta POS #${ventaGuardada.id}`
-                    }]);
-                }
-            }
-        }
-
-        if (checkoutMetodoPago.tipo === 'CREDITO') {
-            const fechaVence = new Date();
-            fechaVence.setDate(fechaVence.getDate() + 30);
-
-            const payloadCuentasPorCobrar = {
-                id_empresa: window.miEmpresaId, id_venta: ventaGuardada.id, id_cliente: window.clienteSeleccionadoPOS.id,
-                monto_deuda: checkoutTotalVenta, monto_pagado: 0, estado: 'Pendiente', fecha_vencimiento: fechaVence.toISOString().split('T')[0] 
-            };
-
-            await clienteSupabase.from('cuentas_por_cobrar').insert([payloadCuentasPorCobrar]);
-        }
+        const { data: resultado, error } = await clienteSupabase.rpc('registrar_venta', {
+            p_id_sucursal: window.sucursalActivaID,
+            p_id_turno: window.turnoActual.id,
+            p_id_metodo_pago: checkoutMetodoPago.id,
+            p_id_cliente: idCliente,
+            p_id_cajero: window.cajeroActivo ? window.cajeroActivo.id : null,
+            p_items: window.carritoPos.map(i => ({ id: i.id, cantidad: i.cantidad }))
+        });
+        if (error) throw error;
 
         window.carritoPos = [];
         window.removerClientePOS();
         window.cerrarCheckout();
         window.renderizarCarrito();
-        
+
         if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-        if (estadoVenta === 'POR_COBRAR') alert("📓 Venta anotada en la cuenta (Crédito).");
-        else alert("✅ ¡Venta registrada y pagada con éxito!");
+        let mensaje = resultado.estado === 'POR_COBRAR'
+            ? `📓 Venta #${resultado.numero_ticket} anotada en la cuenta (Crédito).`
+            : `✅ Venta #${resultado.numero_ticket} registrada con éxito.`;
+        if (resultado.sin_stock && resultado.sin_stock.length > 0) {
+            mensaje += "\n\n⚠️ Se vendió sin stock suficiente de: " +
+                resultado.sin_stock.map(s => s.producto).join(', ') +
+                ".\nQuedará como deuda de stock hasta que ingrese mercadería.";
+        }
+        alert(mensaje);
 
     } catch (error) {
         console.error("Error procesando la venta:", error);
-        alert("❌ Error: " + (error.message || "No se pudo procesar la venta."));
+        alert("❌ No se pudo registrar la venta. No se guardó nada.\n\n" + (error.message || ""));
     } finally {
         btn.innerText = textoOriginal;
         btn.disabled = false;
