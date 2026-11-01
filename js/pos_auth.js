@@ -126,6 +126,12 @@ window.entrarAlPos = async function() {
         if (turnoAbierto) {
             window.turnoActual = turnoAbierto;
             window.sucursalActivaID = turnoAbierto.id_sucursal; // Rescatamos la sucursal del turno
+            if (!window.sucursalActivaID) {
+                // Turno antiguo sin sucursal: se elige una y se guarda en el turno
+                window.turnoSinSucursal = true;
+                window.solicitarSucursalApertura();
+                return;
+            }
             window.mostrarDashboardPos();
         } else {
             // No hay turno, obligamos a seleccionar la sucursal antes de abrir la caja
@@ -166,9 +172,15 @@ window.solicitarSucursalApertura = async function() {
     }
 }
 
-window.confirmarSucursalApertura = function(idSucursal) {
+window.confirmarSucursalApertura = async function(idSucursal) {
     window.sucursalActivaID = idSucursal;
     document.getElementById('modal-seleccionar-sucursal-pos').classList.add('hidden');
+    if (window.turnoSinSucursal && window.turnoActual) {
+        window.turnoSinSucursal = false;
+        await clienteSupabase.from('pos_turnos').update({ id_sucursal: idSucursal }).eq('id', window.turnoActual.id);
+        window.mostrarDashboardPos();
+        return;
+    }
     window.abrirTurnoNuevo();
 }
 
@@ -176,7 +188,7 @@ window.abrirTurnoNuevo = async function() {
     const montoInicial = prompt(`💵 Apertura de Caja (${window.cajeroActivo.nombre})\n\nIngresa el monto de efectivo inicial (Sencillo):`, "0");
     
     if (montoInicial === null) {
-        document.getElementById('pos-pin-screen').remove('hidden');
+        document.getElementById('pos-pin-screen').classList.remove('hidden');
         document.getElementById('pos-pin-screen').classList.add('flex');
         window.borrarTodoElPin();
         return;
@@ -201,6 +213,10 @@ window.abrirTurnoNuevo = async function() {
 
     } catch (error) {
         console.error("Error abriendo turno:", error);
+        alert("❌ No se pudo abrir la caja.\n\n" + (error.message || ""));
+        document.getElementById('pos-pin-screen').classList.remove('hidden');
+        document.getElementById('pos-pin-screen').classList.add('flex');
+        window.borrarTodoElPin();
     }
 }
 
@@ -236,7 +252,7 @@ window.iniciarCierreDeCaja = async function() {
     document.getElementById('cierre-cajero-nombre').innerText = window.cajeroActivo ? window.cajeroActivo.nombre : 'Cajero';
 
     try {
-        const { data: ventasTurno, error } = await clienteSupabase.from('ventas').select('total, metodo_pago').eq('id_empresa', window.miEmpresaId).gte('created_at', window.turnoActual.fecha_apertura).in('estado', ['COMPLETADA']);
+        const { data: ventasTurno, error } = await clienteSupabase.from('ventas').select('total, metodo_pago').eq('id_empresa', window.miEmpresaId).eq('id_turno', window.turnoActual.id).in('estado', ['COMPLETADA']);
         if (error) throw error;
 
         window.estadoCierreActual = window.metodosPagoMemoria.map(mp => {
@@ -345,3 +361,20 @@ window.abrirModalSalidaPOS = function() {
     document.getElementById('pos-dropdown-menu').classList.add('hidden');
     document.getElementById('modal-salida-pos').classList.remove('hidden');
 }
+
+// Teclado del computador para el PIN (además de los botones en pantalla)
+document.addEventListener('keydown', function(e) {
+    const pantalla = document.getElementById('pos-pin-screen');
+    if (!pantalla || pantalla.classList.contains('hidden')) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (/^[0-9]$/.test(e.key)) {
+        e.preventDefault();
+        window.teclearPin(e.key);
+    } else if (e.key === 'Backspace') {
+        e.preventDefault();
+        window.borrarPin();
+    } else if (e.key === 'Delete' || e.key === 'Escape') {
+        e.preventDefault();
+        window.borrarTodoElPin();
+    }
+});
