@@ -65,14 +65,14 @@
         <span class="text-xs font-bold">Ir a Cobrar</span>
     </button>
 
-    <button data-cfg="agenda" onclick="cambiarVista('cotizaciones')" class="bg-white border border-slate-200 hover:border-purple-400 hover:shadow-md text-slate-700 p-4 rounded-xl transition-all flex flex-col items-center justify-center gap-2 text-center h-28">
+    <button data-cfg="agenda" onclick="alert('Pedidos y Reservas llegan pronto: es el próximo paso de Ventas.')" class="bg-white border border-slate-200 hover:border-purple-400 hover:shadow-md text-slate-700 p-4 rounded-xl transition-all flex flex-col items-center justify-center gap-2 text-center h-28">
         <span class="text-2xl">📦</span>
         <span class="text-xs font-bold">Pedidos / Reservas</span>
     </button>
 
-    <button data-cfg="cotizaciones" onclick="cambiarVista('cotizaciones')" class="bg-white border border-slate-200 hover:border-blue-400 hover:shadow-md text-slate-700 p-4 rounded-xl transition-all flex flex-col items-center justify-center gap-2 text-center h-28">
+    <button data-cfg="cotizaciones" onclick="window.czAbrirNuevaAlEntrar=true; cambiarVista('cotizaciones')" class="bg-white border border-slate-200 hover:border-blue-400 hover:shadow-md text-slate-700 p-4 rounded-xl transition-all flex flex-col items-center justify-center gap-2 text-center h-28">
         <span class="text-2xl">📄</span>
-        <span class="text-xs font-bold">Cotizaciones</span>
+        <span class="text-xs font-bold">Cotizar</span>
     </button>
 
     <button onclick="cambiarVista('ranking')" class="bg-white border border-slate-200 hover:border-slate-400 hover:shadow-md text-slate-700 p-4 rounded-xl transition-all flex flex-col items-center justify-center gap-2 text-center h-28">
