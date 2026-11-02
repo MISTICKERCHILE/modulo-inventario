@@ -143,7 +143,7 @@ window.cargarUsuariosPOSAdmin = async function() {
                 </div>
                 <div class="flex items-center gap-3">
                     <span class="font-mono font-bold px-2 py-1 rounded text-sm ${colorPin}">${pinVisual}</span>
-                    <button onclick="cambiarPinUsuarioPOS('${miembro.id_usuario}')" class="text-blue-600 hover:bg-blue-100 p-2 rounded-lg transition-colors" title="Cambiar PIN">✏️</button>
+                    <button data-id="${miembro.id_usuario}" data-nombre="${(miembro.nombre || 'Usuario').replace(/"/g, '')}" onclick="cambiarPinUsuarioPOS(this.dataset.id, this.dataset.nombre)" class="text-blue-600 hover:bg-blue-100 p-2 rounded-lg transition-colors" title="Cambiar PIN">✏️</button>
                 </div>
             </div>`;
         }).join('');
@@ -154,29 +154,10 @@ window.cargarUsuariosPOSAdmin = async function() {
     }
 }
 
-window.cambiarPinUsuarioPOS = async function(idUsuario) {
-    const nuevoPin = prompt("🔑 Ingresa el nuevo PIN de 4 dígitos para este usuario:");
-    if (!nuevoPin) return;
-    
-    if (!/^\d{4}$/.test(nuevoPin)) {
-        return alert("❌ El PIN debe contener exactamente 4 números.");
-    }
-
-    try {
-        // La base de datos valida permisos, que el PIN no esté repetido en la empresa, y lo guarda cifrado
-        const { error } = await clienteSupabase.rpc('asignar_pin', {
-            p_id_empresa: window.miEmpresaId,
-            p_id_usuario: idUsuario,
-            p_pin: nuevoPin
-        });
-
-        if (error) throw error;
-        alert("✅ PIN actualizado exitosamente.");
-        window.cargarUsuariosPOSAdmin();
-    } catch (err) {
-        console.error("Error actualizando PIN:", err);
-        alert("❌ No se pudo actualizar el PIN: " + (err.message || 'error desconocido'));
-    }
+window.cambiarPinUsuarioPOS = async function(idUsuario, nombre) {
+    // Mismo flujo seguro que en el ERP: pide el PIN nuevo y la contraseña de quien lo cambia
+    await window.asignarPinMiembro(window.miEmpresaId, idUsuario, nombre || 'este usuario');
+    window.cargarUsuariosPOSAdmin();
 }
 
 // ==========================================

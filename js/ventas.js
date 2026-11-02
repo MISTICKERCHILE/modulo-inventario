@@ -15,7 +15,7 @@ window.cargarVentas = function() {
     document.getElementById('main-content').classList.add('p-0', 'md:p-0'); 
     document.getElementById('pos-wrapper').classList.remove('hidden');
     document.getElementById('pos-wrapper').classList.add('flex');
-    if (typeof window.borrarTodoElPin === 'function') window.borrarTodoElPin();
+    if (typeof window.mostrarSelectorPin === 'function') window.mostrarSelectorPin(false);
 }
 
 window.togglePosMenu = function() {

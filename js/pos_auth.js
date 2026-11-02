@@ -5,7 +5,65 @@
 window.pinActual = "";
 window.motivoPinPOS = 'login'; // 'login', 'home', 'catalogos', 'parametros', 'reportes'
 
+window.usuarioPinSeleccionado = null;
+window.pinSoloAdmins = false;
+
+// Paso 1 de la pantalla de PIN: elegir quién eres (persona + PIN)
+window.mostrarSelectorPin = async function(soloAdmins) {
+    window.pinSoloAdmins = !!soloAdmins;
+    window.usuarioPinSeleccionado = null;
+    window.pinActual = "";
+    window.actualizarPuntosPin();
+    const lista = document.getElementById('pos-pin-usuarios');
+    if (!lista) return;
+    document.getElementById('pos-pin-teclado').classList.add('hidden');
+    document.getElementById('pos-pin-teclado').classList.remove('flex');
+    lista.classList.remove('hidden');
+    document.getElementById('pos-pin-cerrar-lista').classList.remove('hidden');
+    document.getElementById('pos-pin-subtitulo').innerText = soloAdmins ? 'Autoriza un Administrador o Dueño' : '¿Quién eres?';
+    lista.innerHTML = '<p class="text-center text-slate-500 text-sm animate-pulse">Cargando equipo...</p>';
+
+    try {
+        const { data: equipo, error } = await clienteSupabase.rpc('listar_equipo_pos', { p_id_empresa: window.miEmpresaId });
+        if (error) throw error;
+        let miembros = equipo || [];
+        if (soloAdmins) {
+            miembros = miembros.filter(m => /admin|due[nñ]o/i.test(m.rol || ''));
+        }
+        if (miembros.length === 0) {
+            lista.innerHTML = '<p class="text-center text-slate-400 text-sm">No hay personas disponibles.</p>';
+            return;
+        }
+        lista.innerHTML = miembros.map(m => {
+            const nombre = (m.nombre || 'Usuario').replace(/</g, '&lt;');
+            if (!m.tiene_pin) {
+                return `<div class="w-full flex justify-between items-center p-4 bg-slate-800/50 rounded-2xl opacity-60">
+                    <span class="font-bold">${nombre}</span><span class="text-xs text-slate-400">Sin PIN</span></div>`;
+            }
+            return `<button data-id="${m.id_usuario}" data-nombre="${nombre}" onclick="elegirUsuarioPin(this.dataset.id, this.dataset.nombre)"
+                class="w-full flex justify-between items-center p-4 bg-slate-800 hover:bg-slate-700 rounded-2xl transition-colors text-left">
+                <span class="font-bold">${nombre}</span><span class="text-xs text-slate-400 uppercase">${m.rol || ''}</span></button>`;
+        }).join('');
+    } catch (err) {
+        console.error(err);
+        lista.innerHTML = '<p class="text-center text-red-400 text-sm">No se pudo cargar el equipo.</p>';
+    }
+}
+
+// Paso 2: mostrar el teclado para la persona elegida
+window.elegirUsuarioPin = function(idUsuario, nombre) {
+    window.usuarioPinSeleccionado = { id: idUsuario, nombre: nombre };
+    window.pinActual = "";
+    window.actualizarPuntosPin();
+    document.getElementById('pos-pin-usuarios').classList.add('hidden');
+    document.getElementById('pos-pin-cerrar-lista').classList.add('hidden');
+    document.getElementById('pos-pin-teclado').classList.remove('hidden');
+    document.getElementById('pos-pin-teclado').classList.add('flex');
+    document.getElementById('pos-pin-subtitulo').innerText = 'Hola ' + nombre + ', ingresa tu PIN';
+}
+
 window.teclearPin = function(numero) {
+    if(!window.usuarioPinSeleccionado) return;
     if(window.pinActual.length < 4) {
         window.pinActual += numero.toString();
         window.actualizarPuntosPin();
@@ -55,17 +113,19 @@ window.solicitarAccesoERP = function(destino) {
     window.borrarTodoElPin();
     document.getElementById('pos-pin-screen').classList.remove('hidden');
     document.getElementById('pos-pin-screen').classList.add('flex');
+    window.mostrarSelectorPin(true);
 }
 
 window.validarPin = async function() {
     try {
-        // La base de datos compara el PIN cifrado, solo entre miembros de ESTA empresa
+        // La base de datos compara el PIN cifrado de la persona elegida (con bloqueo tras 5 intentos fallidos)
         const { data: cajero, error: errPin } = await clienteSupabase
-            .rpc('validar_pin', { p_id_empresa: window.miEmpresaId, p_pin: window.pinActual });
+            .rpc('validar_pin', { p_id_empresa: window.miEmpresaId, p_id_usuario: window.usuarioPinSeleccionado.id, p_pin: window.pinActual });
 
         if (errPin) {
             alert("⚠️ " + errPin.message);
-            return window.errorPinAnimation();
+            window.errorPinAnimation();
+            return window.mostrarSelectorPin(window.pinSoloAdmins);
         }
         if (!cajero) return window.errorPinAnimation();
 
@@ -190,7 +250,7 @@ window.abrirTurnoNuevo = async function() {
     if (montoInicial === null) {
         document.getElementById('pos-pin-screen').classList.remove('hidden');
         document.getElementById('pos-pin-screen').classList.add('flex');
-        window.borrarTodoElPin();
+        window.mostrarSelectorPin(false);
         return;
     }
 
@@ -216,7 +276,7 @@ window.abrirTurnoNuevo = async function() {
         alert("❌ No se pudo abrir la caja.\n\n" + (error.message || ""));
         document.getElementById('pos-pin-screen').classList.remove('hidden');
         document.getElementById('pos-pin-screen').classList.add('flex');
-        window.borrarTodoElPin();
+        window.mostrarSelectorPin(false);
     }
 }
 
@@ -234,7 +294,7 @@ window.pausarTurno = function() {
     document.getElementById('pos-dashboard-screen').classList.remove('flex');
     document.getElementById('pos-pin-screen').classList.remove('hidden');
     document.getElementById('pos-pin-screen').classList.add('flex');
-    window.borrarTodoElPin();
+    window.mostrarSelectorPin(false);
 }
 
 window.iniciarCierreDeCaja = async function() {
@@ -335,7 +395,7 @@ window.confirmarCierreCaja = async function() {
         document.getElementById('pos-dashboard-screen').classList.remove('flex');
         document.getElementById('pos-pin-screen').classList.remove('hidden');
         document.getElementById('pos-pin-screen').classList.add('flex');
-        window.borrarTodoElPin();
+        window.mostrarSelectorPin(false);
     } catch (error) {
         console.error(error);
     } finally {
