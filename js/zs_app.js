@@ -185,6 +185,7 @@ async function cargarTablaEmpresasZeus() {
     renderizarKpisZeus(window.listaEmpresasGlobal);
     renderizarTablaEmpresas(window.listaEmpresasGlobal);
     cargarReferidosZeus();
+    cargarAsistentesZeus();
 }
 window.cargarTablaEmpresasZeus = cargarTablaEmpresasZeus;
 
@@ -415,4 +416,24 @@ async function cargarReferidosZeus() {
             <td class="p-4">${estado}</td>
         </tr>`;
     }).join('');
+}
+
+
+// Lo que cada empresa respondió en sus asistentes de configuración
+async function cargarAsistentesZeus() {
+    const tbody = document.getElementById('zs-tabla-asistentes');
+    if (!tbody) return;
+    const esc = (t) => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const { data, error } = await clienteSupabase.rpc('zeus_asistentes');
+    if (error) { tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-red-400">No se pudo cargar.</td></tr>'; return; }
+    if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-slate-500">Aún nadie ha completado un asistente.</td></tr>'; return; }
+    const resumen = (r) => Object.entries(r || {}).map(([k, v]) => `<span class="text-slate-500">${esc(k)}:</span> ${esc(Array.isArray(v) ? v.join(', ') : v)}`).join(' · ') || '—';
+    tbody.innerHTML = data.map(a => `
+        <tr>
+            <td class="p-4 font-bold text-white">${esc(a.empresa)}</td>
+            <td class="p-4">${esc(a.asistente)}</td>
+            <td class="p-4">${a.estado === 'completado' ? '<span class="text-emerald-400 font-bold">Completado</span>' : '<span class="text-amber-400 font-bold">Omitido</span>'}</td>
+            <td class="p-4 text-xs">${resumen(a.respuestas)}</td>
+            <td class="p-4 text-xs text-slate-400">${new Date(a.actualizado_en).toLocaleDateString('es-CL')}</td>
+        </tr>`).join('');
 }

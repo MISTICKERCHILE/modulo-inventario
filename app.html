@@ -20,6 +20,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <script src="js/supabase.js"></script>
+    <style>.cfg-oculto{display:none !important}</style>
 </head>
 <body class="bg-slate-50 min-h-screen font-sans text-slate-800">
 
@@ -433,13 +434,13 @@
                 </button>
 
                 <div id="submenu-dashboard_ventas" class="space-y-1 mt-1 border-l-2 border-slate-700 ml-4 pl-2 hidden">
-                    <button onclick="cambiarVista('ventas')" id="btn-menu-ventas" class="w-full flex items-center text-left gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
+                    <button data-cfg="pos" onclick="cambiarVista('ventas')" id="btn-menu-ventas" class="w-full flex items-center text-left gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
                         <span class="shrink-0">🛒</span> <span class="menu-texto leading-tight">Punto de Venta (POS)</span>
                     </button>
                     <button onclick="cambiarVista('cuentas_cobrar')" id="btn-menu-cuentas_cobrar" class="w-full flex items-center text-left gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
                         <span class="shrink-0">📒</span> <span class="menu-texto leading-tight">Cuentas por Cobrar</span>
                     </button>
-                    <button onclick="cambiarVista('cotizaciones')" id="btn-menu-cotizaciones" class="w-full flex items-center text-left gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
+                    <button data-cfg="cotizacionesOAgenda" onclick="cambiarVista('cotizaciones')" id="btn-menu-cotizaciones" class="w-full flex items-center text-left gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
                         <span class="shrink-0">📄</span> <span class="menu-texto leading-tight">Cotizaciones & Reservas</span>
                     </button>
                     <button onclick="cambiarVista('ranking')" id="btn-menu-ranking" class="w-full flex items-center text-left gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
@@ -685,6 +686,7 @@
     <script src="js/movimientos.js"></script>
     <script src="js/reportes.js"></script>
     <script src="js/ventas.js"></script>
+    <script src="js/asistentes.js"></script>
     <script src="js/pos_auth.js"></script>
     <script src="js/ranking.js"></script>
     <script src="js/parametros.js"></script>
@@ -775,6 +777,27 @@
             <div class="flex gap-3">
                 <button onclick="resolverConfirmarClave(null)" class="flex-1 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-100">Cancelar</button>
                 <button onclick="resolverConfirmarClave(document.getElementById('confirmar-clave-input').value)" class="flex-1 py-3 rounded-xl font-bold bg-blue-600 text-white hover:bg-blue-700">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Asistentes de configuración -->
+    <div id="modal-asistente" class="hidden fixed inset-0 z-[150] bg-slate-900/60 backdrop-blur-sm items-center justify-center p-4" role="dialog" aria-modal="true">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div class="h-1.5 bg-slate-100"><div id="asist-barra" class="h-full bg-emerald-500 transition-all" style="width:0%"></div></div>
+            <div class="p-6">
+                <p class="text-xs font-bold text-emerald-600 uppercase tracking-wider" id="asist-titulo"></p>
+                <p class="text-xs text-slate-400 mb-3" id="asist-progreso"></p>
+                <h3 class="text-xl font-black text-slate-800" id="asist-pregunta"></h3>
+                <p class="text-sm text-slate-500 mt-1 mb-4" id="asist-ayuda"></p>
+                <div id="asist-cuerpo" class="max-h-[50vh] overflow-y-auto"></div>
+                <div class="flex items-center justify-between mt-6">
+                    <button id="asist-atras" onclick="asistenteAtras()" class="px-4 py-2 rounded-xl font-bold text-slate-500 hover:bg-slate-100">← Atrás</button>
+                    <div class="flex items-center gap-2">
+                        <button id="asist-omitir" onclick="asistenteOmitir()" class="px-4 py-2 rounded-xl font-bold text-slate-400 hover:bg-slate-100 text-sm">Omitir por ahora</button>
+                        <button id="asist-siguiente" onclick="asistenteSiguiente()" class="px-6 py-2.5 rounded-xl font-bold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50">Siguiente</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
