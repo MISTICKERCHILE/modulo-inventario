@@ -68,6 +68,7 @@ window.aplicarConfigVentas = function () {
     const agenda = Array.isArray(c?.agenda) ? c.agenda.filter(a => a !== 'ninguno') : null;
     const visible = {
         pos:           !c || c.canal !== 'importacion',
+        importacion:   !c || c.canal !== 'pos',
         cotizaciones:  !c || c.cotizaciones !== 'no',
         agenda:        !c || (agenda && agenda.length > 0),
         cotizacionesOAgenda: !c || c.cotizaciones !== 'no' || (agenda && agenda.length > 0)

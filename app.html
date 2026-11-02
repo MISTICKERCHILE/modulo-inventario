@@ -443,6 +443,9 @@
                     <button data-cfg="cotizacionesOAgenda" onclick="cambiarVista('cotizaciones')" id="btn-menu-cotizaciones" class="w-full flex items-center text-left gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
                         <span class="shrink-0">📄</span> <span class="menu-texto leading-tight">Cotizaciones & Reservas</span>
                     </button>
+                    <button data-cfg="importacion" onclick="cambiarVista('importar_ventas')" id="btn-menu-importar_ventas" class="w-full flex items-center text-left gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
+                        <span class="shrink-0">📥</span> <span class="menu-texto leading-tight">Importar ventas</span>
+                    </button>
                     <button onclick="cambiarVista('ranking')" id="btn-menu-ranking" class="w-full flex items-center text-left gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
                         <span class="shrink-0">🏆</span> <span class="menu-texto leading-tight">Laboratorio & Ranking</span>
                     </button>
@@ -687,6 +690,7 @@
     <script src="js/reportes.js"></script>
     <script src="js/ventas.js"></script>
     <script src="js/asistentes.js"></script>
+    <script src="js/importar_ventas.js"></script>
     <script src="js/pos_auth.js"></script>
     <script src="js/ranking.js"></script>
     <script src="js/parametros.js"></script>
