@@ -3,8 +3,17 @@
     <div id="pos-pin-screen" class="absolute inset-0 z-[70] flex-1 flex flex-col items-center justify-center bg-slate-900 text-white p-4">
         <div class="text-center mb-8">
             <h2 class="text-3xl font-black text-emerald-400 mb-2">Buddy POS</h2>
-            <p class="text-slate-400">Ingresa tu PIN de operador</p>
+            <p class="text-slate-400" id="pos-pin-subtitulo">¿Quién eres?</p>
         </div>
+
+        <!-- Paso 1: elegir persona -->
+        <div id="pos-pin-usuarios" class="w-full max-w-sm space-y-2 max-h-[55vh] overflow-y-auto">
+            <p class="text-center text-slate-500 text-sm animate-pulse">Cargando equipo...</p>
+        </div>
+        <button id="pos-pin-cerrar-lista" onclick="salirDePOS()" class="mt-6 text-slate-400 text-sm font-bold hover:text-white">CERRAR</button>
+
+        <!-- Paso 2: PIN de esa persona -->
+        <div id="pos-pin-teclado" class="hidden flex-col items-center w-full">
         <div class="flex gap-4 mb-8">
             <div class="w-4 h-4 rounded-full bg-slate-700 pin-dot transition-colors"></div>
             <div class="w-4 h-4 rounded-full bg-slate-700 pin-dot transition-colors"></div>
@@ -24,6 +33,8 @@
             <button onclick="salirDePOS()" class="h-16 text-slate-400 rounded-2xl text-sm font-bold hover:bg-slate-800 transition-colors">CERRAR</button>
             <button onclick="teclearPin(0)" class="h-16 bg-slate-800 rounded-2xl text-2xl font-bold hover:bg-slate-700 transition-colors">0</button>
             <button onclick="borrarPin()" class="h-16 text-red-400 rounded-2xl text-2xl font-bold hover:bg-slate-800 transition-colors">⌫</button>
+        </div>
+        <button onclick="mostrarSelectorPin(window.pinSoloAdmins)" class="mt-6 text-slate-400 text-sm font-bold hover:text-white">← Cambiar persona</button>
         </div>
     </div>
 

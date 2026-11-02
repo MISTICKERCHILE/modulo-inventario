@@ -764,5 +764,19 @@
         }
     </script>
 
+
+    <!-- Confirmar contraseña (cambios de PIN) -->
+    <div id="modal-confirmar-clave" class="hidden fixed inset-0 z-[200] bg-slate-900/70 backdrop-blur-sm items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <h3 class="text-lg font-black text-slate-800 mb-1">Confirma que eres tú</h3>
+            <p id="confirmar-clave-texto" class="text-sm text-slate-500 mb-4">Ingresa la contraseña de tu cuenta para continuar.</p>
+            <input id="confirmar-clave-input" type="password" autocomplete="current-password" placeholder="Tu contraseña"
+                   class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none mb-4">
+            <div class="flex gap-3">
+                <button onclick="resolverConfirmarClave(null)" class="flex-1 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-100">Cancelar</button>
+                <button onclick="resolverConfirmarClave(document.getElementById('confirmar-clave-input').value)" class="flex-1 py-3 rounded-xl font-bold bg-blue-600 text-white hover:bg-blue-700">Confirmar</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

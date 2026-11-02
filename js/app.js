@@ -977,18 +977,48 @@ window.pedirPinNuevo = function(paraQuien) {
     return pin1.trim();
 }
 
+// Pide la contraseña de la cuenta en una ventana propia (con los caracteres ocultos).
+// Devuelve el texto escrito, o null si se cancela.
+window.pedirClaveCuenta = function(texto) {
+    return new Promise(resolve => {
+        window._resolverClave = resolve;
+        document.getElementById('confirmar-clave-texto').innerText = texto || 'Ingresa la contraseña de tu cuenta para continuar.';
+        const input = document.getElementById('confirmar-clave-input');
+        input.value = '';
+        const modal = document.getElementById('modal-confirmar-clave');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        setTimeout(() => input.focus(), 50);
+        input.onkeydown = (e) => { if (e.key === 'Enter') window.resolverConfirmarClave(input.value); };
+    });
+}
+window.resolverConfirmarClave = function(valor) {
+    const modal = document.getElementById('modal-confirmar-clave');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    document.getElementById('confirmar-clave-input').value = '';
+    if (window._resolverClave) { window._resolverClave(valor); window._resolverClave = null; }
+}
+
 // Asigna un PIN a un miembro de la empresa. La base valida permisos
-// (el propio usuario, o un Dueño/Admin) y que no se repita dentro de la empresa.
+// (el propio usuario, o un Dueño/Admin), exige la contraseña de quien hace el cambio
+// y bloquea tras varios intentos fallidos. El PIN puede repetirse entre personas:
+// en el POS se elige primero a la persona.
 window.asignarPinMiembro = async function(idEmpresa, idUsuario, nombre) {
     const pin = window.pedirPinNuevo(nombre);
     if (!pin) return;
 
-    const { error } = await clienteSupabase.rpc('asignar_pin', {
+    const clave = await window.pedirClaveCuenta('Para cambiar el PIN de ' + nombre + ', confirma con la contraseña de tu cuenta.');
+    if (!clave) return;
+
+    const { data, error } = await clienteSupabase.rpc('asignar_pin', {
         p_id_empresa: idEmpresa,
         p_id_usuario: idUsuario,
-        p_pin: pin
+        p_pin: pin,
+        p_clave: clave
     });
     if (error) return alert("❌ No se pudo guardar el PIN: " + error.message);
+    if (data === 'clave_incorrecta') return alert("❌ La contraseña no es correcta. El PIN no se cambió.");
     alert(`✅ PIN guardado para ${nombre}.`);
 }
 
