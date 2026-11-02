@@ -433,6 +433,7 @@ window.iniciarSesionEmpresa = async function(id, nombre, email, nombreUsuario, r
     // Suscripción: la base de datos calcula qué módulos puede usar la empresa
     // (contratados por Zeus o en prueba gratuita vigente) y los días de prueba.
     await window.cargarEstadoSuscripcion(id);
+    if (window.cargarConfigAsistentes) window.cargarConfigAsistentes(); // sin await: no bloquea la carga
 
     const login = document.getElementById('login-container');
     const selector = document.getElementById('selector-empresa-container');
@@ -645,6 +646,7 @@ window.cambiarVista = async function(vista) {
         
         // AUTO-ARRANQUE DEPENDIENDO DE LA VISTA
         if(vista === 'home' && typeof window.cargarHome === 'function') window.cargarHome();
+        if(vista === 'dashboard_ventas' && typeof window.aplicarConfigVentas === 'function') { window.aplicarConfigVentas(); window.revisarAsistenteVentas(); }
         if(vista === 'dashboard' && typeof window.cargarDashboard === 'function') window.cargarDashboard();
         if(vista === 'empresas' && typeof window.cargarEmpresas === 'function') window.cargarEmpresas();
         if(vista === 'catalogos' && typeof window.cargarCategorias === 'function') {
