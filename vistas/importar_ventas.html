@@ -1,0 +1,110 @@
+<div class="max-w-5xl mx-auto space-y-6 pb-16">
+
+    <div>
+        <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2"><span>📥</span> Importar ventas</h2>
+        <p class="text-sm text-slate-500 mt-1">Trae a Buddy las ventas de Mercado Libre, Shopify u otro sistema. Si subes el mismo archivo dos veces, no se duplica nada.</p>
+    </div>
+
+    <div id="iv-sin-permiso" class="hidden bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-4 text-sm font-bold">
+        Solo un Dueño o Administrador puede importar ventas.
+    </div>
+
+    <div id="iv-contenido" class="space-y-6">
+
+        <!-- 1. Archivo -->
+        <section class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
+            <h3 class="font-bold text-slate-800">1. Archivo y origen</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">¿De dónde vienen?</label>
+                    <select id="iv-origen" onchange="ivCambioOrigen()" class="w-full px-3 py-2 border rounded-lg bg-white text-sm"></select>
+                    <input id="iv-origen-otro" maxlength="60" placeholder="¿Qué sistema usas?" class="hidden mt-2 w-full px-3 py-2 border rounded-lg text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">Sucursal</label>
+                    <select id="iv-sucursal" class="w-full px-3 py-2 border rounded-lg bg-white text-sm"></select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">Moneda del archivo</label>
+                    <select id="iv-moneda" onchange="ivCambioMoneda()" class="w-full px-3 py-2 border rounded-lg bg-white text-sm"></select>
+                    <input id="iv-moneda-otra" maxlength="6" placeholder="Ej: GBP" class="hidden mt-2 w-full px-3 py-2 border rounded-lg text-sm uppercase">
+                </div>
+            </div>
+            <div class="flex flex-col md:flex-row gap-3 md:items-end">
+                <div class="flex-1">
+                    <label class="block text-xs font-bold text-slate-500 mb-1">Archivo CSV</label>
+                    <input type="file" id="iv-archivo" accept=".csv,text/csv" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                </div>
+                <button onclick="ivLeerArchivo()" class="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 text-sm">Leer archivo</button>
+            </div>
+            <div class="flex flex-wrap gap-4 text-sm">
+                <button onclick="ivDescargarPlantilla()" class="text-blue-600 font-bold hover:underline">⬇️ Descargar plantilla Buddy</button>
+                <button onclick="ivDescargarMisVentas()" class="text-blue-600 font-bold hover:underline">⬇️ Descargar mis ventas (CSV)</button>
+            </div>
+        </section>
+
+        <!-- 2. Columnas -->
+        <section id="iv-paso-columnas" class="hidden bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
+            <div>
+                <h3 class="font-bold text-slate-800">2. ¿Qué es cada columna?</h3>
+                <p class="text-xs text-slate-500">Buddy propuso las columnas. Corrige lo que no calce; lo recordará para este origen.</p>
+            </div>
+            <div id="iv-columnas" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+            <div id="iv-agrupacion" class="text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-3"></div>
+            <button onclick="ivAnalizar()" class="px-6 py-2.5 bg-slate-800 text-white rounded-lg font-bold hover:bg-slate-900 text-sm">Continuar → vincular productos</button>
+        </section>
+
+        <!-- 3. Productos -->
+        <section id="iv-paso-productos" class="hidden bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
+            <div class="flex flex-col md:flex-row md:justify-between md:items-start gap-2">
+                <div>
+                    <h3 class="font-bold text-slate-800">3. Vincular productos</h3>
+                    <p class="text-xs text-slate-500">Los <span class="text-amber-600 font-bold">sugeridos</span> hay que confirmarlos. Lo que vincules queda recordado para la próxima vez.</p>
+                </div>
+                <button onclick="ivConfirmarSugeridos()" class="text-sm font-bold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg hover:bg-amber-100">✓ Confirmar todos los sugeridos</button>
+            </div>
+            <datalist id="iv-lista-productos"></datalist>
+            <div class="overflow-x-auto border border-slate-200 rounded-lg">
+                <table class="min-w-full text-sm">
+                    <thead class="bg-slate-100 text-xs font-bold text-slate-500 uppercase">
+                        <tr><th class="px-3 py-2 text-left">En tu archivo</th><th class="px-3 py-2 text-center">Unidades</th><th class="px-3 py-2 text-left w-1/2">Producto en Buddy</th><th class="px-3 py-2 text-center">Ignorar</th></tr>
+                    </thead>
+                    <tbody id="iv-tabla-productos" class="divide-y divide-slate-100"></tbody>
+                </table>
+            </div>
+            <button onclick="ivIrARevision()" class="px-6 py-2.5 bg-slate-800 text-white rounded-lg font-bold hover:bg-slate-900 text-sm">Continuar → revisar</button>
+        </section>
+
+        <!-- 4. Revisar -->
+        <section id="iv-paso-revision" class="hidden bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
+            <h3 class="font-bold text-slate-800">4. Revisar y confirmar</h3>
+            <div id="iv-resumen" class="grid grid-cols-2 md:grid-cols-4 gap-3"></div>
+            <div id="iv-avisos" class="space-y-2"></div>
+            <label class="flex items-start gap-3 p-4 border border-slate-200 rounded-xl bg-slate-50 cursor-pointer">
+                <input type="checkbox" id="iv-descontar" class="mt-1 w-5 h-5">
+                <span>
+                    <span class="block font-bold text-sm text-slate-800">Descontar inventario</span>
+                    <span class="block text-xs text-slate-500">Descuenta el producto terminado o, si no hay, los ingredientes de su receta. Lo que falte queda como deuda de stock. Apagado por defecto.</span>
+                </span>
+            </label>
+            <div class="flex items-center gap-3">
+                <button id="iv-btn-importar" onclick="ivImportar()" class="px-8 py-3 bg-emerald-600 text-white rounded-lg font-black hover:bg-emerald-700 disabled:opacity-50">Importar ventas</button>
+                <span id="iv-progreso" class="text-sm font-bold text-slate-500"></span>
+            </div>
+        </section>
+
+        <!-- Historial -->
+        <section class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+            <h3 class="font-bold text-slate-800 mb-1">Importaciones anteriores</h3>
+            <p class="text-xs text-slate-500 mb-3">Si te equivocas, puedes deshacer una importación completa; el stock descontado vuelve a su lugar.</p>
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                    <thead class="text-xs font-bold text-slate-500 uppercase bg-slate-50">
+                        <tr><th class="px-3 py-2 text-left">Fecha</th><th class="px-3 py-2 text-left">Origen</th><th class="px-3 py-2 text-left">Archivo</th><th class="px-3 py-2 text-center">Ventas</th><th class="px-3 py-2 text-center">Repetidas</th><th class="px-3 py-2 text-center">Stock</th><th class="px-3 py-2 text-center">Estado</th><th></th></tr>
+                    </thead>
+                    <tbody id="iv-historial" class="divide-y divide-slate-100"></tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+</div>

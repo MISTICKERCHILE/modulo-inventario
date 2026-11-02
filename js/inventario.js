@@ -590,12 +590,6 @@ window.actualizarSelectsMapeoCSV = async function(nuevoIdProducto) {
     window.productosERPGlobal = prodsERP || []; 
     window.productosGlobalConteo = prodsERP || []; 
 
-    if (window.selectCSVActivoIndex !== null && nuevoIdProducto) {
-        const nuevoProd = window.productosERPGlobal.find(p => p.id === nuevoIdProducto);
-        if(nuevoProd) window.seleccionarProductoCSV(window.selectCSVActivoIndex, nuevoProd.id, nuevoProd.nombre);
-        window.selectCSVActivoIndex = null; 
-    }
-
     if (window.selectConteoActivoIndex !== null && nuevoIdProducto) {
         const nuevoProd = window.productosGlobalConteo.find(p => p.id === nuevoIdProducto);
         if(nuevoProd) window.seleccionarProductoConteo(window.selectConteoActivoIndex, nuevoProd.id, nuevoProd.nombre, nuevoProd.id_unidad_almacenamiento?.abreviatura || 'UA');
