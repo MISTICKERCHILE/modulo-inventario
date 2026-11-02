@@ -661,6 +661,7 @@ window.cambiarVista = async function(vista) {
         if(vista === 'parametros') window.cargarParametros();
         if(vista === 'ventas' && typeof window.cargarVentas === 'function') window.cargarVentas();
         if(vista === 'ranking' && typeof window.cargarLaboratorio === 'function') window.cargarLaboratorio();
+        if(vista === 'cotizaciones' && typeof window.cargarCotizaciones === 'function') window.cargarCotizaciones();
         if(vista === 'importar_ventas' && typeof window.cargarImportarVentas === 'function') window.cargarImportarVentas();
         if(vista === 'hr_colaboradores' && typeof window.cargarFichasLaborales === 'function') window.cargarFichasLaborales();
         if(vista === 'hr_colaboradores' && typeof window.cambiarTabHR === 'function') window.cambiarTabHR('fichas');

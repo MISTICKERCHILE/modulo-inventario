@@ -1,0 +1,114 @@
+<div class="max-w-6xl mx-auto space-y-6 pb-16">
+
+    <!-- ===== LISTA ===== -->
+    <div id="cz-lista">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div>
+                <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2"><span>📄</span> Cotizaciones</h2>
+                <p class="text-sm text-slate-500 mt-1">Crea, edita y envía cotizaciones profesionales en PDF con el logo y los datos de tu empresa.</p>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="abrirDatosDocumentos()" class="px-4 py-2.5 border border-slate-300 rounded-lg font-bold text-sm text-slate-700 hover:bg-slate-50">🏢 Logo y datos de mi empresa</button>
+                <button onclick="czNueva()" class="px-5 py-2.5 bg-blue-600 text-white rounded-lg font-bold text-sm hover:bg-blue-700">+ Nueva cotización</button>
+            </div>
+        </div>
+
+        <div class="flex flex-col md:flex-row gap-3 mt-5">
+            <input id="cz-buscar" oninput="czPintarLista()" placeholder="Buscar por cliente, número o título…" class="flex-1 px-3 py-2 border rounded-lg text-sm">
+            <select id="cz-filtro" onchange="czPintarLista()" class="px-3 py-2 border rounded-lg bg-white text-sm">
+                <option value="">Todos los estados</option>
+                <option value="borrador">Borrador</option><option value="enviada">Enviada</option>
+                <option value="aceptada">Aceptada</option><option value="rechazada">Rechazada</option>
+                <option value="vencida">Vencida</option><option value="convertida">Convertida</option>
+            </select>
+        </div>
+
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto mt-4">
+            <table class="min-w-full text-sm">
+                <thead class="bg-slate-50 text-xs font-bold text-slate-500 uppercase">
+                    <tr><th class="px-3 py-2 text-left">N°</th><th class="px-3 py-2 text-left">Cliente</th><th class="px-3 py-2 text-left">Título</th><th class="px-3 py-2 text-left">Emisión</th><th class="px-3 py-2 text-left">Vence</th><th class="px-3 py-2 text-right">Total</th><th class="px-3 py-2 text-center">Estado</th><th></th></tr>
+                </thead>
+                <tbody id="cz-tabla" class="divide-y divide-slate-100"></tbody>
+            </table>
+            <p id="cz-vacio" class="hidden p-8 text-center text-sm text-slate-400">Aún no tienes cotizaciones. Crea la primera con “Nueva cotización”.</p>
+        </div>
+    </div>
+
+    <!-- ===== EDITOR ===== -->
+    <div id="cz-editor" class="hidden space-y-5">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <button onclick="czVolver()" class="text-sm font-bold text-slate-500 hover:text-slate-800">← Volver a la lista</button>
+                <h2 id="cz-titulo-editor" class="text-2xl font-black text-slate-800 mt-1">Nueva cotización</h2>
+                <p id="cz-subtitulo" class="text-xs text-slate-500"></p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <button id="cz-btn-duplicar" onclick="czDuplicar()" class="hidden px-4 py-2 border border-slate-300 rounded-lg font-bold text-sm hover:bg-slate-50">⧉ Duplicar como nueva</button>
+                <button onclick="czGuardar(false)" class="px-4 py-2 bg-slate-800 text-white rounded-lg font-bold text-sm hover:bg-slate-900">Guardar</button>
+                <button onclick="czGuardar(true)" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold text-sm hover:bg-blue-700">Guardar y descargar PDF</button>
+            </div>
+        </div>
+        <div id="cz-aviso-bloqueo" class="hidden bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-3 text-sm font-bold">Esta cotización ya se convirtió en venta y no se puede editar. Puedes duplicarla o descargar el PDF.</div>
+
+        <section class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
+            <h3 class="font-bold text-slate-800">Cliente</h3>
+            <datalist id="cz-lista-clientes"></datalist>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-500 mb-1">Nombre o razón social *</label>
+                    <input id="cz-cli-nombre" list="cz-lista-clientes" oninput="czElegirCliente()" maxlength="160" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Escribe para buscar o ingresa uno nuevo"></div>
+                <div><label class="block text-xs font-bold text-slate-500 mb-1">RUT / documento</label><input id="cz-cli-doc" maxlength="40" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
+                <div><label class="block text-xs font-bold text-slate-500 mb-1">Correo</label><input id="cz-cli-correo" maxlength="160" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
+                <div><label class="block text-xs font-bold text-slate-500 mb-1">Teléfono</label><input id="cz-cli-tel" maxlength="40" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
+                <div><label class="block text-xs font-bold text-slate-500 mb-1">Dirección</label><input id="cz-cli-dir" maxlength="240" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
+            </div>
+        </section>
+
+        <section class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
+            <h3 class="font-bold text-slate-800">Condiciones</h3>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="md:col-span-4"><label class="block text-xs font-bold text-slate-500 mb-1">Título o asunto</label><input id="cz-asunto" maxlength="200" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Ej: Instalación de cocina industrial"></div>
+                <div><label class="block text-xs font-bold text-slate-500 mb-1">Fecha de emisión</label><input type="date" id="cz-emision" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
+                <div><label class="block text-xs font-bold text-slate-500 mb-1">Validez (días)</label><input type="number" min="0" max="365" id="cz-validez" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
+                <div><label class="block text-xs font-bold text-slate-500 mb-1">Moneda</label><select id="cz-moneda" class="w-full px-3 py-2 border rounded-lg bg-white text-sm"></select></div>
+                <div><label class="block text-xs font-bold text-slate-500 mb-1">Estado</label><select id="cz-estado" class="w-full px-3 py-2 border rounded-lg bg-white text-sm">
+                    <option value="borrador">Borrador</option><option value="enviada">Enviada</option><option value="aceptada">Aceptada</option><option value="rechazada">Rechazada</option></select></div>
+            </div>
+        </section>
+
+        <section class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
+            <div class="flex justify-between items-center"><h3 class="font-bold text-slate-800">Detalle</h3>
+                <button onclick="czAgregarItem()" class="text-sm font-bold text-blue-600 hover:underline">+ Agregar línea</button></div>
+            <datalist id="cz-lista-productos"></datalist>
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                    <thead class="text-xs font-bold text-slate-500 uppercase bg-slate-50">
+                        <tr><th class="px-2 py-2 text-left w-2/5">Producto o servicio</th><th class="px-2 py-2 text-right w-20">Cant.</th><th class="px-2 py-2 text-right w-32">Precio neto</th><th class="px-2 py-2 text-right w-20">Dto. %</th><th class="px-2 py-2 text-right w-32">Total</th><th class="w-8"></th></tr>
+                    </thead>
+                    <tbody id="cz-items" class="divide-y divide-slate-100"></tbody>
+                </table>
+            </div>
+            <div class="flex justify-end">
+                <div class="w-full md:w-80 space-y-2 text-sm">
+                    <div class="flex justify-between"><span class="text-slate-500">Subtotal</span><span id="cz-t-sub" class="font-bold"></span></div>
+                    <div class="flex justify-between items-center"><span class="text-slate-500">Descuento global %</span><input type="number" min="0" max="100" id="cz-dto" oninput="czRecalcular()" class="w-20 px-2 py-1 border rounded text-right"></div>
+                    <div class="flex justify-between items-center"><span class="text-slate-500">Impuesto (IVA) %</span><input type="number" min="0" max="100" id="cz-iva" oninput="czRecalcular()" class="w-20 px-2 py-1 border rounded text-right"></div>
+                    <div class="flex justify-between"><span class="text-slate-500">Impuesto</span><span id="cz-t-imp" class="font-bold"></span></div>
+                    <div class="flex justify-between text-lg border-t pt-2"><span class="font-black">Total</span><span id="cz-t-total" class="font-black text-emerald-600"></span></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div><label class="block text-xs font-bold text-slate-500 mb-1">Notas para el cliente</label><textarea id="cz-notas" rows="4" maxlength="4000" class="w-full px-3 py-2 border rounded-lg text-sm"></textarea></div>
+            <div><label class="block text-xs font-bold text-slate-500 mb-1">Condiciones comerciales</label><textarea id="cz-condiciones" rows="4" maxlength="4000" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Forma de pago, plazos de entrega, garantía…"></textarea></div>
+        </section>
+
+        <section id="cz-adjuntos-box" class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-3">
+            <div class="flex justify-between items-center"><h3 class="font-bold text-slate-800">Archivos adjuntos</h3>
+                <label class="text-sm font-bold text-blue-600 hover:underline cursor-pointer">+ Subir archivo<input type="file" id="cz-archivo" class="hidden" multiple onchange="czSubirAdjuntos(this)"></label></div>
+            <p class="text-xs text-slate-500">Planos, fotos, órdenes de compra, contratos… quedan guardados con este proyecto (máx. 10 MB c/u). No se incluyen en el PDF.</p>
+            <ul id="cz-adjuntos" class="divide-y divide-slate-100 text-sm"></ul>
+            <p id="cz-adjuntos-aviso" class="hidden text-xs text-amber-700 font-bold">Guarda la cotización para poder adjuntar archivos.</p>
+        </section>
+    </div>
+</div>
