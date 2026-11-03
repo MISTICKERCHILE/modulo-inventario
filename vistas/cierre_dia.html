@@ -1,0 +1,39 @@
+<div class="max-w-4xl mx-auto space-y-6 pb-16">
+    <div>
+        <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2"><span>🔒</span> Cierre del día</h2>
+        <p class="text-sm text-slate-500 mt-1">Cuadra lo que se vendió en el día por forma de pago. Con POS, Buddy suma todos los turnos; sin POS, declaras tus ventas.</p>
+    </div>
+
+    <section class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div><label class="block text-xs font-bold text-slate-500 mb-1">Sucursal</label><select id="cd-sucursal" onchange="cdCargarDia()" class="w-full px-3 py-2 border rounded-lg bg-white text-sm"></select></div>
+            <div><label class="block text-xs font-bold text-slate-500 mb-1">Día</label><input type="date" id="cd-fecha" onchange="cdCargarDia()" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
+            <div><label class="block text-xs font-bold text-slate-500 mb-1">¿Cómo vendes?</label>
+                <select id="cd-modo" onchange="cdCargarDia()" class="w-full px-3 py-2 border rounded-lg bg-white text-sm"><option value="POS">Con POS de Buddy</option><option value="MANUAL">Declaro mis ventas</option></select></div>
+        </div>
+        <div id="cd-aviso" class="hidden rounded-lg p-3 text-sm font-bold"></div>
+
+        <div id="cd-cuerpo" class="space-y-3"></div>
+
+        <div id="cd-manual-total" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div><label class="block text-xs font-bold text-slate-500 mb-1">Total del día según tu sistema o caja</label>
+                <input id="cd-total-dia" type="number" min="0" step="any" oninput="cdRecalcular()" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
+        </div>
+
+        <div id="cd-resultado" class="rounded-xl border p-4 text-sm font-bold bg-slate-50 border-slate-200"></div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div><label class="block text-xs font-bold text-slate-500 mb-1">Responsable *</label><input id="cd-responsable" maxlength="80" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Tu nombre"></div>
+            <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-500 mb-1">Comentario <span id="cd-obligatorio" class="text-red-500 hidden">(obligatorio: no cuadra)</span></label>
+                <input id="cd-comentario" maxlength="2000" oninput="cdRecalcular()" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Ej: faltaron $2.000 por vuelto mal dado"></div>
+        </div>
+        <button id="cd-btn" onclick="cdCerrar()" class="px-6 py-2.5 bg-emerald-600 text-white rounded-lg font-black text-sm hover:bg-emerald-700 disabled:opacity-50">Cerrar día</button>
+    </section>
+
+    <section class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+        <h3 class="font-bold text-slate-800 mb-3">Últimos cierres</h3>
+        <div class="overflow-x-auto"><table class="min-w-full text-sm">
+            <thead class="text-xs font-bold text-slate-500 uppercase bg-slate-50"><tr><th class="px-3 py-2 text-left">Día</th><th class="px-3 py-2 text-left">Sucursal</th><th class="px-3 py-2 text-left">Modo</th><th class="px-3 py-2 text-left">Responsable</th><th class="px-3 py-2 text-right">Declarado</th><th class="px-3 py-2 text-center">Resultado</th></tr></thead>
+            <tbody id="cd-historial" class="divide-y divide-slate-100"></tbody></table></div>
+    </section>
+</div>

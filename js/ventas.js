@@ -482,9 +482,15 @@ window.cerrarEscanerCamara = function() {
 
 window.cargarMetodosPagoPOS = async function() {
     try {
-        const { data, error } = await clienteSupabase.from('metodos_pago').select('*').eq('id_empresa', window.miEmpresaId).eq('activo', true).order('nombre');
-        if (error) throw error;
-        window.metodosPagoMemoria = data || [];
+        const [mp, asg] = await Promise.all([
+            clienteSupabase.from('metodos_pago').select('*').eq('id_empresa', window.miEmpresaId).eq('activo', true).order('nombre'),
+            clienteSupabase.from('metodos_pago_sucursales').select('id_metodo_pago, id_sucursal').eq('id_empresa', window.miEmpresaId)
+        ]);
+        if (mp.error) throw mp.error;
+        // Sin asignaciones = disponible en todas las sucursales
+        const porMetodo = {};
+        (asg.data || []).forEach(a => (porMetodo[a.id_metodo_pago] ||= []).push(a.id_sucursal));
+        window.metodosPagoMemoria = (mp.data || []).filter(m => !porMetodo[m.id] || !window.sucursalActivaID || porMetodo[m.id].includes(window.sucursalActivaID));
         window.renderizarMetodosPagoPOS();
     } catch (error) { console.error("Error cargando métodos de pago:", error); }
 }

@@ -251,55 +251,85 @@ window.guardarNuevoRol = async () => {
 // LÓGICA DE MÉTODOS DE PAGO Y AJUSTES DE INVENTARIO
 // ============================================================================
 
-// --- 1. MÉTODOS DE PAGO ---
+// --- 1. MÉTODOS DE PAGO (por sucursal) ---
+window._mpEditando = null;
+window._mpDatos = [];
+window._mpSucursales = [];
+window._mpAsignaciones = {};
+
 window.cargarMetodosPagoParametros = async function() {
     try {
-        const { data, error } = await clienteSupabase
-            .from('metodos_pago')
-            .select('*')
-            .eq('id_empresa', window.miEmpresaId)
-            .eq('activo', true)
-            .order('created_at', { ascending: true });
+        const [mp, su, asg] = await Promise.all([
+            clienteSupabase.from('metodos_pago').select('*').eq('id_empresa', window.miEmpresaId).eq('activo', true).order('created_at', { ascending: true }),
+            clienteSupabase.from('sucursales').select('id, nombre').eq('id_empresa', window.miEmpresaId).order('nombre'),
+            clienteSupabase.from('metodos_pago_sucursales').select('id_metodo_pago, id_sucursal').eq('id_empresa', window.miEmpresaId)
+        ]);
+        if (mp.error) throw mp.error;
+        const data = mp.data || [];
+        window._mpDatos = data; window._mpSucursales = su.data || [];
+        window._mpAsignaciones = {};
+        (asg.data || []).forEach(a => (window._mpAsignaciones[a.id_metodo_pago] ||= []).push(a.id_sucursal));
 
-        if (error) throw error;
-        
         const tbody = document.getElementById('tabla-metodos-pago');
         if (!tbody) return;
-
-        if (!data || data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-8 text-center text-slate-400 font-bold">Aún no hay métodos de pago configurados.</td></tr>';
+        if (!data.length) {
+            tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-8 text-center text-slate-400 font-bold">Aún no hay métodos de pago configurados.</td></tr>';
             return;
         }
-
+        const esc = (t) => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         tbody.innerHTML = data.map(mp => {
             let icono = '🪙';
             if (mp.tipo === 'EFECTIVO') icono = '💵';
             if (mp.tipo === 'TARJETA') icono = '💳';
             if (mp.tipo === 'TRANSFERENCIA') icono = '📱';
             if (mp.tipo === 'CREDITO') icono = '📝';
-
+            const ids = window._mpAsignaciones[mp.id] || [];
+            const donde = ids.length ? ids.map(i => esc((window._mpSucursales.find(s => s.id === i) || {}).nombre || '—')).join(', ') : 'Todas las sucursales';
             return `
             <tr class="hover:bg-slate-50 transition-colors">
-                <td class="px-6 py-4 font-black text-slate-800">${icono} ${mp.nombre}</td>
-                <td class="px-6 py-4"><span class="bg-slate-100 text-slate-600 px-3 py-1 rounded-md text-xs font-bold border border-slate-200">${mp.tipo}</span></td>
+                <td class="px-6 py-4 font-black text-slate-800">${icono} ${esc(mp.nombre)}</td>
+                <td class="px-6 py-4"><span class="bg-slate-100 text-slate-600 px-3 py-1 rounded-md text-xs font-bold border border-slate-200">${esc(mp.tipo)}</span></td>
                 <td class="px-6 py-4">
-                    <span class="font-bold text-slate-600">${mp.moneda}</span>
-                    ${mp.tasa_cambio !== 1 ? `<span class="block text-[10px] text-blue-500 font-bold mt-0.5">Tasa: ×${mp.tasa_cambio}</span>` : ''}
+                    <span class="font-bold text-slate-600">${esc(mp.moneda)}</span>
+                    ${Number(mp.tasa_cambio) !== 1 ? `<span class="block text-[10px] text-blue-500 font-bold mt-0.5">Tasa: ×${mp.tasa_cambio}</span>` : ''}
                 </td>
-                <td class="px-6 py-4 text-center">
-                    <button onclick="eliminarMetodoPago('${mp.id}')" class="text-red-400 hover:text-red-600 font-bold text-sm px-3 py-1 bg-red-50 hover:bg-red-100 rounded-md transition-colors">Ocultar / Borrar</button>
+                <td class="px-6 py-4 text-xs text-slate-600 font-bold">${donde}</td>
+                <td class="px-6 py-4 text-center whitespace-nowrap">
+                    <button onclick="abrirModalNuevoMetodoPago('${mp.id}')" class="text-blue-600 hover:text-blue-800 font-bold text-sm px-3 py-1 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors">Editar</button>
+                    <button onclick="eliminarMetodoPago('${mp.id}')" class="text-red-400 hover:text-red-600 font-bold text-sm px-3 py-1 bg-red-50 hover:bg-red-100 rounded-md transition-colors">Ocultar</button>
                 </td>
-            </tr>
-            `;
+            </tr>`;
         }).join('');
-
     } catch (error) {
         console.error("Error cargando métodos:", error);
     }
 }
 
-window.abrirModalNuevoMetodoPago = () => {
-    document.getElementById('input-mp-nombre').value = '';
+window.toggleSucursalesMetodo = function() {
+    const algunas = document.querySelector('input[name="mp-donde"][value="algunas"]').checked;
+    document.getElementById('mp-lista-sucursales').classList.toggle('hidden', !algunas);
+}
+
+window.abrirModalNuevoMetodoPago = (idEditar) => {
+    const mp = typeof idEditar === 'string' ? window._mpDatos.find(m => m.id === idEditar) : null;
+    window._mpEditando = mp ? mp.id : null;
+    document.getElementById('input-mp-nombre').value = mp ? mp.nombre : '';
+    if (mp) {
+        document.getElementById('select-mp-tipo').value = mp.tipo;
+        const sel = document.getElementById('select-mp-moneda');
+        if (![...sel.options].some(o => o.value === mp.moneda)) sel.insertAdjacentHTML('beforeend', `<option value="${mp.moneda}">${mp.moneda}</option>`);
+        sel.value = mp.moneda;
+        document.getElementById('input-mp-tasa').value = mp.tasa_cambio;
+    } else {
+        document.getElementById('input-mp-tasa').value = 1;
+    }
+    window.verificarMonedaExtranjera();
+    if (mp) document.getElementById('input-mp-tasa').value = mp.tasa_cambio;
+    const ids = mp ? (window._mpAsignaciones[mp.id] || []) : [];
+    document.querySelector(`input[name="mp-donde"][value="${ids.length ? 'algunas' : 'todas'}"]`).checked = true;
+    document.getElementById('mp-lista-sucursales').innerHTML = window._mpSucursales.map(s =>
+        `<label class="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" class="mp-chk-sucursal" value="${s.id}" ${ids.includes(s.id) ? 'checked' : ''}> ${String(s.nombre).replace(/</g, '&lt;')}</label>`).join('');
+    window.toggleSucursalesMetodo();
     document.getElementById('modal-nuevo-metodo').classList.remove('hidden');
 }
 
@@ -311,34 +341,26 @@ window.guardarNuevoMetodoPago = async function() {
     const nombre = document.getElementById('input-mp-nombre').value.trim();
     const tipo = document.getElementById('select-mp-tipo').value;
     const moneda = document.getElementById('select-mp-moneda').value;
-    
-    // Tomamos la tasa directamente, si la borraron, por defecto es 1
     const tasaInput = parseFloat(document.getElementById('input-mp-tasa').value);
     const tasaCambio = tasaInput > 0 ? tasaInput : 1;
-
     if (!nombre) return alert("⚠️ Debes ingresar un nombre para el método de pago.");
+
+    const algunas = document.querySelector('input[name="mp-donde"][value="algunas"]').checked;
+    const sucursales = algunas ? [...document.querySelectorAll('.mp-chk-sucursal:checked')].map(c => c.value) : [];
+    if (algunas && !sucursales.length) return alert("⚠️ Elige al menos una sucursal, o marca 'En todas las sucursales'.");
 
     const btn = document.getElementById('btn-guardar-mp');
     btn.innerText = "⏳ Guardando..."; btn.disabled = true;
-
     try {
-        const { error } = await clienteSupabase
-            .from('metodos_pago')
-            .insert([{
-                id_empresa: window.miEmpresaId,
-                nombre: nombre,
-                tipo: tipo,
-                moneda: moneda,
-                tasa_cambio: tasaCambio
-            }]);
-
+        const { error } = await clienteSupabase.rpc('guardar_metodo_pago', {
+            p_id_empresa: window.miEmpresaId, p_id: window._mpEditando, p_nombre: nombre, p_tipo: tipo,
+            p_moneda: moneda === 'OTRA' ? 'CLP' : moneda, p_tasa: tasaCambio, p_sucursales: sucursales });
         if (error) throw error;
-        
         cerrarModalNuevoMetodoPago();
-        cargarMetodosPagoParametros(); 
+        cargarMetodosPagoParametros();
     } catch (error) {
         console.error("Error al guardar método:", error);
-        alert("❌ Error al guardar el método de pago.");
+        alert("❌ No se pudo guardar: " + (error.message || 'error'));
     } finally {
         btn.innerText = "Guardar Método"; btn.disabled = false;
     }
@@ -347,31 +369,23 @@ window.guardarNuevoMetodoPago = async function() {
 window.verificarMonedaExtranjera = function() {
     const moneda = document.getElementById('select-mp-moneda').value;
     const divTasa = document.getElementById('div-tasa-cambio');
-    
     if (moneda !== 'CLP') {
         divTasa.classList.remove('hidden');
-        document.getElementById('input-mp-tasa').focus();
     } else {
         divTasa.classList.add('hidden');
-        document.getElementById('input-mp-tasa').value = ''; // Limpiamos si vuelve a CLP
+        document.getElementById('input-mp-tasa').value = 1;
     }
 }
 
 window.eliminarMetodoPago = async function(id) {
-    if (!confirm("🗑️ ¿Seguro que deseas eliminar este método de pago?\n\nNota: Los historiales de ventas anteriores con este método no se borrarán, solo dejará de aparecer como opción en la caja.")) return;
-
+    if (!confirm("¿Ocultar esta forma de pago?\n\nDejará de aparecer en la caja, pero el historial de ventas y cierres que la usaron se conserva y se puede descargar.")) return;
     try {
-        // Hacemos un "Soft Delete" (solo lo desactivamos) para que la contabilidad antigua no explote
-        const { error } = await clienteSupabase
-            .from('metodos_pago')
-            .update({ activo: false })
-            .eq('id', id);
-
+        const { error } = await clienteSupabase.rpc('ocultar_metodo_pago', { p_id: id });
         if (error) throw error;
-        cargarMetodosPagoParametros(); // Recargar la tabla dinámicamente
+        cargarMetodosPagoParametros();
     } catch (error) {
-        console.error("Error eliminando método:", error);
-        alert("❌ Error al eliminar.");
+        console.error("Error ocultando método:", error);
+        alert("❌ " + (error.message || 'No se pudo ocultar.'));
     }
 }
 
