@@ -44,8 +44,10 @@ export default async function handler(req, res) {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL, clave = process.env.SUPABASE_SERVICE_ROLE_KEY, resendKey = process.env.RESEND_API_KEY;
     if (!url || !clave || !resendKey) return res.status(503).json({ ok: false, error: 'no_configurado' });
 
+    // Las claves nuevas (sb_secret_...) van solo en 'apikey'; las antiguas (JWT) también como Bearer
+    const cabecerasBase = { apikey: clave, 'Content-Type': 'application/json', ...(clave.startsWith('eyJ') ? { Authorization: `Bearer ${clave}` } : {}) };
     const rpc = async (nombre, args) => {
-        const r = await fetch(`${url}/rest/v1/rpc/${nombre}`, { method: 'POST', headers: { apikey: clave, Authorization: `Bearer ${clave}`, 'Content-Type': 'application/json' }, body: JSON.stringify(args || {}) });
+        const r = await fetch(`${url}/rest/v1/rpc/${nombre}`, { method: 'POST', headers: cabecerasBase, body: JSON.stringify(args || {}) });
         const json = await r.json().catch(() => null);
         if (!r.ok) throw new Error((json && json.message) || `rpc ${nombre}: ${r.status}`);
         return json;
