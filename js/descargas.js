@@ -21,9 +21,12 @@ window.cargarDescargas = async function () {
     DS.sucursales = su.data || []; DS.tz = (em.data && em.data.zona_horaria) || 'America/Santiago';
     document.getElementById('ds-sucursal').innerHTML = DS.sucursales.map(s => `<option value="${s.id}">${dsEsc(s.nombre)}</option>`).join('');
     document.getElementById('ds-guardar-orden').classList.toggle('hidden', !dsAdmin());
+    document.getElementById('ds-programados').classList.toggle('hidden', !dsAdmin());
+    document.getElementById('pg-sucursal').innerHTML = DS.sucursales.map(s => `<option value="${s.id}">${dsEsc(s.nombre)}</option>`).join('');
     dsAtajo('7');
     await dsCargarConfig();
     dsCargarHistorial();
+    if (dsAdmin()) dsCargarEnvios();
 };
 
 function dsHoyLocal() { return new Date().toLocaleDateString('en-CA', { timeZone: DS.tz }); }
@@ -150,4 +153,50 @@ async function dsAbrirHistorial(i) {
     document.getElementById('ds-orden-info').innerText = 'Mostrando las columnas de esa descarga.';
     dsPintarColumnas(); await dsVistaPrevia();
     document.getElementById('ds-previa').scrollIntoView({ behavior: 'smooth' });
+}
+
+
+// ---------- Envíos automáticos ----------
+const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+const RANGOS = { ayer: 'ayer', semana_anterior: 'la semana anterior', mes_anterior: 'el mes anterior' };
+function dsFrecuencia() {
+    const f = document.getElementById('pg-frecuencia').value;
+    document.getElementById('pg-w-semana').classList.toggle('hidden', f !== 'semanal');
+    document.getElementById('pg-w-mes').classList.toggle('hidden', f !== 'mensual');
+}
+function dsNuevoEnvio() { DS.editandoEnvio = null; document.getElementById('pg-correos').value = ''; dsFrecuencia(); document.getElementById('ds-form-envio').classList.remove('hidden'); }
+async function dsGuardarEnvio() {
+    const correos = document.getElementById('pg-correos').value.split(/[,;\s]+/).map(c => c.trim()).filter(Boolean);
+    if (!correos.length) return alert('Escribe al menos un correo.');
+    const f = document.getElementById('pg-frecuencia').value;
+    const { error } = await clienteSupabase.rpc('guardar_programacion', {
+        p_id_empresa: window.miEmpresaId, p_id: DS.editandoEnvio, p_id_sucursal: document.getElementById('pg-sucursal').value, p_tipo: document.getElementById('pg-tipo').value,
+        p_frecuencia: f, p_dia_semana: f === 'semanal' ? parseInt(document.getElementById('pg-dia-semana').value) : null,
+        p_dia_mes: f === 'mensual' ? parseInt(document.getElementById('pg-dia-mes').value) : null, p_rango: document.getElementById('pg-rango').value, p_correos: correos, p_activo: true });
+    if (error) return alert(error.message);
+    document.getElementById('ds-form-envio').classList.add('hidden'); dsCargarEnvios();
+}
+async function dsCargarEnvios() {
+    const { data } = await clienteSupabase.from('export_programaciones').select('*').eq('id_empresa', window.miEmpresaId).order('created_at');
+    const nom = {}; DS.sucursales.forEach(s => nom[s.id] = s.nombre);
+    DS.envios = data || [];
+    document.getElementById('ds-lista-envios').innerHTML = DS.envios.map(p => {
+        const cuando = p.frecuencia === 'diaria' ? 'Todos los días' : p.frecuencia === 'semanal' ? `Todos los ${DIAS[p.dia_semana]}` : `El día ${p.dia_mes} de cada mes`;
+        return `<li class="py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+            <div><p class="font-bold text-slate-700">${p.tipo === 'ventas' ? 'Ventas' : 'Cierres de caja'} · ${dsEsc(nom[p.id_sucursal] || '')}</p>
+            <p class="text-xs text-slate-500">${cuando}, con ${RANGOS[p.rango]} · a ${dsEsc(p.correos.join(', '))}${p.ultimo_envio ? ' · último envío ' + dsFecha(p.ultimo_envio) : ''}</p></div>
+            <div class="flex gap-3 text-xs font-bold whitespace-nowrap"><button onclick="dsAlternarEnvio('${p.id}')" class="${p.activo ? 'text-emerald-600' : 'text-slate-400'}">${p.activo ? '● Activo' : '○ Pausado'}</button>
+            <button onclick="dsEliminarEnvio('${p.id}')" class="text-red-500 hover:text-red-700">Eliminar</button></div></li>`; }).join('')
+        || '<li class="py-3 text-slate-400">Aún no hay envíos programados.</li>';
+}
+async function dsAlternarEnvio(id) {
+    const p = DS.envios.find(x => x.id === id); if (!p) return;
+    const { error } = await clienteSupabase.rpc('guardar_programacion', { p_id_empresa: window.miEmpresaId, p_id: p.id, p_id_sucursal: p.id_sucursal, p_tipo: p.tipo, p_frecuencia: p.frecuencia,
+        p_dia_semana: p.dia_semana, p_dia_mes: p.dia_mes, p_rango: p.rango, p_correos: p.correos, p_activo: !p.activo });
+    if (error) return alert(error.message); dsCargarEnvios();
+}
+async function dsEliminarEnvio(id) {
+    if (!confirm('¿Eliminar este envío programado? El historial de lo ya enviado se conserva.')) return;
+    const { error } = await clienteSupabase.rpc('eliminar_programacion', { p_id: id });
+    if (error) return alert(error.message); dsCargarEnvios();
 }
