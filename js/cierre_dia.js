@@ -102,7 +102,16 @@ async function cdCerrar() {
         p_total_dia: modo === 'MANUAL' ? (parseFloat(document.getElementById('cd-total-dia').value) || 0) : null,
         p_otros: otros.map(o => ({ id_metodo_pago: o.id_metodo_pago, monto: o.monto, motivo: o.motivo.trim() })) });
     if (error) return alert('No se pudo cerrar: ' + error.message);
-    alert(data.cuadrado ? '✅ Día cerrado y cuadrado.' : '✅ Día cerrado con diferencia registrada.');
+    let correo = '';
+    try {
+        const { data: { session } } = await clienteSupabase.auth.getSession();
+        const r = await fetch('/api/resumen-cierre', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` }, body: JSON.stringify({ id: data.id }) });
+        const j = await r.json().catch(() => ({}));
+        if (j.ok && j.enviados) correo = `\n📧 Resumen enviado a ${j.enviados} correo(s).`;
+        else if (j.ok) correo = '\n(No hay correos configurados para el resumen diario: puedes agregarlos en Parámetros.)';
+        else correo = '\n⚠️ El día se cerró, pero no se pudo enviar el correo de resumen.';
+    } catch (e) { correo = '\n⚠️ El día se cerró, pero no se pudo enviar el correo de resumen.'; }
+    alert((data.cuadrado ? '✅ Día cerrado y cuadrado.' : '✅ Día cerrado con diferencia registrada.') + correo);
     await cdCargarDia(); cdCargarHistorial();
 }
 

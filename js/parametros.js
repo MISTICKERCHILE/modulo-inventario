@@ -18,6 +18,7 @@ window.cargarParametros = async function() {
 
     // --- NUEVAS LLAMADAS ---
     cargarMetodosPagoParametros();
+    if (typeof cargarDestinatariosResumen === 'function') cargarDestinatariosResumen();
     cargarAjusteStock();
     // -----------------------
 
@@ -424,4 +425,27 @@ window.guardarParametroVentaSinStock = async function(valor) {
         // Revertir el toggle visualmente si falló
         document.getElementById('toggle-vender-sin-stock').checked = !valor;
     }
+}
+
+// --- Resumen diario por correo: destinatarios ---
+window.cargarDestinatariosResumen = async function() {
+    const card = document.getElementById('card-resumen-correo'); if (!card) return;
+    const admin = ['Dueño', 'Admin', 'Administrador Supremo'].includes(window.miRol);
+    card.classList.toggle('hidden', !admin); if (!admin) return;
+    const { data } = await clienteSupabase.from('resumen_destinatarios').select('id, correo').eq('id_empresa', window.miEmpresaId).order('created_at');
+    const esc = (t) => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    document.getElementById('lista-destinatarios').innerHTML = (data || []).map(d =>
+        `<li class="py-2 flex justify-between items-center"><span class="font-bold text-slate-700">${esc(d.correo)}</span><button onclick="quitarDestinatarioResumen('${d.id}')" class="text-red-500 hover:text-red-700 text-xs font-bold">Quitar</button></li>`).join('')
+        || '<li class="py-2 text-slate-400">Aún no hay destinatarios: no se enviará ningún correo.</li>';
+}
+window.agregarDestinatarioResumen = async function() {
+    const el = document.getElementById('input-destinatario');
+    const { error } = await clienteSupabase.rpc('agregar_destinatario_resumen', { p_id_empresa: window.miEmpresaId, p_correo: el.value });
+    if (error) return alert('❌ ' + error.message);
+    el.value = ''; cargarDestinatariosResumen();
+}
+window.quitarDestinatarioResumen = async function(id) {
+    const { error } = await clienteSupabase.rpc('quitar_destinatario_resumen', { p_id: id });
+    if (error) return alert('❌ ' + error.message);
+    cargarDestinatariosResumen();
 }
