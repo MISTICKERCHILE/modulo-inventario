@@ -9,16 +9,18 @@
 
 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
     
-    <button onclick="cambiarVista('ranking')" class="bg-white p-6 rounded-2xl shadow-sm border border-emerald-200 hover:shadow-md hover:border-emerald-400 transition-all text-left flex flex-col justify-between group h-full outline-none">
-        <div class="flex justify-between items-start mb-4">
-            <h3 class="font-bold text-slate-500 uppercase tracking-wider text-sm">Ventas del Día</h3>
-            <span class="text-3xl opacity-80 group-hover:scale-110 transition-transform">📈</span>
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-emerald-200 text-left flex flex-col justify-between h-full">
+        <div class="flex justify-between items-start mb-3">
+            <h3 class="font-bold text-slate-500 uppercase tracking-wider text-sm">Ventas <span id="dv-periodo-titulo">del Día</span></h3>
+            <span class="text-3xl opacity-80">📈</span>
         </div>
-        <div id="dv-resumen-sucursales" class="space-y-3 mb-4 flex-1">
+        <div id="dv-vivo-tabs" class="flex gap-2 mb-3"></div>
+        <div id="dv-resumen-sucursales" class="space-y-3 mb-3 flex-1">
             <p class="text-sm text-slate-400 italic">Cargando sucursales...</p>
         </div>
-        <p class="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-2 rounded-lg text-center mt-auto">Ver reporte detallado ↗️</p>
-    </button>
+        <p id="dv-vivo-nota" class="text-[10px] text-slate-400 mb-2"></p>
+        <button onclick="cambiarVista('ranking')" class="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-2 rounded-lg text-center mt-auto hover:bg-emerald-100">Ver reporte detallado ↗️</button>
+    </div>
 
     <div id="dv-card-cobros" onclick="cambiarVista(this.dataset.destino || 'cuentas_cobrar')" class="cursor-pointer bg-white p-6 rounded-2xl shadow-sm border border-orange-200 hover:shadow-md hover:border-orange-400 transition-all text-left flex flex-col justify-between group h-full">
         <div class="flex justify-between items-start mb-3">

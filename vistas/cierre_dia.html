@@ -20,6 +20,15 @@
                 <input id="cd-total-dia" type="number" min="0" step="any" oninput="cdRecalcular()" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
         </div>
 
+        <div class="border border-dashed border-slate-300 rounded-xl p-4 space-y-2">
+            <div class="flex justify-between items-center">
+                <div><p class="text-sm font-bold text-slate-700">Otros cobros</p>
+                <p class="text-xs text-slate-500">Dinero que entró o salió de la caja y no es una venta (ej: abono de un cliente, cobro de una deuda). Usa un monto negativo si salió dinero. Suma o resta al cuadre y queda en el correo.</p></div>
+                <button onclick="cdAgregarOtro()" class="text-sm font-bold text-blue-600 hover:underline whitespace-nowrap">+ Agregar</button>
+            </div>
+            <div id="cd-otros" class="space-y-2"></div>
+        </div>
+
         <div id="cd-resultado" class="rounded-xl border p-4 text-sm font-bold bg-slate-50 border-slate-200"></div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">

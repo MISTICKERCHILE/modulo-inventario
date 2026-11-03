@@ -1,7 +1,7 @@
 // ==========================================================
 // CIERRE DEL DÍA: con POS (suma de turnos) o declarando ventas a mano.
 // ==========================================================
-const CD = { sucursales: [], metodos: [], estado: null, cerrado: false };
+const CD = { sucursales: [], metodos: [], estado: null, cerrado: false, otros: [] };
 const cdEsc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const cdFmt = (n, m) => (m || 'CLP') + ' ' + Number(n || 0).toLocaleString('es-CL', { maximumFractionDigits: ['CLP', 'COP', 'PYG', 'JPY'].includes(m) ? 0 : 2 });
 const cdFecha = (d) => { const [y, m, dd] = String(d).slice(0, 10).split('-'); return `${dd}-${m}-${y}`; };
@@ -29,7 +29,7 @@ async function cdCargarDia() {
     const modo = document.getElementById('cd-modo').value;
     const aviso = document.getElementById('cd-aviso'); aviso.classList.add('hidden');
     document.getElementById('cd-manual-total').classList.toggle('hidden', modo !== 'MANUAL');
-    CD.cerrado = false;
+    CD.cerrado = false; CD.otros = []; cdPintarOtros();
     if (!suc || !fecha) return;
     const { data, error } = await clienteSupabase.rpc('resumen_dia_pos', { p_id_sucursal: suc, p_fecha: fecha });
     if (error) { document.getElementById('cd-cuerpo').innerHTML = `<p class="text-sm text-red-600 font-bold">${cdEsc(error.message)}</p>`; return; }
@@ -49,6 +49,18 @@ async function cdCargarDia() {
     cdRecalcular();
 }
 
+const cdOtrosDe = (idMetodo) => CD.otros.filter(o => o.id_metodo_pago === idMetodo).reduce((a, o) => a + (o.monto || 0), 0);
+function cdAgregarOtro() { CD.otros.push({ id_metodo_pago: (CD.metodos[0] || {}).id_metodo_pago || null, monto: 0, motivo: '' }); cdPintarOtros(); }
+function cdQuitarOtro(i) { CD.otros.splice(i, 1); cdPintarOtros(); cdRecalcular(); }
+function cdPintarOtros() {
+    const c = document.getElementById('cd-otros'); if (!c) return;
+    c.innerHTML = CD.otros.map((o, i) => `<div class="grid grid-cols-1 md:grid-cols-12 gap-2 items-center">
+        <select onchange="CD.otros[${i}].id_metodo_pago=this.value; cdRecalcular()" class="md:col-span-3 px-2 py-2 border rounded-lg bg-white text-sm">${CD.metodos.map(m => `<option value="${m.id_metodo_pago}" ${m.id_metodo_pago === o.id_metodo_pago ? 'selected' : ''}>${cdEsc(m.nombre)}</option>`).join('')}</select>
+        <input type="number" step="any" value="${o.monto || ''}" placeholder="Monto (+/−)" oninput="CD.otros[${i}].monto=parseFloat(this.value)||0; cdRecalcular()" class="md:col-span-3 px-2 py-2 border rounded-lg text-sm text-right">
+        <input value="${cdEsc(o.motivo)}" maxlength="200" placeholder="Motivo" oninput="CD.otros[${i}].motivo=this.value" class="md:col-span-5 px-2 py-2 border rounded-lg text-sm">
+        <button onclick="cdQuitarOtro(${i})" class="md:col-span-1 text-slate-400 hover:text-red-600">✕</button></div>`).join('');
+}
+
 function cdLeer() {
     return CD.metodos.map((m, i) => ({ ...m, declarado: parseFloat(document.getElementById('cd-decl-' + i)?.value) || 0 }));
 }
@@ -58,14 +70,14 @@ function cdRecalcular() {
     let cuadra = true, html = '';
     if (modo === 'POS') {
         const porMon = {};
-        filas.forEach(f => { const o = porMon[f.moneda] ||= { s: 0, d: 0 }; o.s += Number(f.sistema); o.d += f.declarado; });
-        // en POS, "declarado vacío" = no contado todavía
-        cuadra = filas.every(f => f.declarado === Number(f.sistema));
-        html = Object.entries(porMon).map(([m, o]) => `${m}: sistema ${cdFmt(o.s, m)} · declarado ${cdFmt(o.d, m)} · diferencia <span class="${o.d - o.s === 0 ? 'text-emerald-600' : 'text-red-600'}">${cdFmt(o.d - o.s, m)}</span>`).join('<br>');
+        filas.forEach(f => { const o = porMon[f.moneda] ||= { s: 0, o: 0, d: 0 }; o.s += Number(f.sistema); o.o += cdOtrosDe(f.id_metodo_pago); o.d += f.declarado; });
+        cuadra = filas.every(f => f.declarado === Number(f.sistema) + cdOtrosDe(f.id_metodo_pago));
+        html = Object.entries(porMon).map(([m, o]) => `${m}: sistema ${cdFmt(o.s, m)}${o.o ? ' · otros cobros ' + cdFmt(o.o, m) : ''} · declarado ${cdFmt(o.d, m)} · diferencia <span class="${o.d - o.s - o.o === 0 ? 'text-emerald-600' : 'text-red-600'}">${cdFmt(o.d - o.s - o.o, m)}</span>`).join('<br>');
     } else {
         const suma = filas.reduce((a, f) => a + f.declarado, 0), total = parseFloat(document.getElementById('cd-total-dia').value) || 0;
-        const dif = total - suma; cuadra = dif === 0;
-        html = `Suma por forma de pago: ${suma.toLocaleString('es-CL')} · Total del día: ${total.toLocaleString('es-CL')} · diferencia <span class="${cuadra ? 'text-emerald-600' : 'text-red-600'}">${dif.toLocaleString('es-CL')}</span>`;
+        const otros = CD.otros.reduce((a, o) => a + (o.monto || 0), 0);
+        const dif = total + otros - suma; cuadra = dif === 0;
+        html = `Suma por forma de pago: ${suma.toLocaleString('es-CL')} · Total del día: ${total.toLocaleString('es-CL')}${otros ? ' · otros cobros ' + otros.toLocaleString('es-CL') : ''} · diferencia <span class="${cuadra ? 'text-emerald-600' : 'text-red-600'}">${dif.toLocaleString('es-CL')}</span>`;
     }
     const r = document.getElementById('cd-resultado');
     r.innerHTML = (cuadra ? '✅ Cuadra en 0.<br>' : '⚠️ No cuadra en 0.<br>') + html;
@@ -80,12 +92,15 @@ async function cdCerrar() {
     const resp = document.getElementById('cd-responsable').value.trim(), com = document.getElementById('cd-comentario').value.trim();
     if (!resp) return alert('Escribe el nombre del responsable.');
     if (!CD.cuadra && !com) return alert('No cuadra: escribe un comentario que explique la diferencia.');
+    const otros = CD.otros.filter(o => o.monto);
+    if (otros.some(o => !o.motivo.trim())) return alert('Cada otro cobro necesita un motivo.');
     if (!confirm('¿Cerrar el día? No se puede deshacer.')) return;
     const { data, error } = await clienteSupabase.rpc('cerrar_dia', {
         p_id_sucursal: document.getElementById('cd-sucursal').value, p_fecha: document.getElementById('cd-fecha').value, p_modo: modo,
         p_responsable: resp, p_comentario: com || null,
         p_declarado: filas.map(f => ({ id_metodo_pago: f.id_metodo_pago, monto: f.declarado })),
-        p_total_dia: modo === 'MANUAL' ? (parseFloat(document.getElementById('cd-total-dia').value) || 0) : null });
+        p_total_dia: modo === 'MANUAL' ? (parseFloat(document.getElementById('cd-total-dia').value) || 0) : null,
+        p_otros: otros.map(o => ({ id_metodo_pago: o.id_metodo_pago, monto: o.monto, motivo: o.motivo.trim() })) });
     if (error) return alert('No se pudo cerrar: ' + error.message);
     alert(data.cuadrado ? '✅ Día cerrado y cuadrado.' : '✅ Día cerrado con diferencia registrada.');
     await cdCargarDia(); cdCargarHistorial();
