@@ -1,0 +1,46 @@
+<div class="max-w-5xl mx-auto space-y-6 pb-16">
+    <div>
+        <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2"><span>⬇️</span> Descargas</h2>
+        <p class="text-sm text-slate-500 mt-1">Descarga las ventas o los cierres de caja de cada sucursal, con las columnas en el orden que prefieras.</p>
+    </div>
+
+    <section class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div><label class="block text-xs font-bold text-slate-500 mb-1">Qué descargar</label>
+                <select id="ds-tipo" onchange="dsCambioTipo()" class="w-full px-3 py-2 border rounded-lg bg-white text-sm"><option value="ventas">Ventas</option><option value="cierres">Cierres de caja</option></select></div>
+            <div><label class="block text-xs font-bold text-slate-500 mb-1">Sucursal</label>
+                <select id="ds-sucursal" onchange="dsCargarConfig()" class="w-full px-3 py-2 border rounded-lg bg-white text-sm"></select></div>
+            <div><label class="block text-xs font-bold text-slate-500 mb-1">Desde</label><input type="date" id="ds-desde" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
+            <div><label class="block text-xs font-bold text-slate-500 mb-1">Hasta</label><input type="date" id="ds-hasta" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
+        </div>
+        <div class="flex flex-wrap gap-2 text-xs">
+            <button onclick="dsAtajo('ayer')" class="px-3 py-1 rounded-full bg-slate-100 font-bold text-slate-600 hover:bg-slate-200">Ayer</button>
+            <button onclick="dsAtajo('7')" class="px-3 py-1 rounded-full bg-slate-100 font-bold text-slate-600 hover:bg-slate-200">Últimos 7 días</button>
+            <button onclick="dsAtajo('mes')" class="px-3 py-1 rounded-full bg-slate-100 font-bold text-slate-600 hover:bg-slate-200">Este mes</button>
+            <button onclick="dsAtajo('mes_ant')" class="px-3 py-1 rounded-full bg-slate-100 font-bold text-slate-600 hover:bg-slate-200">Mes pasado</button>
+        </div>
+
+        <div>
+            <div class="flex justify-between items-center mb-2">
+                <p class="text-xs font-bold text-slate-500 uppercase">Columnas y orden</p>
+                <button id="ds-guardar-orden" onclick="dsGuardarOrden()" class="text-xs font-bold text-blue-600 hover:underline">💾 Guardar este orden para la sucursal</button>
+            </div>
+            <p id="ds-orden-info" class="text-xs text-slate-400 mb-2"></p>
+            <div id="ds-columnas" class="grid grid-cols-1 md:grid-cols-2 gap-2"></div>
+        </div>
+
+        <div class="flex flex-wrap gap-3">
+            <button onclick="dsVistaPrevia()" class="px-5 py-2.5 border border-slate-300 rounded-lg font-bold text-sm text-slate-700 hover:bg-slate-50">Vista previa</button>
+            <button onclick="dsDescargar()" class="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-bold text-sm hover:bg-blue-700">Descargar CSV</button>
+        </div>
+        <div id="ds-previa" class="hidden overflow-x-auto border border-slate-200 rounded-lg"></div>
+    </section>
+
+    <section class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+        <h3 class="font-bold text-slate-800 mb-1">Historial de descargas</h3>
+        <p class="text-xs text-slate-500 mb-3">Qué períodos ya descargaste. “Abrir” vuelve a cargar ese período con los datos actuales.</p>
+        <div class="overflow-x-auto"><table class="min-w-full text-sm">
+            <thead class="text-xs font-bold text-slate-500 uppercase bg-slate-50"><tr><th class="px-3 py-2 text-left">Cuándo</th><th class="px-3 py-2 text-left">Qué</th><th class="px-3 py-2 text-left">Sucursal</th><th class="px-3 py-2 text-left">Período</th><th class="px-3 py-2 text-center">Filas</th><th class="px-3 py-2 text-left">Cómo</th><th></th></tr></thead>
+            <tbody id="ds-historial" class="divide-y divide-slate-100"></tbody></table></div>
+    </section>
+</div>
