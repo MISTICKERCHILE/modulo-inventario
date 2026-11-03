@@ -1,0 +1,48 @@
+<div class="max-w-5xl mx-auto space-y-6 pb-16">
+    <div>
+        <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2"><span>📒</span> Cobros</h2>
+        <p class="text-sm text-slate-500 mt-1">Lo que tus clientes te deben, abonos y notas de cobro.</p>
+    </div>
+
+    <div class="flex gap-2 border-b border-slate-200">
+        <button id="cb-tab-cobrar" onclick="cbTab('cobrar')" class="px-4 py-2 text-sm font-bold border-b-2">Ir a cobrar</button>
+        <button id="cb-tab-nota" onclick="cbTab('nota')" class="px-4 py-2 text-sm font-bold border-b-2">Nueva nota</button>
+    </div>
+
+    <!-- Ir a cobrar -->
+    <div id="cb-cobrar" class="space-y-4">
+        <div id="cb-resumen" class="grid grid-cols-1 md:grid-cols-3 gap-3"></div>
+        <div class="flex flex-col md:flex-row gap-3">
+            <input id="cb-buscar" oninput="cbPintar()" placeholder="Buscar cliente o concepto…" class="flex-1 px-3 py-2 border rounded-lg text-sm">
+            <select id="cb-filtro" onchange="cbPintar()" class="px-3 py-2 border rounded-lg bg-white text-sm">
+                <option value="abiertas">Por cobrar</option><option value="vencidas">Vencidas</option><option value="pagadas">Pagadas</option><option value="todas">Todas</option>
+            </select>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead class="bg-slate-50 text-xs font-bold text-slate-500 uppercase"><tr>
+                    <th class="px-3 py-2 text-left">Cliente</th><th class="px-3 py-2 text-left">Concepto</th><th class="px-3 py-2 text-left">Vence</th>
+                    <th class="px-3 py-2 text-right">Total</th><th class="px-3 py-2 text-right">Saldo</th><th class="px-3 py-2 text-center">Estado</th><th></th></tr></thead>
+                <tbody id="cb-tabla" class="divide-y divide-slate-100"></tbody>
+            </table>
+            <p id="cb-vacio" class="hidden p-8 text-center text-sm text-slate-400">No hay cuentas en esta lista.</p>
+        </div>
+    </div>
+
+    <!-- Nueva nota -->
+    <div id="cb-nota" class="hidden bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
+        <p class="text-xs text-slate-500">Una nota de cobro registra una deuda de un cliente sin pasar por el POS (por ejemplo un trabajo o un servicio). Luego la cobras con abonos desde “Ir a cobrar”.</p>
+        <datalist id="cb-lista-clientes"></datalist>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div><label class="block text-xs font-bold text-slate-500 mb-1">Cliente *</label>
+                <input id="cb-n-cliente" list="cb-lista-clientes" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Busca o escribe un cliente nuevo"></div>
+            <div><label class="block text-xs font-bold text-slate-500 mb-1">Sucursal</label><select id="cb-n-sucursal" class="w-full px-3 py-2 border rounded-lg bg-white text-sm"></select></div>
+            <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-500 mb-1">Concepto *</label>
+                <input id="cb-n-concepto" maxlength="300" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Ej: Instalación de cortinas, saldo pedido 45"></div>
+            <div><label class="block text-xs font-bold text-slate-500 mb-1">Monto *</label><input id="cb-n-monto" type="number" min="0" step="any" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
+            <div><label class="block text-xs font-bold text-slate-500 mb-1">Moneda</label><select id="cb-n-moneda" class="w-full px-3 py-2 border rounded-lg bg-white text-sm"></select></div>
+            <div><label class="block text-xs font-bold text-slate-500 mb-1">Vence</label><input id="cb-n-vence" type="date" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
+        </div>
+        <button onclick="cbCrearNota()" class="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-bold text-sm hover:bg-blue-700">Guardar nota</button>
+    </div>
+</div>

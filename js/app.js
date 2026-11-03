@@ -647,6 +647,8 @@ window.cambiarVista = async function(vista) {
         // AUTO-ARRANQUE DEPENDIENDO DE LA VISTA
         if(vista === 'home' && typeof window.cargarHome === 'function') window.cargarHome();
         if(vista === 'dashboard_ventas' && typeof window.aplicarConfigVentas === 'function') { window.aplicarConfigVentas(); window.revisarAsistenteVentas(); }
+        if(vista === 'dashboard_ventas' && typeof window.cargarCardCobros === 'function') window.cargarCardCobros();
+        if(vista === 'cuentas_cobrar' && typeof window.cargarCuentasCobrar === 'function') window.cargarCuentasCobrar();
         if(vista === 'dashboard' && typeof window.cargarDashboard === 'function') window.cargarDashboard();
         if(vista === 'empresas' && typeof window.cargarEmpresas === 'function') window.cargarEmpresas();
         if(vista === 'catalogos' && typeof window.cargarCategorias === 'function') {
