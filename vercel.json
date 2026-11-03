@@ -49,5 +49,11 @@
       "destination": "/?ref=:codigo",
       "permanent": false
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/enviar-programados",
+      "schedule": "0 10 * * *"
+    }
   ]
 }
