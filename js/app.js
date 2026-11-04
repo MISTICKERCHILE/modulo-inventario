@@ -554,7 +554,7 @@ window.cambiarVista = async function(vista) {
             submenuInv.classList.add('hidden');
         }
     }
-    const vistasVentas = ['dashboard_ventas', 'ventas', 'cuentas_cobrar', 'cotizaciones', 'ranking', 'importar_ventas', 'cierre_dia', 'descargas', 'agenda', 'monitoreo'];
+    const vistasVentas = ['dashboard_ventas', 'ventas', 'cuentas_cobrar', 'cotizaciones', 'ranking', 'importar_ventas', 'cierre_dia', 'descargas', 'agenda', 'monitoreo', 'historial'];
     const submenuVen = document.getElementById('submenu-dashboard_ventas');
     
     if (submenuVen) {
@@ -664,6 +664,7 @@ window.cambiarVista = async function(vista) {
         if(vista === 'parametros') window.cargarParametros();
         if(vista === 'ventas' && typeof window.cargarVentas === 'function') window.cargarVentas();
         if(vista === 'ranking' && typeof window.cargarLaboratorio === 'function') window.cargarLaboratorio();
+        if(vista === 'historial' && typeof window.cargarHistorial === 'function') window.cargarHistorial();
         if(vista === 'monitoreo' && typeof window.cargarMonitoreo === 'function') window.cargarMonitoreo();
         if(vista === 'agenda' && typeof window.cargarAgenda === 'function') window.cargarAgenda();
         if(vista === 'descargas' && typeof window.cargarDescargas === 'function') window.cargarDescargas();
