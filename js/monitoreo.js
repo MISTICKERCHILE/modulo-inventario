@@ -86,7 +86,7 @@ function lbPintar() {
         return;
     }
     v.classList.toggle('hidden', LB.widgets.length > 0);
-    v.innerHTML = lbAdmin() ? 'Este panel está vacío. Pulsa “Editar diseño” y luego “+ Widget” para armar el primero.' : 'Este panel todavía no tiene widgets.';
+    v.innerHTML = lbAdmin() ? 'Este panel está vacío. <button onclick="lbAgregarBasicos()" class="text-blue-600 font-bold underline">Agregar los widgets básicos</button> o pulsa “Editar diseño” y “+ Widget” para armar los tuyos.' : 'Este panel todavía no tiene widgets.';
     g.innerHTML = LB.widgets.map((w, i) => `<div data-i="${i}" class="lb-item md:col-span-${Math.min(12, w.w)} bg-white rounded-xl border ${LB.edicion ? 'border-blue-300 border-dashed' : 'border-slate-200'} shadow-sm p-4 flex flex-col" style="min-height:${w.h * 70}px">
         <div class="flex items-start justify-between gap-2 mb-2">
             <h3 class="text-sm font-black text-slate-700 truncate">${lbEsc(w.titulo || 'Sin título')}</h3>
@@ -184,7 +184,39 @@ async function lbGuardarDiseno() {
 }
 function lbQuitarWidget(i) { if (confirm('¿Quitar este widget?')) { LB.widgets.splice(i, 1); lbPintar(); } }
 function lbDuplicarWidget(i) { const c = JSON.parse(JSON.stringify(LB.widgets[i])); delete c.id; c.titulo += ' (copia)'; LB.widgets.splice(i + 1, 0, c); lbPintar(); }
-function lbNuevoWidget() { LB.editando = -1; lbForm({ titulo: '', vista: 'numero', config: { fuente: 'ventas', medida: 'monto', agrupar: 'ninguno', limite: 10, comparar: true }, w: 4, h: 2 }); }
+function lbNuevoWidget() { LB.editando = -1; lbGaleria(); }
+function lbFormVacio() { LB.editando = -1; lbForm({ titulo: '', vista: 'numero', config: { fuente: 'ventas', medida: 'monto', agrupar: 'ninguno', limite: 10, comparar: true }, w: 4, h: 2 }); }
+// ---------- Plantillas listas para usar ----------
+const LB_PLANTILLAS = [
+    { id: 'ventas', t: 'Ventas del período', d: 'Cuánto vendiste, comparado con antes', w: { titulo: 'Ventas del período', vista: 'numero', config: { fuente: 'ventas', medida: 'monto', agrupar: 'ninguno', comparar: true }, w: 4, h: 2 } },
+    { id: 'cant', t: 'Cantidad de ventas', d: 'Cuántos tickets hiciste', w: { titulo: 'Cantidad de ventas', vista: 'numero', config: { fuente: 'ventas', medida: 'tickets', agrupar: 'ninguno', comparar: true }, w: 4, h: 2 } },
+    { id: 'prom', t: 'Ticket promedio', d: 'Cuánto gasta en promedio cada cliente', w: { titulo: 'Ticket promedio', vista: 'numero', config: { fuente: 'ventas', medida: 'promedio', agrupar: 'ninguno', comparar: true }, w: 4, h: 2 } },
+    { id: 'alto', t: 'Ticket más alto', d: 'La venta más grande', w: { titulo: 'Ticket más alto', vista: 'numero', config: { fuente: 'ventas', medida: 'maximo', agrupar: 'ninguno' }, w: 4, h: 2 } },
+    { id: 'bajo', t: 'Ticket más bajo', d: 'La venta más chica', w: { titulo: 'Ticket más bajo', vista: 'numero', config: { fuente: 'ventas', medida: 'minimo', agrupar: 'ninguno' }, w: 4, h: 2 } },
+    { id: 'dia', t: 'Ventas por día', d: 'Cómo se mueven tus ventas día a día', w: { titulo: 'Ventas por día', vista: 'linea', config: { fuente: 'ventas', medida: 'monto', agrupar: 'dia' }, w: 8, h: 3 } },
+    { id: 'mes', t: 'Ventas por mes', d: 'Compara un mes con otro', w: { titulo: 'Ventas por mes', vista: 'barras', config: { fuente: 'ventas', medida: 'monto', agrupar: 'mes' }, w: 6, h: 3 } },
+    { id: 'prod', t: 'Productos más vendidos', d: 'Tu ranking de productos', w: { titulo: 'Productos más vendidos', vista: 'tabla', config: { fuente: 'productos', medida: 'unidades', agrupar: 'producto', limite: 10 }, w: 6, h: 4 } },
+    { id: 'pago', t: 'Ventas por forma de pago', d: 'Efectivo, tarjeta, transferencia…', w: { titulo: 'Ventas por forma de pago', vista: 'torta', config: { fuente: 'ventas', medida: 'monto', agrupar: 'metodo' }, w: 6, h: 3 } },
+    { id: 'suc', t: 'Ventas por sucursal', d: 'Qué sucursal vende más', w: { titulo: 'Ventas por sucursal', vista: 'barras', config: { fuente: 'ventas', medida: 'monto', agrupar: 'sucursal' }, w: 6, h: 3 } },
+    { id: 'agenda', t: 'Trabajos por tipo', d: 'Pedidos, reservas e instalaciones', w: { titulo: 'Trabajos por tipo', vista: 'torta', config: { fuente: 'agenda', medida: 'tickets', agrupar: 'tipo' }, w: 6, h: 3 } }
+];
+const LB_BASICO = ['ventas', 'cant', 'prom', 'dia', 'prod', 'pago'];
+const lbCopia = (o) => JSON.parse(JSON.stringify(o));
+function lbGaleria() {
+    let m = document.getElementById('modal-lab'); if (!m) { m = document.createElement('div'); m.id = 'modal-lab'; m.className = 'fixed inset-0 z-[200] bg-slate-900/60 flex items-center justify-center p-4'; document.body.appendChild(m); }
+    m.innerHTML = `<div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[92vh] overflow-y-auto p-6 space-y-3">
+        <div class="flex justify-between"><h3 class="text-lg font-black">¿Qué quieres ver?</h3><button onclick="lbCerrarForm()" class="text-slate-400 text-xl">✕</button></div>
+        <p class="text-xs text-slate-500">Elige uno listo y luego lo ajustas si quieres.</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">${LB_PLANTILLAS.map(p => `<button onclick="lbUsarPlantilla('${p.id}')" class="text-left border rounded-xl p-3 hover:border-blue-400 hover:bg-blue-50"><p class="font-bold text-sm text-slate-800">${lbEsc(p.t)}</p><p class="text-xs text-slate-500">${lbEsc(p.d)}</p></button>`).join('')}</div>
+        <button onclick="lbFormVacio()" class="w-full border border-dashed rounded-xl p-3 text-sm font-bold text-slate-600 hover:bg-slate-50">⚙️ Armar uno personalizado</button></div>`;
+}
+function lbUsarPlantilla(id) { const p = LB_PLANTILLAS.find(x => x.id === id); LB.editando = -1; lbForm(lbCopia(p.w)); }
+function lbAgregarBasicos() {
+    LB_BASICO.forEach(id => LB.widgets.push(lbCopia(LB_PLANTILLAS.find(x => x.id === id).w)));
+    if (!LB.edicion) { LB.edicion = true; lbBarra(); }
+    lbPintar();
+}
+
 function lbEditarWidget(i) { LB.editando = i; lbForm(LB.widgets[i]); }
 const lbSel = (id, op, val) => `<select id="${id}" class="w-full px-3 py-2 border rounded-lg bg-white text-sm">${Object.entries(op).map(([k, t]) => `<option value="${k}" ${String(k) === String(val) ? 'selected' : ''}>${lbEsc(t)}</option>`).join('')}</select>`;
 function lbForm(w) {
