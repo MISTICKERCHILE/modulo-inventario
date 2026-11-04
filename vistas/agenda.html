@@ -1,0 +1,37 @@
+<div class="max-w-6xl mx-auto space-y-6 pb-16">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div>
+            <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2"><span>📅</span> Agenda de trabajo</h2>
+            <p class="text-sm text-slate-500 mt-1">Pedidos, reservas e instalaciones: con fecha, anticipo, stock reservado y saldo por cobrar.</p>
+        </div>
+        <button onclick="agNuevo()" class="px-5 py-2.5 bg-blue-600 text-white rounded-lg font-bold text-sm hover:bg-blue-700">+ Nuevo</button>
+    </div>
+
+    <div class="flex flex-col md:flex-row gap-3">
+        <input id="ag-buscar" oninput="agPintar()" placeholder="Buscar cliente, título o N°…" class="flex-1 px-3 py-2 border rounded-lg text-sm">
+        <select id="ag-f-tipo" onchange="agPintar()" class="px-3 py-2 border rounded-lg bg-white text-sm"><option value="">Todos los tipos</option><option value="pedido">Pedidos</option><option value="reserva">Reservas</option><option value="instalacion">Instalaciones</option></select>
+        <select id="ag-f-estado" onchange="agPintar()" class="px-3 py-2 border rounded-lg bg-white text-sm"><option value="activos">Activos</option><option value="">Todos</option><option value="entregado">Entregados</option><option value="cancelado">Cancelados</option></select>
+        <div class="flex rounded-lg border overflow-hidden text-sm font-bold">
+            <button id="ag-v-lista" onclick="agVista('lista')" class="px-4 py-2">Lista</button>
+            <button id="ag-v-cal" onclick="agVista('cal')" class="px-4 py-2">Calendario</button>
+        </div>
+    </div>
+
+    <div id="ag-lista" class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+        <table class="min-w-full text-sm">
+            <thead class="bg-slate-50 text-xs font-bold text-slate-500 uppercase"><tr><th class="px-3 py-2 text-left">Fecha</th><th class="px-3 py-2 text-left">Tipo</th><th class="px-3 py-2 text-left">N°</th><th class="px-3 py-2 text-left">Cliente</th><th class="px-3 py-2 text-left">Título</th><th class="px-3 py-2 text-right">Total</th><th class="px-3 py-2 text-right">Saldo</th><th class="px-3 py-2 text-center">Estado</th></tr></thead>
+            <tbody id="ag-tabla" class="divide-y divide-slate-100"></tbody>
+        </table>
+        <p id="ag-vacio" class="hidden p-8 text-center text-sm text-slate-400">No hay trabajos en esta lista.</p>
+    </div>
+
+    <div id="ag-cal" class="hidden bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+        <div class="flex justify-between items-center mb-3">
+            <button onclick="agMes(-1)" class="px-3 py-1 border rounded-lg font-bold">←</button>
+            <h3 id="ag-mes-titulo" class="font-black text-slate-800 capitalize"></h3>
+            <button onclick="agMes(1)" class="px-3 py-1 border rounded-lg font-bold">→</button>
+        </div>
+        <div class="grid grid-cols-7 text-center text-xs font-bold text-slate-400 mb-1"><span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span></div>
+        <div id="ag-grid" class="grid grid-cols-7 gap-1"></div>
+    </div>
+</div>

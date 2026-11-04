@@ -122,6 +122,7 @@ async function czAbrir(id) {
 
 function czEstadoEditor() {
     document.getElementById('cz-btn-duplicar').classList.toggle('hidden', !CZ.id);
+    document.getElementById('cz-btn-agenda').classList.toggle('hidden', !(CZ.id && CZ.estado === 'aceptada'));
     document.getElementById('cz-btn-convertir').classList.toggle('hidden', !(CZ.id && CZ.estado === 'aceptada'));
     document.getElementById('cz-aviso-bloqueo').classList.toggle('hidden', !CZ.bloqueada);
     document.querySelectorAll('#cz-editor input, #cz-editor select, #cz-editor textarea').forEach(el => { if (el.id !== 'cz-archivo') el.disabled = CZ.bloqueada; });
