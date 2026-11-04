@@ -61,8 +61,8 @@ function cbPintar() {
         return !q || `${CB.clientes[c.id_cliente] || ''} ${c.concepto || ''}`.toLowerCase().includes(q);
     });
     document.getElementById('cb-tabla').innerHTML = filas.map(c => {
-        const est = cbSaldo(c) <= 0 ? 'Pagada' : (cbVencida(c) ? 'Vencida' : c.estado);
-        const col = { Pagada: 'bg-emerald-100 text-emerald-700', Vencida: 'bg-red-100 text-red-700', Parcial: 'bg-amber-100 text-amber-700', Pendiente: 'bg-slate-100 text-slate-600' }[est] || 'bg-slate-100 text-slate-600';
+        const est = c.estado === 'Anulada' ? 'Anulada' : cbSaldo(c) <= 0 ? 'Pagada' : (cbVencida(c) ? 'Vencida' : c.estado);
+        const col = { Pagada: 'bg-emerald-100 text-emerald-700', Vencida: 'bg-red-100 text-red-700', Parcial: 'bg-amber-100 text-amber-700', Pendiente: 'bg-slate-100 text-slate-600', Anulada: 'bg-slate-200 text-slate-500' }[est] || 'bg-slate-100 text-slate-600';
         return `<tr><td class="px-3 py-2 font-bold">${cbEsc(CB.clientes[c.id_cliente] || '—')}</td><td class="px-3 py-2 text-slate-500">${cbEsc(c.concepto || 'Venta a crédito')}</td>
             <td class="px-3 py-2 text-slate-500">${cbFecha(c.fecha_vencimiento)}</td><td class="px-3 py-2 text-right">${cbFmt(c.monto_deuda, c.moneda)}</td>
             <td class="px-3 py-2 text-right font-black">${cbFmt(cbSaldo(c), c.moneda)}</td>
