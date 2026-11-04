@@ -1,0 +1,32 @@
+<div class="max-w-7xl mx-auto space-y-5 pb-16">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div>
+            <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2"><span>🧪</span> Mesa de monitoreo</h2>
+            <p class="text-sm text-slate-500 mt-1">Arma tu propio panel de monitoreo: elige qué medir y cómo verlo.</p>
+        </div>
+        <div id="lb-admin-barra" class="hidden flex flex-wrap gap-2">
+            <button id="lb-btn-editar" onclick="lbToggleEdicion()" class="px-4 py-2 border rounded-lg font-bold text-sm text-slate-700 hover:bg-slate-50">✏️ Editar diseño</button>
+            <button id="lb-btn-widget" onclick="lbNuevoWidget()" class="hidden px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold text-sm hover:bg-emerald-700">+ Widget</button>
+            <button id="lb-btn-guardar" onclick="lbGuardarDiseno()" class="hidden px-4 py-2 bg-blue-600 text-white rounded-lg font-bold text-sm hover:bg-blue-700">💾 Guardar diseño</button>
+        </div>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2" id="lb-tabs"></div>
+
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-3 flex flex-col md:flex-row gap-3 md:items-end">
+        <div><label class="block text-[11px] font-bold text-slate-500 mb-1">Período</label>
+            <select id="lb-rango" onchange="lbCambioFiltro()" class="px-3 py-2 border rounded-lg bg-white text-sm">
+                <option value="hoy">Hoy</option><option value="7d">Últimos 7 días</option><option value="30d" selected>Últimos 30 días</option>
+                <option value="mes">Este mes</option><option value="mes_ant">Mes anterior</option><option value="anio">Este año</option><option value="custom">Personalizado…</option>
+            </select></div>
+        <div id="lb-custom" class="hidden flex gap-2">
+            <div><label class="block text-[11px] font-bold text-slate-500 mb-1">Desde</label><input id="lb-desde" type="date" onchange="lbCambioFiltro()" class="px-3 py-2 border rounded-lg text-sm"></div>
+            <div><label class="block text-[11px] font-bold text-slate-500 mb-1">Hasta</label><input id="lb-hasta" type="date" onchange="lbCambioFiltro()" class="px-3 py-2 border rounded-lg text-sm"></div>
+        </div>
+        <div><label class="block text-[11px] font-bold text-slate-500 mb-1">Sucursal</label><select id="lb-sucursal" onchange="lbCambioFiltro()" class="px-3 py-2 border rounded-lg bg-white text-sm"></select></div>
+        <div><label class="block text-[11px] font-bold text-slate-500 mb-1">Moneda</label><select id="lb-moneda" onchange="lbCambioFiltro()" class="px-3 py-2 border rounded-lg bg-white text-sm"></select></div>
+    </div>
+
+    <div id="lb-vacio" class="hidden bg-white rounded-xl border border-dashed border-slate-300 p-10 text-center text-slate-500 text-sm"></div>
+    <div id="lb-grid" class="grid grid-cols-1 md:grid-cols-12 gap-4"></div>
+</div>
