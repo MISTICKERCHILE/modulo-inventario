@@ -19,6 +19,7 @@ window.cargarParametros = async function() {
     // --- NUEVAS LLAMADAS ---
     cargarMetodosPagoParametros();
     if (typeof cargarDestinatariosResumen === 'function') cargarDestinatariosResumen();
+    if (typeof cargarVisibilidadMonitoreo === 'function') cargarVisibilidadMonitoreo();
     cargarAjusteStock();
     // -----------------------
 
@@ -448,4 +449,37 @@ window.quitarDestinatarioResumen = async function(id) {
     const { error } = await clienteSupabase.rpc('quitar_destinatario_resumen', { p_id: id });
     if (error) return alert('❌ ' + error.message);
     cargarDestinatariosResumen();
+}
+
+// --- Mesa de monitoreo: quién ve cada panel ---
+window.cargarVisibilidadMonitoreo = async function() {
+    const card = document.getElementById('card-vis-monitoreo'); if (!card) return;
+    const admin = ['Dueño', 'Admin', 'Administrador Supremo'].includes(window.miRol);
+    card.classList.toggle('hidden', !admin); if (!admin) return;
+    const esc = (t) => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const [pa, ro] = await Promise.all([
+        clienteSupabase.from('lab_paneles').select('id, nombre, visible_para').eq('id_empresa', window.miEmpresaId).order('orden'),
+        clienteSupabase.rpc('roles_equipo_lab', { p_id_empresa: window.miEmpresaId })
+    ]);
+    const roles = ro.data || [], paneles = pa.data || [];
+    window._visRoles = roles;
+    document.getElementById('lista-vis-monitoreo').innerHTML = paneles.map(p => {
+        const modo = p.visible_para === null ? 'todos' : (p.visible_para.length ? 'roles' : 'admin');
+        return `<div class="border rounded-xl p-4 space-y-2" data-panel="${p.id}"><p class="font-bold text-slate-800">${esc(p.nombre)}</p>
+            <select onchange="visMonitoreoModo('${p.id}', this.value)" class="px-3 py-2 border rounded-lg bg-white text-sm" id="vis-modo-${p.id}">
+                <option value="todos" ${modo === 'todos' ? 'selected' : ''}>Todo el equipo con acceso a Ventas</option>
+                <option value="admin" ${modo === 'admin' ? 'selected' : ''}>Solo dueño y administradores</option>
+                <option value="roles" ${modo === 'roles' ? 'selected' : ''}>Solo estos roles…</option></select>
+            <div id="vis-roles-${p.id}" class="${modo === 'roles' ? '' : 'hidden'} flex flex-wrap gap-3">${roles.length ? roles.map(r => `<label class="flex items-center gap-1"><input type="checkbox" value="${esc(r)}" ${(p.visible_para || []).includes(r) ? 'checked' : ''}> ${esc(r)}</label>`).join('') : '<span class="text-xs text-slate-400">Aún no hay otros roles en tu equipo.</span>'}</div>
+            <button onclick="guardarVisMonitoreo('${p.id}')" class="px-4 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold">Guardar</button></div>`;
+    }).join('') || '<p class="text-slate-400">Aún no hay paneles. Créalos en Ventas → Mesa de monitoreo.</p>';
+}
+window.visMonitoreoModo = function(id, modo) { document.getElementById('vis-roles-' + id).classList.toggle('hidden', modo !== 'roles'); }
+window.guardarVisMonitoreo = async function(id) {
+    const modo = document.getElementById('vis-modo-' + id).value;
+    const sel = [...document.querySelectorAll('#vis-roles-' + id + ' input:checked')].map(i => i.value);
+    if (modo === 'roles' && !sel.length) return alert('Marca al menos un rol, o elige “Solo dueño y administradores”.');
+    const { error } = await clienteSupabase.rpc('guardar_visibilidad_lab', { p_id_panel: id, p_visible: modo === 'todos' ? null : (modo === 'admin' ? [] : sel) });
+    if (error) return alert('❌ ' + error.message);
+    alert('✅ Guardado');
 }
