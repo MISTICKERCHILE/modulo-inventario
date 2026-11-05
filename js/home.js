@@ -21,6 +21,7 @@ window.cargarHome = async function() {
     // 2. Cargar Métricas y Notas
     cargarMetricasHome();
     cargarNotasHome();
+    if (typeof window.cargarCalendarioHome === 'function') window.cargarCalendarioHome();
 }
 
 async function cargarMetricasHome() {
