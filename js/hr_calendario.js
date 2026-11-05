@@ -43,7 +43,6 @@ window.toggleConfiguracionHR = function(mostrarConfig) {
 
 window.cambiarModoVistaCalendario = function(modo) {
     window.modoVistaCalendarioActual = modo;
-    console.log("Filtro cambiado a:", modo);
 };
 
 // ============================================================================

@@ -1,5 +1,4 @@
 window.cargarHome = async function() {
-    console.log("🏠 Cargando Home ERP...");
 
     // 1. Saludo Inteligente (Primer nombre con mayúscula)
     const hora = new Date().getHours();
@@ -132,7 +131,6 @@ window.guardarOrdenNotas = async function() {
 
     try {
         await Promise.all(promesas); // Ejecutamos todo a la vez
-        console.log("✅ Orden de notas guardado");
     } catch (error) {
         console.error("Error guardando orden:", error);
     }

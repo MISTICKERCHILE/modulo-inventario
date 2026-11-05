@@ -12,7 +12,6 @@ window.invitacionPendiente = null;
 history.pushState(null, null, window.location.href);
 window.addEventListener('popstate', function(event) {
     history.pushState(null, null, window.location.href);
-    console.log("Navegación bloqueada. Usa los botones de BuddyERP.");
 });
 
 // ============================================================================
@@ -40,7 +39,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.getElementById('form-login-view')?.classList.add('hidden');
                 document.getElementById('form-nueva-pass')?.classList.remove('hidden');
                 
-                console.log("🛠️ Modo recuperación activado");
             }, 100);
             return; 
         }
@@ -1265,7 +1263,7 @@ window.cerrarEscaner = function() {
         window.html5QrCode.stop().then(() => {
             window.html5QrCode.clear();
         }).catch((err) => {
-            console.log("Error apagando la cámara", err);
+            /* la cámara ya estaba apagada */
         });
     }
 };
@@ -1279,5 +1277,5 @@ function sonidoBeep() {
         oscillator.connect(audioCtx.destination);
         oscillator.start();
         setTimeout(() => oscillator.stop(), 100); 
-    } catch(e) { console.log("Audio no soportado"); }
+    } catch(e) { /* sin audio: no es crítico */ }
 }

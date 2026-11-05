@@ -9,7 +9,6 @@ let checkoutMetodoPago = '';
 let checkoutTotalVenta = 0;
 
 window.cargarVentas = function() {
-    console.log("💰 Cargando Módulo POS...");
     document.getElementById('sidebar-menu').classList.add('hidden');
     document.querySelector('header').classList.add('hidden');
     document.getElementById('main-content').classList.add('p-0', 'md:p-0'); 
