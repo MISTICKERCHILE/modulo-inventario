@@ -105,6 +105,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         // SEMÁFORO VERDE: Sesión normal
         const sesion = localStorage.getItem('sesion_activa_olympia');
         if (sesion) {
+            // El navegador recuerda la empresa, pero ¿sigue vigente el inicio de sesión real?
+            if (typeof window.sesionRealVigente === 'function' && (await window.sesionRealVigente()) === false) {
+                window.cerrarPorSesionVencida();
+                return;
+            }
+            if (typeof window.vigilarSesionReal === 'function') window.vigilarSesionReal();
             const login = document.getElementById('login-container');
             if (login) login.classList.add('hidden');
             try {
