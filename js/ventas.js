@@ -334,7 +334,8 @@ window.confirmarVentaPOS = async function() {
                 resultado.sin_stock.map(s => s.producto).join(', ') +
                 ".\nQuedará como deuda de stock hasta que ingrese mercadería.";
         }
-        alert(mensaje);
+        if (typeof window.mostrarVentaRegistrada === 'function') window.mostrarVentaRegistrada(resultado, mensaje, idCliente);
+        else alert(mensaje);
 
     } catch (error) {
         console.error("Error procesando la venta:", error);
