@@ -14,6 +14,7 @@
         cumple:      { nombre: 'Cumpleaños',         color: '#ec4899' },
         feriado:     { nombre: 'Feriados',           color: '#7c3aed' }
     };
+    const OPC_AVISO = [['', 'Sin aviso'], ['0', 'Al empezar'], ['15', '15 minutos antes'], ['60', '1 hora antes'], ['1440', '1 día antes']];
     const PALETA = ['#10b981','#3b82f6','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6','#64748b'];
 
     const S = window.__cal = { vista: 'mes', ref: new Date(), eventos: [], ocultos: new Set(), cargando: false, modal: null };
@@ -192,6 +193,7 @@
             <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
                 <div style="display:flex;background:rgba(241,245,249,.8);padding:2px;border-radius:9px">${tabs}</div>
                 <button data-accion="nuevo" style="height:26px;padding:0 12px;border-radius:999px;background:rgba(209,250,229,.7);color:#047857;font-size:11px;font-weight:600">+ Evento</button>
+                <button data-accion="ajustes" title="Avisos por correo y resumen de la mañana" style="height:26px;padding:0 10px;border-radius:999px;background:rgba(241,245,249,.8);color:#64748b;font-size:11px;font-weight:500">🔔 Avisos</button>
                 <button data-accion="exportar" title="Descargar los eventos que ves en pantalla (.ics)" style="height:26px;padding:0 10px;border-radius:999px;background:rgba(241,245,249,.8);color:#64748b;font-size:11px;font-weight:500">⬇ .ics</button>
             </div>
         </div>
@@ -292,6 +294,7 @@
                 <div style="font-size:12px;color:#64748b;text-transform:capitalize;margin-top:2px">${esc(cuando)}</div>
             </div>
             ${e.repite && e.repite !== 'ninguna' ? `<div style="font-size:12px;color:#475569;margin-top:10px">🔁 Se repite ${({ diaria: 'cada día', semanal: 'cada semana', mensual: 'cada mes', anual: 'cada año' })[e.repite]}${e.repite_hasta ? ' hasta el ' + deClave(e.repite_hasta).toLocaleDateString('es-CL') : ''}. Editar o eliminar cambia toda la serie.</div>` : ''}
+            ${e.aviso_min != null ? `<div style="font-size:12px;color:#475569;margin-top:10px">🔔 Aviso por correo: ${esc((OPC_AVISO.find(o => o[0] === String(e.aviso_min)) || [0, e.aviso_min + ' min antes'])[1].toLowerCase())}${e.ambito === 'empresa' ? ' · a ' + ({ yo: 'quien lo creó', admins: 'dueños y administradores', todos: 'todo el equipo' })[e.aviso_a || 'yo'] : ''}</div>` : ''}
             ${e.lugar ? `<div style="font-size:12px;color:#475569;margin-top:10px">📍 ${esc(e.lugar)}</div>` : ''}
             ${e.detalle ? `<div style="font-size:12px;color:#475569;margin-top:8px;white-space:pre-wrap">${esc(e.detalle)}</div>` : ''}
             <div style="font-size:11px;color:#94a3b8;margin-top:8px">${esc((FUENTES[e.key] || {}).nombre || '')}${e.fuente === 'evento' ? (e.ambito === 'personal' ? ' · 🔒 solo tú lo ves' : ' · visible para la empresa') : ''}</div>
@@ -348,6 +351,11 @@
                 <div style="min-width:0"><label style="${lab}">Repetir</label><select id="cal-f-rep" style="${inp}">${[['ninguna', 'No se repite'], ['diaria', 'Cada día'], ['semanal', 'Cada semana'], ['mensual', 'Cada mes'], ['anual', 'Cada año']].map(([v, t]) => `<option value="${v}" ${(e && e.repite || 'ninguna') === v ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
                 <div style="min-width:0"><label style="${lab}">Hasta (opcional)</label><input id="cal-f-hasta" type="date" value="${e && e.repite_hasta ? esc(e.repite_hasta) : ''}" style="${inp}"></div>
             </div>
+            <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px">
+                <div style="min-width:0"><label style="${lab}">🔔 Avisarme por correo</label><select id="cal-f-aviso" style="${inp}">${OPC_AVISO.map(([v, t]) => `<option value="${v}" ${String(e && e.aviso_min != null ? e.aviso_min : '') === v ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+                <div style="min-width:0" id="cal-f-avisoa-box"><label style="${lab}">Avisar a</label><select id="cal-f-avisoa" style="${inp}">${[['yo', 'Solo a mí'], ['admins', 'Dueños y administradores'], ['todos', 'Todo el equipo']].map(([v, t]) => `<option value="${v}" ${(e && e.aviso_a || 'yo') === v ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+            </div>
+            <div style="font-size:10px;color:#a8b3c2;margin-top:3px">En eventos de todo el día el aviso llega a las 8:00.</div>
             <label style="${lab}">¿Quién lo ve?</label>
             <select id="cal-f-amb" style="${inp}"><option value="personal" ${amb === 'personal' ? 'selected' : ''}>🔒 Personal (solo yo)</option><option value="empresa" ${amb === 'empresa' ? 'selected' : ''}>🏢 De la empresa (todo el equipo)</option></select>
             <label style="${lab}">Lugar (opcional)</label><input id="cal-f-lug" list="cal-lugares" maxlength="200" autocomplete="off" value="${esc(e ? e.lugar : '')}" style="${inp}" placeholder="Escribe o elige una dirección de Buddy"><datalist id="cal-lugares">${(S.lugares || []).map(l => `<option value="${esc(l.valor)}" label="${esc(l.origen)}"></option>`).join('')}</datalist>
@@ -356,6 +364,8 @@
             <button data-x="guardar" style="${btnEst}background:#10b981;color:#fff">Guardar</button>
             <button data-x="cerrar" style="${btnEst}color:#64748b">Cancelar</button>`);
         let colorSel = color;
+        const ajustarAvisoA = () => { m.querySelector('#cal-f-avisoa-box').style.visibility = m.querySelector('#cal-f-amb').value === 'empresa' ? 'visible' : 'hidden'; };
+        m.querySelector('#cal-f-amb').addEventListener('change', ajustarAvisoA); ajustarAvisoA();
         m.querySelector('#cal-f-todo').addEventListener('change', ev => {
             const t = ev.target.checked, i = m.querySelector('#cal-f-ini'), f = m.querySelector('#cal-f-fin');
             const vi = i.value, vf = f.value;
@@ -372,7 +382,9 @@
             const t = m.querySelector('#cal-f-todo').checked, vi = m.querySelector('#cal-f-ini').value, vf = m.querySelector('#cal-f-fin').value;
             const datos = { titulo: m.querySelector('#cal-f-tit').value.trim(), todo_el_dia: t, color: colorSel, ambito: m.querySelector('#cal-f-amb').value,
                 ubicacion: m.querySelector('#cal-f-lug').value.trim(), descripcion: m.querySelector('#cal-f-det').value.trim(),
-                repite: m.querySelector('#cal-f-rep').value, repite_hasta: m.querySelector('#cal-f-hasta').value || null };
+                repite: m.querySelector('#cal-f-rep').value, repite_hasta: m.querySelector('#cal-f-hasta').value || null,
+                aviso_min: m.querySelector('#cal-f-aviso').value === '' ? null : Number(m.querySelector('#cal-f-aviso').value),
+                aviso_a: m.querySelector('#cal-f-amb').value === 'empresa' ? m.querySelector('#cal-f-avisoa').value : 'yo' };
             if (!datos.titulo) { err.textContent = 'Ponle un título al evento.'; return; }
             if (!vi) { err.textContent = 'Indica la fecha de inicio.'; return; }
             if (datos.repite === 'ninguna') datos.repite_hasta = null;
@@ -392,9 +404,47 @@
         setTimeout(() => { const i = m.querySelector('#cal-f-tit'); if (i) i.focus(); }, 0);
     }
 
+    // ---------- Ajustes de avisos ----------
+    async function ajustes() {
+        const { data: a, error } = await clienteSupabase.rpc('calendario_ajustes', { p_id_empresa: window.miEmpresaId });
+        if (error || !a) return alert('No se pudieron cargar tus ajustes.');
+        const inp = 'width:100%;min-width:0;box-sizing:border-box;border:1px solid #e6eaf0;border-radius:10px;padding:8px 10px;font-size:13px;margin-top:3px;background:#f8fafc';
+        const lab = 'font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#a8b3c2;display:block;margin-top:12px';
+        const sel = (id, opc, val) => `<select id="${id}" style="${inp}">${opc.map(([v, t]) => `<option value="${v}" ${String(val == null ? '' : val) === v ? 'selected' : ''}>${t}</option>`).join('')}</select>`;
+        const minOpc = [['', 'No avisar'], ['15', '15 minutos antes'], ['60', '1 hora antes'], ['1440', '1 día antes']];
+        const diaOpc = [['', 'No avisar'], ['0', 'El mismo día, 8:00'], ['1', '1 día antes, 8:00'], ['3', '3 días antes, 8:00']];
+        const m = abrirModal(`
+            <div style="font-size:16px;font-weight:600;color:#1e293b">🔔 Avisos por correo</div>
+            <div style="font-size:12px;color:#64748b;margin-top:2px">Los avisos de tus propios eventos se eligen al crear cada evento. Aquí eliges los automáticos.</div>
+            ${a.tiene_ventas ? `<label style="${lab}">Agenda de trabajo (pedidos, reservas, instalaciones)</label>${sel('cal-a-agenda', minOpc, a.aviso_agenda_min)}
+            <label style="${lab}">Cotizaciones por vencer</label>${sel('cal-a-cot', diaOpc, a.aviso_cotizaciones_dias)}
+            <label style="${lab}">Cobros por vencer</label>${sel('cal-a-cob', diaOpc, a.aviso_cobros_dias)}` : ''}
+            <label style="${lab}">☀️ Resumen de la mañana</label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#475569;margin-top:4px"><input type="checkbox" id="cal-a-res" ${a.recibe_resumen ? 'checked' : ''}> Quiero recibirlo (si mi empresa lo activa)</label>
+            <div style="font-size:11px;color:#94a3b8;margin-top:2px">Incluye tus eventos, vencimientos y cumpleaños del día. Si no hay nada, no se envía.</div>
+            ${a.es_admin ? `<div style="margin-top:10px;padding:10px;border-radius:10px;background:rgba(241,245,249,.7)"><div style="font-size:11px;font-weight:600;color:#475569">Para toda la empresa</div>
+              <label style="${lab};margin-top:6px">¿Quién lo recibe?</label>${sel('cal-a-dest', [['nadie', 'Nadie (desactivado)'], ['admins', 'Dueños y administradores'], ['todos', 'Todo el equipo']], a.resumen_destino)}
+              <label style="${lab}">Hora de envío</label>${sel('cal-a-hora', [6, 7, 8, 9, 10].map(h => [String(h), h + ':00']), a.resumen_hora)}</div>` : ''}
+            <div id="cal-a-err" style="color:#b91c1c;font-size:12px;margin-top:6px"></div>
+            <button data-x="guardar" style="${btnEst}background:#10b981;color:#fff">Guardar</button>
+            <button data-x="cerrar" style="${btnEst}color:#64748b">Cancelar</button>`);
+        m.addEventListener('click', async ev => {
+            const b = ev.target.closest('[data-x]'); if (!b) return;
+            if (b.dataset.x === 'cerrar') return cerrarModal();
+            const v = id => { const x = m.querySelector('#' + id); return x ? (x.value === '' ? null : Number(x.value)) : null; };
+            const datos = { aviso_agenda_min: v('cal-a-agenda'), aviso_cotizaciones_dias: v('cal-a-cot'), aviso_cobros_dias: v('cal-a-cob'), recibe_resumen: m.querySelector('#cal-a-res').checked };
+            if (a.es_admin) { datos.resumen_destino = m.querySelector('#cal-a-dest').value; datos.resumen_hora = Number(m.querySelector('#cal-a-hora').value); }
+            b.disabled = true; b.textContent = 'Guardando…';
+            const { error: err } = await clienteSupabase.rpc('guardar_ajustes_cal', { p_id_empresa: window.miEmpresaId, p_datos: datos });
+            if (err) { m.querySelector('#cal-a-err').textContent = err.message; b.disabled = false; b.textContent = 'Guardar'; return; }
+            cerrarModal();
+        });
+    }
+
     // ---------- Mover (arrastrar) ----------
     async function moverEvento(e, dias, nuevaHoraMin) {
-        const datos = { titulo: e.titulo, todo_el_dia: e.todo, color: e.color, ambito: e.ambito, ubicacion: e.lugar || '', descripcion: e.detalle || '' };
+        const datos = { titulo: e.titulo, todo_el_dia: e.todo, color: e.color, ambito: e.ambito, ubicacion: e.lugar || '', descripcion: e.detalle || '',
+            aviso_min: e.aviso_min == null ? null : e.aviso_min, aviso_a: e.aviso_a || 'yo', repite: e.repite || 'ninguna', repite_hasta: e.repite_hasta || null };
         if (e.todo) { datos.dia_inicio = clave(sumarDias(e.diaIni, dias)); datos.dia_fin = clave(sumarDias(e.diaFin, dias)); }
         else {
             const ini = new Date(e.ini), fin = new Date(e.fin), dur = fin - ini;
@@ -431,6 +481,7 @@
             }
             if ((el = t.closest('[data-accion]'))) {
                 if (el.dataset.accion === 'nuevo') return formulario(null, S.vista === 'dia' ? clave(S.ref) : null);
+                if (el.dataset.accion === 'ajustes') return ajustes();
                 const [d, h] = rango();
                 const evs = S.eventos.filter(e => !S.ocultos.has(e.key) && e.diaFin >= d && e.diaIni <= h);
                 if (!evs.length) return alert('No hay eventos en el período que estás viendo.');
