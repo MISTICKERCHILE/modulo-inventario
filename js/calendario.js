@@ -11,6 +11,7 @@
         agenda:      { nombre: 'Agenda de trabajo',  color: '#3b82f6' },
         cotizacion:  { nombre: 'Cotizaciones por vencer', color: '#f59e0b' },
         cobro:       { nombre: 'Cobros por vencer',  color: '#e11d48' },
+        cumple:      { nombre: 'Cumpleaños',         color: '#ec4899' },
         feriado:     { nombre: 'Feriados',           color: '#7c3aed' }
     };
     const PALETA = ['#10b981','#3b82f6','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6','#64748b'];
@@ -42,7 +43,12 @@
         let diaFin = new Date(fin.getFullYear(), fin.getMonth(), fin.getDate());
         if (!todo && fin > ini && fin.getHours() === 0 && fin.getMinutes() === 0 && diaFin > diaIni) diaFin = sumarDias(diaFin, -1);
         if (diaFin < diaIni) diaFin = diaIni;
-        return { ...e, key, color, todo, ini, fin, diaIni, diaFin };
+        let base = null;
+        if (e.repite && e.repite !== 'ninguna' && e.inicio0) {
+            const bi = todo ? deClave(e.inicio0) : new Date(e.inicio0), bf = todo ? deClave(e.fin0 || e.inicio0) : (e.fin0 ? new Date(e.fin0) : new Date(bi.getTime() + 3600000));
+            base = { ini: bi, fin: bf, diaIni: new Date(bi.getFullYear(), bi.getMonth(), bi.getDate()), diaFin: new Date(bf.getFullYear(), bf.getMonth(), bf.getDate()) };
+        }
+        return { ...e, key, color, todo, ini, fin, diaIni, diaFin, base };
     }
     function eventosDelDia(k) {
         const d = deClave(k);
@@ -83,9 +89,9 @@
     function chip(e, compacto) {
         const hh = e.todo ? '' : hora(e.ini) + ' ';
         const lock = e.ambito === 'personal' ? '🔒 ' : '';
-        const arr = e.editable && e.fuente === 'evento' ? ' draggable="true"' : '';
-        if (compacto) return `<span title="${esc(e.titulo)}" data-ev="${esc(e.key + '|' + e.id)}" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${e.color};margin:1px;cursor:pointer"></span>`;
-        return `<div data-ev="${esc(e.key + '|' + e.id)}"${arr} title="${esc(e.titulo)}" style="background:${e.color}1a;border-left:2px solid ${e.color};color:#334155;font-size:11px;font-weight:500;line-height:1.25;padding:2px 5px;margin-bottom:2px;border-radius:5px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;cursor:pointer">${lock}${esc(hh)}${esc(e.titulo)}</div>`;
+        const arr = e.editable && e.fuente === 'evento' && (!e.repite || e.repite === 'ninguna') ? ' draggable="true"' : '';
+        if (compacto) return `<span title="${esc(e.titulo)}" data-ev="${esc(e.key + '|' + (e.uid || e.id))}" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${e.color};margin:1px;cursor:pointer"></span>`;
+        return `<div data-ev="${esc(e.key + '|' + (e.uid || e.id))}"${arr} title="${esc(e.titulo)}" style="background:${e.color}1a;border-left:2px solid ${e.color};color:#334155;font-size:11px;font-weight:500;line-height:1.25;padding:2px 5px;margin-bottom:2px;border-radius:5px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;cursor:pointer">${lock}${esc(hh)}${esc(e.titulo)}</div>`;
     }
     function celdaDia(k, opts) {
         const d = deClave(k), hoy = k === clave(new Date()), evs = eventosDelDia(k);
@@ -130,7 +136,7 @@
         const orden = con.slice().sort((a, b) => a.ini - b.ini || b.fin - a.fin), cols = [], pos = new Map();
         orden.forEach(e => { let c = cols.findIndex(f => f <= e.ini); if (c < 0) { c = cols.length; cols.push(0); } cols[c] = e.fin; pos.set(e, c); });
         let h = '';
-        if (todos.length) h += `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;padding-left:46px">${todos.map(e => `<div data-ev="${esc(e.key + '|' + e.id)}" style="background:${e.color}1f;border-left:2px solid ${e.color};color:#334155;font-size:11px;font-weight:500;padding:3px 8px;border-radius:5px;cursor:pointer">${e.ambito === 'personal' ? '🔒 ' : ''}${esc(e.titulo)}</div>`).join('')}</div>`;
+        if (todos.length) h += `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;padding-left:46px">${todos.map(e => `<div data-ev="${esc(e.key + '|' + (e.uid || e.id))}" style="background:${e.color}1f;border-left:2px solid ${e.color};color:#334155;font-size:11px;font-weight:500;padding:3px 8px;border-radius:5px;cursor:pointer">${e.ambito === 'personal' ? '🔒 ' : ''}${esc(e.titulo)}</div>`).join('')}</div>`;
         h += `<div style="position:relative;height:${filas * HORA_PX}px;margin-left:46px" id="cal-grilla" data-dia-grilla="${k}">`;
         for (let i = 0; i < filas; i++) h += `<div style="position:absolute;left:0;right:0;top:${i * HORA_PX}px;height:${HORA_PX}px;border-top:1px solid #eef1f5"><span style="position:absolute;left:-44px;top:-7px;font-size:10px;font-weight:500;color:#a8b3c2">${pad(h0 + i)}:00</span></div>`;
         con.forEach(e => {
@@ -138,8 +144,8 @@
             const finMin = e.diaFin > deClave(k) ? 1440 : Math.max(ini + 20, e.fin.getHours() * 60 + e.fin.getMinutes());
             const top = (ini - h0 * 60) / 60 * HORA_PX, alto = Math.max(20, (finMin - ini) / 60 * HORA_PX - 2), c = pos.get(e);
             const ncols = Math.max(...orden.filter(o => o.ini < e.fin && o.fin > e.ini).map(o => pos.get(o))) + 1;
-            const arr = e.editable && e.fuente === 'evento' ? ' draggable="true"' : '';
-            h += `<div data-ev="${esc(e.key + '|' + e.id)}"${arr} title="${esc(e.titulo)}" style="position:absolute;top:${top}px;height:${alto}px;left:calc(${c * 100 / ncols}% + 2px);width:calc(${100 / ncols}% - 4px);box-sizing:border-box;background:${e.color}1f;border-left:2px solid ${e.color};border-radius:6px;padding:3px 6px;overflow:hidden;cursor:pointer;backdrop-filter:blur(2px)"><div style="font-size:11px;font-weight:600;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.ambito === 'personal' ? '🔒 ' : ''}${esc(e.titulo)}</div><div style="font-size:10px;color:#64748b">${hora(e.ini)} – ${hora(e.fin)}${e.lugar ? ' · ' + esc(e.lugar) : ''}</div></div>`;
+            const arr = e.editable && e.fuente === 'evento' && (!e.repite || e.repite === 'ninguna') ? ' draggable="true"' : '';
+            h += `<div data-ev="${esc(e.key + '|' + (e.uid || e.id))}"${arr} title="${esc(e.titulo)}" style="position:absolute;top:${top}px;height:${alto}px;left:calc(${c * 100 / ncols}% + 2px);width:calc(${100 / ncols}% - 4px);box-sizing:border-box;background:${e.color}1f;border-left:2px solid ${e.color};border-radius:6px;padding:3px 6px;overflow:hidden;cursor:pointer;backdrop-filter:blur(2px)"><div style="font-size:11px;font-weight:600;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.ambito === 'personal' ? '🔒 ' : ''}${esc(e.titulo)}</div><div style="font-size:10px;color:#64748b">${hora(e.ini)} – ${hora(e.fin)}${e.lugar ? ' · ' + esc(e.lugar) : ''}</div></div>`;
         });
         if (esHoy) { const n = new Date(), y = ((n.getHours() * 60 + n.getMinutes()) - h0 * 60) / 60 * HORA_PX; if (y >= 0) h += `<div style="position:absolute;left:-4px;right:0;top:${y}px;height:0;border-top:1.5px solid #ef4444;pointer-events:none"><span style="position:absolute;left:-2px;top:-4px;width:7px;height:7px;border-radius:50%;background:#ef4444"></span></div>`; }
         h += '</div>';
@@ -216,10 +222,19 @@
     const icsDia = d => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
     const icsTxt = s => String(s || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
     function plegar(l) { const out = []; while (l.length > 74) { out.push(l.slice(0, 74)); l = ' ' + l.slice(74); } out.push(l); return out.join('\r\n'); }
-    function vevento(e) {
+    const FREQ = { diaria: 'DAILY', semanal: 'WEEKLY', mensual: 'MONTHLY', anual: 'YEARLY' };
+    function reglaRep(e) {
+        if (!e.repite || e.repite === 'ninguna') return null;
+        let r = 'RRULE:FREQ=' + FREQ[e.repite];
+        if (e.repite_hasta) { const d = deClave(e.repite_hasta); r += ';UNTIL=' + (e.todo ? icsDia(d) : icsFecha(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59))); }
+        return r;
+    }
+    function vevento(e0) {
+        const e = e0.base ? { ...e0, ...e0.base } : e0;
         const L = ['BEGIN:VEVENT', `UID:${e.key}-${e.id}@buddyerp.com`, `DTSTAMP:${icsFecha(new Date())}`];
         if (e.todo) { L.push(`DTSTART;VALUE=DATE:${icsDia(e.diaIni)}`, `DTEND;VALUE=DATE:${icsDia(sumarDias(e.diaFin, 1))}`); }
         else { L.push(`DTSTART:${icsFecha(e.ini)}`, `DTEND:${icsFecha(e.fin)}`); }
+        const rr = reglaRep(e); if (rr) L.push(rr);
         L.push(`SUMMARY:${icsTxt(e.titulo)}`);
         const det = [e.detalle, e.fuente !== 'evento' ? (FUENTES[e.key] || {}).nombre : ''].filter(Boolean).join(' · ');
         if (det) L.push(`DESCRIPTION:${icsTxt(det)}`);
@@ -227,7 +242,8 @@
         L.push('END:VEVENT');
         return L.map(plegar).join('\r\n');
     }
-    function descargarIcs(evs, nombre) {
+    function descargarIcs(evs0, nombre) {
+        const vistos = new Set(), evs = evs0.filter(e => { if (!e.base) return true; if (vistos.has(e.id)) return false; vistos.add(e.id); return true; });
         const txt = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Buddy ERP//Calendario//ES', 'CALSCALE:GREGORIAN', ...evs.map(vevento), 'END:VCALENDAR'].join('\r\n') + '\r\n';
         const url = URL.createObjectURL(new Blob([txt], { type: 'text/calendar;charset=utf-8' }));
         const a = document.createElement('a'); a.href = url; a.download = nombre; document.body.appendChild(a); a.click(); a.remove();
@@ -236,6 +252,7 @@
     function enlaceGoogle(e) {
         const f = e.todo ? `${icsDia(e.diaIni)}/${icsDia(sumarDias(e.diaFin, 1))}` : `${icsFecha(e.ini)}/${icsFecha(e.fin)}`;
         const p = new URLSearchParams({ action: 'TEMPLATE', text: e.titulo, dates: f, details: e.detalle || '', location: e.lugar || '' });
+        const rr = reglaRep(e); if (rr) p.set('recur', rr);
         return 'https://calendar.google.com/calendar/render?' + p.toString();
     }
     function enlaceOutlook(e) {
@@ -263,7 +280,7 @@
 
     function verEvento(clv) {
         const [key, ...r] = clv.split('|'); const id = r.join('|');
-        const e = S.eventos.find(x => x.key === key && String(x.id) === id);
+        const e = S.eventos.find(x => x.key === key && String(x.uid || x.id) === id);
         if (!e) return;
         S.modal = e;
         const cuando = e.todo
@@ -274,6 +291,7 @@
                 <div style="font-size:16px;font-weight:600;color:#1e293b">${esc(e.titulo)}</div>
                 <div style="font-size:12px;color:#64748b;text-transform:capitalize;margin-top:2px">${esc(cuando)}</div>
             </div>
+            ${e.repite && e.repite !== 'ninguna' ? `<div style="font-size:12px;color:#475569;margin-top:10px">🔁 Se repite ${({ diaria: 'cada día', semanal: 'cada semana', mensual: 'cada mes', anual: 'cada año' })[e.repite]}${e.repite_hasta ? ' hasta el ' + deClave(e.repite_hasta).toLocaleDateString('es-CL') : ''}. Editar o eliminar cambia toda la serie.</div>` : ''}
             ${e.lugar ? `<div style="font-size:12px;color:#475569;margin-top:10px">📍 ${esc(e.lugar)}</div>` : ''}
             ${e.detalle ? `<div style="font-size:12px;color:#475569;margin-top:8px;white-space:pre-wrap">${esc(e.detalle)}</div>` : ''}
             <div style="font-size:11px;color:#94a3b8;margin-top:8px">${esc((FUENTES[e.key] || {}).nombre || '')}${e.fuente === 'evento' ? (e.ambito === 'personal' ? ' · 🔒 solo tú lo ves' : ' · visible para la empresa') : ''}</div>
@@ -310,8 +328,9 @@
             base = diaSugerido ? deClave(diaSugerido) : new Date(S.ref);
             const ahora = new Date(); base.setHours(Math.min(ahora.getHours() + 1, 22), 0, 0, 0);
         }
-        const ini = e ? (e.todo ? e.diaIni : e.ini) : base;
-        const fin = e ? (e.todo ? e.diaFin : e.fin) : new Date(base.getTime() + 3600000);
+        const src = e ? (e.base ? { ...e, ...e.base } : e) : null;
+        const ini = src ? (src.todo ? src.diaIni : src.ini) : base;
+        const fin = src ? (src.todo ? src.diaFin : src.fin) : new Date(base.getTime() + 3600000);
         const todo = e ? e.todo : false, color = e ? hex(e.color) : PALETA[0], amb = e ? e.ambito : 'personal';
         const inp = 'width:100%;min-width:0;box-sizing:border-box;border:1px solid #e6eaf0;border-radius:10px;padding:8px 10px;font-size:13px;margin-top:3px;background:#f8fafc';
         const lab = 'font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#a8b3c2;display:block;margin-top:10px';
@@ -325,6 +344,10 @@
             </div>
             <label style="${lab}">Color</label>
             <div id="cal-f-colores" style="display:flex;gap:8px;margin-top:4px">${PALETA.map(c => `<button type="button" data-color="${c}" aria-label="${c}" style="width:26px;height:26px;border-radius:50%;background:${c};outline:${c === color ? '3px solid #1e293b' : 'none'};outline-offset:2px"></button>`).join('')}</div>
+            <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px">
+                <div style="min-width:0"><label style="${lab}">Repetir</label><select id="cal-f-rep" style="${inp}">${[['ninguna', 'No se repite'], ['diaria', 'Cada día'], ['semanal', 'Cada semana'], ['mensual', 'Cada mes'], ['anual', 'Cada año']].map(([v, t]) => `<option value="${v}" ${(e && e.repite || 'ninguna') === v ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+                <div style="min-width:0"><label style="${lab}">Hasta (opcional)</label><input id="cal-f-hasta" type="date" value="${e && e.repite_hasta ? esc(e.repite_hasta) : ''}" style="${inp}"></div>
+            </div>
             <label style="${lab}">¿Quién lo ve?</label>
             <select id="cal-f-amb" style="${inp}"><option value="personal" ${amb === 'personal' ? 'selected' : ''}>🔒 Personal (solo yo)</option><option value="empresa" ${amb === 'empresa' ? 'selected' : ''}>🏢 De la empresa (todo el equipo)</option></select>
             <label style="${lab}">Lugar (opcional)</label><input id="cal-f-lug" list="cal-lugares" maxlength="200" autocomplete="off" value="${esc(e ? e.lugar : '')}" style="${inp}" placeholder="Escribe o elige una dirección de Buddy"><datalist id="cal-lugares">${(S.lugares || []).map(l => `<option value="${esc(l.valor)}" label="${esc(l.origen)}"></option>`).join('')}</datalist>
@@ -348,9 +371,12 @@
             const err = m.querySelector('#cal-f-err'); err.textContent = '';
             const t = m.querySelector('#cal-f-todo').checked, vi = m.querySelector('#cal-f-ini').value, vf = m.querySelector('#cal-f-fin').value;
             const datos = { titulo: m.querySelector('#cal-f-tit').value.trim(), todo_el_dia: t, color: colorSel, ambito: m.querySelector('#cal-f-amb').value,
-                ubicacion: m.querySelector('#cal-f-lug').value.trim(), descripcion: m.querySelector('#cal-f-det').value.trim() };
+                ubicacion: m.querySelector('#cal-f-lug').value.trim(), descripcion: m.querySelector('#cal-f-det').value.trim(),
+                repite: m.querySelector('#cal-f-rep').value, repite_hasta: m.querySelector('#cal-f-hasta').value || null };
             if (!datos.titulo) { err.textContent = 'Ponle un título al evento.'; return; }
             if (!vi) { err.textContent = 'Indica la fecha de inicio.'; return; }
+            if (datos.repite === 'ninguna') datos.repite_hasta = null;
+            else if (datos.repite_hasta && datos.repite_hasta < vi.slice(0, 10)) { err.textContent = 'La repetición no puede terminar antes de empezar.'; return; }
             if (t) { datos.dia_inicio = vi; datos.dia_fin = vf || vi; if (datos.dia_fin < datos.dia_inicio) { err.textContent = 'El término no puede ser antes del inicio.'; return; } }
             else {
                 const di = new Date(vi), df = vf ? new Date(vf) : null;
@@ -381,7 +407,7 @@
         if (error) alert('No se pudo mover el evento: ' + error.message);
         cargar();
     }
-    function buscarEv(clv) { const [key, ...r] = String(clv).split('|'); const id = r.join('|'); return S.eventos.find(x => x.key === key && String(x.id) === id); }
+    function buscarEv(clv) { const [key, ...r] = String(clv).split('|'); const id = r.join('|'); return S.eventos.find(x => x.key === key && String(x.uid || x.id) === id); }
     function minutosEnGrilla(ev) {
         const g = document.getElementById('cal-grilla'); if (!g) return null;
         const r = g.getBoundingClientRect(), y = Math.max(0, Math.min(ev.clientY - r.top, r.height - 1));
