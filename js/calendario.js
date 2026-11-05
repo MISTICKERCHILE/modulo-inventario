@@ -83,8 +83,9 @@
     function chip(e, compacto) {
         const hh = e.todo ? '' : hora(e.ini) + ' ';
         const lock = e.ambito === 'personal' ? '🔒 ' : '';
-        if (compacto) return `<span title="${esc(e.titulo)}" data-ev="${esc(e.key + '|' + e.id)}" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${e.color};margin:1px;cursor:pointer"></span>`;
-        return `<div data-ev="${esc(e.key + '|' + e.id)}" title="${esc(e.titulo)}" style="background:${e.color}1f;border-left:3px solid ${e.color};color:#1e293b;font-size:11px;line-height:1.2;padding:2px 4px;margin-bottom:2px;border-radius:4px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;cursor:pointer">${lock}${esc(hh)}${esc(e.titulo)}</div>`;
+        const arr = e.editable && e.fuente === 'evento' ? ' draggable="true"' : '';
+        if (compacto) return `<span title="${esc(e.titulo)}" data-ev="${esc(e.key + '|' + e.id)}" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${e.color};margin:1px;cursor:pointer"></span>`;
+        return `<div data-ev="${esc(e.key + '|' + e.id)}"${arr} title="${esc(e.titulo)}" style="background:${e.color}1a;border-left:2px solid ${e.color};color:#334155;font-size:11px;font-weight:500;line-height:1.25;padding:2px 5px;margin-bottom:2px;border-radius:5px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;cursor:pointer">${lock}${esc(hh)}${esc(e.titulo)}</div>`;
     }
     function celdaDia(k, opts) {
         const d = deClave(k), hoy = k === clave(new Date()), evs = eventosDelDia(k);
@@ -92,19 +93,19 @@
         const fuera = opts.mes != null && d.getMonth() !== opts.mes;
         const movil = window.innerWidth < 640;
         const max = opts.max || 3;
-        let html = `<div style="min-height:${opts.alto}px;padding:4px;border:1px solid #e2e8f0;background:${fuera ? '#f8fafc' : '#fff'};min-width:0;overflow:hidden">`;
-        html += `<div data-dia="${k}" style="cursor:pointer;font-size:12px;font-weight:700;margin-bottom:2px;${hoy ? 'background:#10b981;color:#fff;border-radius:999px;display:inline-block;min-width:22px;text-align:center;padding:1px 4px' : 'color:' + (feriado ? '#7c3aed' : fuera ? '#94a3b8' : '#334155')}">${d.getDate()}</div>`;
+        let html = `<div data-celda="${k}" style="min-height:${opts.alto}px;padding:4px;border-top:1px solid #eef1f5;border-left:1px solid #f1f5f9;background:${fuera ? 'rgba(248,250,252,.6)' : 'transparent'};min-width:0;overflow:hidden;cursor:pointer">`;
+        html += `<div data-dia="${k}" style="cursor:pointer;font-size:11px;font-weight:600;margin-bottom:3px;${hoy ? 'background:#10b981;color:#fff;border-radius:999px;display:inline-block;min-width:20px;text-align:center;padding:1px 3px' : 'color:' + (feriado ? '#7c3aed' : fuera ? '#cbd5e1' : '#64748b')}">${d.getDate()}</div>`;
         if (movil) html += `<div>${evs.slice(0, 8).map(e => chip(e, true)).join('')}</div>`;
         else {
             html += evs.slice(0, max).map(e => chip(e, false)).join('');
-            if (evs.length > max) html += `<div data-dia="${k}" style="font-size:10px;color:#64748b;cursor:pointer;font-weight:700">+${evs.length - max} más</div>`;
+            if (evs.length > max) html += `<div data-dia="${k}" style="font-size:10px;color:#94a3b8;cursor:pointer;font-weight:600">+${evs.length - max} más</div>`;
         }
         return html + '</div>';
     }
     function vistaMes() {
         const [ini] = rango(), mes = S.ref.getMonth();
         let h = `<div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr))">`;
-        h += DIAS.map(n => `<div style="text-align:center;font-size:10px;font-weight:800;text-transform:uppercase;color:#94a3b8;padding:4px 0">${n}</div>`).join('');
+        h += DIAS.map(n => `<div style="text-align:center;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#a8b3c2;padding:4px 0">${n}</div>`).join('');
         for (let i = 0; i < 42; i++) h += celdaDia(clave(sumarDias(ini, i)), { mes, alto: window.innerWidth < 640 ? 54 : 92 });
         return h + '</div>';
     }
@@ -113,32 +114,50 @@
         let h = `<div style="display:grid;grid-template-columns:repeat(${window.innerWidth < 640 ? 1 : 7},minmax(0,1fr))">`;
         for (let i = 0; i < 7; i++) {
             const k = clave(sumarDias(ini, i)), d = deClave(k);
-            h += `<div>${window.innerWidth < 640 ? `<div style="font-size:10px;font-weight:800;text-transform:uppercase;color:#94a3b8;padding:6px 4px 0">${DIAS_LARGOS[i]}</div>` : `<div style="text-align:center;font-size:10px;font-weight:800;text-transform:uppercase;color:#94a3b8;padding:4px 0">${DIAS[i]}</div>`}${celdaDia(k, { alto: 150, max: 20 })}</div>`;
+            h += `<div>${window.innerWidth < 640 ? `<div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#a8b3c2;padding:6px 4px 0">${DIAS_LARGOS[i]}</div>` : `<div style="text-align:center;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#a8b3c2;padding:4px 0">${DIAS[i]}</div>`}${celdaDia(k, { alto: 150, max: 20 })}</div>`;
         }
         return h + '</div>';
     }
+    const HORA_PX = 46;
     function vistaDia() {
-        const k = clave(S.ref), evs = eventosDelDia(k);
-        if (!evs.length) return `<div style="text-align:center;color:#94a3b8;font-size:13px;padding:40px 0">Sin eventos este día.</div>`;
-        return `<div style="display:flex;flex-direction:column;gap:6px;padding:4px">` + evs.map(e => `
-            <div data-ev="${esc(e.key + '|' + e.id)}" style="display:flex;gap:10px;align-items:flex-start;background:${e.color}1a;border-left:4px solid ${e.color};border-radius:8px;padding:8px 10px;cursor:pointer">
-                <div style="min-width:78px;font-size:12px;font-weight:800;color:#475569">${e.todo ? 'Todo el día' : hora(e.ini) + ' – ' + hora(e.fin)}</div>
-                <div style="min-width:0"><div style="font-size:13px;font-weight:700;color:#1e293b">${e.ambito === 'personal' ? '🔒 ' : ''}${esc(e.titulo)}</div>
-                ${e.lugar ? `<div style="font-size:11px;color:#64748b">📍 ${esc(e.lugar)}</div>` : ''}${e.fuente !== 'evento' ? `<div style="font-size:11px;color:#64748b">${esc((FUENTES[e.key] || {}).nombre || '')}${e.detalle ? ' · ' + esc(e.detalle) : ''}</div>` : ''}</div>
-            </div>`).join('') + '</div>';
+        const k = clave(S.ref), hoyK = clave(new Date()), esHoy = k === hoyK, evs = eventosDelDia(k);
+        const todos = evs.filter(e => e.todo), con = evs.filter(e => !e.todo);
+        let h0 = esHoy ? new Date().getHours() : 7;
+        con.forEach(e => { const hi = e.diaIni < deClave(k) ? 0 : e.ini.getHours(); if (hi < h0) h0 = hi; });
+        S.h0 = h0;
+        const filas = 24 - h0;
+        // columnas para eventos que se superponen
+        const orden = con.slice().sort((a, b) => a.ini - b.ini || b.fin - a.fin), cols = [], pos = new Map();
+        orden.forEach(e => { let c = cols.findIndex(f => f <= e.ini); if (c < 0) { c = cols.length; cols.push(0); } cols[c] = e.fin; pos.set(e, c); });
+        let h = '';
+        if (todos.length) h += `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;padding-left:46px">${todos.map(e => `<div data-ev="${esc(e.key + '|' + e.id)}" style="background:${e.color}1f;border-left:2px solid ${e.color};color:#334155;font-size:11px;font-weight:500;padding:3px 8px;border-radius:5px;cursor:pointer">${e.ambito === 'personal' ? '🔒 ' : ''}${esc(e.titulo)}</div>`).join('')}</div>`;
+        h += `<div style="position:relative;height:${filas * HORA_PX}px;margin-left:46px" id="cal-grilla" data-dia-grilla="${k}">`;
+        for (let i = 0; i < filas; i++) h += `<div style="position:absolute;left:0;right:0;top:${i * HORA_PX}px;height:${HORA_PX}px;border-top:1px solid #eef1f5"><span style="position:absolute;left:-44px;top:-7px;font-size:10px;font-weight:500;color:#a8b3c2">${pad(h0 + i)}:00</span></div>`;
+        con.forEach(e => {
+            const ini = e.diaIni < deClave(k) ? 0 : e.ini.getHours() * 60 + e.ini.getMinutes();
+            const finMin = e.diaFin > deClave(k) ? 1440 : Math.max(ini + 20, e.fin.getHours() * 60 + e.fin.getMinutes());
+            const top = (ini - h0 * 60) / 60 * HORA_PX, alto = Math.max(20, (finMin - ini) / 60 * HORA_PX - 2), c = pos.get(e);
+            const ncols = Math.max(...orden.filter(o => o.ini < e.fin && o.fin > e.ini).map(o => pos.get(o))) + 1;
+            const arr = e.editable && e.fuente === 'evento' ? ' draggable="true"' : '';
+            h += `<div data-ev="${esc(e.key + '|' + e.id)}"${arr} title="${esc(e.titulo)}" style="position:absolute;top:${top}px;height:${alto}px;left:calc(${c * 100 / ncols}% + 2px);width:calc(${100 / ncols}% - 4px);box-sizing:border-box;background:${e.color}1f;border-left:2px solid ${e.color};border-radius:6px;padding:3px 6px;overflow:hidden;cursor:pointer;backdrop-filter:blur(2px)"><div style="font-size:11px;font-weight:600;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.ambito === 'personal' ? '🔒 ' : ''}${esc(e.titulo)}</div><div style="font-size:10px;color:#64748b">${hora(e.ini)} – ${hora(e.fin)}${e.lugar ? ' · ' + esc(e.lugar) : ''}</div></div>`;
+        });
+        if (esHoy) { const n = new Date(), y = ((n.getHours() * 60 + n.getMinutes()) - h0 * 60) / 60 * HORA_PX; if (y >= 0) h += `<div style="position:absolute;left:-4px;right:0;top:${y}px;height:0;border-top:1.5px solid #ef4444;pointer-events:none"><span style="position:absolute;left:-2px;top:-4px;width:7px;height:7px;border-radius:50%;background:#ef4444"></span></div>`; }
+        h += '</div>';
+        if (!evs.length) h += `<div style="text-align:center;color:#a8b3c2;font-size:12px;padding:10px 0 0">Sin eventos. Toca una hora para agregar uno.</div>`;
+        return h;
     }
     function vistaAnio() {
         const y = S.ref.getFullYear(), hoyK = clave(new Date());
         let h = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px">`;
         for (let m = 0; m < 12; m++) {
             const primero = new Date(y, m, 1), l = lunesDe(primero);
-            h += `<div><div data-mes="${m}" style="cursor:pointer;font-size:12px;font-weight:800;text-transform:capitalize;color:#334155;margin-bottom:2px">${MESES[m]}</div><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px">`;
+            h += `<div><div data-mes="${m}" style="cursor:pointer;font-size:12px;font-weight:600;text-transform:capitalize;color:#475569;margin-bottom:2px">${MESES[m]}</div><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px">`;
             for (let i = 0; i < 42; i++) {
                 const d = sumarDias(l, i), k = clave(d);
                 if (d.getMonth() !== m) { h += '<div></div>'; continue; }
                 const evs = eventosDelDia(k), hay = evs.length, fer = evs.some(e => e.key === 'feriado');
                 const col = hay ? evs[0].color : '';
-                h += `<div data-dia="${k}" title="${hay ? esc(evs.map(e => e.titulo).join(' · ')) : ''}" style="cursor:pointer;text-align:center;font-size:9px;line-height:16px;border-radius:4px;${k === hoyK ? 'outline:2px solid #10b981;' : ''}${hay ? `background:${col};color:#fff;font-weight:700` : 'color:#64748b'}${fer && !hay ? ';color:#7c3aed' : ''}">${d.getDate()}</div>`;
+                h += `<div data-dia="${k}" title="${hay ? esc(evs.map(e => e.titulo).join(' · ')) : ''}" style="cursor:pointer;text-align:center;font-size:9px;line-height:16px;border-radius:4px;${k === hoyK ? 'outline:2px solid #10b981;' : ''}${hay ? `background:${col};color:#fff;font-weight:600` : 'color:#94a3b8'}${fer && !hay ? ';color:#7c3aed' : ''}">${d.getDate()}</div>`;
             }
             h += '</div></div>';
         }
@@ -149,28 +168,31 @@
         const cont = document.getElementById('cal-home');
         if (!cont) return;
         const tabs = [['dia', 'Día'], ['semana', 'Semana'], ['mes', 'Mes'], ['anio', 'Año']].map(([v, t]) =>
-            `<button data-vista="${v}" style="padding:4px 12px;border-radius:6px;font-size:10px;font-weight:800;text-transform:uppercase;${S.vista === v ? 'background:#fff;color:#1e293b;box-shadow:0 1px 2px rgba(0,0,0,.15)' : 'color:#64748b'}">${t}</button>`).join('');
+            `<button data-vista="${v}" style="padding:3px 11px;border-radius:7px;font-size:11px;font-weight:500;${S.vista === v ? 'background:#fff;color:#0f172a;box-shadow:0 1px 2px rgba(15,23,42,.08)' : 'color:#94a3b8'}">${t}</button>`).join('');
         const leyenda = Object.entries(FUENTES).map(([k, f]) =>
-            `<button data-fuente="${k}" style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;margin:2px 8px 2px 0;color:${S.ocultos.has(k) ? '#cbd5e1' : '#475569'};${S.ocultos.has(k) ? 'text-decoration:line-through' : ''}"><span style="width:10px;height:10px;border-radius:3px;background:${S.ocultos.has(k) ? '#e2e8f0' : f.color}"></span>${f.nombre}</button>`).join('');
+            `<button data-fuente="${k}" style="display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:500;margin:2px 10px 2px 0;color:${S.ocultos.has(k) ? '#cbd5e1' : '#64748b'};${S.ocultos.has(k) ? 'text-decoration:line-through' : ''}"><span style="width:8px;height:8px;border-radius:50%;background:${S.ocultos.has(k) ? '#e2e8f0' : f.color}"></span>${f.nombre}</button>`).join('');
         const cuerpo = S.vista === 'dia' ? vistaDia() : S.vista === 'semana' ? vistaSemana() : S.vista === 'anio' ? vistaAnio() : vistaMes();
+        const nb = 'width:26px;height:26px;border-radius:8px;border:1px solid #e6eaf0;color:#64748b;font-size:14px;background:rgba(255,255,255,.6)';
+        const tit = titulo();
         cont.innerHTML = `
         <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-bottom:8px">
             <div style="display:flex;align-items:center;gap:4px">
-                <button data-nav="-1" aria-label="Anterior" style="width:28px;height:28px;border-radius:8px;border:1px solid #e2e8f0;font-weight:800">‹</button>
-                <button data-nav="0" style="height:28px;padding:0 10px;border-radius:8px;border:1px solid #e2e8f0;font-size:11px;font-weight:800">Hoy</button>
-                <button data-nav="1" aria-label="Siguiente" style="width:28px;height:28px;border-radius:8px;border:1px solid #e2e8f0;font-weight:800">›</button>
-                <span style="margin-left:6px;font-size:14px;font-weight:900;color:#1e293b">${esc(titulo().charAt(0).toUpperCase() + titulo().slice(1))}</span>
-                ${S.cargando ? '<span style="font-size:11px;color:#94a3b8">cargando…</span>' : ''}
+                <button data-nav="-1" aria-label="Anterior" style="${nb}">‹</button>
+                <button data-nav="0" style="${nb};width:auto;padding:0 10px;font-size:11px;font-weight:500">Hoy</button>
+                <button data-nav="1" aria-label="Siguiente" style="${nb}">›</button>
+                <span style="margin-left:8px;font-size:15px;font-weight:600;color:#1e293b">${esc(tit.charAt(0).toUpperCase() + tit.slice(1))}</span>
+                ${S.cargando ? '<span style="font-size:11px;color:#a8b3c2">cargando…</span>' : ''}
             </div>
             <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-                <div style="display:flex;background:#f1f5f9;padding:3px;border-radius:8px">${tabs}</div>
-                <button data-accion="nuevo" style="height:28px;padding:0 12px;border-radius:999px;background:#d1fae5;color:#047857;font-size:11px;font-weight:800">+ Evento</button>
-                <button data-accion="exportar" title="Descargar los eventos que ves en pantalla (.ics)" style="height:28px;padding:0 12px;border-radius:999px;background:#f1f5f9;color:#475569;font-size:11px;font-weight:800">⬇ .ics</button>
+                <div style="display:flex;background:rgba(241,245,249,.8);padding:2px;border-radius:9px">${tabs}</div>
+                <button data-accion="nuevo" style="height:26px;padding:0 12px;border-radius:999px;background:rgba(209,250,229,.7);color:#047857;font-size:11px;font-weight:600">+ Evento</button>
+                <button data-accion="exportar" title="Descargar los eventos que ves en pantalla (.ics)" style="height:26px;padding:0 10px;border-radius:999px;background:rgba(241,245,249,.8);color:#64748b;font-size:11px;font-weight:500">⬇ .ics</button>
             </div>
         </div>
         <div>${leyenda}</div>
         ${S.error ? `<div style="color:#b91c1c;font-size:12px;padding:6px 0">${esc(S.error)}</div>` : ''}
         <div style="margin-top:6px">${cuerpo}</div>`;
+        if (S.vista === 'dia' && !S.cargando && !S.scrolled) S.scrolled = true;
     }
 
     // ---------- Navegación ----------
@@ -231,13 +253,13 @@
         const m = document.createElement('div');
         m.id = 'cal-modal';
         m.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:210;display:flex;align-items:center;justify-content:center;padding:16px';
-        m.innerHTML = `<div style="background:#fff;border-radius:16px;width:100%;max-width:420px;max-height:92vh;overflow:auto;padding:20px;box-shadow:0 20px 50px rgba(0,0,0,.3)">${html}</div>`;
+        m.innerHTML = `<div style="background:rgba(255,255,255,.97);border-radius:16px;width:100%;max-width:420px;max-height:92vh;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;padding:20px;box-shadow:0 20px 50px rgba(15,23,42,.25)">${html}</div>`;
         m.addEventListener('mousedown', ev => { if (ev.target === m) cerrarModal(); });
         document.body.appendChild(m);
         document.addEventListener('keydown', escModal);
         return m;
     }
-    const btnEst = 'display:block;width:100%;text-align:center;padding:9px;border-radius:10px;font-size:12px;font-weight:800;margin-top:6px;';
+    const btnEst = 'display:block;width:100%;box-sizing:border-box;text-align:center;padding:9px;border-radius:10px;font-size:12px;font-weight:600;margin-top:6px;';
 
     function verEvento(clv) {
         const [key, ...r] = clv.split('|'); const id = r.join('|');
@@ -248,15 +270,15 @@
             ? (e.diaIni.getTime() === e.diaFin.getTime() ? e.diaIni.toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' }) : `${e.diaIni.toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })} – ${e.diaFin.toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}`)
             : `${e.ini.toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' })}, ${hora(e.ini)} – ${hora(e.fin)}`;
         const m = abrirModal(`
-            <div style="border-left:5px solid ${e.color};padding-left:10px">
-                <div style="font-size:16px;font-weight:900;color:#1e293b">${esc(e.titulo)}</div>
+            <div style="border-left:3px solid ${e.color};padding-left:10px">
+                <div style="font-size:16px;font-weight:600;color:#1e293b">${esc(e.titulo)}</div>
                 <div style="font-size:12px;color:#64748b;text-transform:capitalize;margin-top:2px">${esc(cuando)}</div>
             </div>
             ${e.lugar ? `<div style="font-size:12px;color:#475569;margin-top:10px">📍 ${esc(e.lugar)}</div>` : ''}
             ${e.detalle ? `<div style="font-size:12px;color:#475569;margin-top:8px;white-space:pre-wrap">${esc(e.detalle)}</div>` : ''}
             <div style="font-size:11px;color:#94a3b8;margin-top:8px">${esc((FUENTES[e.key] || {}).nombre || '')}${e.fuente === 'evento' ? (e.ambito === 'personal' ? ' · 🔒 solo tú lo ves' : ' · visible para la empresa') : ''}</div>
             <div style="font-size:10px;font-weight:800;text-transform:uppercase;color:#94a3b8;margin-top:14px">Llevar a mi calendario</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px">
                 <a href="${esc(enlaceGoogle(e))}" target="_blank" rel="noopener" style="${btnEst}background:#eff6ff;color:#1d4ed8">Google</a>
                 <a href="${esc(enlaceOutlook(e))}" target="_blank" rel="noopener" style="${btnEst}background:#e0f2fe;color:#0369a1">Outlook</a>
                 <button data-x="ics" style="${btnEst}background:#f1f5f9;color:#334155">.ics (Apple)</button>
@@ -282,26 +304,30 @@
 
     function aLocalInput(d, soloDia) { return soloDia ? clave(d) : `${clave(d)}T${hora(d)}`; }
     function formulario(e, diaSugerido) {
-        const base = diaSugerido ? deClave(diaSugerido) : new Date(S.ref);
-        const ahora = new Date(); base.setHours(Math.min(ahora.getHours() + 1, 22), 0, 0, 0);
+        let base;
+        if (diaSugerido instanceof Date) base = new Date(diaSugerido);
+        else {
+            base = diaSugerido ? deClave(diaSugerido) : new Date(S.ref);
+            const ahora = new Date(); base.setHours(Math.min(ahora.getHours() + 1, 22), 0, 0, 0);
+        }
         const ini = e ? (e.todo ? e.diaIni : e.ini) : base;
         const fin = e ? (e.todo ? e.diaFin : e.fin) : new Date(base.getTime() + 3600000);
         const todo = e ? e.todo : false, color = e ? hex(e.color) : PALETA[0], amb = e ? e.ambito : 'personal';
-        const inp = 'width:100%;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;font-size:13px;margin-top:3px;background:#f8fafc';
-        const lab = 'font-size:10px;font-weight:800;text-transform:uppercase;color:#94a3b8;display:block;margin-top:10px';
+        const inp = 'width:100%;min-width:0;box-sizing:border-box;border:1px solid #e6eaf0;border-radius:10px;padding:8px 10px;font-size:13px;margin-top:3px;background:#f8fafc';
+        const lab = 'font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#a8b3c2;display:block;margin-top:10px';
         const m = abrirModal(`
-            <div style="font-size:16px;font-weight:900;color:#1e293b">${e ? 'Editar evento' : 'Nuevo evento'}</div>
+            <div style="font-size:16px;font-weight:600;color:#1e293b">${e ? 'Editar evento' : 'Nuevo evento'}</div>
             <label style="${lab}">Título</label><input id="cal-f-tit" maxlength="120" value="${esc(e ? e.titulo : '')}" style="${inp}" placeholder="Ej: Reunión con proveedor">
             <label style="${lab};display:flex;align-items:center;gap:6px"><input type="checkbox" id="cal-f-todo" ${todo ? 'checked' : ''}> Todo el día</label>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-                <div><label style="${lab}">Inicio</label><input id="cal-f-ini" type="${todo ? 'date' : 'datetime-local'}" value="${aLocalInput(ini, todo)}" style="${inp}"></div>
-                <div><label style="${lab}">Término</label><input id="cal-f-fin" type="${todo ? 'date' : 'datetime-local'}" value="${aLocalInput(fin, todo)}" style="${inp}"></div>
+            <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px">
+                <div style="min-width:0"><label style="${lab}">Inicio</label><input id="cal-f-ini" type="${todo ? 'date' : 'datetime-local'}" value="${aLocalInput(ini, todo)}" style="${inp}"></div>
+                <div style="min-width:0"><label style="${lab}">Término</label><input id="cal-f-fin" type="${todo ? 'date' : 'datetime-local'}" value="${aLocalInput(fin, todo)}" style="${inp}"></div>
             </div>
             <label style="${lab}">Color</label>
             <div id="cal-f-colores" style="display:flex;gap:8px;margin-top:4px">${PALETA.map(c => `<button type="button" data-color="${c}" aria-label="${c}" style="width:26px;height:26px;border-radius:50%;background:${c};outline:${c === color ? '3px solid #1e293b' : 'none'};outline-offset:2px"></button>`).join('')}</div>
             <label style="${lab}">¿Quién lo ve?</label>
             <select id="cal-f-amb" style="${inp}"><option value="personal" ${amb === 'personal' ? 'selected' : ''}>🔒 Personal (solo yo)</option><option value="empresa" ${amb === 'empresa' ? 'selected' : ''}>🏢 De la empresa (todo el equipo)</option></select>
-            <label style="${lab}">Lugar (opcional)</label><input id="cal-f-lug" maxlength="200" value="${esc(e ? e.lugar : '')}" style="${inp}">
+            <label style="${lab}">Lugar (opcional)</label><input id="cal-f-lug" list="cal-lugares" maxlength="200" autocomplete="off" value="${esc(e ? e.lugar : '')}" style="${inp}" placeholder="Escribe o elige una dirección de Buddy"><datalist id="cal-lugares">${(S.lugares || []).map(l => `<option value="${esc(l.valor)}" label="${esc(l.origen)}"></option>`).join('')}</datalist>
             <label style="${lab}">Notas (opcional)</label><textarea id="cal-f-det" rows="3" maxlength="2000" style="${inp}">${esc(e ? e.detalle : '')}</textarea>
             <div id="cal-f-err" style="color:#b91c1c;font-size:12px;margin-top:6px"></div>
             <button data-x="guardar" style="${btnEst}background:#10b981;color:#fff">Guardar</button>
@@ -340,6 +366,28 @@
         setTimeout(() => { const i = m.querySelector('#cal-f-tit'); if (i) i.focus(); }, 0);
     }
 
+    // ---------- Mover (arrastrar) ----------
+    async function moverEvento(e, dias, nuevaHoraMin) {
+        const datos = { titulo: e.titulo, todo_el_dia: e.todo, color: e.color, ambito: e.ambito, ubicacion: e.lugar || '', descripcion: e.detalle || '' };
+        if (e.todo) { datos.dia_inicio = clave(sumarDias(e.diaIni, dias)); datos.dia_fin = clave(sumarDias(e.diaFin, dias)); }
+        else {
+            const ini = new Date(e.ini), fin = new Date(e.fin), dur = fin - ini;
+            ini.setDate(ini.getDate() + dias);
+            if (nuevaHoraMin != null) ini.setHours(Math.floor(nuevaHoraMin / 60), nuevaHoraMin % 60, 0, 0);
+            const f = new Date(ini.getTime() + dur);
+            datos.inicio = ini.toISOString(); datos.fin = f.toISOString();
+        }
+        const { error } = await clienteSupabase.rpc('guardar_evento_cal', { p_id_empresa: window.miEmpresaId, p_id: e.id, p_datos: datos });
+        if (error) alert('No se pudo mover el evento: ' + error.message);
+        cargar();
+    }
+    function buscarEv(clv) { const [key, ...r] = String(clv).split('|'); const id = r.join('|'); return S.eventos.find(x => x.key === key && String(x.id) === id); }
+    function minutosEnGrilla(ev) {
+        const g = document.getElementById('cal-grilla'); if (!g) return null;
+        const r = g.getBoundingClientRect(), y = Math.max(0, Math.min(ev.clientY - r.top, r.height - 1));
+        return Math.max(0, Math.min(1425, Math.round((S.h0 * 60 + y / HORA_PX * 60) / 15) * 15));
+    }
+
     // ---------- Eventos de la interfaz ----------
     function enlazar() {
         const cont = document.getElementById('cal-home');
@@ -365,16 +413,48 @@
             if ((el = t.closest('[data-ev]'))) return verEvento(el.dataset.ev);
             if ((el = t.closest('[data-mes]'))) return irAVista('mes', new Date(S.ref.getFullYear(), Number(el.dataset.mes), 1));
             if ((el = t.closest('[data-dia]'))) return irAVista('dia', deClave(el.dataset.dia));
+            if ((el = t.closest('[data-celda]'))) return formulario(null, el.dataset.celda);
+            if ((el = t.closest('[data-dia-grilla]'))) {
+                const m = minutosEnGrilla(ev); if (m == null) return;
+                const f = deClave(el.dataset.diaGrilla); f.setHours(Math.floor(m / 60), m % 60 - (m % 30), 0, 0);
+                return formulario(null, f);
+            }
         });
+        // arrastrar y soltar
+        cont.addEventListener('dragstart', ev => {
+            const el = ev.target.closest && ev.target.closest('[data-ev][draggable="true"]'); if (!el) return;
+            S.arrastrando = el.dataset.ev; ev.dataTransfer.effectAllowed = 'move'; ev.dataTransfer.setData('text/plain', el.dataset.ev);
+        });
+        cont.addEventListener('dragover', ev => {
+            if (!S.arrastrando) return;
+            if (ev.target.closest('[data-celda],[data-dia-grilla]')) ev.preventDefault();
+        });
+        cont.addEventListener('drop', async ev => {
+            if (!S.arrastrando) return;
+            const e = buscarEv(S.arrastrando); S.arrastrando = null; if (!e) return;
+            const celda = ev.target.closest('[data-celda]'), grilla = ev.target.closest('[data-dia-grilla]');
+            ev.preventDefault();
+            if (celda) { const dias = Math.round((deClave(celda.dataset.celda) - e.diaIni) / 86400000); if (dias) await moverEvento(e, dias); }
+            else if (grilla && !e.todo) {
+                const m = minutosEnGrilla(ev); if (m == null) return;
+                const dias = Math.round((deClave(grilla.dataset.diaGrilla) - e.diaIni) / 86400000);
+                await moverEvento(e, dias, m);
+            }
+        });
+        cont.addEventListener('dragend', () => { S.arrastrando = null; });
         if (S.resizeListo) return;
         S.resizeListo = true;
         let ancho = window.innerWidth;
         window.addEventListener('resize', () => { if ((ancho < 640) !== (window.innerWidth < 640) && document.getElementById('cal-home')) { ancho = window.innerWidth; pintar(); } });
     }
 
+    async function cargarLugares() {
+        try { const { data } = await clienteSupabase.rpc('calendario_lugares', { p_id_empresa: window.miEmpresaId }); S.lugares = Array.isArray(data) ? data : []; } catch (e) { S.lugares = []; }
+    }
     window.cargarCalendarioHome = function () {
         enlazar();
         cargar();
+        cargarLugares();
     };
     window.__calUtil = { vevento, enlaceGoogle, enlaceOutlook, normalizar };
 })();
