@@ -226,7 +226,14 @@ async function guardarAsistente(estado) {
         const { error } = await clienteSupabase.rpc('guardar_asistente', {
             p_id_empresa: window.miEmpresaId, p_asistente: id, p_estado: estado, p_respuestas: respuestas
         });
-        if (error) throw error;
+        if (error) {
+            if (/permission denied for function/i.test(error.message || '') && typeof window.cerrarPorSesionVencida === 'function') {
+                cerrarAsistente();
+                window.cerrarPorSesionVencida();
+                return;
+            }
+            throw error;
+        }
         const irAEquipo = id === 'inicial' && estado === 'completado' && r.equipo === 'ahora';
         cerrarAsistente();
         if (id === 'ventas') {
