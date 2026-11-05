@@ -2,9 +2,9 @@
 // HISTORIAL UNIFICADO de Ventas
 // ==========================================================
 const HS = { tipos: new Set(), offset: 0, total: 0, filas: [], porPag: 50, temporizador: null, cargando: 0 };
-const HS_TIPOS = { venta: ['🧾', 'Ventas'], cotizacion: ['📄', 'Cotizaciones'], agenda: ['📅', 'Agenda'], cobro: ['💸', 'Cobros'], abono: ['💵', 'Abonos'], cierre: ['🔒', 'Cierres'] };
+const HS_TIPOS = { venta: ['🧾', 'Ventas'], cotizacion: ['📄', 'Cotizaciones'], agenda: ['📅', 'Agenda'], cobro: ['💸', 'Cobros'], abono: ['💵', 'Abonos'], cierre: ['🔒', 'Cierres'], ajuste: ['↩️', 'Ajustes'] };
 const HS_COLOR = { completada: 'bg-emerald-100 text-emerald-700', pagada: 'bg-emerald-100 text-emerald-700', cuadrado: 'bg-emerald-100 text-emerald-700', entregado: 'bg-purple-100 text-purple-700',
-    anulada: 'bg-red-100 text-red-700', cancelado: 'bg-red-100 text-red-700', 'con diferencia': 'bg-red-100 text-red-700', por_cobrar: 'bg-orange-100 text-orange-700', parcial: 'bg-amber-100 text-amber-700', pendiente: 'bg-slate-100 text-slate-600' };
+    anulada: 'bg-red-100 text-red-700', cancelado: 'bg-red-100 text-red-700', 'con diferencia': 'bg-red-100 text-red-700', por_cobrar: 'bg-orange-100 text-orange-700', parcial: 'bg-amber-100 text-amber-700', pendiente: 'bg-slate-100 text-slate-600', 'día cerrado': 'bg-amber-100 text-amber-700' };
 const hsEsc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const hsDec = (m) => ['CLP', 'COP', 'PYG', 'JPY'].includes(m) ? 0 : 2;
 const hsMonto = (n, m) => (m || 'CLP') + ' ' + Number(n || 0).toLocaleString('es-CL', { minimumFractionDigits: hsDec(m), maximumFractionDigits: hsDec(m) });
@@ -70,6 +70,7 @@ async function hsDetalle(i) {
         <div class="flex justify-between"><div><p class="text-xs font-bold text-slate-400 uppercase">${HS_TIPOS[r.tipo][0]} ${HS_TIPOS[r.tipo][1]} ${hsEsc(r.numero)}</p><h3 class="text-xl font-black text-slate-800">${hsEsc(r.cliente || r.detalle)}</h3></div><button onclick="document.getElementById('modal-historial-u').remove()" class="text-slate-400 text-xl">✕</button></div>
         <p class="text-sm text-slate-600">${hsFecha(r.ts)} · ${hsEsc(r.sucursal || 'Sin sucursal')}</p><p class="text-sm text-slate-600">${hsEsc(r.detalle)}</p>
         <p class="text-2xl font-black">${hsMonto(r.monto, r.moneda)} <span class="text-xs px-2 py-1 rounded-full font-bold align-middle ${HS_COLOR[r.estado] || 'bg-blue-100 text-blue-700'}">${hsEsc(hsEstadoTxt(r.estado))}</span></p>${extra}
+        ${r.tipo === 'venta' && ['completada', 'por_cobrar'].includes(r.estado) ? `<div class="flex gap-2">${r.estado === 'completada' ? `<button onclick="document.getElementById('modal-historial-u').remove(); abrirAjusteVenta('${r.id}','devolucion', hsConsultar)" class="px-4 py-2 border rounded-lg text-sm font-bold">↩️ Devolver productos</button>` : ''}<button onclick="document.getElementById('modal-historial-u').remove(); abrirAjusteVenta('${r.id}','anulacion', hsConsultar)" class="px-4 py-2 border border-red-200 text-red-600 rounded-lg text-sm font-bold">🚫 Anular venta</button></div>` : ''}
         ${HS_VISTA[r.tipo] ? `<button onclick="document.getElementById('modal-historial-u').remove(); cambiarVista('${HS_VISTA[r.tipo]}')" class="px-4 py-2 border rounded-lg text-sm font-bold">Ir a ${HS_TIPOS[r.tipo][1]} ↗️</button>` : ''}</div>`;
 }
 

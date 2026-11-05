@@ -419,7 +419,6 @@ window.guardarParametroVentaSinStock = async function(valor) {
         if (error) throw error;
         
         // Pequeño aviso visual opcional
-        console.log(`Configuración actualizada: Vender sin stock = ${valor}`);
     } catch (error) {
         console.error("Error guardando stock:", error);
         alert("❌ Error al actualizar la configuración en la nube.");

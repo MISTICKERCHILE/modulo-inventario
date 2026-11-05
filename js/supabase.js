@@ -15,6 +15,5 @@
                 autoRefreshToken: true
             }
         });
-        console.log("✅ Supabase conectado con éxito en buddyerp.com");
     }
 })();
