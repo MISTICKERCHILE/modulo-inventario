@@ -38,8 +38,7 @@ async function cargarMetricasHome() {
         const mCompras = document.getElementById('hm-metrica-compras');
         if (mCompras) mCompras.innerText = transitoData ? transitoData.length : 0;
 
-        const mVentas = document.getElementById('hm-metrica-ventas');
-        if (mVentas) mVentas.innerText = "Próx.";
+        cargarVentasHoyHome();
 
         const mInventario = document.getElementById('hm-metrica-inventario');
         if (mInventario) mInventario.innerText = "Activo";
@@ -47,6 +46,23 @@ async function cargarMetricasHome() {
     } catch (error) {
         console.error("Error cargando métricas home:", error.message);
     }
+}
+
+// Ventas de hoy (todas las sucursales). Si no hay módulo o no hay datos, el botón igual lleva a Ventas.
+async function cargarVentasHoyHome() {
+    const el = document.getElementById('hm-metrica-ventas'); if (!el) return;
+    el.innerText = 'Ver';
+    try {
+        const { data, error } = await clienteSupabase.rpc('ventas_en_vivo', { p_id_empresa: window.miEmpresaId });
+        if (error || !data) return;
+        const tot = {};
+        (data.filas || []).filter(f => f.periodo === 'dia').forEach(f => { tot[f.moneda] = (tot[f.moneda] || 0) + Number(f.actual || 0); });
+        const monedas = Object.keys(tot).sort((a, b) => tot[b] - tot[a]);
+        if (!monedas.length) { el.innerText = 'Sin ventas'; return; }
+        const m = monedas[0], dec = ['CLP', 'COP', 'PYG', 'JPY'].includes(m) ? 0 : 2;
+        el.innerText = `${m} ${tot[m].toLocaleString('es-CL', { minimumFractionDigits: dec, maximumFractionDigits: dec })}`;
+        el.title = monedas.map(x => `${x} ${tot[x].toLocaleString('es-CL')}`).join(' · ');
+    } catch (e) { /* queda "Ver" */ }
 }
 
 // ==========================================
