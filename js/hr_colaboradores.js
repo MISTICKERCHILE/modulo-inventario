@@ -148,6 +148,28 @@ window.abrirModalNuevaFicha = async function() {
     } catch (e) { console.error(e); }
 };
 
+window.editarFicha = async function(id) {
+    const ficha = (window.fichasMemoria || []).find(f => f.id === id);
+    if (!ficha) return;
+    await window.abrirModalNuevaFicha();
+    document.getElementById('hr-id-ficha').value = ficha.id;
+    document.getElementById('hr-ficha-titulo').innerHTML = '👤 Editar Ficha Laboral';
+    const sel = document.getElementById('hr-select-usuario');
+    const p = ficha.perfil || {};
+    sel.innerHTML = `<option value="${ficha.id_usuario}">${p.nombre || ''} ${p.apellido || ''} (${p.email || ''})</option>`;
+    sel.value = ficha.id_usuario;
+    sel.disabled = true;
+    document.getElementById('hr-ficha-cargo').value = ficha.cargo || '';
+    document.getElementById('hr-ficha-contrato').value = ficha.tipo_contrato || '';
+    document.getElementById('hr-ficha-ingreso').value = ficha.fecha_ingreso || '';
+    document.querySelectorAll('input[name="hr-checkbox-sucursal"]').forEach(cb => {
+        cb.checked = (ficha.sucursales || []).includes(cb.value);
+    });
+    // Sueldo: solo lo devuelve la base a Dueño/Admin (o a la propia persona).
+    const { data: sd } = await clienteSupabase.from('hr_fichas_sueldos').select('sueldo_base').eq('id_ficha', ficha.id).maybeSingle();
+    document.getElementById('hr-ficha-sueldo').value = sd && sd.sueldo_base != null ? sd.sueldo_base : '';
+};
+
 window.cerrarModalFicha = function() { document.getElementById('modal-hr-ficha').classList.add('hidden'); };
 
 window.guardarFichaLaboral = async function(e) {
@@ -164,21 +186,33 @@ window.guardarFichaLaboral = async function(e) {
         id_usuario: document.getElementById('hr-select-usuario').value,
         cargo: document.getElementById('hr-ficha-cargo').value || null,
         tipo_contrato: document.getElementById('hr-ficha-contrato').value || null,
-        sueldo_base: document.getElementById('hr-ficha-sueldo').value ? parseFloat(document.getElementById('hr-ficha-sueldo').value) : null,
         fecha_ingreso: document.getElementById('hr-ficha-ingreso').value || null,
         sucursales: sucursalesArr.length > 0 ? sucursalesArr : null
     };
 
+    const sueldoTxt = document.getElementById('hr-ficha-sueldo').value;
+    const sueldo = sueldoTxt ? parseFloat(sueldoTxt) : null;
+
     try {
+        let idDestino = idFicha;
         if (idFicha) {
             delete payload.id_usuario;
-            await clienteSupabase.from('hr_fichas_laborales').update(payload).eq('id', idFicha);
+            const { error } = await clienteSupabase.from('hr_fichas_laborales').update(payload).eq('id', idFicha);
+            if (error) throw error;
         } else {
-            await clienteSupabase.from('hr_fichas_laborales').insert([payload]);
+            const { data, error } = await clienteSupabase.from('hr_fichas_laborales').insert([payload]).select('id').single();
+            if (error) throw error;
+            idDestino = data.id;
+        }
+        // El sueldo vive en una tabla aparte (solo Dueño/Admin).
+        if (sueldoTxt !== '' || idFicha) {
+            const { error: errS } = await clienteSupabase.from('hr_fichas_sueldos')
+                .upsert({ id_ficha: idDestino, id_empresa: window.miEmpresaId, sueldo_base: sueldo, updated_at: new Date().toISOString() });
+            if (errS) throw errS;
         }
         window.cerrarModalFicha();
         await window.cargarFichasLaborales();
-    } catch (err) { alert("Error al guardar ficha"); }
+    } catch (err) { console.error(err); alert("No se pudo guardar la ficha. Solo Dueño o Admin pueden modificarla."); }
     finally { btn.disabled = false; }
 };
 
