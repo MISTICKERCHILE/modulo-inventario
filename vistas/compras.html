@@ -1,0 +1,208 @@
+<div class="max-w-6xl mx-auto space-y-6 pb-16">
+    <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
+        <div>
+            <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2"><span>🧾</span> Compras</h2>
+            <p class="text-sm text-slate-500 mt-1">Gastos, lo que debes, con qué cuenta pagaste y cuánto salió este mes.</p>
+        </div>
+        <button onclick="cpAbrirGasto()" class="px-4 py-2.5 bg-emerald-600 text-white rounded-lg font-bold text-sm hover:bg-emerald-700 shadow">+ Nuevo gasto</button>
+    </div>
+
+    <div class="flex gap-1 border-b border-slate-200 overflow-x-auto">
+        <button id="cp-tab-resumen" onclick="cpTab('resumen')" class="px-4 py-2 text-sm font-bold border-b-2 whitespace-nowrap">Resumen del mes</button>
+        <button id="cp-tab-gastos" onclick="cpTab('gastos')" class="px-4 py-2 text-sm font-bold border-b-2 whitespace-nowrap">Facturas y gastos</button>
+        <button id="cp-tab-pagar" onclick="cpTab('pagar')" class="px-4 py-2 text-sm font-bold border-b-2 whitespace-nowrap">Por pagar</button>
+        <button id="cp-tab-cuentas" onclick="cpTab('cuentas')" class="px-4 py-2 text-sm font-bold border-b-2 whitespace-nowrap">Cuentas y tarjetas</button>
+        <button id="cp-tab-categorias" onclick="cpTab('categorias')" class="px-4 py-2 text-sm font-bold border-b-2 whitespace-nowrap">Categorías</button>
+    </div>
+
+    <div id="cp-sin-cuentas" class="hidden bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-4 text-sm">
+        <p class="font-bold">Primero crea tus cuentas</p>
+        <p class="mt-1">Indica dónde vive tu plata y quién paga por la empresa: tu banco, Mercado Pago, la caja, tarjetas de crédito y las personas que adelantan gastos (rendiciones o tarjeta personal).</p>
+        <button onclick="cpTab('cuentas'); cpAbrirCuenta()" class="mt-3 px-4 py-2 bg-amber-600 text-white rounded-lg font-bold text-xs">Crear mi primera cuenta</button>
+    </div>
+
+    <!-- ================= RESUMEN ================= -->
+    <div id="cp-resumen" class="space-y-5">
+        <div class="flex items-center gap-2">
+            <label class="text-xs font-bold text-slate-500">Mes</label>
+            <input id="cp-r-mes" type="month" onchange="cpCargarResumen()" class="px-3 py-2 border rounded-lg text-sm">
+        </div>
+        <div id="cp-r-tarjetas" class="grid grid-cols-2 lg:grid-cols-4 gap-3"></div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                <h3 class="font-black text-slate-800 mb-3">Lo que debes hoy</h3>
+                <div id="cp-r-deudas" class="space-y-2 text-sm"></div>
+                <h4 class="font-bold text-xs text-slate-500 uppercase mt-5 mb-2">Por antigüedad</h4>
+                <div id="cp-r-antiguedad" class="grid grid-cols-5 gap-2 text-center"></div>
+            </div>
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                <h3 class="font-black text-slate-800 mb-3">En qué se gastó este mes</h3>
+                <div id="cp-r-categorias" class="space-y-2 text-sm"></div>
+                <h4 class="font-bold text-xs text-slate-500 uppercase mt-5 mb-2">Con qué se pagó</h4>
+                <div id="cp-r-cuentas" class="space-y-1 text-sm"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= GASTOS ================= -->
+    <div id="cp-gastos" class="hidden space-y-4">
+        <div class="flex flex-col lg:flex-row gap-2">
+            <input id="cp-g-buscar" oninput="cpPintarGastos()" placeholder="Buscar detalle o proveedor…" class="flex-1 px-3 py-2 border rounded-lg text-sm">
+            <input id="cp-g-mes" type="month" onchange="cpCargarGastos()" class="px-3 py-2 border rounded-lg text-sm" title="Mes (vacío = todo)">
+            <select id="cp-g-cuenta" onchange="cpPintarGastos()" class="px-3 py-2 border rounded-lg bg-white text-sm"></select>
+            <select id="cp-g-categoria" onchange="cpPintarGastos()" class="px-3 py-2 border rounded-lg bg-white text-sm"></select>
+            <select id="cp-g-estado" onchange="cpPintarGastos()" class="px-3 py-2 border rounded-lg bg-white text-sm">
+                <option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="parcial">Parcial</option><option value="pagado">Pagado</option>
+            </select>
+        </div>
+        <div class="flex flex-wrap gap-2 text-xs">
+            <button onclick="cpDescargarPlantilla()" class="px-3 py-2 border border-slate-300 rounded-lg font-bold text-slate-600 hover:bg-slate-50">⬇️ Plantilla CSV</button>
+            <label class="px-3 py-2 border border-slate-300 rounded-lg font-bold text-slate-600 hover:bg-slate-50 cursor-pointer">⬆️ Subir CSV
+                <input type="file" accept=".csv,text/csv" class="hidden" onchange="cpLeerCSV(this)"></label>
+            <button onclick="cpDescargarGastos()" class="px-3 py-2 border border-slate-300 rounded-lg font-bold text-slate-600 hover:bg-slate-50">📄 Descargar CSV</button>
+            <span id="cp-g-total" class="ml-auto self-center font-bold text-slate-600"></span>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead class="bg-slate-50 text-xs font-bold text-slate-500 uppercase"><tr>
+                    <th class="px-3 py-2 text-left">Fecha</th><th class="px-3 py-2 text-left">Detalle</th><th class="px-3 py-2 text-left">Categoría</th>
+                    <th class="px-3 py-2 text-left">Pagado con</th><th class="px-3 py-2 text-right">Monto</th><th class="px-3 py-2 text-right">Saldo</th><th class="px-3 py-2 text-center">Estado</th></tr></thead>
+                <tbody id="cp-g-tabla" class="divide-y divide-slate-100"></tbody>
+            </table>
+            <p id="cp-g-vacio" class="hidden p-8 text-center text-sm text-slate-400">No hay gastos en esta lista.</p>
+        </div>
+    </div>
+
+    <!-- ================= POR PAGAR ================= -->
+    <div id="cp-pagar" class="hidden space-y-4">
+        <p class="text-xs text-slate-500">Compras a crédito con proveedores y gastos que adelantó una persona (rendiciones, tarjeta personal). Marca varias y págalas con un solo pago.</p>
+        <div id="cp-p-grupos" class="space-y-4"></div>
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+            <h3 class="font-black text-slate-800 mb-3">Pagos registrados</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                    <thead class="text-xs font-bold text-slate-500 uppercase"><tr><th class="px-3 py-2 text-left">Fecha</th><th class="px-3 py-2 text-left">Desde</th><th class="px-3 py-2 text-left">Referencia</th><th class="px-3 py-2 text-right">Compras</th><th class="px-3 py-2 text-right">Monto</th><th></th></tr></thead>
+                    <tbody id="cp-p-historial" class="divide-y divide-slate-100"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= CUENTAS ================= -->
+    <div id="cp-cuentas" class="hidden space-y-4">
+        <div class="flex justify-between items-center">
+            <p class="text-xs text-slate-500">Una cuenta <b>reembolsable</b> es una persona que paga por la empresa (rendiciones o tarjeta personal): su saldo es lo que la empresa le debe.</p>
+            <button onclick="cpAbrirCuenta()" class="px-4 py-2 bg-slate-800 text-white rounded-lg font-bold text-xs whitespace-nowrap">+ Nueva cuenta</button>
+        </div>
+        <div id="cp-c-lista" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+    </div>
+
+    <!-- ================= CATEGORÍAS ================= -->
+    <div id="cp-categorias" class="hidden space-y-4">
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-3">
+            <h3 class="font-black text-slate-800">Agregar una categoría propia</h3>
+            <div class="flex flex-col md:flex-row gap-2">
+                <input id="cp-k-nombre" maxlength="60" placeholder="Ej: Materia prima importada" class="flex-1 px-3 py-2 border rounded-lg text-sm">
+                <label class="flex items-center gap-2 text-xs font-bold text-slate-600"><input id="cp-k-rem" type="checkbox"> Es remuneración</label>
+                <button onclick="cpCrearCategoria()" class="px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold text-sm">Agregar</button>
+            </div>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead class="bg-slate-50 text-xs font-bold text-slate-500 uppercase"><tr><th class="px-3 py-2 text-left">Categoría</th><th class="px-3 py-2 text-left">Tipo</th><th class="px-3 py-2 text-center">Remuneración</th><th class="px-3 py-2 text-center">Visible</th><th></th></tr></thead>
+                <tbody id="cp-k-tabla" class="divide-y divide-slate-100"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ================= MODAL GASTO ================= -->
+<div id="cp-modal-gasto" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 space-y-4">
+        <div class="flex justify-between items-center"><h3 class="text-lg font-black text-slate-800">Nuevo gasto</h3><button onclick="cpCerrar('cp-modal-gasto')" class="text-slate-400 text-xl">✕</button></div>
+        <datalist id="cp-lista-proveedores"></datalist>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-500 mb-1">¿Qué se compró? *</label>
+                <input id="cp-n-desc" maxlength="300" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Ej: Envío Blue Express pedido 1042"></div>
+            <div><label class="block text-xs font-bold text-slate-500 mb-1">Monto *</label><input id="cp-n-monto" type="number" min="0" step="any" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
+            <div><label class="block text-xs font-bold text-slate-500 mb-1">Fecha *</label><input id="cp-n-fecha" type="date" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
+            <div><label class="block text-xs font-bold text-slate-500 mb-1">Categoría</label><select id="cp-n-cat" class="w-full px-3 py-2 border rounded-lg bg-white text-sm"></select></div>
+            <div><label class="block text-xs font-bold text-slate-500 mb-1">Proveedor</label><input id="cp-n-prov" list="cp-lista-proveedores" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Opcional"></div>
+            <div><label class="block text-xs font-bold text-slate-500 mb-1">¿Cómo se pagó? *</label>
+                <select id="cp-n-cond" onchange="cpCambioCondicion()" class="w-full px-3 py-2 border rounded-lg bg-white text-sm">
+                    <option value="contado">Ya se pagó (o lo pagó alguien)</option><option value="credito">A crédito con el proveedor</option></select></div>
+            <div id="cp-n-cuenta-box"><label class="block text-xs font-bold text-slate-500 mb-1">Pagado con *</label><select id="cp-n-cuenta" class="w-full px-3 py-2 border rounded-lg bg-white text-sm"></select></div>
+            <div id="cp-n-dias-box" class="hidden"><label class="block text-xs font-bold text-slate-500 mb-1">Días de crédito</label><input id="cp-n-dias" type="number" min="0" value="30" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
+            <div><label class="block text-xs font-bold text-slate-500 mb-1">Documento</label>
+                <select id="cp-n-tipodoc" class="w-full px-3 py-2 border rounded-lg bg-white text-sm">
+                    <option value="">Sin indicar</option><option value="factura">Factura</option><option value="boleta">Boleta</option><option value="boleta_honorarios">Boleta de honorarios</option>
+                    <option value="factura_exenta">Factura exenta</option><option value="extranjero">Extranjero / internacional</option><option value="sin_documento">Sin documento</option></select></div>
+            <div><label class="block text-xs font-bold text-slate-500 mb-1">N° documento</label><input id="cp-n-numdoc" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
+            <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-500 mb-1">Nota</label><input id="cp-n-nota" maxlength="500" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
+        </div>
+        <div class="flex justify-end gap-2">
+            <button onclick="cpCerrar('cp-modal-gasto')" class="px-4 py-2 border rounded-lg text-sm font-bold text-slate-600">Cancelar</button>
+            <button id="cp-n-guardar" onclick="cpGuardarGasto()" class="px-6 py-2 bg-emerald-600 text-white rounded-lg font-bold text-sm">Guardar gasto</button>
+        </div>
+    </div>
+</div>
+
+<!-- ================= MODAL CUENTA ================= -->
+<div id="cp-modal-cuenta" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-4">
+        <div class="flex justify-between items-center"><h3 id="cp-c-titulo" class="text-lg font-black text-slate-800">Nueva cuenta</h3><button onclick="cpCerrar('cp-modal-cuenta')" class="text-slate-400 text-xl">✕</button></div>
+        <input type="hidden" id="cp-c-id">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-500 mb-1">Nombre *</label><input id="cp-c-nombre" maxlength="80" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Ej: Banco Estado cuenta corriente"></div>
+            <div><label class="block text-xs font-bold text-slate-500 mb-1">Tipo *</label>
+                <select id="cp-c-tipo" onchange="cpCambioTipoCuenta()" class="w-full px-3 py-2 border rounded-lg bg-white text-sm">
+                    <option value="banco">Banco</option><option value="billetera">Billetera (Mercado Pago, etc.)</option><option value="caja">Caja / efectivo</option>
+                    <option value="tarjeta_credito">Tarjeta de crédito de la empresa</option><option value="reembolsable">Reembolsable (persona que paga por la empresa)</option></select></div>
+            <div><label class="block text-xs font-bold text-slate-500 mb-1">Moneda</label><select id="cp-c-moneda" class="w-full px-3 py-2 border rounded-lg bg-white text-sm"></select></div>
+            <div id="cp-c-titular-box" class="hidden"><label class="block text-xs font-bold text-slate-500 mb-1">Persona *</label><input id="cp-c-titular" maxlength="80" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Ej: José Luis"></div>
+            <div id="cp-c-ult4-box"><label class="block text-xs font-bold text-slate-500 mb-1">Últimos 4 dígitos</label><input id="cp-c-ult4" maxlength="4" inputmode="numeric" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Opcional"></div>
+        </div>
+        <div class="flex justify-end gap-2">
+            <button onclick="cpCerrar('cp-modal-cuenta')" class="px-4 py-2 border rounded-lg text-sm font-bold text-slate-600">Cancelar</button>
+            <button onclick="cpGuardarCuenta()" class="px-6 py-2 bg-slate-800 text-white rounded-lg font-bold text-sm">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ================= MODAL PAGO ================= -->
+<div id="cp-modal-pago" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-4">
+        <div class="flex justify-between items-center"><h3 class="text-lg font-black text-slate-800">Registrar pago</h3><button onclick="cpCerrar('cp-modal-pago')" class="text-slate-400 text-xl">✕</button></div>
+        <p id="cp-pg-resumen" class="text-sm text-slate-600"></p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-500 mb-1">¿Desde dónde se pagó? *</label><select id="cp-pg-cuenta" class="w-full px-3 py-2 border rounded-lg bg-white text-sm"></select></div>
+            <div><label class="block text-xs font-bold text-slate-500 mb-1">Fecha *</label><input id="cp-pg-fecha" type="date" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
+            <div><label class="block text-xs font-bold text-slate-500 mb-1">Referencia</label><input id="cp-pg-ref" maxlength="80" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Ej: Reembolso octubre"></div>
+        </div>
+        <div class="flex justify-end gap-2">
+            <button onclick="cpCerrar('cp-modal-pago')" class="px-4 py-2 border rounded-lg text-sm font-bold text-slate-600">Cancelar</button>
+            <button id="cp-pg-guardar" onclick="cpConfirmarPago()" class="px-6 py-2 bg-blue-600 text-white rounded-lg font-bold text-sm">Registrar pago</button>
+        </div>
+    </div>
+</div>
+
+<!-- ================= MODAL IMPORTAR ================= -->
+<div id="cp-modal-import" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 space-y-4">
+        <div class="flex justify-between items-center"><h3 class="text-lg font-black text-slate-800">Importar gastos</h3><button onclick="cpCerrar('cp-modal-import')" class="text-slate-400 text-xl">✕</button></div>
+        <div id="cp-i-resumen" class="text-sm text-slate-600 space-y-2"></div>
+        <div id="cp-i-opciones" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-500 mb-1">Los gastos ya reembolsados se devolvieron desde</label><select id="cp-i-cuenta-reembolso" class="w-full px-3 py-2 border rounded-lg bg-white text-sm"></select>
+                <p class="text-[11px] text-slate-400 mt-1">Se crea un pago por cada lote de la columna <i>lote_reembolso</i>. Los lotes que dicen "sueldo" quedan como devueltos dentro del sueldo.</p></div>
+        </div>
+        <div id="cp-i-errores" class="hidden bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-xs max-h-48 overflow-y-auto"></div>
+        <div id="cp-i-progreso" class="hidden">
+            <div class="w-full bg-slate-100 rounded-full h-2"><div id="cp-i-barra" class="bg-emerald-600 h-2 rounded-full" style="width:0%"></div></div>
+            <p id="cp-i-texto" class="text-xs text-slate-500 mt-1"></p>
+        </div>
+        <div class="flex justify-end gap-2">
+            <button onclick="cpCerrar('cp-modal-import')" class="px-4 py-2 border rounded-lg text-sm font-bold text-slate-600">Cerrar</button>
+            <button id="cp-i-importar" onclick="cpImportar()" class="hidden px-6 py-2 bg-emerald-600 text-white rounded-lg font-bold text-sm">Importar</button>
+        </div>
+    </div>
+</div>

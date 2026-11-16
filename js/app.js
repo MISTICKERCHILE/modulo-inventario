@@ -579,6 +579,9 @@ window.cambiarVista = async function(vista) {
             submenuPersonas.classList.add('hidden');
         }
     }
+    const vistasCompras = ['compras', 'compras_gastos', 'compras_pagar', 'compras_cuentas', 'compras_categorias'];
+    const submenuCompras = document.getElementById('submenu-compras');
+    if (submenuCompras) submenuCompras.classList.toggle('hidden', !vistasCompras.includes(vista));
     const main = document.getElementById('main-content');
     
     // 👇 NUEVO: EL GUARDIA DE LA PUERTA (Validación de Suscripciones)
@@ -588,6 +591,12 @@ window.cambiarVista = async function(vista) {
     if (vistasVentas.includes(vista)) { moduloRequerido = 'ventas'; nombreModulo = "Ventas"; }
     else if (vistasInventario.includes(vista)) { moduloRequerido = 'inventario'; nombreModulo = "Inventario"; }
     else if (vistasPersonas.includes(vista)) { moduloRequerido = 'personas'; nombreModulo = "Personas y RRHH"; }
+    else if (vistasCompras.includes(vista)) {
+        // Compras funciona con el módulo Compras o con Inventario
+        const sus = window.suscripcionesEmpresa || {};
+        const activo = (m) => sus[m] ? sus[m].activo !== false : false;
+        if (!activo('compras') && !activo('inventario') && (sus.compras || sus.inventario)) { moduloRequerido = sus.compras ? 'compras' : 'inventario'; nombreModulo = "Compras"; }
+    }
 
     // Verificamos si la suscripción existe y está inactiva
     if (moduloRequerido && window.suscripcionesEmpresa[moduloRequerido] && window.suscripcionesEmpresa[moduloRequerido].activo === false) {
@@ -643,7 +652,7 @@ window.cambiarVista = async function(vista) {
     }
 
     try {
-        const response = await fetch(`/vistas/${vista}`);
+        const response = await fetch(`/vistas/${vistasCompras.includes(vista) ? 'compras' : vista}`);
         if (!response.ok) throw new Error('Vista no encontrada');
         const html = await response.text();
         main.innerHTML = html;
@@ -654,6 +663,7 @@ window.cambiarVista = async function(vista) {
         if(vista === 'dashboard_ventas' && typeof window.cargarVentasVivo === 'function') window.cargarVentasVivo();
         if(vista === 'dashboard_ventas' && typeof window.cargarCardCobros === 'function') window.cargarCardCobros();
         if(vista === 'cuentas_cobrar' && typeof window.cargarCuentasCobrar === 'function') window.cargarCuentasCobrar();
+        if(vistasCompras.includes(vista) && typeof window.cargarCompras === 'function') window.cargarCompras({ compras: 'resumen', compras_gastos: 'gastos', compras_pagar: 'pagar', compras_cuentas: 'cuentas', compras_categorias: 'categorias' }[vista]);
         if(vista === 'dashboard' && typeof window.cargarDashboard === 'function') window.cargarDashboard();
         if(vista === 'empresas' && typeof window.cargarEmpresas === 'function') window.cargarEmpresas();
         if(vista === 'catalogos' && typeof window.cargarCategorias === 'function') {
@@ -1059,6 +1069,7 @@ window.aplicarPermisosVisuales = async function() {
     const modulosOcultables = [
         'btn-menu-dashboard_ventas', 'submenu-dashboard_ventas',
         'btn-menu-dashboard', 'submenu-inventario',
+        'btn-menu-compras', 'submenu-compras',
         'btn-menu-reportes', 'btn-menu-catalogos', 'btn-menu-parametros'
     ];
     modulosOcultables.forEach(id => {
@@ -1093,6 +1104,7 @@ window.aplicarPermisosVisuales = async function() {
             // Reglas de mapeo: si tiene el permiso maestro, le mostramos el botón en el menú izquierdo
             if (p.modulo === 'ventas') document.getElementById('btn-menu-dashboard_ventas')?.classList.remove('hidden');
             if (p.modulo === 'inventario') document.getElementById('btn-menu-dashboard')?.classList.remove('hidden');
+            if (p.modulo === 'compras') document.getElementById('btn-menu-compras')?.classList.remove('hidden');
             if (p.modulo === 'reportes') document.getElementById('btn-menu-reportes')?.classList.remove('hidden');
             if (p.modulo === 'catalogos') document.getElementById('btn-menu-catalogos')?.classList.remove('hidden');
             if (p.modulo === 'admin') document.getElementById('btn-menu-parametros')?.classList.remove('hidden');

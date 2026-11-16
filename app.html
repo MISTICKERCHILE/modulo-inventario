@@ -435,6 +435,25 @@
                     </button>
                 </div>
 
+                <button onclick="cambiarVista('compras')" id="btn-menu-compras" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors">
+                    <span>🧾</span> <span class="menu-texto">Módulo Compras</span>
+                </button>
+
+                <div id="submenu-compras" class="space-y-1 mt-1 border-l-2 border-slate-700 ml-4 pl-2 hidden">
+                    <button onclick="cambiarVista('compras_gastos')" id="btn-menu-compras_gastos" class="w-full flex items-center text-left gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
+                        <span class="shrink-0">📄</span> <span class="menu-texto leading-tight">Facturas y gastos</span>
+                    </button>
+                    <button onclick="cambiarVista('compras_pagar')" id="btn-menu-compras_pagar" class="w-full flex items-center text-left gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
+                        <span class="shrink-0">💸</span> <span class="menu-texto leading-tight">Por pagar</span>
+                    </button>
+                    <button onclick="cambiarVista('compras_cuentas')" id="btn-menu-compras_cuentas" class="w-full flex items-center text-left gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
+                        <span class="shrink-0">🏦</span> <span class="menu-texto leading-tight">Cuentas y tarjetas</span>
+                    </button>
+                    <button onclick="cambiarVista('compras_categorias')" id="btn-menu-compras_categorias" class="w-full flex items-center text-left gap-3 px-4 py-2 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
+                        <span class="shrink-0">🏷️</span> <span class="menu-texto leading-tight">Categorías de gasto</span>
+                    </button>
+                </div>
+
                 <button onclick="cambiarVista('dashboard')" id="btn-menu-dashboard" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 rounded-lg font-medium transition-colors">
                     <span>📦</span> <span class="menu-texto">Módulo Inventario</span>
                 </button>
@@ -680,6 +699,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <script src="js/cotizaciones.js"></script>
     <script src="js/cobros.js"></script>
+    <script src="js/compras.js"></script>
     <script src="js/ventas_vivo.js"></script>
     <script src="js/cierre_dia.js"></script>
     <script src="js/agenda.js"></script>
