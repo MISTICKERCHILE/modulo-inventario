@@ -13,21 +13,15 @@ const cpFmt = (n, m) => { const v = Number(n || 0); const d = (cpDec(m) === 0 ||
     return (m && m !== 'CLP' ? m + ' ' : '$') + v.toLocaleString('es-CL', { minimumFractionDigits: d, maximumFractionDigits: d }); };
 const CP_MONEDAS_EXT = ['USD', 'EUR'];
 const CP_TASAS = {};
-// Valor observado (Banco Central) vía mindicador.cl, en pesos por 1 unidad. Si el día no tiene valor (fin de semana) usa el anterior.
+// Valor observado (Banco Central) en pesos por 1 unidad, vía la función tasa-cambio. Si el día no tiene valor (fin de semana) usa el anterior.
 async function cpTasaDelDia(moneda, fecha) {
-    const ind = { USD: 'dolar', EUR: 'euro' }[moneda];
-    if (!ind || !/^\d{4}-\d{2}-\d{2}$/.test(fecha || '') || fecha > cpHoy()) return null;
+    if (!CP_MONEDAS_EXT.includes(moneda) || !/^\d{4}-\d{2}-\d{2}$/.test(fecha || '') || fecha > cpHoy()) return null;
     const k = moneda + fecha; if (CP_TASAS[k]) return CP_TASAS[k];
-    const d = new Date(fecha + 'T12:00:00');
-    for (let i = 0; i < 6; i++) {
-        const dd = `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
-        try {
-            const r = await fetch(`https://mindicador.cl/api/${ind}/${dd}`);
-            if (r.ok) { const j = await r.json(); if (j.serie && j.serie.length) return CP_TASAS[k] = Number(j.serie[0].valor); }
-        } catch (e) { return null; } // sin conexión o bloqueado: no se guarda, se reintenta la próxima vez
-        d.setDate(d.getDate() - 1);
-    }
-    return null;
+    try { // función en Supabase que consulta mindicador.cl (el navegador no puede directo)
+        const { data, error } = await clienteSupabase.functions.invoke('tasa-cambio', { body: { moneda, fecha } });
+        if (error || !(data?.valor > 0)) return null; // no se guarda en caché: se reintenta la próxima vez
+        return CP_TASAS[k] = Number(data.valor);
+    } catch (e) { return null; }
 }
 // ¿Se parece a un gasto ya registrado? Mismo monto exacto (±$1), o casi igual (±2%) y con alguna palabra en común en la descripción.
 const CP_PAL_GEN = new Set(['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','setiembre','octubre','noviembre','diciembre','suscripcion','pago','compra','mensual','anual','plan','para','desde','traspaso','transferencia']);
