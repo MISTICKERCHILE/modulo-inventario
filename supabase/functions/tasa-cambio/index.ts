@@ -2,6 +2,7 @@
 // El navegador no puede consultar mindicador.cl directo (CORS), así que Buddy pregunta aquí.
 // GET/POST { moneda: 'USD' | 'EUR', fecha: 'YYYY-MM-DD' } → { moneda, fecha, valor, fecha_valor }
 // Si el día no tiene valor (fin de semana o feriado) usa el día hábil anterior (hasta 7 días atrás).
+// Si mindicador.cl está caído, usa como respaldo el valor de mercado del día (fuente: 'mercado').
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const CORS = {
@@ -10,7 +11,7 @@ const CORS = {
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 };
 const INDICADOR: Record<string, string> = { USD: "dolar", EUR: "euro" };
-const cache = new Map<string, { valor: number; fecha_valor: string }>();
+const cache = new Map<string, { valor: number; fecha_valor: string; fuente: string }>();
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
@@ -31,21 +32,38 @@ Deno.serve(async (req: Request) => {
   const hit = cache.get(key);
   if (hit) return json({ moneda, fecha, ...hit });
 
+  const ok = (valor: number, fecha_valor: string, fuente: string) => {
+    const out = { valor, fecha_valor, fuente };
+    cache.set(key, out);
+    return json({ moneda, fecha, ...out });
+  };
+
+  // 1) Dólar/euro observado del Banco Central vía mindicador.cl (si el día no tiene valor, el día hábil anterior)
   const d = new Date(fecha + "T12:00:00Z");
   for (let i = 0; i < 7; i++) {
     const dd = `${String(d.getUTCDate()).padStart(2, "0")}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${d.getUTCFullYear()}`;
     try {
-      const r = await fetch(`https://mindicador.cl/api/${ind}/${dd}`, { signal: AbortSignal.timeout(6000) });
-      if (r.ok) {
-        const j = await r.json();
-        if (j?.serie?.length) {
-          const out = { valor: Number(j.serie[0].valor), fecha_valor: String(j.serie[0].fecha).slice(0, 10) };
-          cache.set(key, out);
-          return json({ moneda, fecha, ...out });
-        }
-      }
-    } catch (_) { return json({ error: "mindicador.cl no responde" }, 502); }
+      const r = await fetch(`https://mindicador.cl/api/${ind}/${dd}`, { signal: AbortSignal.timeout(5000) });
+      if (!r.ok) break; // caído: pasar a la fuente de respaldo
+      const j = await r.json();
+      if (j?.serie?.length) return ok(Number(j.serie[0].valor), String(j.serie[0].fecha).slice(0, 10), "observado");
+    } catch (_) { break; }
     d.setUTCDate(d.getUTCDate() - 1);
   }
-  return json({ error: "Sin valor para esa fecha" }, 404);
+
+  // 2) Respaldo: valor de mercado del día (currency-api, gratuito, con historial diario)
+  const base = moneda.toLowerCase();
+  for (const url of [
+    `https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@${fecha}/v1/currencies/${base}.min.json`,
+    `https://${fecha}.currency-api.pages.dev/v1/currencies/${base}.min.json`,
+  ]) {
+    try {
+      const r = await fetch(url, { signal: AbortSignal.timeout(5000) });
+      if (!r.ok) continue;
+      const j = await r.json();
+      const v = Number(j?.[base]?.clp);
+      if (v > 0) return ok(Math.round(v * 100) / 100, String(j.date ?? fecha), "mercado");
+    } catch (_) { /* siguiente */ }
+  }
+  return json({ error: "No hay fuente disponible para esa fecha" }, 502);
 });

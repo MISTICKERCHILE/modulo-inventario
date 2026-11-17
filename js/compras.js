@@ -20,7 +20,7 @@ async function cpTasaDelDia(moneda, fecha) {
     try { // función en Supabase que consulta mindicador.cl (el navegador no puede directo)
         const { data, error } = await clienteSupabase.functions.invoke('tasa-cambio', { body: { moneda, fecha } });
         if (error || !(data?.valor > 0)) return null; // no se guarda en caché: se reintenta la próxima vez
-        return CP_TASAS[k] = Number(data.valor);
+        return CP_TASAS[k] = { valor: Number(data.valor), fuente: data.fuente, fecha: data.fecha_valor };
     } catch (e) { return null; }
 }
 // ¿Se parece a un gasto ya registrado? Mismo monto exacto (±$1), o casi igual (±2%) y con alguna palabra en común en la descripción.
@@ -227,7 +227,8 @@ async function cpCambioMonedaYa() {
     const info = document.getElementById('cp-n-tasa-info');
     info.textContent = `Buscando el ${m} observado del ${cpFecha(fecha)}…`;
     const t = await cpTasaDelDia(m, fecha);
-    if (t) { document.getElementById('cp-n-tasa').value = t; info.textContent = `${m} observado del Banco Central (mindicador.cl). Cámbialo si el banco cobró otro valor.`; }
+    if (t) { document.getElementById('cp-n-tasa').value = t.valor;
+        info.textContent = (t.fuente === 'observado' ? `${m} observado del Banco Central (${cpFecha(t.fecha)}).` : `${m} a valor de mercado del ${cpFecha(t.fecha)} (el Banco Central no respondió).`) + ' Cámbialo si el banco cobró otro valor.'; }
     else info.innerHTML = `No pude traer el valor automático: escríbelo a mano. Lo encuentras en <a href="https://mindicador.cl" target="_blank" class="underline">mindicador.cl</a> (dólar observado).`;
     cpPreviewMoneda();
 }
@@ -374,7 +375,7 @@ async function cpPrepararImport(filas, campos) {
         const moneda = (val(r, 'moneda') || 'CLP').toUpperCase().replace('$', '').trim() || 'CLP';
         let ext = null;
         if (moneda !== 'CLP') {
-            const tasa = cpParseMonto(val(r, 'tasa')) || await cpTasaDelDia(moneda, fecha);
+            const tasa = cpParseMonto(val(r, 'tasa')) || (await cpTasaDelDia(moneda, fecha))?.valor;
             if (!(tasa > 0)) return errs.push(`Fila ${fila}: falta el tipo de cambio de ${moneda} (columna tasa_cambio)`);
             ext = { moneda_original: moneda, monto_original: monto, tasa_cambio: tasa }; monto = Math.round(monto * tasa);
         }
