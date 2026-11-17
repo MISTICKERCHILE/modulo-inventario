@@ -15,26 +15,36 @@ const CP_MONEDAS_EXT = ['USD', 'EUR'];
 const CP_TASAS = {};
 // Valor observado (Banco Central) vía mindicador.cl, en pesos por 1 unidad. Si el día no tiene valor (fin de semana) usa el anterior.
 async function cpTasaDelDia(moneda, fecha) {
-    const ind = { USD: 'dolar', EUR: 'euro' }[moneda]; if (!ind || !fecha) return null;
-    const k = moneda + fecha; if (k in CP_TASAS) return CP_TASAS[k];
+    const ind = { USD: 'dolar', EUR: 'euro' }[moneda];
+    if (!ind || !/^\d{4}-\d{2}-\d{2}$/.test(fecha || '') || fecha > cpHoy()) return null;
+    const k = moneda + fecha; if (CP_TASAS[k]) return CP_TASAS[k];
     const d = new Date(fecha + 'T12:00:00');
     for (let i = 0; i < 6; i++) {
         const dd = `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
         try {
             const r = await fetch(`https://mindicador.cl/api/${ind}/${dd}`);
             if (r.ok) { const j = await r.json(); if (j.serie && j.serie.length) return CP_TASAS[k] = Number(j.serie[0].valor); }
-        } catch (e) { console.warn('mindicador', e); return CP_TASAS[k] = null; }
+        } catch (e) { return null; } // sin conexión o bloqueado: no se guarda, se reintenta la próxima vez
         d.setDate(d.getDate() - 1);
     }
-    return CP_TASAS[k] = null;
+    return null;
 }
-// Gastos ya registrados con monto casi igual (±2%) y fecha cercana, en cualquier cuenta
-async function cpBuscarParecidos(fecha, monto, dias = 5) {
+// ¿Se parece a un gasto ya registrado? Mismo monto exacto (±$1), o casi igual (±2%) y con alguna palabra en común en la descripción.
+const CP_PAL_GEN = new Set(['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','setiembre','octubre','noviembre','diciembre','suscripcion','pago','compra','mensual','anual','plan','para','desde','traspaso','transferencia']);
+const cpPalabras = (s) => new Set(cpNorm(s).replace(/[^a-z0-9]+/g, ' ').split(' ').filter(w => w.length >= 4 && !CP_PAL_GEN.has(w)));
+function cpPareceDuplicado(c, desc, monto) {
+    const dif = Math.abs(cpTotal(c) - monto);
+    if (dif <= 1) return true;
+    if (dif > monto * 0.02) return false;
+    const a = cpPalabras(desc); return [...cpPalabras(c.descripcion)].some(w => a.has(w));
+}
+// Gastos ya registrados parecidos y con fecha cercana, en cualquier cuenta
+async function cpBuscarParecidos(fecha, monto, desc = '', dias = 5) {
     const d = new Date(fecha + 'T12:00:00'), a = new Date(d), b = new Date(d);
     a.setDate(a.getDate() - dias); b.setDate(b.getDate() + dias);
     const { data } = await clienteSupabase.from('compras').select('id, fecha_compra, descripcion, total_compra, total_factura, id_cuenta_pago, estado_pago')
         .eq('id_empresa', window.miEmpresaId).gte('fecha_compra', a.toISOString().slice(0, 10)).lte('fecha_compra', b.toISOString().slice(0, 10)).neq('estado_pago', 'anulado');
-    return (data || []).filter(c => Math.abs(cpTotal(c) - monto) <= Math.max(1, monto * 0.02));
+    return (data || []).filter(c => cpPareceDuplicado(c, desc, monto));
 }
 const cpHoy = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
 const cpFecha = (d) => { if (!d) return '—'; const [y, m, dd] = String(d).slice(0, 10).split('-'); return `${dd}-${m}-${y}`; };
@@ -213,7 +223,9 @@ function cpCambioCondicion() {
     document.getElementById('cp-n-dias-box').classList.toggle('hidden', !cred);
 }
 
-async function cpCambioMoneda() {
+let cpTimerMoneda;
+function cpCambioMoneda() { clearTimeout(cpTimerMoneda); cpTimerMoneda = setTimeout(cpCambioMonedaYa, 500); }
+async function cpCambioMonedaYa() {
     const m = document.getElementById('cp-n-moneda').value, fecha = document.getElementById('cp-n-fecha').value;
     document.getElementById('cp-n-tasa-box').classList.toggle('hidden', m === 'CLP');
     document.getElementById('cp-n-monto-label').textContent = m === 'CLP' ? 'Monto *' : `Monto en ${m} *`;
@@ -222,7 +234,7 @@ async function cpCambioMoneda() {
     info.textContent = `Buscando el ${m} observado del ${cpFecha(fecha)}…`;
     const t = await cpTasaDelDia(m, fecha);
     if (t) { document.getElementById('cp-n-tasa').value = t; info.textContent = `${m} observado del Banco Central (mindicador.cl). Cámbialo si el banco cobró otro valor.`; }
-    else info.textContent = 'No pude traer el valor del día: escríbelo a mano.';
+    else info.innerHTML = `No pude traer el valor automático: escríbelo a mano. Lo encuentras en <a href="https://mindicador.cl" target="_blank" class="underline">mindicador.cl</a> (dólar observado).`;
     cpPreviewMoneda();
 }
 function cpPreviewMoneda() {
@@ -260,7 +272,7 @@ async function cpGuardarGasto() {
         Object.assign(p, { moneda_original: mon, monto_original: p.monto, tasa_cambio: t }); p.monto = Math.round(p.monto * t);
     }
     if (p.monto > 0 && p.fecha) {
-        const par = await cpBuscarParecidos(p.fecha, p.monto);
+        const par = await cpBuscarParecidos(p.fecha, p.monto, p.descripcion);
         if (par.length && !confirm(`Ojo, posible duplicado. Ya hay ${par.length === 1 ? 'un gasto parecido' : par.length + ' gastos parecidos'}:\n\n` +
             par.slice(0, 5).map(c => `• ${cpFecha(c.fecha_compra)} · ${c.descripcion} · ${cpFmt(cpTotal(c))} (${cpCuenta(c.id_cuenta_pago)?.nombre || 'a crédito'})`).join('\n') +
             '\n\n¿Guardarlo igual?')) return;
@@ -394,7 +406,7 @@ async function cpPrepararImport(filas, campos) {
             numDoc: val(r, 'numero_documento'), dias: Number(val(r, 'dias_credito')) || 0, ref, nota: val(r, 'nota'),
             lote: val(r, 'lote_reembolso'), yaPagado, reembolsable: tipoCta === 'reembolsable', ext });
     })();
-    // Posibles duplicados: mismo monto (±2%) y fecha cercana (±5 días) en cualquier cuenta
+    // Posibles duplicados: mismo monto, o casi igual con descripción parecida, y fecha cercana (±5 días) en cualquier cuenta
     if (lista.length) {
         const fs = lista.map(x => x.fecha).sort(), d0 = new Date(fs[0] + 'T12:00:00'), d1 = new Date(fs[fs.length - 1] + 'T12:00:00');
         d0.setDate(d0.getDate() - 5); d1.setDate(d1.getDate() + 5);
@@ -402,7 +414,7 @@ async function cpPrepararImport(filas, campos) {
             .eq('id_empresa', window.miEmpresaId).neq('estado_pago', 'anulado').gte('fecha_compra', d0.toISOString().slice(0, 10)).lte('fecha_compra', d1.toISOString().slice(0, 10)));
         const usados = new Set();
         lista.forEach(x => {
-            const k = ex.findIndex((c, j) => !usados.has(j) && Math.abs(cpTotal(c) - x.monto) <= Math.max(1, x.monto * 0.02) && cpDias(c.fecha_compra) - cpDias(x.fecha) <= 5 && cpDias(x.fecha) - cpDias(c.fecha_compra) <= 5);
+            const k = ex.findIndex((c, j) => !usados.has(j) && cpPareceDuplicado(c, x.detalle, x.monto) && cpDias(c.fecha_compra) - cpDias(x.fecha) <= 5 && cpDias(x.fecha) - cpDias(c.fecha_compra) <= 5);
             if (k >= 0) { usados.add(k); x.dup = ex[k]; }
         });
     }
