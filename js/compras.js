@@ -5,10 +5,41 @@
 // Las escrituras de dinero pasan por funciones de la base
 // (registrar_gasto, registrar_pago_compras) para que los saldos cuadren.
 // ==========================================================
-const CP = { cuentas: [], categorias: [], ocultas: new Set(), proveedores: [], gastos: [], pendientes: [], pagos: [], monedas: ['CLP'], seleccion: {}, importacion: null };
+const CP = window.CP = { cuentas: [], categorias: [], ocultas: new Set(), proveedores: [], gastos: [], pendientes: [], pagos: [], monedas: ['CLP'], seleccion: {}, importacion: null };
 const cpEsc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const cpDec = (m) => ['CLP', 'COP', 'PYG', 'JPY'].includes(m) ? 0 : 2;
-const cpFmt = (n, m) => (m && m !== 'CLP' ? m + ' ' : '$') + Number(n || 0).toLocaleString('es-CL', { minimumFractionDigits: cpDec(m), maximumFractionDigits: cpDec(m) });
+// Montos sin decimales; CLP se muestra con $, otras monedas con su sigla (USD 60). Decimales solo si el monto los tiene.
+const cpFmt = (n, m) => { const v = Number(n || 0); const d = (cpDec(m) === 0 || Number.isInteger(v)) ? 0 : 2;
+    return (m && m !== 'CLP' ? m + ' ' : '$') + v.toLocaleString('es-CL', { minimumFractionDigits: d, maximumFractionDigits: d }); };
+const CP_MONEDAS_EXT = ['USD', 'EUR'];
+const CP_TASAS = {};
+// Valor observado (Banco Central) en pesos por 1 unidad, vía la función tasa-cambio. Si el día no tiene valor (fin de semana) usa el anterior.
+async function cpTasaDelDia(moneda, fecha) {
+    if (!CP_MONEDAS_EXT.includes(moneda) || !/^\d{4}-\d{2}-\d{2}$/.test(fecha || '') || fecha > cpHoy()) return null;
+    const k = moneda + fecha; if (CP_TASAS[k]) return CP_TASAS[k];
+    try { // función en Supabase que consulta mindicador.cl (el navegador no puede directo)
+        const { data, error } = await clienteSupabase.functions.invoke('tasa-cambio', { body: { moneda, fecha } });
+        if (error || !(data?.valor > 0)) return null; // no se guarda en caché: se reintenta la próxima vez
+        return CP_TASAS[k] = { valor: Number(data.valor), fuente: data.fuente, fecha: data.fecha_valor };
+    } catch (e) { return null; }
+}
+// ¿Se parece a un gasto ya registrado? Mismo monto exacto (±$1), o casi igual (±2%) y con alguna palabra en común en la descripción.
+const CP_PAL_GEN = new Set(['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','setiembre','octubre','noviembre','diciembre','suscripcion','pago','compra','mensual','anual','plan','para','desde','traspaso','transferencia']);
+const cpPalabras = (s) => new Set(cpNorm(s).replace(/[^a-z0-9]+/g, ' ').split(' ').filter(w => w.length >= 4 && !CP_PAL_GEN.has(w)));
+function cpPareceDuplicado(c, desc, monto) {
+    const dif = Math.abs(cpTotal(c) - monto);
+    if (dif <= 1) return true;
+    if (dif > monto * 0.02) return false;
+    const a = cpPalabras(desc); return [...cpPalabras(c.descripcion)].some(w => a.has(w));
+}
+// Gastos ya registrados parecidos y con fecha cercana, en cualquier cuenta
+async function cpBuscarParecidos(fecha, monto, desc = '', dias = 5) {
+    const d = new Date(fecha + 'T12:00:00'), a = new Date(d), b = new Date(d);
+    a.setDate(a.getDate() - dias); b.setDate(b.getDate() + dias);
+    const { data } = await clienteSupabase.from('compras').select('id, fecha_compra, descripcion, total_compra, total_factura, id_cuenta_pago, estado_pago')
+        .eq('id_empresa', window.miEmpresaId).gte('fecha_compra', a.toISOString().slice(0, 10)).lte('fecha_compra', b.toISOString().slice(0, 10)).neq('estado_pago', 'anulado');
+    return (data || []).filter(c => cpPareceDuplicado(c, desc, monto));
+}
 const cpHoy = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
 const cpFecha = (d) => { if (!d) return '—'; const [y, m, dd] = String(d).slice(0, 10).split('-'); return `${dd}-${m}-${y}`; };
 const cpMesActual = () => cpHoy().slice(0, 7);
@@ -64,7 +95,7 @@ window.cargarCompras = async function (tab) {
 };
 
 function cpTab(t) {
-    ['resumen', 'gastos', 'pagar', 'cuentas', 'categorias'].forEach(k => {
+    ['resumen', 'gastos', 'pagar', 'conciliacion', 'cuentas', 'categorias'].forEach(k => {
         document.getElementById('cp-' + k).classList.toggle('hidden', k !== t);
         document.getElementById('cp-tab-' + k).className = 'px-4 py-2 text-sm font-bold border-b-2 whitespace-nowrap ' + (k === t ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-slate-500 hover:text-slate-800');
     });
@@ -72,6 +103,7 @@ function cpTab(t) {
     if (t === 'gastos') cpCargarGastos();
     if (t === 'pagar') cpCargarPorPagar();
     if (t === 'cuentas') cpCargarCuentas();
+    if (t === 'conciliacion' && typeof window.ccIniciar === 'function') window.ccIniciar();
     if (t === 'categorias') cpPintarCategorias();
 }
 function cpCerrar(id) { document.getElementById(id).classList.add('hidden'); }
@@ -114,7 +146,7 @@ async function cpCargarGastos() {
     const ym = document.getElementById('cp-g-mes').value;
     try {
         CP.gastos = await cpTodo(() => {
-            let q = clienteSupabase.from('compras').select('id, fecha_compra, descripcion, numero_documento, numero_factura, id_proveedor, id_categoria_gasto, id_cuenta_pago, total_compra, total_factura, monto_pagado, estado_pago, condicion_pago, fecha_vencimiento, origen, moneda, tipo_documento, referencia_externa, observaciones_factura')
+            let q = clienteSupabase.from('compras').select('id, fecha_compra, descripcion, numero_documento, numero_factura, id_proveedor, id_categoria_gasto, id_cuenta_pago, total_compra, total_factura, monto_pagado, estado_pago, condicion_pago, fecha_vencimiento, origen, moneda, moneda_original, monto_original, tasa_cambio, tipo_documento, referencia_externa, observaciones_factura')
                 .eq('id_empresa', window.miEmpresaId).order('fecha_compra', { ascending: false }).order('created_at', { ascending: false });
             if (ym) { const [d, h] = cpRangoMes(ym); q = q.gte('fecha_compra', d).lte('fecha_compra', h); }
             return q;
@@ -134,14 +166,14 @@ function cpFiltrarGastos() {
     return CP.gastos.filter(g => {
         if (cta === '__credito' ? g.id_cuenta_pago : (cta && g.id_cuenta_pago !== cta)) return false;
         if (cat === '__sin' ? g.id_categoria_gasto : (cat && g.id_categoria_gasto !== cat)) return false;
-        if (est && g.estado_pago !== est) return false;
+        if (est ? g.estado_pago !== est : g.estado_pago === 'anulado') return false;
         return !q || cpNorm(`${g.descripcion || ''} ${g.numero_documento || ''} ${cpProveedor(g.id_proveedor)?.nombre || ''}`).includes(q);
     });
 }
 
 function cpPintarGastos() {
     const filas = cpFiltrarGastos();
-    const total = filas.reduce((s, g) => s + cpTotal(g), 0);
+    const total = filas.filter(g => g.estado_pago !== 'anulado').reduce((s, g) => s + cpTotal(g), 0);
     document.getElementById('cp-g-total').textContent = `${filas.length} registros · ${cpFmt(total)}`;
     document.getElementById('cp-g-tabla').innerHTML = filas.slice(0, 1000).map(g => {
         const [et, col] = ESTADOS[g.estado_pago] || ['—', 'bg-slate-100 text-slate-500'];
@@ -154,9 +186,11 @@ function cpPintarGastos() {
                 ${prov ? `<p class="text-[11px] text-slate-400">${cpEsc(prov)}</p>` : ''}</td>
             <td class="px-3 py-2 text-slate-500 text-xs">${cpEsc(cpCategoria(g.id_categoria_gasto)?.nombre || '—')}</td>
             <td class="px-3 py-2 text-xs">${cta ? cpEsc(cta.nombre) : (g.condicion_pago === 'credito' ? '<span class="text-blue-600 font-bold">A crédito</span>' : '—')}</td>
-            <td class="px-3 py-2 text-right font-bold whitespace-nowrap">${cpFmt(cpTotal(g), g.moneda)}</td>
+            <td class="px-3 py-2 text-right font-bold whitespace-nowrap ${g.estado_pago === 'anulado' ? 'line-through text-slate-400' : ''}">${cpFmt(cpTotal(g), g.moneda)}
+                ${g.moneda_original ? `<p class="text-[11px] font-normal text-slate-400">${cpFmt(g.monto_original, g.moneda_original)} × ${cpFmt(g.tasa_cambio)}</p>` : ''}</td>
             <td class="px-3 py-2 text-right whitespace-nowrap ${cpSaldo(g) ? 'font-black text-amber-700' : 'text-slate-300'}">${cpSaldo(g) ? cpFmt(cpSaldo(g), g.moneda) : '—'}</td>
-            <td class="px-3 py-2 text-center">${sinDatos ? '<span class="px-2 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-500" title="Orden de compra de Inventario sin datos de pago">Por completar</span>' : `<span class="px-2 py-1 rounded-full text-[11px] font-bold ${col}">${et}</span>`}</td></tr>`;
+            <td class="px-3 py-2 text-center">${sinDatos ? '<span class="px-2 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-500" title="Orden de compra de Inventario sin datos de pago">Por completar</span>' : `<span class="px-2 py-1 rounded-full text-[11px] font-bold ${col}">${et}</span>`}</td>
+            <td class="px-3 py-2 text-right">${cpEsAdmin() && g.origen === 'gasto' && g.estado_pago !== 'anulado' ? `<button onclick="cpAnularGasto('${g.id}')" class="text-[11px] font-bold text-slate-400 hover:text-red-600">Anular</button>` : ''}</td></tr>`;
     }).join('');
     document.getElementById('cp-g-vacio').classList.toggle('hidden', filas.length > 0);
 }
@@ -170,6 +204,9 @@ function cpAbrirGasto() {
     document.getElementById('cp-n-fecha').value = cpHoy();
     document.getElementById('cp-n-cond').value = 'contado';
     document.getElementById('cp-n-tipodoc').value = '';
+    document.getElementById('cp-n-moneda').innerHTML = ['CLP', ...CP_MONEDAS_EXT].map(m => `<option>${m}</option>`).join('');
+    document.getElementById('cp-n-tasa').value = '';
+    cpCambioMoneda();
     cpCambioCondicion();
     document.getElementById('cp-modal-gasto').classList.remove('hidden');
     document.getElementById('cp-n-desc').focus();
@@ -178,6 +215,36 @@ function cpCambioCondicion() {
     const cred = document.getElementById('cp-n-cond').value === 'credito';
     document.getElementById('cp-n-cuenta-box').classList.toggle('hidden', cred);
     document.getElementById('cp-n-dias-box').classList.toggle('hidden', !cred);
+}
+
+let cpTimerMoneda;
+function cpCambioMoneda() { clearTimeout(cpTimerMoneda); cpTimerMoneda = setTimeout(cpCambioMonedaYa, 500); }
+async function cpCambioMonedaYa() {
+    const m = document.getElementById('cp-n-moneda').value, fecha = document.getElementById('cp-n-fecha').value;
+    document.getElementById('cp-n-tasa-box').classList.toggle('hidden', m === 'CLP');
+    document.getElementById('cp-n-monto-label').textContent = m === 'CLP' ? 'Monto *' : `Monto en ${m} *`;
+    if (m === 'CLP') return;
+    const info = document.getElementById('cp-n-tasa-info');
+    info.textContent = `Buscando el ${m} observado del ${cpFecha(fecha)}…`;
+    const t = await cpTasaDelDia(m, fecha);
+    if (t) { document.getElementById('cp-n-tasa').value = t.valor;
+        info.textContent = (t.fuente === 'observado' ? `${m} observado del Banco Central (${cpFecha(t.fecha)}).` : `${m} a valor de mercado del ${cpFecha(t.fecha)} (el Banco Central no respondió).`) + ' Cámbialo si el banco cobró otro valor.'; }
+    else info.innerHTML = `No pude traer el valor automático: escríbelo a mano. Lo encuentras en <a href="https://mindicador.cl" target="_blank" class="underline">mindicador.cl</a> (dólar observado).`;
+    cpPreviewMoneda();
+}
+function cpPreviewMoneda() {
+    const m = document.getElementById('cp-n-moneda').value; if (m === 'CLP') return;
+    const monto = Number(document.getElementById('cp-n-monto').value), t = Number(document.getElementById('cp-n-tasa').value);
+    document.getElementById('cp-n-tasa-total').textContent = monto > 0 && t > 0 ? `= ${cpFmt(Math.round(monto * t))}` : '';
+}
+
+async function cpAnularGasto(id) {
+    const g = CP.gastos.find(x => x.id === id); if (!g) return;
+    const motivo = prompt(`¿Anular “${g.descripcion}” por ${cpFmt(cpTotal(g), g.moneda)}?\n\nDeja de contar en los totales. Si estaba vinculado a una línea de cartola, esa línea vuelve a “por revisar”.\n\nMotivo (opcional):`, 'Duplicado');
+    if (motivo === null) return;
+    const { error } = await clienteSupabase.rpc('anular_gasto', { p_id: id, p_motivo: motivo });
+    if (error) return alert(error.message);
+    cpCargarGastos();
 }
 
 async function cpGuardarGasto() {
@@ -193,6 +260,18 @@ async function cpGuardarGasto() {
         tipo_documento: v('cp-n-tipodoc') || null, numero_documento: v('cp-n-numdoc') || null,
         nota: [provNombre && !prov ? 'Proveedor: ' + provNombre : '', v('cp-n-nota')].filter(Boolean).join(' · ') || null
     };
+    const mon = v('cp-n-moneda');
+    if (mon !== 'CLP') {
+        const t = Number(v('cp-n-tasa'));
+        if (!(t > 0)) return alert(`Indica cuántos pesos vale 1 ${mon}.`);
+        Object.assign(p, { moneda_original: mon, monto_original: p.monto, tasa_cambio: t }); p.monto = Math.round(p.monto * t);
+    }
+    if (p.monto > 0 && p.fecha) {
+        const par = await cpBuscarParecidos(p.fecha, p.monto, p.descripcion);
+        if (par.length && !confirm(`Ojo, posible duplicado. Ya hay ${par.length === 1 ? 'un gasto parecido' : par.length + ' gastos parecidos'}:\n\n` +
+            par.slice(0, 5).map(c => `• ${cpFecha(c.fecha_compra)} · ${c.descripcion} · ${cpFmt(cpTotal(c))} (${cpCuenta(c.id_cuenta_pago)?.nombre || 'a crédito'})`).join('\n') +
+            '\n\n¿Guardarlo igual?')) return;
+    }
     const btn = document.getElementById('cp-n-guardar'); btn.disabled = true; btn.textContent = 'Guardando…';
     const { error } = await clienteSupabase.rpc('registrar_gasto', { p });
     btn.disabled = false; btn.textContent = 'Guardar gasto';
@@ -203,8 +282,9 @@ async function cpGuardarGasto() {
 }
 
 // ---------------------------------------------------------- CSV
-const CP_COLUMNAS = ['fecha', 'detalle', 'monto', 'categoria', 'pagado_con', 'condicion', 'dias_credito', 'proveedor', 'tipo_documento', 'numero_documento', 'estado', 'lote_reembolso', 'referencia', 'nota'];
+const CP_COLUMNAS = ['fecha', 'detalle', 'monto', 'categoria', 'pagado_con', 'condicion', 'dias_credito', 'proveedor', 'tipo_documento', 'numero_documento', 'estado', 'lote_reembolso', 'referencia', 'nota', 'moneda', 'tasa_cambio'];
 const CP_ALIAS = {
+    moneda: ['moneda', 'divisa', 'currency'], tasa: ['tasa cambio', 'tasa_cambio', 'tasa', 'tipo de cambio'],
     fecha: ['fecha', 'fecha compra', 'fecha_compra'], detalle: ['detalle', 'descripcion', 'detalle compra', 'concepto', 'que se compro'],
     monto: ['monto', 'total', 'valor', 'importe'], categoria: ['categoria', 'categoria gasto'], pagado_con: ['pagado con', 'pagado_con', 'cuenta', 'medio de pago', 'forma de pago'],
     condicion: ['condicion', 'condicion pago'], dias_credito: ['dias credito', 'dias_credito'], proveedor: ['proveedor'], tipo_documento: ['tipo documento', 'tipo_documento', 'documento'],
@@ -223,12 +303,13 @@ function cpBajar(nombre, texto) {
 function cpDescargarPlantilla() {
     const ej = CP.cuentas[0]?.nombre || 'Banco';
     cpBajar('plantilla_gastos.csv', cpCSV([CP_COLUMNAS,
-        [cpHoy(), 'Envío Blue Express pedido 1042', 4300, 'Despachos y envíos', ej, 'contado', '', '', 'boleta', '', 'pagado', '', '', ''],
-        [cpHoy(), 'Rollos de vinilo', 120000, 'Insumos y materiales', '', 'credito', 30, 'Mi proveedor', 'factura', '12345', 'pendiente', '', '', '']]));
+        [cpHoy(), 'Envío Blue Express pedido 1042', 4300, 'Despachos y envíos', ej, 'contado', '', '', 'boleta', '', 'pagado', '', '', '', 'CLP', ''],
+        [cpHoy(), 'Rollos de vinilo', 120000, 'Insumos y materiales', '', 'credito', 30, 'Mi proveedor', 'factura', '12345', 'pendiente', '', '', '', 'CLP', ''],
+        [cpHoy(), 'Suscripción en dólares (tasa vacía = dólar del día)', 20, 'Software y suscripciones', ej, 'contado', '', '', 'extranjero', '', 'pagado', '', '', '', 'USD', '']]));
 }
 function cpDescargarGastos() {
-    const filas = cpFiltrarGastos().map(g => [g.fecha_compra, g.descripcion || '', cpTotal(g), cpCategoria(g.id_categoria_gasto)?.nombre || '', cpCuenta(g.id_cuenta_pago)?.nombre || '',
-        g.condicion_pago, '', cpProveedor(g.id_proveedor)?.nombre || '', g.tipo_documento || '', g.numero_documento || g.numero_factura || '', g.estado_pago, '', g.referencia_externa || '', g.observaciones_factura || '']);
+    const filas = cpFiltrarGastos().map(g => [g.fecha_compra, g.descripcion || '', g.moneda_original ? g.monto_original : cpTotal(g), cpCategoria(g.id_categoria_gasto)?.nombre || '', cpCuenta(g.id_cuenta_pago)?.nombre || '',
+        g.condicion_pago, '', cpProveedor(g.id_proveedor)?.nombre || '', g.tipo_documento || '', g.numero_documento || g.numero_factura || '', g.estado_pago, '', g.referencia_externa || '', g.observaciones_factura || '', g.moneda_original || g.moneda || 'CLP', g.tasa_cambio || '']);
     cpBajar(`gastos_${cpHoy()}.csv`, cpCSV([CP_COLUMNAS, ...filas]));
 }
 
@@ -284,12 +365,20 @@ async function cpPrepararImport(filas, campos) {
     const val = (r, k) => mapa[k] ? String(r[mapa[k]] ?? '').trim() : '';
     const lista = [], errs = [], cuentasNuevas = new Map(), catsNuevas = new Map();
     let duplicadas = 0;
-    filas.forEach((r, i) => {
+    for (const [i, r] of filas.entries()) await (async () => {
         const fila = i + 2;
-        const fecha = cpParseFecha(val(r, 'fecha')), monto = cpParseMonto(val(r, 'monto')), detalle = val(r, 'detalle');
+        const fecha = cpParseFecha(val(r, 'fecha')), detalle = val(r, 'detalle');
+        let monto = cpParseMonto(val(r, 'monto'));
         if (!fecha) return errs.push(`Fila ${fila}: fecha no válida (“${val(r, 'fecha')}”)`);
         if (!(monto > 0)) return errs.push(`Fila ${fila}: monto no válido (“${val(r, 'monto')}”)`);
         if (!detalle) return errs.push(`Fila ${fila}: falta el detalle`);
+        const moneda = (val(r, 'moneda') || 'CLP').toUpperCase().replace('$', '').trim() || 'CLP';
+        let ext = null;
+        if (moneda !== 'CLP') {
+            const tasa = cpParseMonto(val(r, 'tasa')) || (await cpTasaDelDia(moneda, fecha))?.valor;
+            if (!(tasa > 0)) return errs.push(`Fila ${fila}: falta el tipo de cambio de ${moneda} (columna tasa_cambio)`);
+            ext = { moneda_original: moneda, monto_original: monto, tasa_cambio: tasa }; monto = Math.round(monto * tasa);
+        }
         const ref = val(r, 'referencia') || null;
         if (ref && existentes.has(ref)) { duplicadas++; return; }
         const estadoTxt = cpNorm(val(r, 'estado'));
@@ -310,14 +399,30 @@ async function cpPrepararImport(filas, campos) {
         const yaPagado = /pagad|reembolsad/.test(estadoTxt) && !/pendiente|por pagar|confirmar/.test(estadoTxt);
         lista.push({ fila, fecha, monto, detalle, cond, ctaNombre, catNombre, provNombre: val(r, 'proveedor'), tipoDoc: val(r, 'tipo_documento'),
             numDoc: val(r, 'numero_documento'), dias: Number(val(r, 'dias_credito')) || 0, ref, nota: val(r, 'nota'),
-            lote: val(r, 'lote_reembolso'), yaPagado, reembolsable: tipoCta === 'reembolsable' });
-    });
+            lote: val(r, 'lote_reembolso'), yaPagado, reembolsable: tipoCta === 'reembolsable', ext });
+    })();
+    // Posibles duplicados: mismo monto, o casi igual con descripción parecida, y fecha cercana (±5 días) en cualquier cuenta
+    if (lista.length) {
+        const fs = lista.map(x => x.fecha).sort(), d0 = new Date(fs[0] + 'T12:00:00'), d1 = new Date(fs[fs.length - 1] + 'T12:00:00');
+        d0.setDate(d0.getDate() - 5); d1.setDate(d1.getDate() + 5);
+        const ex = await cpTodo(() => clienteSupabase.from('compras').select('fecha_compra, descripcion, total_compra, total_factura, id_cuenta_pago')
+            .eq('id_empresa', window.miEmpresaId).neq('estado_pago', 'anulado').gte('fecha_compra', d0.toISOString().slice(0, 10)).lte('fecha_compra', d1.toISOString().slice(0, 10)));
+        const usados = new Set();
+        lista.forEach(x => {
+            const k = ex.findIndex((c, j) => !usados.has(j) && cpPareceDuplicado(c, x.detalle, x.monto) && cpDias(c.fecha_compra) - cpDias(x.fecha) <= 5 && cpDias(x.fecha) - cpDias(c.fecha_compra) <= 5);
+            if (k >= 0) { usados.add(k); x.dup = ex[k]; }
+        });
+    }
+    const dups = lista.filter(x => x.dup);
     const aReembolsar = lista.filter(x => x.reembolsable && x.yaPagado);
     CP.importacion = { lista, cuentasNuevas: [...cuentasNuevas.values()], catsNuevas: [...catsNuevas.values()] };
     const total = lista.reduce((s, x) => s + x.monto, 0);
     resumen.innerHTML = `
         <p><b>${lista.length}</b> gastos listos para importar por <b>${cpFmt(total)}</b>.</p>
         ${duplicadas ? `<p class="text-slate-500">${duplicadas} filas ya estaban importadas (misma referencia) y se omiten.</p>` : ''}
+        ${dups.length ? `<div class="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
+            <label class="flex items-center gap-2 font-bold text-amber-800"><input id="cp-i-saltar" type="checkbox" checked> Saltar ${dups.length} posibles duplicados (ya hay un gasto parecido)</label>
+            <div class="text-xs text-amber-900 max-h-40 overflow-y-auto space-y-1">${dups.map(x => `<p>Fila ${x.fila}: ${cpEsc(x.detalle)} ${cpFmt(x.monto)} (${cpFecha(x.fecha)}) ≈ ya existe “${cpEsc(x.dup.descripcion)}” ${cpFmt(cpTotal(x.dup))} (${cpFecha(x.dup.fecha_compra)}, ${cpEsc(cpCuenta(x.dup.id_cuenta_pago)?.nombre || 'a crédito')})</p>`).join('')}</div></div>` : ''}
         ${CP.importacion.cuentasNuevas.length ? `<p>Se crearán estas cuentas: ${CP.importacion.cuentasNuevas.map(c => `<b>${cpEsc(c.nombre)}</b> (${TIPOS_CUENTA[c.tipo].replace(/^\S+ /, '')})`).join(', ')}.</p>` : ''}
         ${CP.importacion.catsNuevas.length ? `<p>Se crearán estas categorías propias: ${CP.importacion.catsNuevas.map(cpEsc).join(', ')}.</p>` : ''}
         ${aReembolsar.length ? `<p><b>${aReembolsar.length}</b> gastos que pagó una persona ya figuran como reembolsados: quedarán pagados en ${new Set(aReembolsar.map(x => x.lote || 'Histórico')).size} lotes de reembolso.</p>` : ''}`;
@@ -337,6 +442,7 @@ async function cpImportar() {
     const prog = document.getElementById('cp-i-progreso'), barra = document.getElementById('cp-i-barra'), texto = document.getElementById('cp-i-texto');
     prog.classList.remove('hidden');
     const e = window.miEmpresaId; const errs = [];
+    if (document.getElementById('cp-i-saltar')?.checked) imp.lista = imp.lista.filter(x => !x.dup);
     try {
         // 1. Cuentas y categorías nuevas
         for (const c of imp.cuentasNuevas) {
@@ -362,7 +468,7 @@ async function cpImportar() {
                 const { data, error } = await clienteSupabase.rpc('registrar_gasto', { p: {
                     id_empresa: e, descripcion: x.detalle, monto: x.monto, fecha: x.fecha, id_categoria_gasto: cat?.id || null, id_proveedor: prov?.id || null,
                     condicion_pago: cond, id_cuenta_pago: cta?.id || null, dias_credito: x.dias, tipo_documento: tipoDoc, numero_documento: x.numDoc || null,
-                    referencia_externa: x.ref, nota: [x.provNombre && !prov ? 'Proveedor: ' + x.provNombre : '', x.lote && !x.yaPagado ? x.lote : '', x.nota].filter(Boolean).join(' · ') || null } });
+                    ...(x.ext || {}), referencia_externa: x.ref, nota: [x.provNombre && !prov ? 'Proveedor: ' + x.provNombre : '', x.lote && !x.yaPagado ? x.lote : '', x.nota].filter(Boolean).join(' · ') || null } });
                 if (error) errs.push(`Fila ${x.fila}: ${error.message}`); else creados.push({ ...x, id: data.id, estado: data.estado_pago });
             }));
             barra.style.width = `${Math.round((i + 5) / imp.lista.length * 90)}%`;
@@ -407,6 +513,8 @@ async function cpCargarPorPagar() {
     // OC de Inventario sin datos de pago no son deuda todavía
     CP.pendientes = CP.pendientes.filter(c => c.origen === 'gasto' || c.id_cuenta_pago || c.condicion_pago === 'credito' || Number(c.monto_pagado) > 0);
     CP.seleccion = {};
+    (CP.preseleccion || []).forEach(id => { if (CP.pendientes.some(c => c.id === id)) CP.seleccion[id] = true; });
+    CP.preseleccion = null;
     cpPintarPorPagar();
 }
 
@@ -585,5 +693,5 @@ async function cpBorrarCategoria(id) {
     await cpCargarBase(); cpPintarCategorias();
 }
 
-Object.assign(window, { cpTab, cpCerrar, cpCargarResumen, cpCargarGastos, cpPintarGastos, cpAbrirGasto, cpCambioCondicion, cpGuardarGasto, cpDescargarPlantilla, cpDescargarGastos,
+Object.assign(window, { cpCambioMoneda, cpPreviewMoneda, cpAnularGasto, cpTab, cpCerrar, cpCargarResumen, cpCargarGastos, cpPintarGastos, cpAbrirGasto, cpCambioCondicion, cpGuardarGasto, cpDescargarPlantilla, cpDescargarGastos,
     cpLeerCSV, cpImportar, cpSel, cpSelGrupo, cpAbrirPago, cpConfirmarPago, cpAnularPago, cpAbrirCuenta, cpCambioTipoCuenta, cpGuardarCuenta, cpCrearCategoria, cpVisibleCategoria, cpBorrarCategoria });

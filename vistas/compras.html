@@ -11,6 +11,7 @@
         <button id="cp-tab-resumen" onclick="cpTab('resumen')" class="px-4 py-2 text-sm font-bold border-b-2 whitespace-nowrap">Resumen del mes</button>
         <button id="cp-tab-gastos" onclick="cpTab('gastos')" class="px-4 py-2 text-sm font-bold border-b-2 whitespace-nowrap">Facturas y gastos</button>
         <button id="cp-tab-pagar" onclick="cpTab('pagar')" class="px-4 py-2 text-sm font-bold border-b-2 whitespace-nowrap">Por pagar</button>
+        <button id="cp-tab-conciliacion" onclick="cpTab('conciliacion')" class="px-4 py-2 text-sm font-bold border-b-2 whitespace-nowrap">Conciliación</button>
         <button id="cp-tab-cuentas" onclick="cpTab('cuentas')" class="px-4 py-2 text-sm font-bold border-b-2 whitespace-nowrap">Cuentas y tarjetas</button>
         <button id="cp-tab-categorias" onclick="cpTab('categorias')" class="px-4 py-2 text-sm font-bold border-b-2 whitespace-nowrap">Categorías</button>
     </div>
@@ -52,7 +53,7 @@
             <select id="cp-g-cuenta" onchange="cpPintarGastos()" class="px-3 py-2 border rounded-lg bg-white text-sm"></select>
             <select id="cp-g-categoria" onchange="cpPintarGastos()" class="px-3 py-2 border rounded-lg bg-white text-sm"></select>
             <select id="cp-g-estado" onchange="cpPintarGastos()" class="px-3 py-2 border rounded-lg bg-white text-sm">
-                <option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="parcial">Parcial</option><option value="pagado">Pagado</option>
+                <option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="parcial">Parcial</option><option value="pagado">Pagado</option><option value="anulado">Anulados</option>
             </select>
         </div>
         <div class="flex flex-wrap gap-2 text-xs">
@@ -66,7 +67,7 @@
             <table class="min-w-full text-sm">
                 <thead class="bg-slate-50 text-xs font-bold text-slate-500 uppercase"><tr>
                     <th class="px-3 py-2 text-left">Fecha</th><th class="px-3 py-2 text-left">Detalle</th><th class="px-3 py-2 text-left">Categoría</th>
-                    <th class="px-3 py-2 text-left">Pagado con</th><th class="px-3 py-2 text-right">Monto</th><th class="px-3 py-2 text-right">Saldo</th><th class="px-3 py-2 text-center">Estado</th></tr></thead>
+                    <th class="px-3 py-2 text-left">Pagado con</th><th class="px-3 py-2 text-right">Monto</th><th class="px-3 py-2 text-right">Saldo</th><th class="px-3 py-2 text-center">Estado</th><th></th></tr></thead>
                 <tbody id="cp-g-tabla" class="divide-y divide-slate-100"></tbody>
             </table>
             <p id="cp-g-vacio" class="hidden p-8 text-center text-sm text-slate-400">No hay gastos en esta lista.</p>
@@ -86,6 +87,39 @@
                 </table>
             </div>
         </div>
+    </div>
+
+    <!-- ================= CONCILIACIÓN ================= -->
+    <div id="cp-conciliacion" class="hidden space-y-4">
+        <div class="flex flex-col lg:flex-row gap-2 lg:items-center">
+            <select id="cc-cuenta" onchange="ccCargar()" class="px-3 py-2 border rounded-lg bg-white text-sm font-bold"></select>
+            <input id="cc-mes" type="month" onchange="ccCargar()" class="px-3 py-2 border rounded-lg text-sm" title="Mes (vacío = todo)">
+            <select id="cc-estado" onchange="ccPintar()" class="px-3 py-2 border rounded-lg bg-white text-sm">
+                <option value="pendiente">Por revisar</option><option value="">Todas</option><option value="resueltas">Ya resueltas</option></select>
+            <div class="flex gap-2 lg:ml-auto">
+                <button id="cc-btn-sugerencias" onclick="ccAceptarSugerencias()" class="px-3 py-2 border border-emerald-300 text-emerald-700 rounded-lg font-bold text-xs hover:bg-emerald-50">✓ Aceptar sugerencias</button>
+                <label class="px-4 py-2 bg-slate-800 text-white rounded-lg font-bold text-xs cursor-pointer hover:bg-slate-700">⬆️ Subir cartola / estado de cuenta / MP
+                    <input type="file" accept=".csv,.txt,.xls,.xlsx,text/csv" class="hidden" onchange="ccLeerArchivo(this)"></label>
+            </div>
+        </div>
+        <div id="cc-resumen" class="grid grid-cols-2 lg:grid-cols-4 gap-3"></div>
+        <div id="cc-reembolso" class="hidden bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm flex flex-col md:flex-row md:items-center gap-3 justify-between"></div>
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead class="bg-slate-50 text-xs font-bold text-slate-500 uppercase"><tr>
+                    <th class="px-3 py-2 text-left">Fecha</th><th class="px-3 py-2 text-left">Movimiento</th><th class="px-3 py-2 text-right">Monto</th>
+                    <th class="px-3 py-2 text-left">Sugerencia / estado</th><th class="px-3 py-2 text-right"></th></tr></thead>
+                <tbody id="cc-tabla" class="divide-y divide-slate-100"></tbody>
+            </table>
+            <p id="cc-vacio" class="hidden p-8 text-center text-sm text-slate-400"></p>
+        </div>
+        <details class="bg-white rounded-xl border border-slate-200 p-4 text-sm">
+            <summary class="font-bold text-slate-700 cursor-pointer">Archivos subidos y lo que Buddy aprendió</summary>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-3">
+                <div><p class="text-xs font-bold text-slate-500 uppercase mb-2">Importaciones</p><div id="cc-importaciones" class="space-y-1 text-xs"></div></div>
+                <div><p class="text-xs font-bold text-slate-500 uppercase mb-2">Comercios recordados</p><div id="cc-reglas" class="space-y-1 text-xs"></div></div>
+            </div>
+        </details>
     </div>
 
     <!-- ================= CUENTAS ================= -->
@@ -124,8 +158,14 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-500 mb-1">¿Qué se compró? *</label>
                 <input id="cp-n-desc" maxlength="300" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Ej: Envío Blue Express pedido 1042"></div>
-            <div><label class="block text-xs font-bold text-slate-500 mb-1">Monto *</label><input id="cp-n-monto" type="number" min="0" step="any" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
-            <div><label class="block text-xs font-bold text-slate-500 mb-1">Fecha *</label><input id="cp-n-fecha" type="date" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
+            <div class="flex gap-2"><div class="flex-1"><label id="cp-n-monto-label" class="block text-xs font-bold text-slate-500 mb-1">Monto *</label><input id="cp-n-monto" type="number" min="0" step="any" oninput="cpPreviewMoneda()" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
+                <div class="w-24"><label class="block text-xs font-bold text-slate-500 mb-1">Moneda</label><select id="cp-n-moneda" onchange="cpCambioMoneda()" class="w-full px-2 py-2 border rounded-lg bg-white text-sm"></select></div></div>
+            <div><label class="block text-xs font-bold text-slate-500 mb-1">Fecha *</label><input id="cp-n-fecha" type="date" onchange="cpCambioMoneda()" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
+            <div id="cp-n-tasa-box" class="hidden md:col-span-2 bg-sky-50 border border-sky-200 rounded-lg p-3">
+                <div class="flex items-center gap-2"><label class="text-xs font-bold text-slate-600 whitespace-nowrap">Pesos por 1 unidad</label>
+                    <input id="cp-n-tasa" type="number" min="0" step="any" oninput="cpPreviewMoneda()" class="w-32 px-2 py-1 border rounded text-sm">
+                    <span id="cp-n-tasa-total" class="font-black text-slate-800"></span></div>
+                <p id="cp-n-tasa-info" class="text-[11px] text-slate-500 mt-1"></p></div>
             <div><label class="block text-xs font-bold text-slate-500 mb-1">Categoría</label><select id="cp-n-cat" class="w-full px-3 py-2 border rounded-lg bg-white text-sm"></select></div>
             <div><label class="block text-xs font-bold text-slate-500 mb-1">Proveedor</label><input id="cp-n-prov" list="cp-lista-proveedores" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Opcional"></div>
             <div><label class="block text-xs font-bold text-slate-500 mb-1">¿Cómo se pagó? *</label>
@@ -183,6 +223,39 @@
             <button onclick="cpCerrar('cp-modal-pago')" class="px-4 py-2 border rounded-lg text-sm font-bold text-slate-600">Cancelar</button>
             <button id="cp-pg-guardar" onclick="cpConfirmarPago()" class="px-6 py-2 bg-blue-600 text-white rounded-lg font-bold text-sm">Registrar pago</button>
         </div>
+    </div>
+</div>
+
+<!-- ================= MODAL SUBIR CARTOLA ================= -->
+<div id="cc-modal-subir" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 space-y-4">
+        <div class="flex justify-between items-center"><h3 class="text-lg font-black text-slate-800">Subir movimientos</h3><button onclick="cpCerrar('cc-modal-subir')" class="text-slate-400 text-xl">✕</button></div>
+        <p id="cc-s-formato" class="text-sm text-slate-600"></p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-500 mb-1">¿De qué cuenta es? *</label><select id="cc-s-cuenta" onchange="ccPrevisualizar()" class="w-full px-3 py-2 border rounded-lg bg-white text-sm"></select></div>
+            <div id="cc-s-map" class="hidden md:col-span-2 grid grid-cols-2 md:grid-cols-4 gap-2">
+                <div><label class="block text-[11px] font-bold text-slate-500">Fecha</label><select id="cc-m-fecha" onchange="ccPrevisualizar()" class="w-full px-2 py-1 border rounded text-xs bg-white"></select></div>
+                <div><label class="block text-[11px] font-bold text-slate-500">Detalle</label><select id="cc-m-desc" onchange="ccPrevisualizar()" class="w-full px-2 py-1 border rounded text-xs bg-white"></select></div>
+                <div><label class="block text-[11px] font-bold text-slate-500">Cargo / monto</label><select id="cc-m-cargo" onchange="ccPrevisualizar()" class="w-full px-2 py-1 border rounded text-xs bg-white"></select></div>
+                <div><label class="block text-[11px] font-bold text-slate-500">Abono</label><select id="cc-m-abono" onchange="ccPrevisualizar()" class="w-full px-2 py-1 border rounded text-xs bg-white"></select></div>
+            </div>
+            <label id="cc-s-signo-box" class="hidden md:col-span-2 flex items-center gap-2 text-xs text-slate-600"><input id="cc-s-signo" type="checkbox" onchange="ccPrevisualizar()"> En este archivo los montos positivos son <b>compras / cargos</b> (típico de estados de cuenta de tarjeta)</label>
+        </div>
+        <div id="cc-s-preview" class="text-xs"></div>
+        <div class="flex justify-end gap-2">
+            <button onclick="cpCerrar('cc-modal-subir')" class="px-4 py-2 border rounded-lg text-sm font-bold text-slate-600">Cancelar</button>
+            <button id="cc-s-importar" onclick="ccImportar()" class="px-6 py-2 bg-emerald-600 text-white rounded-lg font-bold text-sm">Importar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ================= MODAL RESOLVER LÍNEA ================= -->
+<div id="cc-modal-resolver" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-xl max-h-[90vh] overflow-y-auto p-6 space-y-4">
+        <div class="flex justify-between items-start"><div><h3 class="text-lg font-black text-slate-800">¿Qué es este movimiento?</h3><p id="cc-r-linea" class="text-sm text-slate-500 mt-1"></p></div>
+            <button onclick="cpCerrar('cc-modal-resolver')" class="text-slate-400 text-xl">✕</button></div>
+        <div id="cc-r-opciones" class="space-y-3"></div>
+        <label class="flex items-center gap-2 text-xs text-slate-600"><input id="cc-r-recordar" type="checkbox" checked> Recordar este comercio para la próxima vez</label>
     </div>
 </div>
 
