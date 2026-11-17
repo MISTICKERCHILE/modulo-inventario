@@ -53,7 +53,7 @@
             <select id="cp-g-cuenta" onchange="cpPintarGastos()" class="px-3 py-2 border rounded-lg bg-white text-sm"></select>
             <select id="cp-g-categoria" onchange="cpPintarGastos()" class="px-3 py-2 border rounded-lg bg-white text-sm"></select>
             <select id="cp-g-estado" onchange="cpPintarGastos()" class="px-3 py-2 border rounded-lg bg-white text-sm">
-                <option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="parcial">Parcial</option><option value="pagado">Pagado</option>
+                <option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="parcial">Parcial</option><option value="pagado">Pagado</option><option value="anulado">Anulados</option>
             </select>
         </div>
         <div class="flex flex-wrap gap-2 text-xs">
@@ -67,7 +67,7 @@
             <table class="min-w-full text-sm">
                 <thead class="bg-slate-50 text-xs font-bold text-slate-500 uppercase"><tr>
                     <th class="px-3 py-2 text-left">Fecha</th><th class="px-3 py-2 text-left">Detalle</th><th class="px-3 py-2 text-left">Categoría</th>
-                    <th class="px-3 py-2 text-left">Pagado con</th><th class="px-3 py-2 text-right">Monto</th><th class="px-3 py-2 text-right">Saldo</th><th class="px-3 py-2 text-center">Estado</th></tr></thead>
+                    <th class="px-3 py-2 text-left">Pagado con</th><th class="px-3 py-2 text-right">Monto</th><th class="px-3 py-2 text-right">Saldo</th><th class="px-3 py-2 text-center">Estado</th><th></th></tr></thead>
                 <tbody id="cp-g-tabla" class="divide-y divide-slate-100"></tbody>
             </table>
             <p id="cp-g-vacio" class="hidden p-8 text-center text-sm text-slate-400">No hay gastos en esta lista.</p>
@@ -158,8 +158,14 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-500 mb-1">¿Qué se compró? *</label>
                 <input id="cp-n-desc" maxlength="300" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Ej: Envío Blue Express pedido 1042"></div>
-            <div><label class="block text-xs font-bold text-slate-500 mb-1">Monto *</label><input id="cp-n-monto" type="number" min="0" step="any" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
-            <div><label class="block text-xs font-bold text-slate-500 mb-1">Fecha *</label><input id="cp-n-fecha" type="date" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
+            <div class="flex gap-2"><div class="flex-1"><label id="cp-n-monto-label" class="block text-xs font-bold text-slate-500 mb-1">Monto *</label><input id="cp-n-monto" type="number" min="0" step="any" oninput="cpPreviewMoneda()" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
+                <div class="w-24"><label class="block text-xs font-bold text-slate-500 mb-1">Moneda</label><select id="cp-n-moneda" onchange="cpCambioMoneda()" class="w-full px-2 py-2 border rounded-lg bg-white text-sm"></select></div></div>
+            <div><label class="block text-xs font-bold text-slate-500 mb-1">Fecha *</label><input id="cp-n-fecha" type="date" onchange="cpCambioMoneda()" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
+            <div id="cp-n-tasa-box" class="hidden md:col-span-2 bg-sky-50 border border-sky-200 rounded-lg p-3">
+                <div class="flex items-center gap-2"><label class="text-xs font-bold text-slate-600 whitespace-nowrap">Pesos por 1 unidad</label>
+                    <input id="cp-n-tasa" type="number" min="0" step="any" oninput="cpPreviewMoneda()" class="w-32 px-2 py-1 border rounded text-sm">
+                    <span id="cp-n-tasa-total" class="font-black text-slate-800"></span></div>
+                <p id="cp-n-tasa-info" class="text-[11px] text-slate-500 mt-1"></p></div>
             <div><label class="block text-xs font-bold text-slate-500 mb-1">Categoría</label><select id="cp-n-cat" class="w-full px-3 py-2 border rounded-lg bg-white text-sm"></select></div>
             <div><label class="block text-xs font-bold text-slate-500 mb-1">Proveedor</label><input id="cp-n-prov" list="cp-lista-proveedores" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Opcional"></div>
             <div><label class="block text-xs font-bold text-slate-500 mb-1">¿Cómo se pagó? *</label>

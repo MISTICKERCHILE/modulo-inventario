@@ -42,7 +42,8 @@ async function ccCargar() {
             cpTodo(() => { let q = clienteSupabase.from('movimientos_bancarios').select('*').eq('id_cuenta', cta).order('fecha', { ascending: false }).order('created_at');
                 if (ym) { const [d, h] = cpRangoMes(ym); q = q.gte('fecha', d).lte('fecha', h); } return q; }),
             cpTodo(() => clienteSupabase.from('cxp_pagos').select('id, fecha, monto, referencia, forma, id_cuenta').eq('id_empresa', e).order('fecha', { ascending: false })),
-            cpTodo(() => clienteSupabase.from('compras').select('id, fecha_compra, descripcion, total_compra, total_factura, monto_pagado, estado_pago, observaciones_factura').eq('id_cuenta_pago', cta).order('fecha_compra', { ascending: false })),
+            cpTodo(() => clienteSupabase.from('compras').select('id, fecha_compra, descripcion, total_compra, total_factura, monto_pagado, estado_pago, observaciones_factura, id_cuenta_pago')
+                .eq('id_empresa', e).neq('estado_pago', 'anulado').order('fecha_compra', { ascending: false })),
             cpTodo(() => clienteSupabase.from('movimientos_bancarios').select('vinculo_tipo, vinculo_id').eq('id_empresa', e).not('vinculo_id', 'is', null)),
             clienteSupabase.from('reglas_comercio').select('*').eq('id_empresa', e).order('patron'),
             clienteSupabase.from('importaciones_cartola').select('*').eq('id_cuenta', cta).order('created_at', { ascending: false }).limit(30)
@@ -73,10 +74,21 @@ function ccCalcularSugerencias() {
             const pago = CC.pagos.filter(p => !usados.has('pago:' + p.id) && Number(p.monto) === abs && ccDias(p.fecha, m.fecha) <= 7)
                 .sort((a, b) => ccDias(a.fecha, m.fecha) - ccDias(b.fecha, m.fecha))[0];
             if (pago) { usados.add('pago:' + pago.id); return CC.sug[m.id] = { accion: 'vincular', datos: { tipo: 'pago', id: pago.id }, segura: true, texto: `Calza con el pago “${pago.referencia || 'sin referencia'}” del ${cpFecha(pago.fecha)}` }; }
-            const comp = CC.compras.filter(c => !usados.has('compra:' + c.id) && cpTotal(c) === abs && ccDias(c.fecha_compra, m.fecha) <= 7)
-                .sort((a, b) => ccDias(a.fecha_compra, m.fecha) - ccDias(b.fecha_compra, m.fecha))[0];
-            if (comp) { usados.add('compra:' + comp.id); return CC.sug[m.id] = { accion: 'vincular', datos: { tipo: 'compra', id: comp.id }, segura: true, texto: `Calza con el gasto “${comp.descripcion}” del ${cpFecha(comp.fecha_compra)}` }; }
-            if (regla) return CC.sug[m.id] = ccSugRegla(regla);
+            const exactos = CC.compras.filter(c => !usados.has('compra:' + c.id) && cpTotal(c) === abs && ccDias(c.fecha_compra, m.fecha) <= 7)
+                .sort((a, b) => (a.id_cuenta_pago !== m.id_cuenta) - (b.id_cuenta_pago !== m.id_cuenta) || ccDias(a.fecha_compra, m.fecha) - ccDias(b.fecha_compra, m.fecha));
+            const comp = exactos[0];
+            if (comp) {
+                usados.add('compra:' + comp.id);
+                const misma = comp.id_cuenta_pago === m.id_cuenta;
+                return CC.sug[m.id] = { accion: 'vincular', datos: { tipo: 'compra', id: comp.id }, segura: misma,
+                    texto: `Calza con el gasto “${comp.descripcion}” del ${cpFecha(comp.fecha_compra)}${misma ? '' : ` · ⚠️ registrado con ${cpCuenta(comp.id_cuenta_pago)?.nombre || 'otra cuenta'}`}` };
+            }
+            if (regla) {
+                // Antes de crear un gasto por regla, revisar que no exista uno parecido (±10%, ±7 días) en cualquier cuenta
+                const par = regla.accion === 'empresa' && CC.compras.find(c => !usados.has('compra:' + c.id) && Math.abs(cpTotal(c) - abs) <= abs * 0.1 && ccDias(c.fecha_compra, m.fecha) <= 7);
+                if (par) return CC.sug[m.id] = { aviso: true, texto: `⚠️ Comercio recordado, pero ya hay un gasto parecido: “${par.descripcion}” ${cpFmt(cpTotal(par))} del ${cpFecha(par.fecha_compra)} (${cpCuenta(par.id_cuenta_pago)?.nombre || 'a crédito'}). Revísalo antes de crear otro.` };
+                return CC.sug[m.id] = ccSugRegla(regla);
+            }
             const cerca = CC.pagos.filter(p => !usados.has('pago:' + p.id) && ccDias(p.fecha, m.fecha) <= 3 && Math.abs(Number(p.monto) - abs) / abs < 0.5)[0];
             if (cerca) return CC.sug[m.id] = { aviso: true, texto: `⚠️ El ${cpFecha(cerca.fecha)} registraste un pago de ${cpFmt(cerca.monto)} (“${cerca.referencia || ''}”): diferencia de ${cpFmt(Math.abs(Number(cerca.monto) - abs))}` };
             CC.sug[m.id] = { texto: cta?.tipo === 'reembolsable' ? '¿Gasto de la empresa o personal?' : 'No encontré un registro igual' };
@@ -127,7 +139,7 @@ function ccPintar() {
     const banner = document.getElementById('cc-reembolso');
     if (cta?.tipo === 'reembolsable') {
         const ids = new Set(CC.movs.filter(m => m.vinculo_tipo === 'compra').map(m => m.vinculo_id));
-        const pendR = CC.compras.filter(c => ids.has(c.id) && ['pendiente', 'parcial'].includes(c.estado_pago));
+        const pendR = CC.compras.filter(c => c.id_cuenta_pago === cta.id && ids.has(c.id) && ['pendiente', 'parcial'].includes(c.estado_pago));
         banner.classList.toggle('hidden', !pendR.length);
         if (pendR.length) banner.innerHTML = `<p><b>${pendR.length} gastos</b> de este estado de cuenta, por <b>${cpFmt(pendR.reduce((s, c) => s + cpSaldo(c), 0))}</b>, están pendientes de reembolso a ${cpEsc(cta.titular || cta.nombre)}.</p>
             <button onclick="ccIrAReembolsar()" class="px-4 py-2 bg-amber-600 text-white rounded-lg font-bold text-xs whitespace-nowrap">Generar reembolso →</button>`;
@@ -207,7 +219,8 @@ function ccAbrirResolver(id) {
     if (m.monto < 0) {
         const cand = [
             ...CC.pagos.filter(p => !CC.vinculados.has('pago:' + p.id)).map(p => ({ tipo: 'pago', id: p.id, monto: Number(p.monto), fecha: p.fecha, txt: `Pago · ${p.referencia || 'sin referencia'}` })),
-            ...CC.compras.filter(c => !CC.vinculados.has('compra:' + c.id)).map(c => ({ tipo: 'compra', id: c.id, monto: cpTotal(c), fecha: c.fecha_compra, txt: `Gasto · ${c.descripcion}` }))
+            ...CC.compras.filter(c => !CC.vinculados.has('compra:' + c.id)).map(c => ({ tipo: 'compra', id: c.id, monto: cpTotal(c), fecha: c.fecha_compra,
+                txt: `Gasto · ${c.descripcion}${c.id_cuenta_pago !== m.id_cuenta ? ' [' + (cpCuenta(c.id_cuenta_pago)?.nombre || 'a crédito') + ']' : ''}` }))
         ].map(c => ({ ...c, score: Math.abs(c.monto - abs) / Math.max(abs, 1) * 30 + ccDias(c.fecha, m.fecha) })).sort((a, b) => a.score - b.score).slice(0, 15);
         if (cand.length) html += caja('Ya lo registré', `<div class="flex gap-2"><select id="cc-r-cand" class="flex-1 px-2 py-1.5 border rounded-lg text-xs bg-white">${cand.map(c =>
             `<option value="${c.tipo}:${c.id}">${cpFecha(c.fecha)} · ${cpFmt(c.monto)} · ${cpEsc(c.txt.slice(0, 60))}${c.monto !== abs ? ' (≠)' : ''}</option>`).join('')}</select>
