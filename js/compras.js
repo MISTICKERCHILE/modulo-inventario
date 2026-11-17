@@ -5,7 +5,7 @@
 // Las escrituras de dinero pasan por funciones de la base
 // (registrar_gasto, registrar_pago_compras) para que los saldos cuadren.
 // ==========================================================
-const CP = { cuentas: [], categorias: [], ocultas: new Set(), proveedores: [], gastos: [], pendientes: [], pagos: [], monedas: ['CLP'], seleccion: {}, importacion: null };
+const CP = window.CP = { cuentas: [], categorias: [], ocultas: new Set(), proveedores: [], gastos: [], pendientes: [], pagos: [], monedas: ['CLP'], seleccion: {}, importacion: null };
 const cpEsc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const cpDec = (m) => ['CLP', 'COP', 'PYG', 'JPY'].includes(m) ? 0 : 2;
 const cpFmt = (n, m) => (m && m !== 'CLP' ? m + ' ' : '$') + Number(n || 0).toLocaleString('es-CL', { minimumFractionDigits: cpDec(m), maximumFractionDigits: cpDec(m) });
@@ -64,7 +64,7 @@ window.cargarCompras = async function (tab) {
 };
 
 function cpTab(t) {
-    ['resumen', 'gastos', 'pagar', 'cuentas', 'categorias'].forEach(k => {
+    ['resumen', 'gastos', 'pagar', 'conciliacion', 'cuentas', 'categorias'].forEach(k => {
         document.getElementById('cp-' + k).classList.toggle('hidden', k !== t);
         document.getElementById('cp-tab-' + k).className = 'px-4 py-2 text-sm font-bold border-b-2 whitespace-nowrap ' + (k === t ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-slate-500 hover:text-slate-800');
     });
@@ -72,6 +72,7 @@ function cpTab(t) {
     if (t === 'gastos') cpCargarGastos();
     if (t === 'pagar') cpCargarPorPagar();
     if (t === 'cuentas') cpCargarCuentas();
+    if (t === 'conciliacion' && typeof window.ccIniciar === 'function') window.ccIniciar();
     if (t === 'categorias') cpPintarCategorias();
 }
 function cpCerrar(id) { document.getElementById(id).classList.add('hidden'); }
@@ -407,6 +408,8 @@ async function cpCargarPorPagar() {
     // OC de Inventario sin datos de pago no son deuda todavía
     CP.pendientes = CP.pendientes.filter(c => c.origen === 'gasto' || c.id_cuenta_pago || c.condicion_pago === 'credito' || Number(c.monto_pagado) > 0);
     CP.seleccion = {};
+    (CP.preseleccion || []).forEach(id => { if (CP.pendientes.some(c => c.id === id)) CP.seleccion[id] = true; });
+    CP.preseleccion = null;
     cpPintarPorPagar();
 }
 
