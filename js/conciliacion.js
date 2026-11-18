@@ -300,6 +300,10 @@ function ccDetectar(nombre, filas) {
     for (let i = 0; i < Math.min(filas.length, 40); i++) {
         const h = filas[i].map(ccN);
         if (h.includes('source id') || (h.includes('transaction amount') && h.includes('real amount'))) { a.formato = 'mercadopago'; a.header = i; a.h = filas[i].map(x => String(x).trim()); return a; }
+        // Reporte "Movimientos" de Mercado Pago (cada cobro y su comisión vienen en filas separadas)
+        if (h.includes('tipo de operacion') && h.includes('importe') && (h.includes('operacion relacionada') || h.includes('numero de movimiento'))) {
+            a.formato = 'mp_movimientos'; a.header = i; a.h = h; return a;
+        }
         const busca = (k) => h.findIndex(x => CC_ALIAS[k].includes(x));
         const fe = busca('fecha'), de = busca('desc');
         if (fe >= 0 && de >= 0) {
@@ -334,6 +338,7 @@ function ccConvertir() {
         });
         return out;
     }
+    if (a.formato === 'mp_movimientos') return ccConvertirMpMovimientos(a);
     const c = a.cols, inv = document.getElementById('cc-s-signo').checked;
     a.filas.slice(a.header + 1).forEach(r => {
         const fecha = ccFechaCelda(r[c.fecha]); const desc = String(r[c.desc] ?? '').replace(/\s+/g, ' ').trim();
@@ -347,19 +352,55 @@ function ccConvertir() {
     return out;
 }
 
+// Agrupa por "Operación relacionada": Cobro + Costo = una venta con su comisión;
+// Ingreso de dinero + Pago por el mismo monto = pago hecho con tarjeta o banco a través de Mercado Pago (no usa saldo).
+function ccConvertirMpMovimientos(a) {
+    const ix = (...ks) => a.h.findIndex(x => ks.includes(x));
+    const iF = ix('fecha de pago', 'fecha'), iT = ix('tipo de operacion'), iN = ix('numero de movimiento'), iO = ix('operacion relacionada'), iI = ix('importe');
+    const ops = new Map();
+    a.filas.slice(a.header + 1).forEach((r, k) => {
+        const v = r[iF]; let fecha;
+        if (v instanceof Date) fecha = ccFechaCelda(v);
+        else if (/T.*(Z|[+-]\d{2}:?\d{2})$/.test(String(v))) { const d = new Date(v); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); fecha = d.toISOString().slice(0, 10); } // hora UTC → día local
+        else fecha = String(v || '').slice(0, 10);
+        const imp = ccMonto(r[iI]); if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha) || !imp) return;
+        const op = String((iO >= 0 && r[iO]) || (iN >= 0 && r[iN]) || 'fila' + k);
+        if (!ops.has(op)) ops.set(op, { op, fecha, filas: [] });
+        ops.get(op).filas.push({ tipo: ccN(r[iT]), imp, num: String(r[iN] || '') });
+    });
+    const out = [];
+    for (const o of ops.values()) {
+        const suma = (t) => o.filas.filter(f => f.tipo === t).reduce((s, f) => s + f.imp, 0);
+        const cobro = suma('cobro'), costo = suma('costo de mercado pago'), ingreso = suma('ingreso de dinero'), pago = suma('pago');
+        const otros = o.filas.filter(f => !['cobro', 'costo de mercado pago', 'ingreso de dinero', 'pago'].includes(f.tipo));
+        const ref = 'op ' + o.op;
+        if (cobro > 0) out.push({ fecha: o.fecha, monto: cobro + costo, monto_bruto: cobro, comision: Math.abs(costo) || null, descripcion: `Venta Mercado Pago (${ref})`, referencia: o.op });
+        else if (costo) out.push({ fecha: o.fecha, monto: costo, descripcion: `Costo de Mercado Pago (${ref})`, referencia: o.op });
+        if (pago < 0 && ingreso > 0 && Math.abs(ingreso + pago) < 1) out.push({ fecha: o.fecha, monto: pago, descripcion: `Pago con tarjeta o banco vía Mercado Pago, no usa saldo (${ref})`, referencia: o.op + '-p' });
+        else {
+            if (pago) out.push({ fecha: o.fecha, monto: pago, descripcion: `Pago con saldo Mercado Pago (${ref})`, referencia: o.op + '-p' });
+            if (ingreso) out.push({ fecha: o.fecha, monto: ingreso, descripcion: `Ingreso de dinero (${ref})`, referencia: o.op + '-i' });
+        }
+        otros.forEach(f => out.push({ fecha: o.fecha, monto: f.imp, descripcion: `${f.tipo.charAt(0).toUpperCase() + f.tipo.slice(1)} (${ref})`, referencia: f.num || null }));
+    }
+    return out.sort((x, y) => x.fecha.localeCompare(y.fecha));
+}
+
 function ccAbrirSubir() {
     const a = CC.archivo;
     const sel = document.getElementById('cc-s-cuenta');
     sel.innerHTML = CP.cuentas.filter(c => c.activo).map(c => `<option value="${c.id}">${cpEsc(c.nombre)}${c.ultimos_4 ? ' ···· ' + c.ultimos_4 : ''}</option>`).join('');
     const porDigitos = a.ult4 && CP.cuentas.find(c => c.ultimos_4 === a.ult4);
-    const sugerida = porDigitos || (a.formato === 'mercadopago' ? CP.cuentas.find(c => c.tipo === 'billetera') : null) || cpCuenta(document.getElementById('cc-cuenta').value);
+    const sugerida = porDigitos || (a.formato.startsWith('mp') || a.formato === 'mercadopago' ? CP.cuentas.find(c => c.tipo === 'billetera') : null) || cpCuenta(document.getElementById('cc-cuenta').value);
     if (sugerida) sel.value = sugerida.id;
+    const esMP = a.formato === 'mercadopago' || a.formato === 'mp_movimientos';
     document.getElementById('cc-s-formato').innerHTML = a.formato === 'mercadopago' ? '📱 Reconocí un <b>reporte de liquidaciones de Mercado Pago</b>: cada venta trae su comisión.'
+        : a.formato === 'mp_movimientos' ? '📱 Reconocí un <b>reporte de movimientos de Mercado Pago</b>: junté cada cobro con su comisión.'
         : a.header >= 0 ? `🏦 Reconocí una <b>cartola / estado de cuenta</b>${a.ult4 ? ` de la cuenta terminada en <b>${a.ult4}</b>` : ''}. Revisa que las columnas estén bien.`
         : '⚠️ No reconocí las columnas. Elige cuál es cada una.';
     const map = document.getElementById('cc-s-map');
-    map.classList.toggle('hidden', a.formato === 'mercadopago');
-    if (a.formato !== 'mercadopago') {
+    map.classList.toggle('hidden', esMP);
+    if (!esMP) {
         if (a.header < 0) { a.header = 0; a.cols = { fecha: 0, desc: 1, cargo: 2, abono: -1, saldo: -1, ref: -1 }; }
         const h = a.filas[a.header] || [];
         const ops = (v, vacio) => (vacio ? '<option value="-1">—</option>' : '') + h.map((x, i) => `<option value="${i}" ${i === v ? 'selected' : ''}>${cpEsc(String(x).slice(0, 25) || 'Columna ' + (i + 1))}</option>`).join('');
@@ -375,12 +416,13 @@ function ccAbrirSubir() {
 
 function ccPrevisualizar(inicial) {
     const a = CC.archivo; if (!a) return;
-    if (a.formato !== 'mercadopago' && !inicial) {
+    const esMP = a.formato === 'mercadopago' || a.formato === 'mp_movimientos';
+    if (!esMP && !inicial) {
         a.cols.fecha = +document.getElementById('cc-m-fecha').value; a.cols.desc = +document.getElementById('cc-m-desc').value;
         a.cols.cargo = +document.getElementById('cc-m-cargo').value; a.cols.abono = +document.getElementById('cc-m-abono').value;
     }
     const cta = cpCuenta(document.getElementById('cc-s-cuenta').value);
-    const unaColumna = a.formato !== 'mercadopago' && !(a.cols.abono >= 0 && a.cols.abono !== a.cols.cargo);
+    const unaColumna = !esMP && !(a.cols.abono >= 0 && a.cols.abono !== a.cols.cargo);
     const box = document.getElementById('cc-s-signo-box'); box.classList.toggle('hidden', !unaColumna);
     if (inicial && unaColumna && ['tarjeta_credito', 'reembolsable'].includes(cta?.tipo)) {
         // en estados de cuenta las compras suelen venir positivas
