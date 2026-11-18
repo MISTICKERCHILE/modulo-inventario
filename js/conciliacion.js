@@ -381,7 +381,9 @@ function ccConvertirMpMovimientos(a) {
             if (pago) out.push({ fecha: o.fecha, monto: pago, descripcion: `Pago con saldo Mercado Pago (${ref})`, referencia: o.op + '-p' });
             if (ingreso) out.push({ fecha: o.fecha, monto: ingreso, descripcion: `Ingreso de dinero (${ref})`, referencia: o.op + '-i' });
         }
-        otros.forEach(f => out.push({ fecha: o.fecha, monto: f.imp, descripcion: `${f.tipo.charAt(0).toUpperCase() + f.tipo.slice(1)} (${ref})`, referencia: f.num || null }));
+        // Descuentos (descuento recibido + pago con descuento) se anulan entre sí: no se suben
+        if (Math.abs(otros.reduce((s, f) => s + f.imp, 0)) >= 1)
+            otros.forEach(f => out.push({ fecha: o.fecha, monto: f.imp, descripcion: `${f.tipo.charAt(0).toUpperCase() + f.tipo.slice(1)} (${ref})`, referencia: f.num || null }));
     }
     return out.sort((x, y) => x.fecha.localeCompare(y.fecha));
 }
