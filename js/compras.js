@@ -146,7 +146,7 @@ async function cpCargarGastos() {
     const ym = document.getElementById('cp-g-mes').value;
     try {
         CP.gastos = await cpTodo(() => {
-            let q = clienteSupabase.from('compras').select('id, fecha_compra, descripcion, numero_documento, numero_factura, id_proveedor, id_categoria_gasto, id_cuenta_pago, total_compra, total_factura, monto_pagado, estado_pago, condicion_pago, fecha_vencimiento, origen, moneda, moneda_original, monto_original, tasa_cambio, tipo_documento, referencia_externa, observaciones_factura')
+            let q = clienteSupabase.from('compras').select('*')
                 .eq('id_empresa', window.miEmpresaId).order('fecha_compra', { ascending: false }).order('created_at', { ascending: false });
             if (ym) { const [d, h] = cpRangoMes(ym); q = q.gte('fecha_compra', d).lte('fecha_compra', h); }
             return q;
@@ -171,28 +171,163 @@ function cpFiltrarGastos() {
     });
 }
 
+const CP_UI = (() => { try { return JSON.parse(localStorage.getItem('cp_ui') || '{}'); } catch (e) { return {}; } })();
+const cpGuardarUI = () => { try { localStorage.setItem('cp_ui', JSON.stringify(CP_UI)); } catch (e) { } };
+CP_UI.meses ||= {};
+const CP_MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+const cpNombreMes = (ym) => `${CP_MESES[+ym.slice(5, 7) - 1]} ${ym.slice(0, 4)}`;
+function cpPlegarMes(ym) { CP_UI.meses[ym] = !cpMesAbierto(ym); cpGuardarUI(); cpPintarGastos(); }
+const cpMesAbierto = (ym) => CP_UI.meses[ym] ?? (ym >= (CP.gastos[0]?.fecha_compra || '').slice(0, 7));
+// Rendición / lote de reembolso al que pertenece un gasto
+const cpLote = (c) => c.referencia_lote || (String(c.observaciones_factura || '').match(/Rendición #[0-9]+-[0-9]+(?:-[0-9]+)?(?: Parte [0-9]+)?/) || [])[0] || '';
+
 function cpPintarGastos() {
     const filas = cpFiltrarGastos();
     const total = filas.filter(g => g.estado_pago !== 'anulado').reduce((s, g) => s + cpTotal(g), 0);
     document.getElementById('cp-g-total').textContent = `${filas.length} registros · ${cpFmt(total)}`;
-    document.getElementById('cp-g-tabla').innerHTML = filas.slice(0, 1000).map(g => {
+    const meses = new Map();
+    filas.slice(0, 3000).forEach(g => { const ym = String(g.fecha_compra).slice(0, 7); if (!meses.has(ym)) meses.set(ym, []); meses.get(ym).push(g); });
+    const filtrando = !!document.getElementById('cp-g-buscar').value.trim();
+    document.getElementById('cp-g-tabla').innerHTML = [...meses.entries()].map(([ym, gs]) => {
+        const abierto = filtrando || cpMesAbierto(ym);
+        const tot = gs.filter(g => g.estado_pago !== 'anulado').reduce((s, g) => s + cpTotal(g), 0);
+        const pend = gs.filter(g => cpSaldo(g) && g.estado_pago !== 'anulado').length;
+        const cab = `<tr class="bg-slate-100/80 border-t-2 border-slate-200 cursor-pointer" onclick="cpPlegarMes('${ym}')"><td colspan="8" class="px-3 py-2">
+            <div class="flex items-center gap-3"><span class="text-slate-400 text-xs w-3">${abierto ? '▾' : '▸'}</span>
+            <span class="font-black text-slate-700">${cpNombreMes(ym)}</span><span class="text-xs text-slate-500">${gs.length} gastos</span>
+            ${pend ? `<span class="text-[11px] font-bold text-amber-700">${pend} por pagar</span>` : ''}
+            <span class="ml-auto font-black text-slate-800">${cpFmt(tot)}</span></div></td></tr>`;
+        if (!abierto) return cab;
+        return cab + gs.map(g => {
         const [et, col] = ESTADOS[g.estado_pago] || ['—', 'bg-slate-100 text-slate-500'];
         const cta = cpCuenta(g.id_cuenta_pago);
         const sinDatos = g.origen === 'orden_compra' && !g.id_cuenta_pago && g.condicion_pago !== 'credito' && !Number(g.monto_pagado);
-        const prov = cpProveedor(g.id_proveedor)?.nombre;
+        const prov = cpProveedor(g.id_proveedor)?.nombre, lote = cpLote(g);
         return `<tr>
             <td class="px-3 py-2 whitespace-nowrap text-slate-500">${cpFecha(g.fecha_compra)}</td>
             <td class="px-3 py-2"><p class="font-bold text-slate-700">${cpEsc(g.descripcion || (g.origen === 'orden_compra' ? 'Orden de compra ' + (g.numero_documento || '') : '—'))}</p>
-                ${prov ? `<p class="text-[11px] text-slate-400">${cpEsc(prov)}</p>` : ''}</td>
+                ${prov || lote ? `<p class="text-[11px] text-slate-400">${[prov, lote].filter(Boolean).map(cpEsc).join(' · ')}</p>` : ''}</td>
             <td class="px-3 py-2 text-slate-500 text-xs">${cpEsc(cpCategoria(g.id_categoria_gasto)?.nombre || '—')}</td>
             <td class="px-3 py-2 text-xs">${cta ? cpEsc(cta.nombre) : (g.condicion_pago === 'credito' ? '<span class="text-blue-600 font-bold">A crédito</span>' : '—')}</td>
             <td class="px-3 py-2 text-right font-bold whitespace-nowrap ${g.estado_pago === 'anulado' ? 'line-through text-slate-400' : ''}">${cpFmt(cpTotal(g), g.moneda)}
                 ${g.moneda_original ? `<p class="text-[11px] font-normal text-slate-400">${cpFmt(g.monto_original, g.moneda_original)} × ${cpFmt(g.tasa_cambio)}</p>` : ''}</td>
             <td class="px-3 py-2 text-right whitespace-nowrap ${cpSaldo(g) ? 'font-black text-amber-700' : 'text-slate-300'}">${cpSaldo(g) ? cpFmt(cpSaldo(g), g.moneda) : '—'}</td>
             <td class="px-3 py-2 text-center">${sinDatos ? '<span class="px-2 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-500" title="Orden de compra de Inventario sin datos de pago">Por completar</span>' : `<span class="px-2 py-1 rounded-full text-[11px] font-bold ${col}">${et}</span>`}</td>
-            <td class="px-3 py-2 text-right">${cpEsAdmin() && g.origen === 'gasto' && g.estado_pago !== 'anulado' ? `<button onclick="cpAnularGasto('${g.id}')" class="text-[11px] font-bold text-slate-400 hover:text-red-600">Anular</button>` : ''}</td></tr>`;
+            <td class="px-2 py-2 text-right"><button onclick="cpMenuGasto(event, '${g.id}')" class="w-8 h-8 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 font-black" title="Opciones">⋯</button></td></tr>`;
+        }).join('');
     }).join('');
     document.getElementById('cp-g-vacio').classList.toggle('hidden', filas.length > 0);
+}
+
+// ---------- Menú ⋯ (flotante)
+function cpMenu(ev, opciones) {
+    ev.stopPropagation(); cpCerrarMenu();
+    const r = ev.currentTarget.getBoundingClientRect();
+    const m = document.createElement('div'); m.id = 'cp-menu';
+    m.className = 'fixed z-[60] bg-white border border-slate-200 rounded-xl shadow-xl py-1 min-w-[170px] text-sm';
+    m.innerHTML = opciones.map(([txt, fn, peligro]) => `<button onclick="cpCerrarMenu(); ${fn}" class="block w-full text-left px-4 py-2 hover:bg-slate-50 ${peligro ? 'text-red-600' : 'text-slate-700'} font-bold">${txt}</button>`).join('');
+    document.body.appendChild(m);
+    const top = r.bottom + 4 + m.offsetHeight > innerHeight ? r.top - m.offsetHeight - 4 : r.bottom + 4;
+    m.style.top = top + 'px'; m.style.left = Math.max(8, r.right - m.offsetWidth) + 'px';
+    setTimeout(() => document.addEventListener('click', cpCerrarMenu, { once: true }), 0);
+}
+function cpCerrarMenu() { document.getElementById('cp-menu')?.remove(); }
+function cpMenuGasto(ev, id) {
+    const g = CP.gastos.find(x => x.id === id); if (!g) return;
+    const op = [['🔎 Ver detalle', `cpVerGasto('${id}')`]];
+    if (g.estado_pago !== 'anulado' && g.origen === 'gasto') op.push(['✏️ Editar', `cpEditarGasto('${id}')`]);
+    if (cpEsAdmin() && g.origen === 'gasto' && g.estado_pago !== 'anulado') op.push(['⛔ Anular', `cpAnularGasto('${id}')`, true]);
+    cpMenu(ev, op);
+}
+
+// ---------- Ver detalle de un gasto: origen y todo lo que le ha pasado
+const CP_NOMBRES = {};
+async function cpNombres(ids) {
+    const faltan = [...new Set(ids.filter(x => x && !(x in CP_NOMBRES)))];
+    if (faltan.length) {
+        const { data } = await clienteSupabase.from('perfiles').select('id_usuario, nombre, apellido, email').in('id_usuario', faltan);
+        faltan.forEach(id => CP_NOMBRES[id] = 'Usuario');
+        (data || []).forEach(p => CP_NOMBRES[p.id_usuario] = [p.nombre, p.apellido].filter(Boolean).join(' ') || p.email || 'Usuario');
+    }
+    return (id) => id ? CP_NOMBRES[id] || 'Usuario' : 'Sistema';
+}
+const cpFechaHora = (t) => t ? new Date(t).toLocaleString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+function cpDetalle(titulo, html) {
+    document.getElementById('cp-det-titulo').textContent = titulo;
+    document.getElementById('cp-det-cuerpo').innerHTML = html;
+    document.getElementById('cp-modal-detalle').classList.remove('hidden');
+}
+const CP_CAMPOS = { descripcion: 'Descripción', fecha_compra: 'Fecha', id_categoria_gasto: 'Categoría', id_proveedor: 'Proveedor', tipo_documento: 'Documento', numero_factura: 'N° documento',
+    observaciones_factura: 'Nota', referencia_lote: 'Rendición / lote', monto: 'Monto', id_cuenta_pago: 'Cuenta', motivo: 'Motivo' };
+const cpValorCampo = (k, v) => v == null || v === '' ? '—' : k === 'id_categoria_gasto' ? cpCategoria(v)?.nombre || v : k === 'id_cuenta_pago' ? cpCuenta(v)?.nombre || v
+    : k === 'id_proveedor' ? cpProveedor(v)?.nombre || v : k === 'monto' ? cpFmt(v) : k === 'fecha_compra' ? cpFecha(v) : v;
+
+async function cpVerGasto(id) {
+    cpDetalle('Detalle del gasto', '<p class="text-sm text-slate-400">Cargando…</p>');
+    const [{ data: g }, hist, vinc, apl] = await Promise.all([
+        clienteSupabase.from('compras').select('*').eq('id', id).single(),
+        clienteSupabase.from('compras_historial').select('*').eq('id_compra', id).order('created_at').then(r => r.data || [], () => []),
+        clienteSupabase.from('movimientos_vinculos').select('id_movimiento, movimientos_bancarios(fecha, descripcion, monto, id_cuenta, resuelto_por, resuelto_at, importaciones_cartola(titulo, nombre_archivo))').eq('tipo', 'compra').eq('id_vinculo', id).then(r => r.data || [], () => []),
+        clienteSupabase.from('cxp_pagos_aplicaciones').select('monto, cxp_pagos(id, fecha, referencia, id_cuenta, forma, creado_por, created_at)').eq('id_compra', id).then(r => r.data || [], () => [])
+    ]);
+    if (!g) return cpDetalle('Detalle del gasto', '<p class="text-sm text-red-600">No encontré este gasto.</p>');
+    const nom = await cpNombres([g.creado_por, ...hist.map(h => h.usuario), ...vinc.map(v => v.movimientos_bancarios?.resuelto_por), ...apl.map(a => a.cxp_pagos?.creado_por)]);
+    const origen = g.origen === 'orden_compra' ? `📦 Orden de compra de Inventario${g.numero_documento ? ' N° ' + cpEsc(g.numero_documento) : ''}`
+        : g.observaciones_factura === 'Creado desde conciliación' || String(g.observaciones_factura || '').startsWith('Creado desde conciliación') ? '🏦 Creado desde una línea de la cartola (conciliación)'
+        : g.referencia_externa ? `📄 Importado desde planilla (código ${cpEsc(g.referencia_externa)})` : '✍️ Registrado a mano en Buddy';
+    const dato = (k, v) => `<div><p class="text-[11px] font-bold text-slate-400 uppercase">${k}</p><p class="text-sm text-slate-800">${v}</p></div>`;
+    const [et, col] = ESTADOS[g.estado_pago] || ['—', ''];
+    const ev = [{ t: g.created_at, txt: `<b>Registrado</b> por ${cpEsc(nom(g.creado_por))}`, ic: '🆕' }];
+    hist.forEach(h => ev.push({ t: h.created_at, ic: h.accion === 'anulado' ? '⛔' : '✏️', txt: `<b>${h.accion === 'anulado' ? 'Anulado' : 'Editado'}</b> por ${cpEsc(nom(h.usuario))}` +
+        Object.entries(h.cambios || {}).map(([k, v]) => `<br><span class="text-slate-500">${CP_CAMPOS[k] || k}: ${Array.isArray(v) ? `${cpEsc(cpValorCampo(k, v[0]))} → <b>${cpEsc(cpValorCampo(k, v[1]))}</b>` : cpEsc(v ?? '—')}</span>`).join('') }));
+    vinc.forEach(v => { const m = v.movimientos_bancarios; if (!m) return; const doc = m.importaciones_cartola;
+        ev.push({ t: m.resuelto_at, ic: '🔗', txt: `<b>Conciliado</b> por ${cpEsc(nom(m.resuelto_por))} con la línea del ${cpFecha(m.fecha)} “${cpEsc(m.descripcion)}” (${cpFmt(Math.abs(m.monto))})<br><span class="text-slate-500">${cpEsc(cpCuenta(m.id_cuenta)?.nombre || '')}${doc ? ' · ' + cpEsc(doc.titulo || doc.nombre_archivo || '') : ''}</span>` }); });
+    apl.forEach(a => { const p = a.cxp_pagos; if (!p) return;
+        ev.push({ t: p.created_at, ic: '💸', txt: `<b>Pagado</b> ${cpFmt(a.monto)} el ${cpFecha(p.fecha)} ${p.forma === 'via_sueldo' ? 'dentro del sueldo' : 'desde ' + cpEsc(cpCuenta(p.id_cuenta)?.nombre || '—')}${p.referencia ? ` · “${cpEsc(p.referencia)}”` : ''}<br><span class="text-slate-500">registrado por ${cpEsc(nom(p.creado_por))}</span>` }); });
+    ev.sort((a, b) => String(a.t || '').localeCompare(String(b.t || '')));
+    cpDetalle('Detalle del gasto', `
+        <div class="flex items-start justify-between gap-3"><div><p class="text-lg font-black text-slate-800">${cpEsc(g.descripcion || '—')}</p><p class="text-xs text-slate-500 mt-1">${origen}</p></div>
+            <div class="text-right"><p class="text-xl font-black">${cpFmt(cpTotal(g), g.moneda)}</p><span class="px-2 py-0.5 rounded-full text-[11px] font-bold ${col}">${et}</span></div></div>
+        <div class="grid grid-cols-2 gap-3 bg-slate-50 rounded-xl p-3">
+            ${dato('Fecha', cpFecha(g.fecha_compra))}${dato('Cuenta', cpEsc(cpCuenta(g.id_cuenta_pago)?.nombre || (g.condicion_pago === 'credito' ? 'A crédito' : '—')))}
+            ${dato('Categoría', cpEsc(cpCategoria(g.id_categoria_gasto)?.nombre || '—'))}${dato('Proveedor', cpEsc(cpProveedor(g.id_proveedor)?.nombre || '—'))}
+            ${dato('Documento', cpEsc([g.tipo_documento, g.numero_factura].filter(Boolean).join(' ') || '—'))}${dato('Rendición / lote', cpEsc(cpLote(g) || '—'))}
+            ${g.moneda_original ? dato('Moneda original', `${cpFmt(g.monto_original, g.moneda_original)} × ${cpFmt(g.tasa_cambio)}`) : ''}
+            ${cpSaldo(g) && g.estado_pago !== 'anulado' ? dato('Saldo por pagar', `<b class="text-amber-700">${cpFmt(cpSaldo(g), g.moneda)}</b>`) : ''}
+            ${g.observaciones_factura ? `<div class="col-span-2">${dato('Nota', cpEsc(g.observaciones_factura))}</div>` : ''}</div>
+        <div><p class="text-xs font-black text-slate-500 uppercase mb-2">Historial</p>
+            <ol class="space-y-3 border-l-2 border-slate-200 pl-4">${ev.map(e => `<li class="relative text-sm text-slate-700"><span class="absolute -left-[27px] top-0 bg-white">${e.ic}</span>
+                <p class="text-[11px] text-slate-400">${cpFechaHora(e.t)}</p><p>${e.txt}</p></li>`).join('')}</ol>
+            ${!vinc.length && g.estado_pago !== 'anulado' ? '<p class="text-[11px] text-amber-700 font-bold mt-3">Aún no está conciliado con ninguna línea de cartola.</p>' : ''}</div>`);
+}
+
+// ---------- Editar gasto
+function cpEditarGasto(id) {
+    const g = CP.gastos.find(x => x.id === id); if (!g) return;
+    CP.editando = g;
+    const v = (k, x) => document.getElementById('cp-e-' + k).value = x ?? '';
+    v('desc', g.descripcion); v('fecha', g.fecha_compra); v('monto', cpTotal(g)); v('doc', g.tipo_documento); v('num', g.numero_factura); v('lote', cpLote(g)); v('nota', g.observaciones_factura);
+    document.getElementById('cp-e-cuenta').innerHTML = '<option value="">A crédito / sin cuenta</option>' + CP.cuentas.map(c => `<option value="${c.id}">${cpEsc(c.nombre)}</option>`).join('');
+    v('cuenta', g.id_cuenta_pago);
+    document.getElementById('cp-e-cat').innerHTML = '<option value="">Sin categoría</option>' + cpCategoriasVisibles().map(c => `<option value="${c.id}">${cpEsc(c.nombre)}</option>`).join('');
+    v('cat', g.id_categoria_gasto);
+    document.getElementById('cp-e-lotes').innerHTML = [...new Set(CP.gastos.map(cpLote).filter(Boolean))].sort().map(l => `<option value="${cpEsc(l)}"></option>`).join('');
+    document.getElementById('cp-modal-editar').classList.remove('hidden');
+}
+async function cpGuardarEdicion() {
+    const g = CP.editando; if (!g) return;
+    const val = (k) => document.getElementById('cp-e-' + k).value.trim();
+    const cambios = {}, pon = (k, nuevo, antes) => { if ((nuevo || '') !== String(antes ?? '')) cambios[k] = nuevo; };
+    pon('descripcion', val('desc'), g.descripcion); pon('fecha_compra', val('fecha'), g.fecha_compra); pon('tipo_documento', val('doc'), g.tipo_documento);
+    pon('numero_factura', val('num'), g.numero_factura); pon('referencia_lote', val('lote'), cpLote(g)); pon('observaciones_factura', val('nota'), g.observaciones_factura);
+    pon('id_cuenta_pago', val('cuenta'), g.id_cuenta_pago); pon('id_categoria_gasto', val('cat'), g.id_categoria_gasto);
+    const monto = cpParseMonto(val('monto')); if (monto !== cpTotal(g)) cambios.monto = monto;
+    if (!Object.keys(cambios).length) return cpCerrar('cp-modal-editar');
+    const btn = document.getElementById('cp-e-guardar'); btn.disabled = true;
+    const { error } = await clienteSupabase.rpc('editar_gasto', { p_id: g.id, p: cambios });
+    btn.disabled = false;
+    if (error) return alert(error.message);
+    cpCerrar('cp-modal-editar'); cpCargarGastos();
 }
 
 function cpAbrirGasto() {
@@ -505,7 +640,7 @@ async function cpImportar() {
 async function cpCargarPorPagar() {
     try {
         CP.pendientes = await cpTodo(() => clienteSupabase.from('compras')
-            .select('id, fecha_compra, fecha_vencimiento, descripcion, numero_documento, id_proveedor, id_cuenta_pago, total_compra, total_factura, monto_pagado, estado_pago, condicion_pago, origen, moneda')
+            .select('*')
             .eq('id_empresa', window.miEmpresaId).in('estado_pago', ['pendiente', 'parcial']).order('fecha_compra'));
         const { data: pg } = await clienteSupabase.from('cxp_pagos').select('*, cxp_pagos_aplicaciones(id)').eq('id_empresa', window.miEmpresaId).order('fecha', { ascending: false }).order('created_at', { ascending: false }).limit(50);
         CP.pagos = pg || [];
@@ -545,7 +680,10 @@ function cpPintarPorPagar() {
                 <thead class="text-[11px] font-bold text-slate-400 uppercase sticky top-0 bg-white"><tr>
                     <th class="px-3 py-2 text-left"><input type="checkbox" onchange="cpSelGrupo('${gr.k}', this.checked)" ${sel.length === gr.items.length ? 'checked' : ''}></th>
                     <th class="px-3 py-2 text-left">Fecha</th><th class="px-3 py-2 text-left">Detalle</th><th class="px-3 py-2 text-right">Días</th><th class="px-3 py-2 text-right">Saldo</th></tr></thead>
-                <tbody class="divide-y divide-slate-50">${gr.items.map(c => {
+                <tbody class="divide-y divide-slate-50">${cpFilasConLotes(gr).map(c => {
+                    if (c.__lote) return `<tr class="bg-slate-50"><td class="px-3 py-1.5"><input type="checkbox" onchange="cpSelLote('${gr.k}', '${cpEsc(c.__lote)}', this.checked)" ${c.sel ? 'checked' : ''}></td>
+                        <td colspan="3" class="px-3 py-1.5 text-xs font-black text-slate-600">🧾 ${cpEsc(c.__lote)} <span class="font-normal text-slate-400">· ${c.n} gastos</span></td>
+                        <td class="px-3 py-1.5 text-right text-xs font-black text-amber-700">${cpFmt(c.tot)}</td></tr>`;
                     const ref = c.fecha_vencimiento || c.fecha_compra; const d = cpDias(ref);
                     const dtxt = c.fecha_vencimiento ? (d > 0 ? `<span class="text-red-600 font-bold">vencida hace ${d}</span>` : `vence en ${-d}`) : `${d} días`;
                     return `<tr><td class="px-3 py-2"><input type="checkbox" ${CP.seleccion[c.id] ? 'checked' : ''} onchange="cpSel('${c.id}', this.checked)"></td>
@@ -557,8 +695,23 @@ function cpPintarPorPagar() {
         <td class="px-3 py-2 text-slate-500">${cpFecha(p.fecha)}</td><td class="px-3 py-2">${p.forma === 'via_sueldo' ? 'Dentro del sueldo' : cpEsc(cpCuenta(p.id_cuenta)?.nombre || '—')}</td>
         <td class="px-3 py-2 text-slate-500">${cpEsc(p.referencia || '')}</td><td class="px-3 py-2 text-right">${(p.cxp_pagos_aplicaciones || []).length}</td>
         <td class="px-3 py-2 text-right font-bold">${cpFmt(p.monto)}</td>
-        <td class="px-3 py-2 text-right">${cpEsAdmin() ? `<button onclick="cpAnularPago('${p.id}')" class="text-red-500 text-xs font-bold hover:underline">Anular</button>` : ''}</td></tr>`).join('')
+        <td class="px-2 py-2 text-right"><button onclick="cpMenuPago(event, '${p.id}')" class="w-8 h-8 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 font-black" title="Opciones">⋯</button></td></tr>`).join('')
         || '<tr><td colspan="6" class="px-3 py-4 text-center text-slate-400 text-xs">Aún no hay pagos.</td></tr>';
+}
+// En cuentas reembolsables, los gastos se agrupan por rendición / lote (como en tu planilla)
+function cpFilasConLotes(gr) {
+    if (!gr.k.startsWith('cta:')) return gr.items;
+    const porLote = new Map();
+    gr.items.forEach(c => { const l = cpLote(c) || 'Sin rendición asignada'; if (!porLote.has(l)) porLote.set(l, []); porLote.get(l).push(c); });
+    if (porLote.size === 1 && porLote.has('Sin rendición asignada')) return gr.items;
+    const claves = [...porLote.keys()].sort((a, b) => (a === 'Sin rendición asignada') - (b === 'Sin rendición asignada') || a.localeCompare(b, 'es', { numeric: true }));
+    return claves.flatMap(l => { const its = porLote.get(l);
+        return [{ __lote: l, n: its.length, tot: its.reduce((s, c) => s + cpSaldo(c), 0), sel: its.every(c => CP.seleccion[c.id]) }, ...its]; });
+}
+function cpSelLote(k, lote, on) {
+    (cpGrupos().find(g => g.k === k)?.items || []).filter(c => (cpLote(c) || 'Sin rendición asignada') === lote)
+        .forEach(c => { if (on) CP.seleccion[c.id] = true; else delete CP.seleccion[c.id]; });
+    cpPintarPorPagar();
 }
 function cpSel(id, on) { if (on) CP.seleccion[id] = true; else delete CP.seleccion[id]; cpPintarPorPagar(); }
 function cpSelGrupo(k, on) { (cpGrupos().find(g => g.k === k)?.items || []).forEach(c => { if (on) CP.seleccion[c.id] = true; else delete CP.seleccion[c.id]; }); cpPintarPorPagar(); }
@@ -592,6 +745,34 @@ async function cpConfirmarPago() {
     cpCargarPorPagar();
 }
 
+function cpMenuPago(ev, id) {
+    const op = [['🔎 Ver detalle', `cpVerPago('${id}')`]];
+    if (cpEsAdmin()) op.push(['⛔ Anular', `cpAnularPago('${id}')`, true]);
+    cpMenu(ev, op);
+}
+async function cpVerPago(id) {
+    cpDetalle('Detalle del pago', '<p class="text-sm text-slate-400">Cargando…</p>');
+    const [{ data: p }, { data: apl }, vinc] = await Promise.all([
+        clienteSupabase.from('cxp_pagos').select('*').eq('id', id).single(),
+        clienteSupabase.from('cxp_pagos_aplicaciones').select('monto, compras(id, fecha_compra, descripcion, total_compra, total_factura, id_cuenta_pago)').eq('id_pago', id),
+        clienteSupabase.from('movimientos_vinculos').select('movimientos_bancarios(fecha, descripcion, monto, id_cuenta, resuelto_por, resuelto_at)').eq('tipo', 'pago').eq('id_vinculo', id).then(r => r.data || [], () => [])
+    ]);
+    if (!p) return cpDetalle('Detalle del pago', '<p class="text-sm text-red-600">No encontré este pago.</p>');
+    const nom = await cpNombres([p.creado_por, ...vinc.map(v => v.movimientos_bancarios?.resuelto_por)]);
+    const filas = (apl || []).sort((a, b) => String(a.compras?.fecha_compra).localeCompare(String(b.compras?.fecha_compra)));
+    cpDetalle('Detalle del pago', `
+        <div class="flex items-start justify-between gap-3"><div><p class="text-lg font-black text-slate-800">${cpEsc(p.referencia || 'Pago sin referencia')}</p>
+            <p class="text-xs text-slate-500 mt-1">${cpFecha(p.fecha)} · ${p.forma === 'via_sueldo' ? 'Dentro del sueldo' : 'Desde ' + cpEsc(cpCuenta(p.id_cuenta)?.nombre || '—')} · registrado por ${cpEsc(nom(p.creado_por))} el ${cpFechaHora(p.created_at)}</p></div>
+            <p class="text-xl font-black">${cpFmt(p.monto)}</p></div>
+        ${vinc.length ? vinc.map(v => { const m = v.movimientos_bancarios; return m ? `<p class="text-xs bg-emerald-50 text-emerald-800 rounded-lg p-2">🔗 Conciliado con la línea del ${cpFecha(m.fecha)} “${cpEsc(m.descripcion)}” (${cpFmt(Math.abs(m.monto))}) por ${cpEsc(nom(m.resuelto_por))}</p>` : ''; }).join('')
+            : '<p class="text-xs bg-amber-50 text-amber-800 rounded-lg p-2 font-bold">Aún no está conciliado con ninguna línea de cartola.</p>'}
+        <div><p class="text-xs font-black text-slate-500 uppercase mb-2">Gastos que cubrió (${filas.length})</p>
+        <div class="border border-slate-200 rounded-xl overflow-hidden"><table class="min-w-full text-sm"><tbody class="divide-y divide-slate-100">
+            ${filas.map(a => { const c = a.compras || {}; return `<tr class="hover:bg-slate-50 cursor-pointer" onclick="cpVerGasto('${c.id}')"><td class="px-3 py-2 text-slate-500 whitespace-nowrap">${cpFecha(c.fecha_compra)}</td>
+                <td class="px-3 py-2">${cpEsc(c.descripcion || '—')}<p class="text-[11px] text-slate-400">${cpEsc(cpCuenta(c.id_cuenta_pago)?.nombre || '')}</p></td><td class="px-3 py-2 text-right font-bold whitespace-nowrap">${cpFmt(a.monto)}</td></tr>`; }).join('')}
+            <tr class="bg-slate-50 font-black"><td colspan="2" class="px-3 py-2 text-right">Total</td><td class="px-3 py-2 text-right">${cpFmt(filas.reduce((s, a) => s + Number(a.monto), 0))}</td></tr>
+        </tbody></table></div><p class="text-[11px] text-slate-400 mt-1">Toca un gasto para ver su detalle.</p></div>`);
+}
 async function cpAnularPago(id) {
     if (!confirm('¿Anular este pago? Las compras que cubría vuelven a quedar pendientes.')) return;
     const { error } = await clienteSupabase.rpc('anular_pago_compras', { p_id_pago: id });
@@ -693,5 +874,5 @@ async function cpBorrarCategoria(id) {
     await cpCargarBase(); cpPintarCategorias();
 }
 
-Object.assign(window, { cpCambioMoneda, cpPreviewMoneda, cpAnularGasto, cpTab, cpCerrar, cpCargarResumen, cpCargarGastos, cpPintarGastos, cpAbrirGasto, cpCambioCondicion, cpGuardarGasto, cpDescargarPlantilla, cpDescargarGastos,
+Object.assign(window, { cpPlegarMes, cpMenu, cpCerrarMenu, cpMenuGasto, cpVerGasto, cpEditarGasto, cpGuardarEdicion, cpSelLote, cpMenuPago, cpVerPago, cpCambioMoneda, cpPreviewMoneda, cpAnularGasto, cpTab, cpCerrar, cpCargarResumen, cpCargarGastos, cpPintarGastos, cpAbrirGasto, cpCambioCondicion, cpGuardarGasto, cpDescargarPlantilla, cpDescargarGastos,
     cpLeerCSV, cpImportar, cpSel, cpSelGrupo, cpAbrirPago, cpConfirmarPago, cpAnularPago, cpAbrirCuenta, cpCambioTipoCuenta, cpGuardarCuenta, cpCrearCategoria, cpVisibleCategoria, cpBorrarCategoria });

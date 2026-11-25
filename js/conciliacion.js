@@ -42,7 +42,7 @@ async function ccCargar() {
             cpTodo(() => { let q = clienteSupabase.from('movimientos_bancarios').select('*').eq('id_cuenta', cta).order('fecha', { ascending: false }).order('created_at');
                 if (ym) { const [d, h] = cpRangoMes(ym); q = q.gte('fecha', d).lte('fecha', h); } return q; }),
             cpTodo(() => clienteSupabase.from('cxp_pagos').select('id, fecha, monto, referencia, forma, id_cuenta').eq('id_empresa', e).order('fecha', { ascending: false })),
-            cpTodo(() => clienteSupabase.from('compras').select('id, fecha_compra, descripcion, total_compra, total_factura, monto_pagado, estado_pago, observaciones_factura, id_cuenta_pago')
+            cpTodo(() => clienteSupabase.from('compras').select('id, fecha_compra, descripcion, total_compra, total_factura, monto_pagado, estado_pago, observaciones_factura, id_cuenta_pago, origen, referencia_externa')
                 .eq('id_empresa', e).neq('estado_pago', 'anulado').order('fecha_compra', { ascending: false })),
             cpTodo(() => clienteSupabase.from('movimientos_vinculos').select('id_movimiento, tipo, id_vinculo').eq('id_empresa', e)),
             clienteSupabase.from('reglas_comercio').select('*').eq('id_empresa', e).order('patron'),
@@ -52,7 +52,8 @@ async function ccCargar() {
         CC.pendPorCuenta = {}; pendTodas.forEach(x => CC.pendPorCuenta[x.id_cuenta] = (CC.pendPorCuenta[x.id_cuenta] || 0) + 1);
         CC.movs = movs; CC.pagos = pagos.filter(p => p.id_cuenta === cta); CC.compras = compras;
         CC.vinculados = new Set(vinc.map(v => v.tipo + ':' + v.id_vinculo));
-        CC.vincPorMov = {}; vinc.forEach(v => (CC.vincPorMov[v.id_movimiento] ||= []).push(v));
+        CC.vincPorMov = {}; CC.lineaDe = {};
+        vinc.forEach(v => { (CC.vincPorMov[v.id_movimiento] ||= []).push(v); CC.lineaDe[v.tipo + ':' + v.id_vinculo] = v.id_movimiento; });
         CC.reglas = reglas.data || []; CC.imps = imps || [];
     } catch (err) { console.error(err); return alert('No pude cargar la conciliación: ' + err.message); }
     ccCalcularSugerencias();
@@ -71,7 +72,7 @@ function ccPintarCuentas() {
             <span class="text-lg leading-none">${CC_ICONO[c.tipo] || '🏦'}</span>
             <span class="leading-tight"><span class="block text-sm font-bold">${cpEsc(c.nombre)}</span>
                 <span class="block text-[11px] ${act ? 'text-slate-300' : 'text-slate-400'}">${TIPOS_CUENTA[c.tipo].replace(/^\S+ /, '')}${c.ultimos_4 ? ' ···· ' + c.ultimos_4 : ''}</span></span>
-            ${n ? `<span class="ml-1 px-2 py-0.5 rounded-full text-[11px] font-black ${act ? 'bg-amber-400 text-slate-900' : 'bg-amber-100 text-amber-700'}">${n}</span>`
+            ${n ? ccBurbuja(n, 'ml-1')
                 : `<span class="ml-1 text-xs ${act ? 'text-emerald-300' : 'text-emerald-600'}">✓</span>`}</button>`;
     }).join('');
 }
@@ -151,20 +152,51 @@ function ccTextoVinculo(m) {
     return '';
 }
 
+const CC_UI = (() => { try { return JSON.parse(localStorage.getItem('cc_ui') || '{}'); } catch (e) { return {}; } })();
+const ccGuardarUI = () => { try { localStorage.setItem('cc_ui', JSON.stringify(CC_UI)); } catch (e) { } };
+CC_UI.abiertos ||= {}; // archivo → true/false (si no está, se abre solo si tiene pendientes)
+function ccPlegar(k) { const g = document.querySelector(`[data-grupo="${k}"]`); CC_UI.abiertos[k] = !(g?.dataset.abierto === '1'); ccGuardarUI(); ccPintar(); }
+function ccOrden() { CC_UI.asc = !CC_UI.asc; ccGuardarUI(); ccPintar(); }
+function ccVerSaldo() { CC_UI.saldo = !CC_UI.saldo; ccGuardarUI(); ccPintar(); }
+const ccBurbuja = (n, extra = '') => n ? `<span class="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-[11px] font-black ${extra}">${n}</span>` : '';
+const CC_MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+// "Cartola julio 2026 · Banco Chile ···· 4138" a partir de la cuenta y las fechas (no del nombre del archivo)
+function ccTituloArchivo(fechas, cta) {
+    const tipo = { banco: 'Cartola', billetera: 'Movimientos', caja: 'Caja', tarjeta_credito: 'Estado de cuenta', reembolsable: 'Estado de cuenta' }[cta?.tipo] || 'Movimientos';
+    const porMes = {}; fechas.forEach(f => porMes[f.slice(0, 7)] = (porMes[f.slice(0, 7)] || 0) + 1);
+    const meses = Object.keys(porMes).sort();
+    const nom = (ym) => CC_MESES[+ym.slice(5, 7) - 1];
+    let periodo = '';
+    if (meses.length === 1 || porMes[meses[meses.length - 1]] >= fechas.length * 0.8) { const ym = meses.length === 1 ? meses[0] : meses[meses.length - 1]; periodo = `${nom(ym)} ${ym.slice(0, 4)}`; }
+    else if (meses.length) { const a = meses[0], b = meses[meses.length - 1]; periodo = a.slice(0, 4) === b.slice(0, 4) ? `${nom(a)} a ${nom(b)} ${b.slice(0, 4)}` : `${nom(a)} ${a.slice(0, 4)} a ${nom(b)} ${b.slice(0, 4)}`; }
+    return `${tipo} ${periodo} · ${cta?.nombre || ''}${cta?.ultimos_4 ? ' ···· ' + cta.ultimos_4 : ''}`;
+}
+async function ccRenombrar(id) {
+    const imp = CC.imps.find(x => x.id === id); if (!imp) return;
+    const fechas = CC.movs.filter(m => m.id_importacion === id).map(m => m.fecha).sort();
+    const sug = ccTituloArchivo(fechas, cpCuenta(document.getElementById('cc-cuenta').value));
+    const t = prompt('Título de este documento (déjalo vacío para usar el automático):', imp.titulo || sug);
+    if (t === null) return;
+    const { error } = await clienteSupabase.rpc('renombrar_importacion', { p_id: id, p_titulo: t.trim() === sug ? '' : t });
+    if (error) return alert(error.message);
+    ccCargar();
+}
+// Al tocar una línea o un registro, resalta su pareja en la otra columna
+function ccResaltar(id, ev) {
+    if (!id || ev?.target.closest('button')) return;
+    document.querySelectorAll('.cc-par-on').forEach(e => e.classList.remove('cc-par-on', 'ring-2', 'ring-emerald-400', 'ring-inset'));
+    const els = document.querySelectorAll(`[data-par="${id}"]`);
+    els.forEach(e => e.classList.add('cc-par-on', 'ring-2', 'ring-emerald-400', 'ring-inset'));
+    const otro = [...els].find(e => !e.contains(ev?.target)); otro?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
 function ccPintar() {
     const filtro = document.getElementById('cc-estado').value;
     const cta = cpCuenta(document.getElementById('cc-cuenta').value);
     const filas = CC.movs.filter(m => !filtro || (filtro === 'pendiente' ? m.estado === 'pendiente' : m.estado !== 'pendiente'));
     const pend = CC.movs.filter(m => m.estado === 'pendiente');
     const seguras = pend.filter(m => CC.sug[m.id]?.segura).length;
-    const ultimoSaldo = CC.movs.find(m => m.saldo !== null);
-    const cargos = CC.movs.filter(m => m.monto < 0).reduce((s, m) => s + Number(m.monto), 0);
-    const abonos = CC.movs.filter(m => m.monto > 0).reduce((s, m) => s + Number(m.monto), 0);
-    const t = (a, b, c = '') => `<div class="bg-white border border-slate-200 rounded-xl p-3"><p class="text-[11px] font-bold text-slate-500 uppercase">${a}</p><p class="text-xl font-black ${c}">${b}</p></div>`;
-    document.getElementById('cc-resumen').innerHTML = CC.movs.length ?
-        t('Por revisar', `${pend.length} <span class="text-xs font-bold text-slate-400">de ${CC.movs.length}</span>`, pend.length ? 'text-amber-700' : 'text-emerald-700') +
-        t('Salidas', cpFmt(-cargos)) + t('Entradas', cpFmt(abonos)) +
-        t(ultimoSaldo ? `Saldo al ${cpFecha(ultimoSaldo.fecha)}` : 'Saldo', ultimoSaldo ? cpFmt(ultimoSaldo.saldo) : '—') : '';
+    const ultimoSaldo = CC.movs.find(m => m.saldo != null);
     const btnS = document.getElementById('cc-btn-sugerencias');
     btnS.textContent = `✓ Aceptar sugerencias${seguras ? ` (${seguras})` : ''}`; btnS.disabled = !seguras; btnS.classList.toggle('opacity-40', !seguras);
 
@@ -179,31 +211,31 @@ function ccPintar() {
         CC.reembolsables = pendR.map(c => c.id);
     } else banner.classList.add('hidden');
 
-    // Agrupar por archivo subido (cada cartola / estado de cuenta / reporte MP es un bloque)
+    // ---------- Columna izquierda: lo que dice el banco, agrupado por archivo subido
     const fila = (m) => {
         const s = CC.sug[m.id];
         const monto = `<span class="${m.monto < 0 ? 'text-slate-800' : 'text-emerald-700'} font-bold">${m.monto < 0 ? '−' : '+'}${cpFmt(Math.abs(m.monto), cta?.moneda)}</span>`;
         const extra = m.monto_bruto ? `<p class="text-[11px] text-slate-400">Bruto ${cpFmt(m.monto_bruto)} · comisión ${cpFmt(m.comision || 0)}</p>` : '';
         let estado, acc;
         if (m.estado === 'pendiente') {
-            estado = s ? `<span class="text-xs ${s.aviso ? 'text-amber-700 font-bold' : s.segura ? 'text-emerald-700 font-bold' : 'text-slate-500'}">${cpEsc(s.texto)}</span>` : '';
+            estado = s ? `<p class="text-[11px] mt-0.5 ${s.aviso ? 'text-amber-700 font-bold' : s.segura ? 'text-emerald-700 font-bold' : 'text-slate-500'}">${cpEsc(s.texto)}</p>`
+                : '<p class="text-[11px] mt-0.5 text-amber-700 font-bold">Sin registro en Buddy</p>';
             acc = `${s?.accion ? `<button onclick="ccAceptar('${m.id}')" title="Aceptar sugerencia" class="px-2 py-1 rounded bg-emerald-600 text-white text-xs font-bold">✓</button>` : ''}
                    <button onclick="ccAbrirResolver('${m.id}')" class="px-2 py-1 rounded border border-slate-300 text-xs font-bold text-slate-600 hover:bg-slate-50">Resolver…</button>`;
         } else {
             const [et, col] = CC_ESTADOS[m.estado];
-            estado = `<span class="px-2 py-1 rounded-full text-[11px] font-bold ${col}">${et}</span> <span class="text-[11px] text-slate-400">${cpEsc(ccTextoVinculo(m))}</span>`;
+            estado = `<p class="mt-0.5"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${col}">${et}</span> <span class="text-[11px] text-slate-400">${cpEsc(ccTextoVinculo(m))}</span></p>`;
             acc = `<button onclick="ccDeshacer('${m.id}')" class="text-xs font-bold text-slate-400 hover:text-red-600">Deshacer</button>`;
         }
-        return `<tr class="${m.estado === 'pendiente' ? '' : 'bg-slate-50/60'}">
-            <td class="pl-0 pr-3 py-2 whitespace-nowrap text-slate-500 text-xs"><span class="inline-block w-1 h-8 align-middle mr-3 rounded-r ${CC_BORDE[m.estado] || 'bg-slate-200'}"></span>${cpFecha(m.fecha)}</td>
-            <td class="px-3 py-2"><p class="text-slate-700">${cpEsc(m.descripcion)}</p>${extra}</td>
-            <td class="px-3 py-2 text-right whitespace-nowrap">${monto}</td>
-            <td class="px-3 py-2">${estado}</td>
-            <td class="px-3 py-2 text-right whitespace-nowrap space-x-1">${acc}</td></tr>`;
+        return `<tr data-par="${m.id}" onclick="ccResaltar('${m.id}', event)" class="cursor-pointer ${m.estado === 'pendiente' ? '' : 'bg-slate-50/60'}">
+            <td class="pl-0 pr-2 py-2 whitespace-nowrap text-slate-500 text-xs align-top"><span class="inline-block w-1 h-8 align-middle mr-2 rounded-r ${CC_BORDE[m.estado] || 'bg-slate-200'}"></span>${cpFecha(m.fecha)}</td>
+            <td class="px-2 py-2"><p class="text-slate-700 text-[13px]">${cpEsc(m.descripcion)}</p>${extra}${estado}</td>
+            <td class="px-2 py-2 text-right whitespace-nowrap align-top">${monto}</td>
+            <td class="px-2 py-2 text-right whitespace-nowrap space-x-1 align-top">${acc}</td></tr>`;
     };
     const grupos = new Map();
     CC.movs.forEach(m => { const k = m.id_importacion || 'sin'; if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(m); });
-    const orden = [...grupos.keys()].sort((a, b) => (grupos.get(b)[0]?.fecha || '').localeCompare(grupos.get(a)[0]?.fecha || ''));
+    const orden = [...grupos.keys()].sort((a, b) => (grupos.get(b)[0]?.fecha || '').localeCompare(grupos.get(a)[0]?.fecha || '') * (CC_UI.asc ? -1 : 1));
     let hayFilas = false; const enFiltro = new Set(filas);
     document.getElementById('cc-tabla').innerHTML = orden.map(k => {
         const todas = grupos.get(k), imp = CC.imps.find(x => x.id === k);
@@ -211,22 +243,76 @@ function ccPintar() {
         const hechas = todas.filter(m => m.estado !== 'pendiente').length, pct = Math.round(hechas / todas.length * 100);
         const fechas = todas.map(m => m.fecha).sort();
         const sal = todas.filter(m => m.monto < 0).reduce((a, m) => a - Number(m.monto), 0), ent = todas.filter(m => m.monto > 0).reduce((a, m) => a + Number(m.monto), 0);
-        const listo = hechas === todas.length;
-        const cab = `<tr class="bg-slate-100/80 border-t-2 border-slate-200"><td colspan="5" class="px-3 py-2">
-            <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
-                <span class="font-bold text-slate-700 text-sm">📄 ${cpEsc(imp?.nombre_archivo || 'Líneas sin archivo')}</span>
-                <span class="text-xs text-slate-500">${cpFecha(fechas[0])} → ${cpFecha(fechas[fechas.length - 1])}</span>
-                <span class="text-xs text-slate-500">salidas <b class="text-slate-700">${cpFmt(sal, cta?.moneda)}</b> · entradas <b class="text-emerald-700">${cpFmt(ent, cta?.moneda)}</b></span>
+        const listo = hechas === todas.length, faltan = todas.length - hechas;
+        const abierto = CC_UI.abiertos[k] ?? !listo;
+        const titulo = imp?.titulo || ccTituloArchivo(fechas, cta);
+        const cab = `<tr data-grupo="${k}" data-abierto="${abierto ? 1 : 0}" class="bg-slate-100/80 border-t-2 border-slate-200"><td colspan="4" class="px-3 py-2">
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <button onclick="ccPlegar('${k}')" class="flex items-center gap-2 font-bold text-slate-700 text-sm text-left">
+                    <span class="text-slate-400 text-xs w-3">${abierto ? '▾' : '▸'}</span>📄 ${cpEsc(titulo)} ${ccBurbuja(faltan)}</button>
+                ${imp ? `<button onclick="ccRenombrar('${imp.id}')" title="Cambiar título" class="text-slate-300 hover:text-slate-600 text-xs">✎</button>` : ''}
                 <span class="flex items-center gap-2 ml-auto">
-                    <span class="w-24 h-1.5 bg-slate-200 rounded-full overflow-hidden"><span class="block h-full ${listo ? 'bg-emerald-500' : 'bg-amber-400'}" style="width:${pct}%"></span></span>
+                    <span class="w-20 h-1.5 bg-slate-200 rounded-full overflow-hidden"><span class="block h-full ${listo ? 'bg-emerald-500' : 'bg-amber-400'}" style="width:${pct}%"></span></span>
                     <span class="text-xs font-bold ${listo ? 'text-emerald-700' : 'text-amber-700'}">${listo ? '✓ Conciliado' : `${hechas} de ${todas.length}`}</span>
                     ${imp && cpEsAdmin() ? `<button onclick="ccBorrarImportacion('${imp.id}')" title="Quitar este archivo" class="text-slate-300 hover:text-red-500 text-xs">✕</button>` : ''}
-                </span></div></td></tr>`;
+                </span></div>
+            <p class="text-[11px] text-slate-400 mt-0.5 pl-5">${cpFecha(fechas[0])} → ${cpFecha(fechas[fechas.length - 1])} · salidas ${cpFmt(sal, cta?.moneda)} · entradas ${cpFmt(ent, cta?.moneda)}${imp?.nombre_archivo ? ` · archivo: ${cpEsc(imp.nombre_archivo)}` : ''}</p></td></tr>`;
+        if (!abierto) return cab;
         return cab + visibles.map(fila).join('');
     }).join('');
     const vacio = document.getElementById('cc-vacio');
     vacio.classList.toggle('hidden', hayFilas);
-    vacio.textContent = CC.movs.length ? '¡Todo revisado en este período! 🎉' : 'Aún no subes movimientos de esta cuenta. Usa “Subir cartola / estado de cuenta / MP”.';
+    vacio.textContent = CC.movs.length ? 'Nada por revisar del lado del banco 🎉' : 'Aún no subes movimientos de esta cuenta. Usa “Subir cartola / estado de cuenta / MP”.';
+
+    // ---------- Columna derecha: lo que tienes registrado en Buddy para esta cuenta y período
+    const ym = document.getElementById('cc-mes').value;
+    const fm = CC.movs.map(m => m.fecha).sort();
+    const [desde, hasta] = ym ? cpRangoMes(ym) : [fm[0], fm[fm.length - 1]];
+    const enRango = (f) => desde && f >= desde && f <= hasta;
+    const regs = !cta ? [] : [
+        ...CC.pagos.filter(p => enRango(p.fecha)).map(p => ({ key: 'pago:' + p.id, fecha: p.fecha, monto: -Number(p.monto), txt: p.referencia || 'Pago sin referencia',
+            origen: /^(Reembolso|Rendición)/i.test(p.referencia || '') ? 'buddy' : 'tu', tipo: 'Pago' })),
+        ...CC.compras.filter(c => c.id_cuenta_pago === cta.id && (c.origen || 'gasto') === 'gasto' && !String(c.referencia_externa || '').startsWith('com-') && enRango(c.fecha_compra))
+            .map(c => ({ key: 'compra:' + c.id, fecha: c.fecha_compra, monto: -cpTotal(c), txt: c.descripcion,
+                origen: c.observaciones_factura === 'Creado desde conciliación' ? 'banco' : 'tu', tipo: 'Gasto' }))
+    ].map(r => ({ ...r, linea: CC.lineaDe?.[r.key] })).sort((a, b) => (!!a.linea - !!b.linea) || b.fecha.localeCompare(a.fecha));
+    const sinLinea = regs.filter(r => !r.linea), conLinea = regs.filter(r => r.linea);
+    const ORIG = { tu: ['✍️ Tú', 'bg-indigo-50 text-indigo-600'], buddy: ['🤖 Buddy', 'bg-slate-100 text-slate-500'], banco: ['🏦 Desde cartola', 'bg-slate-100 text-slate-500'] };
+    const item = (r) => {
+        const [et, col] = ORIG[r.origen];
+        const lm = r.linea && CC.movs.find(m => m.id === r.linea);
+        return `<div data-par="${r.linea || ''}" ${r.linea ? `onclick="ccResaltar('${r.linea}', event)"` : ''} class="flex items-start gap-2 px-3 py-2 ${r.linea ? 'cursor-pointer bg-slate-50/60' : ''}">
+            <span class="inline-block w-1 self-stretch rounded-r ${r.linea ? 'bg-emerald-500' : 'bg-amber-400'}"></span>
+            <div class="min-w-0 flex-1">
+                <p class="text-[13px] text-slate-700">${cpEsc(r.txt)} <span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${col}">${et}</span></p>
+                <p class="text-[11px] ${r.linea ? 'text-emerald-700' : 'text-amber-700 font-bold'}">${cpFecha(r.fecha)} · ${r.tipo} · ${r.linea ? (lm ? `↔ línea del ${cpFecha(lm.fecha)}` : '↔ conciliado en otro período') : 'Sin línea en la cartola'}</p>
+            </div>
+            <span class="text-[13px] font-bold text-slate-800 whitespace-nowrap">−${cpFmt(-r.monto, cta?.moneda)}</span></div>`;
+    };
+    const verReg = filtro === 'pendiente' ? sinLinea : filtro === 'resueltas' ? conLinea : regs;
+    document.getElementById('cc-buddy').innerHTML = !desde ? '<p class="p-6 text-center text-sm text-slate-400">Elige un mes o sube una cartola para comparar.</p>'
+        : (verReg.map(item).join('') || `<p class="p-6 text-center text-sm text-slate-400">${regs.length ? 'Todo lo registrado tiene su línea en la cartola 🎉' : 'No hay gastos ni pagos registrados con esta cuenta en el período.'}</p>`);
+    document.getElementById('cc-buddy-titulo').textContent = desde ? `${cpFecha(desde)} → ${cpFecha(hasta)}` : '';
+
+    // ---------- Resumen: cartolas subidas, pendientes de cada lado y saldo
+    const bancoSin = pend.length, buddySin = sinLinea.length;
+    const mesesDe = (fs) => [...new Set(fs.map(f => f.slice(0, 7)))].sort().map(ym => `${CC_MESES[+ym.slice(5) - 1].slice(0, 3)} ${ym.slice(0, 4)}`);
+    const chips = (arr) => arr.map(x => `<span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[11px] font-bold">${x}</span>`).join(' ');
+    const mesesBanco = mesesDe(pend.map(m => m.fecha)), mesesBuddy = mesesDe(sinLinea.map(r => r.fecha));
+    const caja = (cont) => `<div class="flex-1 min-w-[220px] bg-white border border-slate-200 rounded-xl p-3">${cont}</div>`;
+    document.getElementById('cc-resumen').innerHTML = !CC.movs.length && !regs.length ? '' : `<div class="flex flex-wrap gap-3 items-stretch">
+        ${caja(`<p class="text-[11px] font-bold text-slate-500 uppercase">📄 Documentos importados</p>
+            <p class="text-sm mt-1"><b class="text-slate-800">${grupos.size}</b> <span class="text-slate-500">${grupos.size === 1 ? 'archivo subido' : 'archivos subidos'} · ${CC.movs.length} líneas</span></p>
+            <p class="text-sm mt-1 flex items-center gap-2 flex-wrap">${bancoSin ? `${ccBurbuja(bancoSin)} <span class="text-amber-700 font-bold">por revisar</span> ${chips(mesesBanco)}` : '<span class="text-emerald-700 font-bold">✓ Todo revisado</span>'}</p>`)}
+        ${caja(`<p class="text-[11px] font-bold text-slate-500 uppercase">✍️ Gastos registrados en Buddy</p>
+            <p class="text-sm mt-1"><b class="text-slate-800">${regs.length}</b> <span class="text-slate-500">registros en el período</span></p>
+            <p class="text-sm mt-1 flex items-center gap-2 flex-wrap">${buddySin ? `${ccBurbuja(buddySin)} <span class="text-amber-700 font-bold">sin línea en la cartola</span> ${chips(mesesBuddy)}` : '<span class="text-emerald-700 font-bold">✓ Todo tiene su línea</span>'}</p>`)}
+        ${ultimoSaldo ? `<div class="min-w-[160px] bg-white border border-slate-200 rounded-xl p-3"><p class="text-[11px] font-bold text-slate-500 uppercase flex items-center justify-between gap-2">Saldo al ${cpFecha(ultimoSaldo.fecha)}
+            <button onclick="ccVerSaldo()" title="${CC_UI.saldo ? 'Ocultar' : 'Mostrar'} saldo" class="text-slate-400 hover:text-slate-700 text-sm">${CC_UI.saldo ? '🙈' : '👁'}</button></p>
+            <p class="text-lg font-black">${CC_UI.saldo ? cpFmt(ultimoSaldo.saldo, cta?.moneda) : '$ • • • • •'}</p></div>` : ''}</div>`;
+    document.getElementById('cc-burbuja-banco').innerHTML = ccBurbuja(bancoSin);
+    document.getElementById('cc-burbuja-buddy').innerHTML = ccBurbuja(buddySin);
+    document.getElementById('cc-orden').textContent = CC_UI.asc ? '↑ Más antiguas primero' : '↓ Más recientes primero';
 
     document.getElementById('cc-importaciones').innerHTML = CC.imps.map(i => `<div class="flex justify-between gap-2 border-b border-slate-100 pb-1">
         <span>${cpEsc(i.nombre_archivo || 'archivo')} · ${cpFecha(i.periodo_desde)} a ${cpFecha(i.periodo_hasta)} · ${i.nuevas} líneas</span>
@@ -545,5 +631,5 @@ async function ccImportar() {
     alert(data.nuevas ? `Listo: ${data.nuevas} movimientos nuevos${data.repetidas ? ` (${data.repetidas} ya estaban y se saltaron)` : ''}.` : 'Todos estos movimientos ya estaban subidos.');
 }
 
-Object.assign(window, { ccSumaCand, ccElegirCuenta, ccCargar, ccPintar, ccAceptar, ccAceptarSugerencias, ccDeshacer, ccAbrirResolver, ccResolverModal, ccIrAReembolsar,
+Object.assign(window, { ccRenombrar, ccPlegar, ccOrden, ccVerSaldo, ccResaltar, ccSumaCand, ccElegirCuenta, ccCargar, ccPintar, ccAceptar, ccAceptarSugerencias, ccDeshacer, ccAbrirResolver, ccResolverModal, ccIrAReembolsar,
     ccBorrarImportacion, ccBorrarRegla, ccLeerArchivo, ccPrevisualizar, ccImportar });

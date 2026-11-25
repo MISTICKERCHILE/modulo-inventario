@@ -103,17 +103,23 @@
                     <input type="file" accept=".csv,.txt,.xls,.xlsx,text/csv" class="hidden" onchange="ccLeerArchivo(this)"></label>
             </div>
         </div>
-        <div id="cc-resumen" class="grid grid-cols-2 lg:grid-cols-4 gap-3"></div>
+        <div id="cc-resumen"></div>
         <div id="cc-reembolso" class="hidden bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm flex flex-col md:flex-row md:items-center gap-3 justify-between"></div>
-        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
-            <table class="min-w-full text-sm">
-                <thead class="bg-slate-50 text-xs font-bold text-slate-500 uppercase"><tr>
-                    <th class="px-3 py-2 text-left">Fecha</th><th class="px-3 py-2 text-left">Movimiento</th><th class="px-3 py-2 text-right">Monto</th>
-                    <th class="px-3 py-2 text-left">Sugerencia / estado</th><th class="px-3 py-2 text-right"></th></tr></thead>
-                <tbody id="cc-tabla" class="divide-y divide-slate-100"></tbody>
-            </table>
-            <p id="cc-vacio" class="hidden p-8 text-center text-sm text-slate-400"></p>
+        <div class="grid grid-cols-1 xl:grid-cols-5 gap-4 items-start">
+            <div class="xl:col-span-3 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="px-4 py-3 border-b border-slate-200 bg-slate-50"><div class="flex items-center justify-between gap-2"><p class="font-black text-slate-800 text-sm flex items-center gap-2">📄 Documentos importados <span id="cc-burbuja-banco"></span></p>
+                    <button id="cc-orden" onclick="ccOrden()" class="text-[11px] font-bold text-slate-500 hover:text-slate-800"></button></div>
+                    <p class="text-[11px] text-slate-500">Cartolas, estados de cuenta y reportes que subiste, con sus líneas tal como vienen del banco.</p></div>
+                <div class="overflow-x-auto"><table class="min-w-full text-sm"><tbody id="cc-tabla" class="divide-y divide-slate-100"></tbody></table></div>
+                <p id="cc-vacio" class="hidden p-8 text-center text-sm text-slate-400"></p>
+            </div>
+            <div class="xl:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden xl:sticky xl:top-4">
+                <div class="px-4 py-3 border-b border-slate-200 bg-slate-50"><p class="font-black text-slate-800 text-sm flex items-center gap-2">✍️ Gastos registrados en Buddy <span id="cc-burbuja-buddy"></span></p>
+                    <p class="text-[11px] text-slate-500">Gastos y pagos registrados con esta cuenta · <span id="cc-buddy-titulo"></span></p></div>
+                <div id="cc-buddy" class="divide-y divide-slate-100 max-h-[75vh] overflow-y-auto"></div>
+            </div>
         </div>
+        <p class="text-[11px] text-slate-400">Toca una línea conciliada para ver su pareja en la otra columna.</p>
         <details class="bg-white rounded-xl border border-slate-200 p-4 text-sm">
             <summary class="font-bold text-slate-700 cursor-pointer">Archivos subidos y lo que Buddy aprendió</summary>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-3">
@@ -211,6 +217,36 @@
 </div>
 
 <!-- ================= MODAL PAGO ================= -->
+<!-- Detalle (gasto o pago) -->
+<div id="cp-modal-detalle" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden p-6 space-y-4">
+        <div class="flex justify-between items-center"><h3 id="cp-det-titulo" class="text-lg font-black text-slate-800"></h3><button onclick="cpCerrar('cp-modal-detalle')" class="text-slate-400 text-xl">✕</button></div>
+        <div id="cp-det-cuerpo" class="space-y-4"></div>
+    </div>
+</div>
+
+<!-- Editar gasto -->
+<div id="cp-modal-editar" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-xl max-h-[90vh] overflow-y-auto p-6 space-y-3">
+        <div class="flex justify-between items-center"><h3 class="text-lg font-black text-slate-800">Editar gasto</h3><button onclick="cpCerrar('cp-modal-editar')" class="text-slate-400 text-xl">✕</button></div>
+        <label class="block text-xs font-bold text-slate-500">¿Qué se compró?<input id="cp-e-desc" maxlength="300" class="mt-1 w-full px-3 py-2 border rounded-lg text-sm"></label>
+        <div class="grid grid-cols-2 gap-3">
+            <label class="block text-xs font-bold text-slate-500">Monto<input id="cp-e-monto" inputmode="numeric" class="mt-1 w-full px-3 py-2 border rounded-lg text-sm"></label>
+            <label class="block text-xs font-bold text-slate-500">Fecha<input id="cp-e-fecha" type="date" class="mt-1 w-full px-3 py-2 border rounded-lg text-sm"></label>
+            <label class="block text-xs font-bold text-slate-500">Pagado con<select id="cp-e-cuenta" class="mt-1 w-full px-3 py-2 border rounded-lg text-sm bg-white"></select></label>
+            <label class="block text-xs font-bold text-slate-500">Categoría<select id="cp-e-cat" class="mt-1 w-full px-3 py-2 border rounded-lg text-sm bg-white"></select></label>
+            <label class="block text-xs font-bold text-slate-500">Documento<select id="cp-e-doc" class="mt-1 w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                <option value="">Sin indicar</option><option value="factura">Factura</option><option value="boleta">Boleta</option><option value="boleta_honorarios">Boleta de honorarios</option><option value="factura_exenta">Factura exenta</option><option value="extranjero">Extranjero / internacional</option><option value="sin_documento">Sin documento</option></select></label>
+            <label class="block text-xs font-bold text-slate-500">N° documento<input id="cp-e-num" class="mt-1 w-full px-3 py-2 border rounded-lg text-sm"></label>
+        </div>
+        <label class="block text-xs font-bold text-slate-500">Rendición / lote de reembolso<input id="cp-e-lote" list="cp-e-lotes" maxlength="80" placeholder="Ej: Rendición #260210-02" class="mt-1 w-full px-3 py-2 border rounded-lg text-sm"><datalist id="cp-e-lotes"></datalist></label>
+        <label class="block text-xs font-bold text-slate-500">Nota<input id="cp-e-nota" maxlength="500" class="mt-1 w-full px-3 py-2 border rounded-lg text-sm"></label>
+        <p class="text-[11px] text-slate-400">El monto y la cuenta solo se pueden cambiar si el gasto aún no tiene pagos registrados. Cada cambio queda en el historial del gasto.</p>
+        <div class="flex justify-end gap-2"><button onclick="cpCerrar('cp-modal-editar')" class="px-4 py-2 border rounded-lg font-bold text-slate-600">Cancelar</button>
+            <button id="cp-e-guardar" onclick="cpGuardarEdicion()" class="px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold">Guardar cambios</button></div>
+    </div>
+</div>
+
 <div id="cp-modal-pago" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-4">
         <div class="flex justify-between items-center"><h3 class="text-lg font-black text-slate-800">Registrar pago</h3><button onclick="cpCerrar('cp-modal-pago')" class="text-slate-400 text-xl">✕</button></div>
