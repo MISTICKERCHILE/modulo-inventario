@@ -44,14 +44,15 @@ async function ccCargar() {
             cpTodo(() => clienteSupabase.from('cxp_pagos').select('id, fecha, monto, referencia, forma, id_cuenta').eq('id_empresa', e).order('fecha', { ascending: false })),
             cpTodo(() => clienteSupabase.from('compras').select('id, fecha_compra, descripcion, total_compra, total_factura, monto_pagado, estado_pago, observaciones_factura, id_cuenta_pago')
                 .eq('id_empresa', e).neq('estado_pago', 'anulado').order('fecha_compra', { ascending: false })),
-            cpTodo(() => clienteSupabase.from('movimientos_bancarios').select('vinculo_tipo, vinculo_id').eq('id_empresa', e).not('vinculo_id', 'is', null)),
+            cpTodo(() => clienteSupabase.from('movimientos_vinculos').select('id_movimiento, tipo, id_vinculo').eq('id_empresa', e)),
             clienteSupabase.from('reglas_comercio').select('*').eq('id_empresa', e).order('patron'),
             cpTodo(() => clienteSupabase.from('importaciones_cartola').select('*').eq('id_cuenta', cta).order('periodo_hasta', { ascending: false })),
             cpTodo(() => clienteSupabase.from('movimientos_bancarios').select('id_cuenta').eq('id_empresa', e).eq('estado', 'pendiente'))
         ]);
         CC.pendPorCuenta = {}; pendTodas.forEach(x => CC.pendPorCuenta[x.id_cuenta] = (CC.pendPorCuenta[x.id_cuenta] || 0) + 1);
         CC.movs = movs; CC.pagos = pagos.filter(p => p.id_cuenta === cta); CC.compras = compras;
-        CC.vinculados = new Set(vinc.map(v => v.vinculo_tipo + ':' + v.vinculo_id));
+        CC.vinculados = new Set(vinc.map(v => v.tipo + ':' + v.id_vinculo));
+        CC.vincPorMov = {}; vinc.forEach(v => (CC.vincPorMov[v.id_movimiento] ||= []).push(v));
         CC.reglas = reglas.data || []; CC.imps = imps || [];
     } catch (err) { console.error(err); return alert('No pude cargar la conciliación: ' + err.message); }
     ccCalcularSugerencias();
@@ -109,6 +110,14 @@ function ccCalcularSugerencias() {
                 if (par) return CC.sug[m.id] = { aviso: true, texto: `⚠️ Comercio recordado, pero ya hay un gasto parecido: “${par.descripcion}” ${cpFmt(cpTotal(par))} del ${cpFecha(par.fecha_compra)} (${cpCuenta(par.id_cuenta_pago)?.nombre || 'a crédito'}). Revísalo antes de crear otro.` };
                 return CC.sug[m.id] = ccSugRegla(regla);
             }
+            // ¿Dos pagos registrados que juntos calzan exacto? (ej. dos reembolsos pagados en una sola transferencia)
+            const libres = CC.pagos.filter(p => !usados.has('pago:' + p.id) && ccDias(p.fecha, m.fecha) <= 7 && Number(p.monto) < abs);
+            for (let a = 0; a < libres.length; a++) for (let b = a + 1; b < libres.length; b++) {
+                if (Number(libres[a].monto) + Number(libres[b].monto) !== abs) continue;
+                const par = [libres[a], libres[b]]; par.forEach(p => usados.add('pago:' + p.id));
+                return CC.sug[m.id] = { accion: 'vincular', datos: { items: par.map(p => ({ tipo: 'pago', id: p.id })) }, segura: true,
+                    texto: `Calza con 2 pagos: “${par[0].referencia || ''}” ${cpFmt(par[0].monto)} + “${par[1].referencia || ''}” ${cpFmt(par[1].monto)}` };
+            }
             const cerca = CC.pagos.filter(p => !usados.has('pago:' + p.id) && ccDias(p.fecha, m.fecha) <= 3 && Math.abs(Number(p.monto) - abs) / abs < 0.5)[0];
             if (cerca) return CC.sug[m.id] = { aviso: true, texto: `⚠️ El ${cpFecha(cerca.fecha)} registraste un pago de ${cpFmt(cerca.monto)} (“${cerca.referencia || ''}”): diferencia de ${cpFmt(Math.abs(Number(cerca.monto) - abs))}` };
             CC.sug[m.id] = { texto: cta?.tipo === 'reembolsable' ? '¿Gasto de la empresa o personal?' : 'No encontré un registro igual' };
@@ -132,8 +141,11 @@ const CC_BORDE = { pendiente: 'bg-amber-400', conciliado: 'bg-emerald-500', ingr
 const CC_ESTADOS = { conciliado: ['Conciliado', 'bg-emerald-100 text-emerald-700'], ingreso: ['Ingreso', 'bg-sky-100 text-sky-700'], interna: ['Entre mis cuentas', 'bg-violet-100 text-violet-700'], no_corresponde: ['No corresponde', 'bg-slate-200 text-slate-500'] };
 
 function ccTextoVinculo(m) {
-    if (m.vinculo_tipo === 'pago') { const p = CC.pagos.find(x => x.id === m.vinculo_id); return p ? `Pago “${p.referencia || ''}” · ${cpFecha(p.fecha)}` : 'Pago'; }
-    if (m.vinculo_tipo === 'compra') { const c = CC.compras.find(x => x.id === m.vinculo_id); return c ? `Gasto “${c.descripcion}”` : 'Gasto'; }
+    const vs = CC.vincPorMov?.[m.id] || (m.vinculo_id && ['pago', 'compra'].includes(m.vinculo_tipo) ? [{ tipo: m.vinculo_tipo, id_vinculo: m.vinculo_id }] : []);
+    if (vs.length) return vs.map(v => {
+        if (v.tipo === 'pago') { const p = CC.pagos.find(x => x.id === v.id_vinculo); return p ? `Pago “${p.referencia || ''}” · ${cpFecha(p.fecha)}` : 'Pago'; }
+        const c = CC.compras.find(x => x.id === v.id_vinculo); return c ? `Gasto “${c.descripcion}”` : 'Gasto';
+    }).join(' + ');
     if (m.vinculo_tipo === 'transferencia') return 'Transferencia registrada';
     if (m.id_gasto_comision) return 'Comisión registrada como gasto';
     return '';
@@ -270,7 +282,7 @@ function ccAbrirResolver(id) {
         if (cand.length) html += caja('Ya lo registré', `<div class="max-h-56 overflow-y-auto border border-slate-100 rounded-lg divide-y divide-slate-100">${cand.map((c, k) => {
                 const dif = c.monto - abs;
                 return `<label class="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-emerald-50 has-[:checked]:bg-emerald-50">
-                    <input type="radio" name="cc-r-cand" value="${c.tipo}:${c.id}" ${k === 0 ? 'checked' : ''} class="accent-emerald-600 shrink-0">
+                    <input type="checkbox" name="cc-r-cand" value="${c.tipo}:${c.id}" data-monto="${c.monto}" ${k === 0 && c.monto === abs ? 'checked' : ''} onchange="ccSumaCand()" class="accent-emerald-600 shrink-0">
                     <span class="min-w-0 flex-1">
                         <span class="block text-xs font-bold text-slate-700 truncate">${cpEsc(c.txt)}</span>
                         <span class="block text-[11px] text-slate-400">${cpFecha(c.fecha)} · ${c.tipo === 'pago' ? 'Pago registrado' : 'Gasto registrado'}</span>
@@ -279,7 +291,8 @@ function ccAbrirResolver(id) {
                         <span class="block text-xs font-bold text-slate-800">${cpFmt(c.monto)}</span>
                         ${dif ? `<span class="block text-[11px] font-bold text-amber-600">${dif > 0 ? '+' : '−'}${cpFmt(Math.abs(dif))}</span>` : '<span class="block text-[11px] font-bold text-emerald-600">exacto</span>'}
                     </span></label>`; }).join('')}</div>
-            <div class="flex justify-end"><button onclick="ccResolverModal('vincular')" class="px-4 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold">Vincular</button></div>`);
+            <div class="flex items-center justify-between gap-2"><p id="cc-r-suma" class="text-[11px] text-slate-500">Puedes marcar varios si una sola transferencia pagó más de un registro.</p>
+            <button id="cc-r-vincular" onclick="ccResolverModal('vincular')" class="px-4 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold shrink-0">Vincular</button></div>`);
         html += caja('Es un gasto de la empresa que no había anotado', `
             <input id="cc-r-desc" maxlength="300" value="${cpEsc(m.descripcion)}" class="w-full px-2 py-1.5 border rounded-lg text-xs">
             <div class="flex gap-2"><select id="cc-r-cat" class="flex-1 min-w-0 px-2 py-1.5 border rounded-lg text-xs bg-white"><option value="">Sin categoría</option>${cpCategoriasVisibles().map(c => `<option value="${c.id}" ${regla?.id_categoria_gasto === c.id ? 'selected' : ''}>${cpEsc(c.nombre)}</option>`).join('')}</select>
@@ -295,12 +308,28 @@ function ccAbrirResolver(id) {
         <button onclick="ccResolverModal('no_corresponde')" class="px-3 py-1.5 bg-slate-600 text-white rounded-lg text-xs font-bold">No corresponde</button>`);
     document.getElementById('cc-r-opciones').innerHTML = html;
     document.getElementById('cc-modal-resolver').classList.remove('hidden');
+    if (m.monto < 0) ccSumaCand();
 }
 
+function ccSumaCand() {
+    const m = CC.actual, out = document.getElementById('cc-r-suma'); if (!m || !out) return;
+    const abs = Math.abs(Number(m.monto));
+    const marcados = [...document.querySelectorAll('input[name="cc-r-cand"]:checked')];
+    const suma = marcados.reduce((a, x) => a + Number(x.dataset.monto), 0), dif = suma - abs;
+    document.getElementById('cc-r-vincular').disabled = !marcados.length;
+    document.getElementById('cc-r-vincular').classList.toggle('opacity-40', !marcados.length);
+    out.innerHTML = !marcados.length ? 'Marca uno o varios registros. Si una transferencia pagó más de uno, márcalos todos.'
+        : `${marcados.length} marcado${marcados.length > 1 ? 's' : ''} · suma <b>${cpFmt(suma)}</b> ` +
+          (dif ? `<span class="font-bold text-amber-600">(${dif > 0 ? 'sobran' : 'faltan'} ${cpFmt(Math.abs(dif))})</span>` : '<span class="font-bold text-emerald-600">✓ exacto</span>');
+}
 async function ccResolverModal(accion) {
     const m = CC.actual; if (!m) return;
     const datos = { recordar: document.getElementById('cc-r-recordar').checked };
-    if (accion === 'vincular') { const [t, id] = (document.querySelector('input[name="cc-r-cand"]:checked')?.value || ':').split(':'); datos.tipo = t; datos.id = id; datos.recordar = false; }
+    if (accion === 'vincular') {
+        datos.items = [...document.querySelectorAll('input[name="cc-r-cand"]:checked')].map(x => { const [tipo, id] = x.value.split(':'); return { tipo, id }; });
+        if (!datos.items.length) return alert('Marca al menos un registro.');
+        datos.recordar = false;
+    }
     if (accion === 'crear_gasto') { datos.descripcion = document.getElementById('cc-r-desc').value; datos.id_categoria_gasto = document.getElementById('cc-r-cat').value || null; }
     if (accion === 'interna') datos.id_cuenta_otra = document.getElementById('cc-r-otra').value || null;
     if (await ccResolver(m.id, accion, datos)) { cpCerrar('cc-modal-resolver'); ccCargar(); }
@@ -516,5 +545,5 @@ async function ccImportar() {
     alert(data.nuevas ? `Listo: ${data.nuevas} movimientos nuevos${data.repetidas ? ` (${data.repetidas} ya estaban y se saltaron)` : ''}.` : 'Todos estos movimientos ya estaban subidos.');
 }
 
-Object.assign(window, { ccElegirCuenta, ccCargar, ccPintar, ccAceptar, ccAceptarSugerencias, ccDeshacer, ccAbrirResolver, ccResolverModal, ccIrAReembolsar,
+Object.assign(window, { ccSumaCand, ccElegirCuenta, ccCargar, ccPintar, ccAceptar, ccAceptarSugerencias, ccDeshacer, ccAbrirResolver, ccResolverModal, ccIrAReembolsar,
     ccBorrarImportacion, ccBorrarRegla, ccLeerArchivo, ccPrevisualizar, ccImportar });
