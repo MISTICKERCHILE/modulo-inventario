@@ -258,8 +258,8 @@ function ccAbrirResolver(id) {
     const regla = ccRegla(m);
     document.getElementById('cc-r-linea').innerHTML = `${cpFecha(m.fecha)} · ${cpEsc(m.descripcion)} · <b>${m.monto < 0 ? '−' : '+'}${cpFmt(abs)}</b>`;
     const otras = CP.cuentas.filter(c => c.activo && c.id !== m.id_cuenta);
-    const selOtras = `<select id="cc-r-otra" class="flex-1 px-2 py-1.5 border rounded-lg text-xs bg-white"><option value="">Sin indicar la otra cuenta</option>${otras.map(c => `<option value="${c.id}">${cpEsc(c.nombre)}</option>`).join('')}</select>`;
-    const caja = (titulo, cuerpo) => `<div class="border border-slate-200 rounded-lg p-3 space-y-2"><p class="font-bold text-sm text-slate-700">${titulo}</p>${cuerpo}</div>`;
+    const selOtras = `<select id="cc-r-otra" class="flex-1 min-w-0 px-2 py-1.5 border rounded-lg text-xs bg-white"><option value="">Sin indicar la otra cuenta</option>${otras.map(c => `<option value="${c.id}">${cpEsc(c.nombre)}</option>`).join('')}</select>`;
+    const caja = (titulo, cuerpo) => `<div class="border border-slate-200 rounded-lg p-3 space-y-2 min-w-0"><p class="font-bold text-sm text-slate-700">${titulo}</p>${cuerpo}</div>`;
     let html = '';
     if (m.monto < 0) {
         const cand = [
@@ -267,12 +267,22 @@ function ccAbrirResolver(id) {
             ...CC.compras.filter(c => !CC.vinculados.has('compra:' + c.id)).map(c => ({ tipo: 'compra', id: c.id, monto: cpTotal(c), fecha: c.fecha_compra,
                 txt: `Gasto · ${c.descripcion}${c.id_cuenta_pago !== m.id_cuenta ? ' [' + (cpCuenta(c.id_cuenta_pago)?.nombre || 'a crédito') + ']' : ''}` }))
         ].map(c => ({ ...c, score: Math.abs(c.monto - abs) / Math.max(abs, 1) * 30 + ccDias(c.fecha, m.fecha) })).sort((a, b) => a.score - b.score).slice(0, 15);
-        if (cand.length) html += caja('Ya lo registré', `<div class="flex gap-2"><select id="cc-r-cand" class="flex-1 px-2 py-1.5 border rounded-lg text-xs bg-white">${cand.map(c =>
-            `<option value="${c.tipo}:${c.id}">${cpFecha(c.fecha)} · ${cpFmt(c.monto)} · ${cpEsc(c.txt.slice(0, 60))}${c.monto !== abs ? ' (≠)' : ''}</option>`).join('')}</select>
-            <button onclick="ccResolverModal('vincular')" class="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold">Vincular</button></div>`);
+        if (cand.length) html += caja('Ya lo registré', `<div class="max-h-56 overflow-y-auto border border-slate-100 rounded-lg divide-y divide-slate-100">${cand.map((c, k) => {
+                const dif = c.monto - abs;
+                return `<label class="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-emerald-50 has-[:checked]:bg-emerald-50">
+                    <input type="radio" name="cc-r-cand" value="${c.tipo}:${c.id}" ${k === 0 ? 'checked' : ''} class="accent-emerald-600 shrink-0">
+                    <span class="min-w-0 flex-1">
+                        <span class="block text-xs font-bold text-slate-700 truncate">${cpEsc(c.txt)}</span>
+                        <span class="block text-[11px] text-slate-400">${cpFecha(c.fecha)} · ${c.tipo === 'pago' ? 'Pago registrado' : 'Gasto registrado'}</span>
+                    </span>
+                    <span class="text-right shrink-0">
+                        <span class="block text-xs font-bold text-slate-800">${cpFmt(c.monto)}</span>
+                        ${dif ? `<span class="block text-[11px] font-bold text-amber-600">${dif > 0 ? '+' : '−'}${cpFmt(Math.abs(dif))}</span>` : '<span class="block text-[11px] font-bold text-emerald-600">exacto</span>'}
+                    </span></label>`; }).join('')}</div>
+            <div class="flex justify-end"><button onclick="ccResolverModal('vincular')" class="px-4 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold">Vincular</button></div>`);
         html += caja('Es un gasto de la empresa que no había anotado', `
             <input id="cc-r-desc" maxlength="300" value="${cpEsc(m.descripcion)}" class="w-full px-2 py-1.5 border rounded-lg text-xs">
-            <div class="flex gap-2"><select id="cc-r-cat" class="flex-1 px-2 py-1.5 border rounded-lg text-xs bg-white"><option value="">Sin categoría</option>${cpCategoriasVisibles().map(c => `<option value="${c.id}" ${regla?.id_categoria_gasto === c.id ? 'selected' : ''}>${cpEsc(c.nombre)}</option>`).join('')}</select>
+            <div class="flex gap-2"><select id="cc-r-cat" class="flex-1 min-w-0 px-2 py-1.5 border rounded-lg text-xs bg-white"><option value="">Sin categoría</option>${cpCategoriasVisibles().map(c => `<option value="${c.id}" ${regla?.id_categoria_gasto === c.id ? 'selected' : ''}>${cpEsc(c.nombre)}</option>`).join('')}</select>
             <button onclick="ccResolverModal('crear_gasto')" class="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold">Crear gasto</button></div>
             ${cpCuenta(m.id_cuenta)?.tipo === 'reembolsable' ? '<p class="text-[11px] text-amber-700">Quedará pendiente de reembolso a esta persona.</p>' : ''}`);
     } else {
@@ -290,7 +300,7 @@ function ccAbrirResolver(id) {
 async function ccResolverModal(accion) {
     const m = CC.actual; if (!m) return;
     const datos = { recordar: document.getElementById('cc-r-recordar').checked };
-    if (accion === 'vincular') { const [t, id] = document.getElementById('cc-r-cand').value.split(':'); datos.tipo = t; datos.id = id; datos.recordar = false; }
+    if (accion === 'vincular') { const [t, id] = (document.querySelector('input[name="cc-r-cand"]:checked')?.value || ':').split(':'); datos.tipo = t; datos.id = id; datos.recordar = false; }
     if (accion === 'crear_gasto') { datos.descripcion = document.getElementById('cc-r-desc').value; datos.id_categoria_gasto = document.getElementById('cc-r-cat').value || null; }
     if (accion === 'interna') datos.id_cuenta_otra = document.getElementById('cc-r-otra').value || null;
     if (await ccResolver(m.id, accion, datos)) { cpCerrar('cc-modal-resolver'); ccCargar(); }
