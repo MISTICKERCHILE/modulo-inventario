@@ -91,8 +91,9 @@
 
     <!-- ================= CONCILIACIÓN ================= -->
     <div id="cp-conciliacion" class="hidden space-y-4">
+        <div id="cc-cuentas" class="flex flex-wrap gap-2"></div>
         <div class="flex flex-col lg:flex-row gap-2 lg:items-center">
-            <select id="cc-cuenta" onchange="ccCargar()" class="px-3 py-2 border rounded-lg bg-white text-sm font-bold"></select>
+            <select id="cc-cuenta" onchange="ccCargar()" class="hidden"></select>
             <input id="cc-mes" type="month" onchange="ccCargar()" class="px-3 py-2 border rounded-lg text-sm" title="Mes (vacío = todo)">
             <select id="cc-estado" onchange="ccPintar()" class="px-3 py-2 border rounded-lg bg-white text-sm">
                 <option value="pendiente">Por revisar</option><option value="">Todas</option><option value="resueltas">Ya resueltas</option></select>
