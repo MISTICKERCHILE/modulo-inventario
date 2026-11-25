@@ -72,7 +72,7 @@ function ccPintarCuentas() {
             <span class="text-lg leading-none">${CC_ICONO[c.tipo] || '🏦'}</span>
             <span class="leading-tight"><span class="block text-sm font-bold">${cpEsc(c.nombre)}</span>
                 <span class="block text-[11px] ${act ? 'text-slate-300' : 'text-slate-400'}">${TIPOS_CUENTA[c.tipo].replace(/^\S+ /, '')}${c.ultimos_4 ? ' ···· ' + c.ultimos_4 : ''}</span></span>
-            ${n ? `<span class="ml-1 px-2 py-0.5 rounded-full text-[11px] font-black ${act ? 'bg-amber-400 text-slate-900' : 'bg-amber-100 text-amber-700'}">${n}</span>`
+            ${n ? ccBurbuja(n, 'ml-1')
                 : `<span class="ml-1 text-xs ${act ? 'text-emerald-300' : 'text-emerald-600'}">✓</span>`}</button>`;
     }).join('');
 }
@@ -152,6 +152,13 @@ function ccTextoVinculo(m) {
     return '';
 }
 
+const CC_UI = (() => { try { return JSON.parse(localStorage.getItem('cc_ui') || '{}'); } catch (e) { return {}; } })();
+const ccGuardarUI = () => { try { localStorage.setItem('cc_ui', JSON.stringify(CC_UI)); } catch (e) { } };
+CC_UI.abiertos ||= {}; // archivo → true/false (si no está, se abre solo si tiene pendientes)
+function ccPlegar(k) { const g = document.querySelector(`[data-grupo="${k}"]`); CC_UI.abiertos[k] = !(g?.dataset.abierto === '1'); ccGuardarUI(); ccPintar(); }
+function ccOrden() { CC_UI.asc = !CC_UI.asc; ccGuardarUI(); ccPintar(); }
+function ccVerSaldo() { CC_UI.saldo = !CC_UI.saldo; ccGuardarUI(); ccPintar(); }
+const ccBurbuja = (n, extra = '') => n ? `<span class="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-[11px] font-black ${extra}">${n}</span>` : '';
 const CC_MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 // "Cartola julio 2026 · Banco Chile ···· 4138" a partir de la cuenta y las fechas (no del nombre del archivo)
 function ccTituloArchivo(fechas, cta) {
@@ -163,6 +170,16 @@ function ccTituloArchivo(fechas, cta) {
     if (meses.length === 1 || porMes[meses[meses.length - 1]] >= fechas.length * 0.8) { const ym = meses.length === 1 ? meses[0] : meses[meses.length - 1]; periodo = `${nom(ym)} ${ym.slice(0, 4)}`; }
     else if (meses.length) { const a = meses[0], b = meses[meses.length - 1]; periodo = a.slice(0, 4) === b.slice(0, 4) ? `${nom(a)} a ${nom(b)} ${b.slice(0, 4)}` : `${nom(a)} ${a.slice(0, 4)} a ${nom(b)} ${b.slice(0, 4)}`; }
     return `${tipo} ${periodo} · ${cta?.nombre || ''}${cta?.ultimos_4 ? ' ···· ' + cta.ultimos_4 : ''}`;
+}
+async function ccRenombrar(id) {
+    const imp = CC.imps.find(x => x.id === id); if (!imp) return;
+    const fechas = CC.movs.filter(m => m.id_importacion === id).map(m => m.fecha).sort();
+    const sug = ccTituloArchivo(fechas, cpCuenta(document.getElementById('cc-cuenta').value));
+    const t = prompt('Título de este documento (déjalo vacío para usar el automático):', imp.titulo || sug);
+    if (t === null) return;
+    const { error } = await clienteSupabase.rpc('renombrar_importacion', { p_id: id, p_titulo: t.trim() === sug ? '' : t });
+    if (error) return alert(error.message);
+    ccCargar();
 }
 // Al tocar una línea o un registro, resalta su pareja en la otra columna
 function ccResaltar(id, ev) {
@@ -218,7 +235,7 @@ function ccPintar() {
     };
     const grupos = new Map();
     CC.movs.forEach(m => { const k = m.id_importacion || 'sin'; if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(m); });
-    const orden = [...grupos.keys()].sort((a, b) => (grupos.get(b)[0]?.fecha || '').localeCompare(grupos.get(a)[0]?.fecha || ''));
+    const orden = [...grupos.keys()].sort((a, b) => (grupos.get(b)[0]?.fecha || '').localeCompare(grupos.get(a)[0]?.fecha || '') * (CC_UI.asc ? -1 : 1));
     let hayFilas = false; const enFiltro = new Set(filas);
     document.getElementById('cc-tabla').innerHTML = orden.map(k => {
         const todas = grupos.get(k), imp = CC.imps.find(x => x.id === k);
@@ -226,16 +243,21 @@ function ccPintar() {
         const hechas = todas.filter(m => m.estado !== 'pendiente').length, pct = Math.round(hechas / todas.length * 100);
         const fechas = todas.map(m => m.fecha).sort();
         const sal = todas.filter(m => m.monto < 0).reduce((a, m) => a - Number(m.monto), 0), ent = todas.filter(m => m.monto > 0).reduce((a, m) => a + Number(m.monto), 0);
-        const listo = hechas === todas.length;
-        const cab = `<tr class="bg-slate-100/80 border-t-2 border-slate-200"><td colspan="4" class="px-3 py-2">
+        const listo = hechas === todas.length, faltan = todas.length - hechas;
+        const abierto = CC_UI.abiertos[k] ?? !listo;
+        const titulo = imp?.titulo || ccTituloArchivo(fechas, cta);
+        const cab = `<tr data-grupo="${k}" data-abierto="${abierto ? 1 : 0}" class="bg-slate-100/80 border-t-2 border-slate-200"><td colspan="4" class="px-3 py-2">
             <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <span class="font-bold text-slate-700 text-sm">📄 ${cpEsc(ccTituloArchivo(fechas, cta))}</span>
+                <button onclick="ccPlegar('${k}')" class="flex items-center gap-2 font-bold text-slate-700 text-sm text-left">
+                    <span class="text-slate-400 text-xs w-3">${abierto ? '▾' : '▸'}</span>📄 ${cpEsc(titulo)} ${ccBurbuja(faltan)}</button>
+                ${imp ? `<button onclick="ccRenombrar('${imp.id}')" title="Cambiar título" class="text-slate-300 hover:text-slate-600 text-xs">✎</button>` : ''}
                 <span class="flex items-center gap-2 ml-auto">
                     <span class="w-20 h-1.5 bg-slate-200 rounded-full overflow-hidden"><span class="block h-full ${listo ? 'bg-emerald-500' : 'bg-amber-400'}" style="width:${pct}%"></span></span>
                     <span class="text-xs font-bold ${listo ? 'text-emerald-700' : 'text-amber-700'}">${listo ? '✓ Conciliado' : `${hechas} de ${todas.length}`}</span>
                     ${imp && cpEsAdmin() ? `<button onclick="ccBorrarImportacion('${imp.id}')" title="Quitar este archivo" class="text-slate-300 hover:text-red-500 text-xs">✕</button>` : ''}
                 </span></div>
-            <p class="text-[11px] text-slate-400 mt-0.5">${cpFecha(fechas[0])} → ${cpFecha(fechas[fechas.length - 1])} · salidas ${cpFmt(sal, cta?.moneda)} · entradas ${cpFmt(ent, cta?.moneda)}${imp?.nombre_archivo ? ` · archivo: ${cpEsc(imp.nombre_archivo)}` : ''}</p></td></tr>`;
+            <p class="text-[11px] text-slate-400 mt-0.5 pl-5">${cpFecha(fechas[0])} → ${cpFecha(fechas[fechas.length - 1])} · salidas ${cpFmt(sal, cta?.moneda)} · entradas ${cpFmt(ent, cta?.moneda)}${imp?.nombre_archivo ? ` · archivo: ${cpEsc(imp.nombre_archivo)}` : ''}</p></td></tr>`;
+        if (!abierto) return cab;
         return cab + visibles.map(fila).join('');
     }).join('');
     const vacio = document.getElementById('cc-vacio');
@@ -272,18 +294,25 @@ function ccPintar() {
         : (verReg.map(item).join('') || `<p class="p-6 text-center text-sm text-slate-400">${regs.length ? 'Todo lo registrado tiene su línea en la cartola 🎉' : 'No hay gastos ni pagos registrados con esta cuenta en el período.'}</p>`);
     document.getElementById('cc-buddy-titulo').textContent = desde ? `${cpFecha(desde)} → ${cpFecha(hasta)}` : '';
 
-    // ---------- Cuadre: ¿todo calza?
-    const bancoSin = pend.length, buddySin = sinLinea.length, cuadra = CC.movs.length && !bancoSin && !buddySin;
-    const caja = (icono, titulo, total, ok, falta, txtFalta) => `<div class="flex-1 min-w-[220px] bg-white border border-slate-200 rounded-xl p-3">
-        <p class="text-[11px] font-bold text-slate-500 uppercase">${icono} ${titulo}</p>
-        <p class="text-sm mt-1"><b class="text-emerald-700">✓ ${ok}</b> <span class="text-slate-400">de ${total} conciliados</span></p>
-        <p class="text-sm ${falta ? 'text-amber-700 font-bold' : 'text-slate-400'}">${falta ? `⚠ ${falta} ${txtFalta}` : 'Nada pendiente'}</p></div>`;
+    // ---------- Resumen: cartolas subidas, pendientes de cada lado y saldo
+    const bancoSin = pend.length, buddySin = sinLinea.length;
+    const mesesDe = (fs) => [...new Set(fs.map(f => f.slice(0, 7)))].sort().map(ym => `${CC_MESES[+ym.slice(5) - 1].slice(0, 3)} ${ym.slice(0, 4)}`);
+    const chips = (arr) => arr.map(x => `<span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[11px] font-bold">${x}</span>`).join(' ');
+    const mesesBanco = mesesDe(pend.map(m => m.fecha)), mesesBuddy = mesesDe(sinLinea.map(r => r.fecha));
+    const caja = (cont) => `<div class="flex-1 min-w-[220px] bg-white border border-slate-200 rounded-xl p-3">${cont}</div>`;
     document.getElementById('cc-resumen').innerHTML = !CC.movs.length && !regs.length ? '' : `<div class="flex flex-wrap gap-3 items-stretch">
-        ${caja('🏦', 'Banco', CC.movs.length, CC.movs.length - bancoSin, bancoSin, bancoSin === 1 ? 'línea sin registro en Buddy' : 'líneas sin registro en Buddy')}
-        <div class="flex items-center justify-center px-4 rounded-xl ${cuadra ? 'bg-emerald-600 text-white' : 'bg-amber-50 text-amber-800 border border-amber-200'} text-center">
-            <p class="font-black text-sm leading-tight">${cuadra ? '✓ Todo cuadra' : `Faltan ${bancoSin + buddySin}<br><span class="text-[11px] font-bold">para cuadrar</span>`}</p></div>
-        ${caja('✍️', 'Buddy', regs.length, conLinea.length, buddySin, buddySin === 1 ? 'registro sin línea en la cartola' : 'registros sin línea en la cartola')}
-        ${ultimoSaldo ? `<div class="min-w-[140px] bg-white border border-slate-200 rounded-xl p-3"><p class="text-[11px] font-bold text-slate-500 uppercase">Saldo al ${cpFecha(ultimoSaldo.fecha)}</p><p class="text-lg font-black">${cpFmt(ultimoSaldo.saldo, cta?.moneda)}</p></div>` : ''}</div>`;
+        ${caja(`<p class="text-[11px] font-bold text-slate-500 uppercase">📄 Documentos importados</p>
+            <p class="text-sm mt-1"><b class="text-slate-800">${grupos.size}</b> <span class="text-slate-500">${grupos.size === 1 ? 'archivo subido' : 'archivos subidos'} · ${CC.movs.length} líneas</span></p>
+            <p class="text-sm mt-1 flex items-center gap-2 flex-wrap">${bancoSin ? `${ccBurbuja(bancoSin)} <span class="text-amber-700 font-bold">por revisar</span> ${chips(mesesBanco)}` : '<span class="text-emerald-700 font-bold">✓ Todo revisado</span>'}</p>`)}
+        ${caja(`<p class="text-[11px] font-bold text-slate-500 uppercase">✍️ Gastos registrados en Buddy</p>
+            <p class="text-sm mt-1"><b class="text-slate-800">${regs.length}</b> <span class="text-slate-500">registros en el período</span></p>
+            <p class="text-sm mt-1 flex items-center gap-2 flex-wrap">${buddySin ? `${ccBurbuja(buddySin)} <span class="text-amber-700 font-bold">sin línea en la cartola</span> ${chips(mesesBuddy)}` : '<span class="text-emerald-700 font-bold">✓ Todo tiene su línea</span>'}</p>`)}
+        ${ultimoSaldo ? `<div class="min-w-[160px] bg-white border border-slate-200 rounded-xl p-3"><p class="text-[11px] font-bold text-slate-500 uppercase flex items-center justify-between gap-2">Saldo al ${cpFecha(ultimoSaldo.fecha)}
+            <button onclick="ccVerSaldo()" title="${CC_UI.saldo ? 'Ocultar' : 'Mostrar'} saldo" class="text-slate-400 hover:text-slate-700 text-sm">${CC_UI.saldo ? '🙈' : '👁'}</button></p>
+            <p class="text-lg font-black">${CC_UI.saldo ? cpFmt(ultimoSaldo.saldo, cta?.moneda) : '$ • • • • •'}</p></div>` : ''}</div>`;
+    document.getElementById('cc-burbuja-banco').innerHTML = ccBurbuja(bancoSin);
+    document.getElementById('cc-burbuja-buddy').innerHTML = ccBurbuja(buddySin);
+    document.getElementById('cc-orden').textContent = CC_UI.asc ? '↑ Más antiguas primero' : '↓ Más recientes primero';
 
     document.getElementById('cc-importaciones').innerHTML = CC.imps.map(i => `<div class="flex justify-between gap-2 border-b border-slate-100 pb-1">
         <span>${cpEsc(i.nombre_archivo || 'archivo')} · ${cpFecha(i.periodo_desde)} a ${cpFecha(i.periodo_hasta)} · ${i.nuevas} líneas</span>
@@ -602,5 +631,5 @@ async function ccImportar() {
     alert(data.nuevas ? `Listo: ${data.nuevas} movimientos nuevos${data.repetidas ? ` (${data.repetidas} ya estaban y se saltaron)` : ''}.` : 'Todos estos movimientos ya estaban subidos.');
 }
 
-Object.assign(window, { ccResaltar, ccSumaCand, ccElegirCuenta, ccCargar, ccPintar, ccAceptar, ccAceptarSugerencias, ccDeshacer, ccAbrirResolver, ccResolverModal, ccIrAReembolsar,
+Object.assign(window, { ccRenombrar, ccPlegar, ccOrden, ccVerSaldo, ccResaltar, ccSumaCand, ccElegirCuenta, ccCargar, ccPintar, ccAceptar, ccAceptarSugerencias, ccDeshacer, ccAbrirResolver, ccResolverModal, ccIrAReembolsar,
     ccBorrarImportacion, ccBorrarRegla, ccLeerArchivo, ccPrevisualizar, ccImportar });
