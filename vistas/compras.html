@@ -103,17 +103,22 @@
                     <input type="file" accept=".csv,.txt,.xls,.xlsx,text/csv" class="hidden" onchange="ccLeerArchivo(this)"></label>
             </div>
         </div>
-        <div id="cc-resumen" class="grid grid-cols-2 lg:grid-cols-4 gap-3"></div>
+        <div id="cc-resumen"></div>
         <div id="cc-reembolso" class="hidden bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm flex flex-col md:flex-row md:items-center gap-3 justify-between"></div>
-        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
-            <table class="min-w-full text-sm">
-                <thead class="bg-slate-50 text-xs font-bold text-slate-500 uppercase"><tr>
-                    <th class="px-3 py-2 text-left">Fecha</th><th class="px-3 py-2 text-left">Movimiento</th><th class="px-3 py-2 text-right">Monto</th>
-                    <th class="px-3 py-2 text-left">Sugerencia / estado</th><th class="px-3 py-2 text-right"></th></tr></thead>
-                <tbody id="cc-tabla" class="divide-y divide-slate-100"></tbody>
-            </table>
-            <p id="cc-vacio" class="hidden p-8 text-center text-sm text-slate-400"></p>
+        <div class="grid grid-cols-1 xl:grid-cols-5 gap-4 items-start">
+            <div class="xl:col-span-3 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="px-4 py-3 border-b border-slate-200 bg-slate-50"><p class="font-black text-slate-800 text-sm">🏦 Lo que dice el banco</p>
+                    <p class="text-[11px] text-slate-500">Líneas tal como vienen en la cartola, estado de cuenta o reporte que subiste.</p></div>
+                <div class="overflow-x-auto"><table class="min-w-full text-sm"><tbody id="cc-tabla" class="divide-y divide-slate-100"></tbody></table></div>
+                <p id="cc-vacio" class="hidden p-8 text-center text-sm text-slate-400"></p>
+            </div>
+            <div class="xl:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden xl:sticky xl:top-4">
+                <div class="px-4 py-3 border-b border-slate-200 bg-slate-50"><p class="font-black text-slate-800 text-sm">✍️ Lo que tienes en Buddy</p>
+                    <p class="text-[11px] text-slate-500">Gastos y pagos registrados con esta cuenta · <span id="cc-buddy-titulo"></span></p></div>
+                <div id="cc-buddy" class="divide-y divide-slate-100 max-h-[75vh] overflow-y-auto"></div>
+            </div>
         </div>
+        <p class="text-[11px] text-slate-400">Toca una línea conciliada para ver su pareja en la otra columna.</p>
         <details class="bg-white rounded-xl border border-slate-200 p-4 text-sm">
             <summary class="font-bold text-slate-700 cursor-pointer">Archivos subidos y lo que Buddy aprendió</summary>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-3">
