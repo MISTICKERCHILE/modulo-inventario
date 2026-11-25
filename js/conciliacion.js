@@ -38,7 +38,7 @@ async function ccCargar() {
     const ym = document.getElementById('cc-mes').value;
     const e = window.miEmpresaId;
     try {
-        const [movs, pagos, compras, vinc, reglas, imps] = await Promise.all([
+        const [movs, pagos, compras, vinc, reglas, imps, pendTodas] = await Promise.all([
             cpTodo(() => { let q = clienteSupabase.from('movimientos_bancarios').select('*').eq('id_cuenta', cta).order('fecha', { ascending: false }).order('created_at');
                 if (ym) { const [d, h] = cpRangoMes(ym); q = q.gte('fecha', d).lte('fecha', h); } return q; }),
             cpTodo(() => clienteSupabase.from('cxp_pagos').select('id, fecha, monto, referencia, forma, id_cuenta').eq('id_empresa', e).order('fecha', { ascending: false })),
@@ -46,15 +46,35 @@ async function ccCargar() {
                 .eq('id_empresa', e).neq('estado_pago', 'anulado').order('fecha_compra', { ascending: false })),
             cpTodo(() => clienteSupabase.from('movimientos_bancarios').select('vinculo_tipo, vinculo_id').eq('id_empresa', e).not('vinculo_id', 'is', null)),
             clienteSupabase.from('reglas_comercio').select('*').eq('id_empresa', e).order('patron'),
-            clienteSupabase.from('importaciones_cartola').select('*').eq('id_cuenta', cta).order('created_at', { ascending: false }).limit(30)
+            cpTodo(() => clienteSupabase.from('importaciones_cartola').select('*').eq('id_cuenta', cta).order('periodo_hasta', { ascending: false })),
+            cpTodo(() => clienteSupabase.from('movimientos_bancarios').select('id_cuenta').eq('id_empresa', e).eq('estado', 'pendiente'))
         ]);
+        CC.pendPorCuenta = {}; pendTodas.forEach(x => CC.pendPorCuenta[x.id_cuenta] = (CC.pendPorCuenta[x.id_cuenta] || 0) + 1);
         CC.movs = movs; CC.pagos = pagos.filter(p => p.id_cuenta === cta); CC.compras = compras;
         CC.vinculados = new Set(vinc.map(v => v.vinculo_tipo + ':' + v.vinculo_id));
-        CC.reglas = reglas.data || []; CC.imps = imps.data || [];
+        CC.reglas = reglas.data || []; CC.imps = imps || [];
     } catch (err) { console.error(err); return alert('No pude cargar la conciliación: ' + err.message); }
     ccCalcularSugerencias();
+    ccPintarCuentas();
     ccPintar();
 }
+
+// Fichas de cuentas: a simple vista qué banco / tarjeta / billetera estás revisando y cuánto le falta
+const CC_ICONO = { banco: '🏦', billetera: '📱', caja: '💵', tarjeta_credito: '💳', reembolsable: '🙋' };
+function ccPintarCuentas() {
+    const sel = document.getElementById('cc-cuenta'), box = document.getElementById('cc-cuentas'); if (!box) return;
+    box.innerHTML = CP.cuentas.filter(c => c.activo).map(c => {
+        const act = c.id === sel.value, n = CC.pendPorCuenta?.[c.id] || 0;
+        return `<button onclick="ccElegirCuenta('${c.id}')" class="flex items-center gap-2 px-3 py-2 rounded-xl border text-left transition
+            ${act ? 'bg-slate-800 border-slate-800 text-white shadow' : 'bg-white border-slate-200 text-slate-700 hover:border-slate-400'}">
+            <span class="text-lg leading-none">${CC_ICONO[c.tipo] || '🏦'}</span>
+            <span class="leading-tight"><span class="block text-sm font-bold">${cpEsc(c.nombre)}</span>
+                <span class="block text-[11px] ${act ? 'text-slate-300' : 'text-slate-400'}">${TIPOS_CUENTA[c.tipo].replace(/^\S+ /, '')}${c.ultimos_4 ? ' ···· ' + c.ultimos_4 : ''}</span></span>
+            ${n ? `<span class="ml-1 px-2 py-0.5 rounded-full text-[11px] font-black ${act ? 'bg-amber-400 text-slate-900' : 'bg-amber-100 text-amber-700'}">${n}</span>`
+                : `<span class="ml-1 text-xs ${act ? 'text-emerald-300' : 'text-emerald-600'}">✓</span>`}</button>`;
+    }).join('');
+}
+function ccElegirCuenta(id) { document.getElementById('cc-cuenta').value = id; ccCargar(); }
 
 function ccRegla(m) {
     const p = ccPatron(m.descripcion);
@@ -108,6 +128,7 @@ function ccSugRegla(r) {
     return { accion: 'no_corresponde', datos: { recordar: true }, segura: true, texto: 'No corresponde a la empresa (recordado)' };
 }
 
+const CC_BORDE = { pendiente: 'bg-amber-400', conciliado: 'bg-emerald-500', ingreso: 'bg-sky-500', interna: 'bg-violet-500', no_corresponde: 'bg-slate-300' };
 const CC_ESTADOS = { conciliado: ['Conciliado', 'bg-emerald-100 text-emerald-700'], ingreso: ['Ingreso', 'bg-sky-100 text-sky-700'], interna: ['Entre mis cuentas', 'bg-violet-100 text-violet-700'], no_corresponde: ['No corresponde', 'bg-slate-200 text-slate-500'] };
 
 function ccTextoVinculo(m) {
@@ -146,7 +167,8 @@ function ccPintar() {
         CC.reembolsables = pendR.map(c => c.id);
     } else banner.classList.add('hidden');
 
-    document.getElementById('cc-tabla').innerHTML = filas.map(m => {
+    // Agrupar por archivo subido (cada cartola / estado de cuenta / reporte MP es un bloque)
+    const fila = (m) => {
         const s = CC.sug[m.id];
         const monto = `<span class="${m.monto < 0 ? 'text-slate-800' : 'text-emerald-700'} font-bold">${m.monto < 0 ? '−' : '+'}${cpFmt(Math.abs(m.monto), cta?.moneda)}</span>`;
         const extra = m.monto_bruto ? `<p class="text-[11px] text-slate-400">Bruto ${cpFmt(m.monto_bruto)} · comisión ${cpFmt(m.comision || 0)}</p>` : '';
@@ -160,15 +182,38 @@ function ccPintar() {
             estado = `<span class="px-2 py-1 rounded-full text-[11px] font-bold ${col}">${et}</span> <span class="text-[11px] text-slate-400">${cpEsc(ccTextoVinculo(m))}</span>`;
             acc = `<button onclick="ccDeshacer('${m.id}')" class="text-xs font-bold text-slate-400 hover:text-red-600">Deshacer</button>`;
         }
-        return `<tr class="${m.estado === 'pendiente' ? '' : 'bg-slate-50/50'}">
-            <td class="px-3 py-2 whitespace-nowrap text-slate-500 text-xs">${cpFecha(m.fecha)}</td>
+        return `<tr class="${m.estado === 'pendiente' ? '' : 'bg-slate-50/60'}">
+            <td class="pl-0 pr-3 py-2 whitespace-nowrap text-slate-500 text-xs"><span class="inline-block w-1 h-8 align-middle mr-3 rounded-r ${CC_BORDE[m.estado] || 'bg-slate-200'}"></span>${cpFecha(m.fecha)}</td>
             <td class="px-3 py-2"><p class="text-slate-700">${cpEsc(m.descripcion)}</p>${extra}</td>
             <td class="px-3 py-2 text-right whitespace-nowrap">${monto}</td>
             <td class="px-3 py-2">${estado}</td>
             <td class="px-3 py-2 text-right whitespace-nowrap space-x-1">${acc}</td></tr>`;
+    };
+    const grupos = new Map();
+    CC.movs.forEach(m => { const k = m.id_importacion || 'sin'; if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(m); });
+    const orden = [...grupos.keys()].sort((a, b) => (grupos.get(b)[0]?.fecha || '').localeCompare(grupos.get(a)[0]?.fecha || ''));
+    let hayFilas = false; const enFiltro = new Set(filas);
+    document.getElementById('cc-tabla').innerHTML = orden.map(k => {
+        const todas = grupos.get(k), imp = CC.imps.find(x => x.id === k);
+        const visibles = todas.filter(m => enFiltro.has(m)); if (visibles.length) hayFilas = true;
+        const hechas = todas.filter(m => m.estado !== 'pendiente').length, pct = Math.round(hechas / todas.length * 100);
+        const fechas = todas.map(m => m.fecha).sort();
+        const sal = todas.filter(m => m.monto < 0).reduce((a, m) => a - Number(m.monto), 0), ent = todas.filter(m => m.monto > 0).reduce((a, m) => a + Number(m.monto), 0);
+        const listo = hechas === todas.length;
+        const cab = `<tr class="bg-slate-100/80 border-t-2 border-slate-200"><td colspan="5" class="px-3 py-2">
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
+                <span class="font-bold text-slate-700 text-sm">📄 ${cpEsc(imp?.nombre_archivo || 'Líneas sin archivo')}</span>
+                <span class="text-xs text-slate-500">${cpFecha(fechas[0])} → ${cpFecha(fechas[fechas.length - 1])}</span>
+                <span class="text-xs text-slate-500">salidas <b class="text-slate-700">${cpFmt(sal, cta?.moneda)}</b> · entradas <b class="text-emerald-700">${cpFmt(ent, cta?.moneda)}</b></span>
+                <span class="flex items-center gap-2 ml-auto">
+                    <span class="w-24 h-1.5 bg-slate-200 rounded-full overflow-hidden"><span class="block h-full ${listo ? 'bg-emerald-500' : 'bg-amber-400'}" style="width:${pct}%"></span></span>
+                    <span class="text-xs font-bold ${listo ? 'text-emerald-700' : 'text-amber-700'}">${listo ? '✓ Conciliado' : `${hechas} de ${todas.length}`}</span>
+                    ${imp && cpEsAdmin() ? `<button onclick="ccBorrarImportacion('${imp.id}')" title="Quitar este archivo" class="text-slate-300 hover:text-red-500 text-xs">✕</button>` : ''}
+                </span></div></td></tr>`;
+        return cab + visibles.map(fila).join('');
     }).join('');
     const vacio = document.getElementById('cc-vacio');
-    vacio.classList.toggle('hidden', filas.length > 0);
+    vacio.classList.toggle('hidden', hayFilas);
     vacio.textContent = CC.movs.length ? '¡Todo revisado en este período! 🎉' : 'Aún no subes movimientos de esta cuenta. Usa “Subir cartola / estado de cuenta / MP”.';
 
     document.getElementById('cc-importaciones').innerHTML = CC.imps.map(i => `<div class="flex justify-between gap-2 border-b border-slate-100 pb-1">
@@ -461,5 +506,5 @@ async function ccImportar() {
     alert(data.nuevas ? `Listo: ${data.nuevas} movimientos nuevos${data.repetidas ? ` (${data.repetidas} ya estaban y se saltaron)` : ''}.` : 'Todos estos movimientos ya estaban subidos.');
 }
 
-Object.assign(window, { ccCargar, ccPintar, ccAceptar, ccAceptarSugerencias, ccDeshacer, ccAbrirResolver, ccResolverModal, ccIrAReembolsar,
+Object.assign(window, { ccElegirCuenta, ccCargar, ccPintar, ccAceptar, ccAceptarSugerencias, ccDeshacer, ccAbrirResolver, ccResolverModal, ccIrAReembolsar,
     ccBorrarImportacion, ccBorrarRegla, ccLeerArchivo, ccPrevisualizar, ccImportar });
