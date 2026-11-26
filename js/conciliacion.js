@@ -5,7 +5,7 @@
 // resolver_movimiento (vincular, crear gasto, interna, ingreso, no corresponde).
 // Usa los ayudantes y el estado CP de compras.js.
 // ==========================================================
-const CC = { movs: [], pagos: [], compras: [], reglas: [], imps: [], vinculados: new Set(), sug: {}, archivo: null, empresaNombres: [] };
+const CC = { sel: new Set(), movs: [], pagos: [], compras: [], reglas: [], imps: [], vinculados: new Set(), sug: {}, archivo: null, empresaNombres: [] };
 const CC_ALIAS = {
     fecha: ['fecha', 'fecha operacion', 'fecha movimiento', 'fecha transaccion', 'dia', 'date'],
     desc: ['detalle', 'descripcion', 'glosa', 'detalle movimiento', 'descripcion operacion', 'descripcion operacion o cobro', 'movimiento', 'concepto', 'comercio'],
@@ -57,6 +57,7 @@ async function ccCargar() {
         CC.reglas = reglas.data || []; CC.imps = imps || [];
     } catch (err) { console.error(err); return alert('No pude cargar la conciliación: ' + err.message); }
     ccCalcularSugerencias();
+    CC.sel = new Set([...(CC.sel || [])].filter(id => CC.movs.some(m => m.id === id && m.estado === 'pendiente')));
     ccPintarCuentas();
     ccPintar();
 }
@@ -152,6 +153,41 @@ function ccTextoVinculo(m) {
     return '';
 }
 
+// ---------- Selección múltiple de líneas por revisar
+function ccSel(id, on) { if (on) CC.sel.add(id); else CC.sel.delete(id); ccPintarBarraSel(); }
+function ccSelGrupo(k, on) {
+    CC.movs.filter(m => (m.id_importacion || 'sin') === k && m.estado === 'pendiente').forEach(m => on ? CC.sel.add(m.id) : CC.sel.delete(m.id));
+    ccPintar();
+}
+function ccPintarBarraSel() {
+    const b = document.getElementById('cc-barra-sel'); if (!b) return;
+    const sel = CC.movs.filter(m => CC.sel.has(m.id) && m.estado === 'pendiente');
+    b.classList.toggle('hidden', !sel.length);
+    if (!sel.length) return;
+    const conSug = sel.filter(m => CC.sug[m.id]?.accion).length, abonos = sel.filter(m => m.monto > 0).length, cargos = sel.length - abonos;
+    const bt = (txt, fn, cls, ok = true) => `<button ${ok ? '' : 'disabled'} onclick="${fn}" class="px-3 py-1.5 rounded-lg text-xs font-bold ${ok ? cls : 'bg-slate-100 text-slate-300'}">${txt}</button>`;
+    b.innerHTML = `<span class="text-sm font-bold text-slate-700">${sel.length} ${sel.length === 1 ? 'línea seleccionada' : 'líneas seleccionadas'}</span>
+        <span class="flex flex-wrap gap-2">
+            ${bt(`Aceptar sugerencia${conSug !== 1 ? 's' : ''} (${conSug})`, "ccMasivo('sugerencia')", 'bg-emerald-600 text-white hover:bg-emerald-700', conSug > 0)}
+            ${bt(`Ingreso (${abonos})`, "ccMasivo('ingreso')", 'bg-sky-600 text-white hover:bg-sky-700', abonos > 0)}
+            ${bt('Entre mis cuentas', "ccMasivo('interna')", 'bg-violet-600 text-white hover:bg-violet-700')}
+            ${bt('No corresponde', "ccMasivo('no_corresponde')", 'bg-slate-600 text-white hover:bg-slate-700')}
+            <button onclick="CC.sel.clear(); ccPintar()" class="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-500 hover:text-slate-800">Quitar selección</button></span>`;
+}
+async function ccMasivo(accion) {
+    let lista = CC.movs.filter(m => CC.sel.has(m.id) && m.estado === 'pendiente');
+    if (accion === 'sugerencia') lista = lista.filter(m => CC.sug[m.id]?.accion);
+    if (accion === 'ingreso') lista = lista.filter(m => m.monto > 0);
+    const nombres = { sugerencia: 'aceptar la sugerencia de', ingreso: 'marcar como ingreso', interna: 'marcar como movimiento entre mis cuentas', no_corresponde: 'marcar como “no corresponde”' };
+    if (!lista.length || !confirm(`¿${nombres[accion][0].toUpperCase() + nombres[accion].slice(1)} ${lista.length} ${lista.length === 1 ? 'línea' : 'líneas'}?`)) return;
+    let ok = 0;
+    for (const m of lista) {
+        const [acc, datos] = accion === 'sugerencia' ? [CC.sug[m.id].accion, CC.sug[m.id].datos] : [accion, {}];
+        if (await ccResolver(m.id, acc, datos)) ok++; else break;
+    }
+    CC.sel.clear(); await ccCargar();
+    if (ok < lista.length) alert(`Se resolvieron ${ok} de ${lista.length}. Revisa la que falló.`);
+}
 const CC_UI = (() => { try { return JSON.parse(localStorage.getItem('cc_ui') || '{}'); } catch (e) { return {}; } })();
 const ccGuardarUI = () => { try { localStorage.setItem('cc_ui', JSON.stringify(CC_UI)); } catch (e) { } };
 CC_UI.abiertos ||= {}; // archivo → true/false (si no está, se abre solo si tiene pendientes)
@@ -217,6 +253,7 @@ function ccPintar() {
         const monto = `<span class="${m.monto < 0 ? 'text-slate-800' : 'text-emerald-700'} font-bold">${m.monto < 0 ? '−' : '+'}${cpFmt(Math.abs(m.monto), cta?.moneda)}</span>`;
         const extra = m.monto_bruto ? `<p class="text-[11px] text-slate-400">Bruto ${cpFmt(m.monto_bruto)} · comisión ${cpFmt(m.comision || 0)}</p>` : '';
         let estado, acc;
+        const chk = m.estado === 'pendiente' ? `<input type="checkbox" ${CC.sel.has(m.id) ? 'checked' : ''} onclick="event.stopPropagation()" onchange="ccSel('${m.id}', this.checked)" class="accent-emerald-600 mr-2 align-middle">` : '<span class="inline-block w-[13px] mr-2"></span>';
         if (m.estado === 'pendiente') {
             estado = s ? `<p class="text-[11px] mt-0.5 ${s.aviso ? 'text-amber-700 font-bold' : s.segura ? 'text-emerald-700 font-bold' : 'text-slate-500'}">${cpEsc(s.texto)}</p>`
                 : '<p class="text-[11px] mt-0.5 text-amber-700 font-bold">Sin registro en Buddy</p>';
@@ -228,7 +265,7 @@ function ccPintar() {
             acc = `<button onclick="ccDeshacer('${m.id}')" class="text-xs font-bold text-slate-400 hover:text-red-600">Deshacer</button>`;
         }
         return `<tr data-par="${m.id}" onclick="ccResaltar('${m.id}', event)" class="cursor-pointer ${m.estado === 'pendiente' ? '' : 'bg-slate-50/60'}">
-            <td class="pl-0 pr-2 py-2 whitespace-nowrap text-slate-500 text-xs align-top"><span class="inline-block w-1 h-8 align-middle mr-2 rounded-r ${CC_BORDE[m.estado] || 'bg-slate-200'}"></span>${cpFecha(m.fecha)}</td>
+            <td class="pl-0 pr-2 py-2 whitespace-nowrap text-slate-500 text-xs align-top"><span class="inline-block w-1 h-8 align-middle mr-2 rounded-r ${CC_BORDE[m.estado] || 'bg-slate-200'}"></span>${chk}${cpFecha(m.fecha)}</td>
             <td class="px-2 py-2"><p class="text-slate-700 text-[13px]">${cpEsc(m.descripcion)}</p>${extra}${estado}</td>
             <td class="px-2 py-2 text-right whitespace-nowrap align-top">${monto}</td>
             <td class="px-2 py-2 text-right whitespace-nowrap space-x-1 align-top">${acc}</td></tr>`;
@@ -248,6 +285,7 @@ function ccPintar() {
         const titulo = imp?.titulo || ccTituloArchivo(fechas, cta);
         const cab = `<tr data-grupo="${k}" data-abierto="${abierto ? 1 : 0}" class="bg-slate-100/80 border-t-2 border-slate-200"><td colspan="4" class="px-3 py-2">
             <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                ${faltan ? `<input type="checkbox" title="Seleccionar las líneas por revisar de este documento" ${todas.filter(m => m.estado === 'pendiente').every(m => CC.sel.has(m.id)) ? 'checked' : ''} onchange="ccSelGrupo('${k}', this.checked)" class="accent-emerald-600">` : '<span class="w-[13px]"></span>'}
                 <button onclick="ccPlegar('${k}')" class="flex items-center gap-2 font-bold text-slate-700 text-sm text-left">
                     <span class="text-slate-400 text-xs w-3">${abierto ? '▾' : '▸'}</span>📄 ${cpEsc(titulo)} ${ccBurbuja(faltan)}</button>
                 ${imp ? `<button onclick="ccRenombrar('${imp.id}')" title="Cambiar título" class="text-slate-300 hover:text-slate-600 text-xs">✎</button>` : ''}
@@ -312,6 +350,7 @@ function ccPintar() {
             <p class="text-lg font-black">${CC_UI.saldo ? cpFmt(ultimoSaldo.saldo, cta?.moneda) : '$ • • • • •'}</p></div>` : ''}</div>`;
     document.getElementById('cc-burbuja-banco').innerHTML = ccBurbuja(bancoSin);
     document.getElementById('cc-burbuja-buddy').innerHTML = ccBurbuja(buddySin);
+    ccPintarBarraSel();
     document.getElementById('cc-orden').textContent = CC_UI.asc ? '↑ Más antiguas primero' : '↓ Más recientes primero';
 
     document.getElementById('cc-importaciones').innerHTML = CC.imps.map(i => `<div class="flex justify-between gap-2 border-b border-slate-100 pb-1">
@@ -343,10 +382,11 @@ async function ccAceptarSugerencias() {
 }
 async function ccDeshacer(id) {
     const m = CC.movs.find(x => x.id === id);
-    let borrar = false;
-    if (m?.vinculo_tipo === 'compra' && CC.compras.find(c => c.id === m.vinculo_id)?.observaciones_factura === 'Creado desde conciliación')
-        borrar = confirm('¿Borrar también el gasto que se creó desde esta línea?\n\nAceptar = borrar el gasto · Cancelar = dejarlo y solo desvincular');
-    if (await ccResolver(id, 'deshacer', { borrar_gasto: borrar })) { await cpCargarBase(); ccCargar(); }
+    // Lo que se creó desde esta línea (gastos o pagos) se deshace con ella: así nunca quedan gastos sueltos duplicados
+    const esCreado = (id) => String(CC.compras.find(c => c.id === id)?.observaciones_factura || '').startsWith('Creado desde conciliación');
+    const creado = (CC.vincPorMov?.[id] || []).some(v => v.tipo === 'compra' && esCreado(v.id_vinculo)) || (m?.vinculo_tipo === 'compra' && esCreado(m.vinculo_id));
+    if (!confirm(creado ? '¿Deshacer esta línea? Los gastos que se crearon desde ella también se borran, y si se registró un pago desde ella, se anula.' : '¿Deshacer esta línea? Vuelve a quedar por revisar.')) return;
+    if (await ccResolver(id, 'deshacer', { borrar_gasto: creado })) { await cpCargarBase(); ccCargar(); }
 }
 
 function ccAbrirResolver(id) {
@@ -362,7 +402,8 @@ function ccAbrirResolver(id) {
     if (m.monto < 0) {
         const cand = [
             ...CC.pagos.filter(p => !CC.vinculados.has('pago:' + p.id)).map(p => ({ tipo: 'pago', id: p.id, monto: Number(p.monto), fecha: p.fecha, txt: `Pago · ${p.referencia || 'sin referencia'}` })),
-            ...CC.compras.filter(c => !CC.vinculados.has('compra:' + c.id)).map(c => ({ tipo: 'compra', id: c.id, monto: cpTotal(c), fecha: c.fecha_compra,
+            ...CC.compras.filter(c => !CC.vinculados.has('compra:' + c.id)).map(c => ({ tipo: 'compra', id: c.id, monto: ['pendiente', 'parcial'].includes(c.estado_pago) && c.id_cuenta_pago !== m.id_cuenta ? cpSaldo(c) : cpTotal(c), fecha: c.fecha_compra,
+                porPagar: ['pendiente', 'parcial'].includes(c.estado_pago) && c.id_cuenta_pago !== m.id_cuenta,
                 txt: `Gasto · ${c.descripcion}${c.id_cuenta_pago !== m.id_cuenta ? ' [' + (cpCuenta(c.id_cuenta_pago)?.nombre || 'a crédito') + ']' : ''}` }))
         ].map(c => ({ ...c, score: Math.abs(c.monto - abs) / Math.max(abs, 1) * 30 + ccDias(c.fecha, m.fecha) })).sort((a, b) => a.score - b.score).slice(0, 15);
         if (cand.length) html += caja('Ya lo registré', `<div class="max-h-56 overflow-y-auto border border-slate-100 rounded-lg divide-y divide-slate-100">${cand.map((c, k) => {
@@ -371,12 +412,14 @@ function ccAbrirResolver(id) {
                     <input type="checkbox" name="cc-r-cand" value="${c.tipo}:${c.id}" data-monto="${c.monto}" ${k === 0 && c.monto === abs ? 'checked' : ''} onchange="ccSumaCand()" class="accent-emerald-600 shrink-0">
                     <span class="min-w-0 flex-1">
                         <span class="block text-xs font-bold text-slate-700 truncate">${cpEsc(c.txt)}</span>
-                        <span class="block text-[11px] text-slate-400">${cpFecha(c.fecha)} · ${c.tipo === 'pago' ? 'Pago registrado' : 'Gasto registrado'}</span>
+                        <span class="block text-[11px] ${c.porPagar ? 'text-teal-700 font-bold' : 'text-slate-400'}">${cpFecha(c.fecha)} · ${c.tipo === 'pago' ? 'Pago registrado' : c.porPagar ? 'Por pagar: esta línea quedará como su pago' : 'Gasto registrado'}</span>
                     </span>
                     <span class="text-right shrink-0">
                         <span class="block text-xs font-bold text-slate-800">${cpFmt(c.monto)}</span>
                         ${dif ? `<span class="block text-[11px] font-bold text-amber-600">${dif > 0 ? '+' : '−'}${cpFmt(Math.abs(dif))}</span>` : '<span class="block text-[11px] font-bold text-emerald-600">exacto</span>'}
                     </span></label>`; }).join('')}</div>
+            <div id="cc-r-nuevos" class="space-y-2"></div>
+            <div id="cc-r-explicar" class="hidden"></div>
             <div class="flex items-center justify-between gap-2"><p id="cc-r-suma" class="text-[11px] text-slate-500">Puedes marcar varios si una sola transferencia pagó más de un registro.</p>
             <button id="cc-r-vincular" onclick="ccResolverModal('vincular')" class="px-4 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold shrink-0">Vincular</button></div>`);
         html += caja('Es un gasto de la empresa que no había anotado', `
@@ -397,23 +440,44 @@ function ccAbrirResolver(id) {
     if (m.monto < 0) ccSumaCand();
 }
 
+function ccFilaNuevo(monto) {
+    const d = document.createElement('div'); d.className = 'cc-nuevo flex flex-wrap gap-2 items-center bg-teal-50/60 border border-teal-100 rounded-lg p-2';
+    d.innerHTML = `<input class="cc-n-desc flex-1 min-w-[140px] px-2 py-1.5 border rounded-lg text-xs" placeholder="¿Qué fue? Ej: Envío Paket">
+        <select class="cc-n-cat min-w-0 w-40 px-2 py-1.5 border rounded-lg text-xs bg-white"><option value="">Sin categoría</option>${cpCategoriasVisibles().map(c => `<option value="${c.id}">${cpEsc(c.nombre)}</option>`).join('')}</select>
+        <input class="cc-n-monto w-24 px-2 py-1.5 border rounded-lg text-xs text-right" inputmode="numeric" value="${monto || ''}" oninput="ccSumaCand()" placeholder="Monto">
+        <button onclick="this.parentElement.remove(); ccSumaCand()" class="text-slate-400 hover:text-red-500 font-bold text-xs">✕</button>`;
+    document.getElementById('cc-r-nuevos').appendChild(d);
+    ccSumaCand(); d.querySelector('.cc-n-desc').focus();
+}
+const ccNuevos = () => [...document.querySelectorAll('#cc-r-nuevos .cc-nuevo')].map(d => ({ descripcion: d.querySelector('.cc-n-desc').value.trim(),
+    id_categoria_gasto: d.querySelector('.cc-n-cat').value || null, monto: cpParseMonto(d.querySelector('.cc-n-monto').value) || 0 }));
 function ccSumaCand() {
     const m = CC.actual, out = document.getElementById('cc-r-suma'); if (!m || !out) return;
     const abs = Math.abs(Number(m.monto));
     const marcados = [...document.querySelectorAll('input[name="cc-r-cand"]:checked')];
-    const suma = marcados.reduce((a, x) => a + Number(x.dataset.monto), 0), dif = suma - abs;
-    document.getElementById('cc-r-vincular').disabled = !marcados.length;
-    document.getElementById('cc-r-vincular').classList.toggle('opacity-40', !marcados.length);
-    out.innerHTML = !marcados.length ? 'Marca uno o varios registros. Si una transferencia pagó más de uno, márcalos todos.'
-        : `${marcados.length} marcado${marcados.length > 1 ? 's' : ''} · suma <b>${cpFmt(suma)}</b> ` +
+    const nuevos = ccNuevos(), n = marcados.length + nuevos.length;
+    const suma = marcados.reduce((a, x) => a + Number(x.dataset.monto), 0) + nuevos.reduce((a, x) => a + x.monto, 0), dif = suma - abs;
+    document.getElementById('cc-r-vincular').disabled = !n;
+    document.getElementById('cc-r-vincular').classList.toggle('opacity-40', !n);
+    document.getElementById('cc-r-vincular').textContent = nuevos.length ? 'Vincular y crear gastos' : 'Vincular';
+    out.innerHTML = !n ? 'Marca uno o varios registros. Si una transferencia pagó más de uno, márcalos todos.'
+        : `${n} ${n > 1 ? 'registros' : 'registro'} · suma <b>${cpFmt(suma)}</b> ` +
           (dif ? `<span class="font-bold text-amber-600">(${dif > 0 ? 'sobran' : 'faltan'} ${cpFmt(Math.abs(dif))})</span>` : '<span class="font-bold text-emerald-600">✓ exacto</span>');
+    // Si falta plata por explicar, ofrecer crear el gasto que falta
+    const ex = document.getElementById('cc-r-explicar');
+    if (ex) { const falta = n && dif < 0 && m.monto < 0;
+        ex.classList.toggle('hidden', !(falta || (!n && m.monto < 0)));
+        ex.innerHTML = falta ? `<button onclick="ccFilaNuevo(${-dif})" class="text-xs font-bold text-teal-700 hover:underline">+ Explicar los ${cpFmt(-dif)} que faltan con un gasto nuevo</button>`
+            : !n && m.monto < 0 ? `<button onclick="ccFilaNuevo(${abs})" class="text-xs font-bold text-teal-700 hover:underline">+ Agregar un gasto nuevo</button>` : ''; }
 }
 async function ccResolverModal(accion) {
     const m = CC.actual; if (!m) return;
     const datos = { recordar: document.getElementById('cc-r-recordar').checked };
     if (accion === 'vincular') {
         datos.items = [...document.querySelectorAll('input[name="cc-r-cand"]:checked')].map(x => { const [tipo, id] = x.value.split(':'); return { tipo, id }; });
-        if (!datos.items.length) return alert('Marca al menos un registro.');
+        datos.nuevos = ccNuevos();
+        if (datos.nuevos.some(x => !x.descripcion || !(x.monto > 0))) return alert('Cada gasto nuevo necesita una descripción y un monto.');
+        if (!datos.items.length && !datos.nuevos.length) return alert('Marca al menos un registro.');
         datos.recordar = false;
     }
     if (accion === 'crear_gasto') { datos.descripcion = document.getElementById('cc-r-desc').value; datos.id_categoria_gasto = document.getElementById('cc-r-cat').value || null; }
@@ -631,5 +695,5 @@ async function ccImportar() {
     alert(data.nuevas ? `Listo: ${data.nuevas} movimientos nuevos${data.repetidas ? ` (${data.repetidas} ya estaban y se saltaron)` : ''}.` : 'Todos estos movimientos ya estaban subidos.');
 }
 
-Object.assign(window, { ccRenombrar, ccPlegar, ccOrden, ccVerSaldo, ccResaltar, ccSumaCand, ccElegirCuenta, ccCargar, ccPintar, ccAceptar, ccAceptarSugerencias, ccDeshacer, ccAbrirResolver, ccResolverModal, ccIrAReembolsar,
+Object.assign(window, { ccSel, ccSelGrupo, ccMasivo, ccFilaNuevo, ccRenombrar, ccPlegar, ccOrden, ccVerSaldo, ccResaltar, ccSumaCand, ccElegirCuenta, ccCargar, ccPintar, ccAceptar, ccAceptarSugerencias, ccDeshacer, ccAbrirResolver, ccResolverModal, ccIrAReembolsar,
     ccBorrarImportacion, ccBorrarRegla, ccLeerArchivo, ccPrevisualizar, ccImportar });
