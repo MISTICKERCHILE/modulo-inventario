@@ -159,15 +159,32 @@ function ccSugRegla(r) {
 const CC_BORDE = { pendiente: 'bg-amber-400', conciliado: 'bg-emerald-500', ingreso: 'bg-sky-500', interna: 'bg-violet-500', no_corresponde: 'bg-slate-300' };
 const CC_ESTADOS = { conciliado: ['Conciliado', 'bg-emerald-100 text-emerald-700'], ingreso: ['Ingreso', 'bg-sky-100 text-sky-700'], interna: ['Entre mis cuentas', 'bg-violet-100 text-violet-700'], no_corresponde: ['No corresponde', 'bg-slate-200 text-slate-500'] };
 
+const CC_TIPOS_INGRESO = [
+    ['venta', 'Venta o cobro a cliente', 'Ingreso del negocio por vender productos o servicios.'],
+    ['aporte_capital', 'Aporte de capital (socio o dueño)', 'Dinero que pone un socio o el dueño y que no se le devuelve.'],
+    ['prestamo_recibido', 'Préstamo recibido (socio, banco o tercero)', 'Dinero que entra pero que la empresa deberá devolver.'],
+    ['devolucion_proveedor', 'Devolución de un proveedor', 'Te devolvieron plata de una compra o un pedido cancelado.'],
+    ['reintegro', 'Reintegro de un gasto', 'Alguien te devuelve un gasto que pagó la empresa por él.'],
+    ['devolucion_impuestos', 'Devolución de impuestos', 'Devolución del SII, Operación Renta u otro organismo.'],
+    ['intereses', 'Intereses o rendimientos', 'Intereses del banco, inversiones o depósitos.'],
+    ['otro', 'Otro ingreso', 'Cualquier otro ingreso; explícalo en la nota.']];
+const ccNombreTipoIngreso = (t) => (CC_TIPOS_INGRESO.find(x => x[0] === t) || [])[1] || '';
+function ccAyudaTipoIngreso() {
+    const t = document.getElementById('cc-r-tipo-ing')?.value, out = document.getElementById('cc-r-tipo-ayuda');
+    if (out) out.textContent = (CC_TIPOS_INGRESO.find(x => x[0] === t) || [])[2] || '';
+}
+
 function ccTextoVinculo(m) {
     const vs = CC.vincPorMov?.[m.id] || (m.vinculo_id && ['pago', 'compra'].includes(m.vinculo_tipo) ? [{ tipo: m.vinculo_tipo, id_vinculo: m.vinculo_id }] : []);
     if (vs.length) return vs.map(v => {
         if (v.tipo === 'pago') { const p = CC.pagos.find(x => x.id === v.id_vinculo); return p ? `Pago “${p.referencia || ''}” · ${cpFecha(p.fecha)}` : 'Pago'; }
         const c = CC.compras.find(x => x.id === v.id_vinculo); return c ? `Gasto “${c.descripcion}”` : 'Gasto';
     }).join(' + ');
-    if (m.vinculo_tipo === 'transferencia') return 'Transferencia registrada';
-    if (m.id_gasto_comision) return 'Comisión registrada como gasto';
-    return '';
+    const nota = m.nota ? ` · “${m.nota}”` : '';
+    if (m.estado === 'ingreso') return [ccNombreTipoIngreso(m.tipo_ingreso || 'venta'), m.id_gasto_comision ? 'comisión registrada como gasto' : ''].filter(Boolean).join(' · ') + nota;
+    if (m.vinculo_tipo === 'transferencia') return 'Transferencia registrada' + nota;
+    if (m.id_gasto_comision) return 'Comisión registrada como gasto' + nota;
+    return m.nota ? `“${m.nota}”` : '';
 }
 
 // ---------- Selección múltiple de líneas por revisar
@@ -445,14 +462,17 @@ function ccAbrirResolver(id) {
             <button onclick="ccResolverModal('crear_gasto')" class="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold">Crear gasto</button></div>
             ${cpCuenta(m.id_cuenta)?.tipo === 'reembolsable' ? '<p class="text-[11px] text-amber-700">Quedará pendiente de reembolso a esta persona.</p>' : ''}`);
     } else {
-        html += caja('Es un ingreso (venta o cobro)', `${Number(m.comision) > 0 ? `<p class="text-xs text-slate-500">Se registrará la comisión de ${cpFmt(m.comision)} como gasto.</p>` : ''}
-            <button onclick="ccResolverModal('ingreso')" class="px-3 py-1.5 bg-sky-600 text-white rounded-lg text-xs font-bold">Marcar como ingreso</button>`);
+        html += caja('Es un ingreso', `${Number(m.comision) > 0 ? `<p class="text-xs text-slate-500">Se registrará la comisión de ${cpFmt(m.comision)} como gasto.</p>` : ''}
+            <div class="flex gap-2"><select id="cc-r-tipo-ing" onchange="ccAyudaTipoIngreso()" class="flex-1 min-w-0 px-2 py-1.5 border rounded-lg text-xs bg-white">${CC_TIPOS_INGRESO.map(t => `<option value="${t[0]}">${t[1]}</option>`).join('')}</select>
+            <button onclick="ccResolverModal('ingreso')" class="px-3 py-1.5 bg-sky-600 text-white rounded-lg text-xs font-bold shrink-0">Marcar como ingreso</button></div>
+            <p id="cc-r-tipo-ayuda" class="text-[11px] text-slate-500">${CC_TIPOS_INGRESO[0][2]}</p>`);
     }
     html += caja('Es una transferencia entre mis cuentas', `<p class="text-[11px] text-slate-500">Pago de tarjeta, retiro o recarga de Mercado Pago, movimiento entre bancos.</p><div class="flex gap-2">${selOtras}
         <button onclick="ccResolverModal('interna')" class="px-3 py-1.5 bg-violet-600 text-white rounded-lg text-xs font-bold">Guardar</button></div>`);
     html += caja('No corresponde a la empresa', `<p class="text-[11px] text-slate-500">Compra personal u otro movimiento que no es del negocio.</p>
         <button onclick="ccResolverModal('no_corresponde')" class="px-3 py-1.5 bg-slate-600 text-white rounded-lg text-xs font-bold">No corresponde</button>`);
     document.getElementById('cc-r-opciones').innerHTML = html;
+    const nota = document.getElementById('cc-r-nota'); if (nota) nota.value = m.nota || '';
     document.getElementById('cc-modal-resolver').classList.remove('hidden');
     if (m.monto < 0) ccSumaCand();
 }
@@ -489,7 +509,8 @@ function ccSumaCand() {
 }
 async function ccResolverModal(accion) {
     const m = CC.actual; if (!m) return;
-    const datos = { recordar: document.getElementById('cc-r-recordar').checked };
+    const datos = { recordar: document.getElementById('cc-r-recordar').checked, nota: document.getElementById('cc-r-nota')?.value.trim() || '' };
+    if (accion === 'ingreso') datos.tipo_ingreso = document.getElementById('cc-r-tipo-ing')?.value || 'venta';
     if (accion === 'vincular') {
         datos.items = [...document.querySelectorAll('input[name="cc-r-cand"]:checked')].map(x => { const [tipo, id] = x.value.split(':'); return { tipo, id }; });
         datos.nuevos = ccNuevos();
