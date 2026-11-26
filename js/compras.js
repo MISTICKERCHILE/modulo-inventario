@@ -5,7 +5,7 @@
 // Las escrituras de dinero pasan por funciones de la base
 // (registrar_gasto, registrar_pago_compras) para que los saldos cuadren.
 // ==========================================================
-const CP = window.CP = { cuentas: [], categorias: [], ocultas: new Set(), proveedores: [], gastos: [], pendientes: [], pagos: [], monedas: ['CLP'], seleccion: {}, importacion: null };
+const CP = window.CP = { sucursales: [], razones: [], centros: [], repartos: {}, cuentas: [], categorias: [], ocultas: new Set(), proveedores: [], gastos: [], pendientes: [], pagos: [], monedas: ['CLP'], seleccion: {}, importacion: null };
 const cpEsc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const cpDec = (m) => ['CLP', 'COP', 'PYG', 'JPY'].includes(m) ? 0 : 2;
 // Montos sin decimales; CLP se muestra con $, otras monedas con su sigla (USD 60). Decimales solo si el monto los tiene.
@@ -66,13 +66,17 @@ async function cpTodo(query) {
 
 async function cpCargarBase() {
     const e = window.miEmpresaId;
-    const [cu, ca, oc, pr, em] = await Promise.all([
+    const [cu, ca, oc, pr, em, su, rs, cc] = await Promise.all([
         clienteSupabase.from('cuentas_financieras').select('*').eq('id_empresa', e).order('nombre'),
         clienteSupabase.from('categorias_gasto').select('*').or(`id_empresa.is.null,id_empresa.eq.${e}`).order('orden').order('nombre'),
         clienteSupabase.from('categorias_gasto_ocultas').select('id_categoria').eq('id_empresa', e),
         clienteSupabase.from('proveedores').select('id, nombre, condicion_pago_defecto, dias_credito_defecto, id_categoria_gasto_defecto').eq('id_empresa', e).order('nombre'),
-        clienteSupabase.from('empresas').select('monedas').eq('id', e).maybeSingle()
+        clienteSupabase.from('empresas').select('monedas').eq('id', e).maybeSingle(),
+        clienteSupabase.from('sucursales').select('id, nombre, id_razon_social').eq('id_empresa', e).order('nombre'),
+        clienteSupabase.from('razones_sociales').select('*').eq('id_empresa', e).order('principal', { ascending: false }).order('nombre'),
+        clienteSupabase.from('centros_costo').select('*').eq('id_empresa', e).order('nombre')
     ]);
+    CP.sucursales = su.data || []; CP.razones = rs.data || []; CP.centros = cc.data || [];
     if (cu.error) console.error(cu.error);
     CP.cuentas = cu.data || [];
     CP.categorias = ca.data || [];
@@ -82,6 +86,14 @@ async function cpCargarBase() {
     document.getElementById('cp-sin-cuentas')?.classList.toggle('hidden', CP.cuentas.length > 0);
 }
 const cpCuenta = (id) => CP.cuentas.find(c => c.id === id);
+const cpSucursal = (id) => (CP.sucursales || []).find(x => x.id === id);
+const cpCentro = (id) => (CP.centros || []).find(x => x.id === id);
+const cpRazon = (id) => (CP.razones || []).find(x => x.id === id);
+// Nombre completo del centro con su padre: "Marketing › Redes sociales"
+const cpNombreCentro = (id) => { const c = cpCentro(id); if (!c) return ''; const p = c.id_padre && cpCentro(c.id_padre); return p ? `${p.nombre} › ${c.nombre}` : c.nombre; };
+const cpCentrosActivos = () => (CP.centros || []).filter(c => c.activo).sort((a, b) => cpNombreCentro(a.id).localeCompare(cpNombreCentro(b.id), 'es'));
+const cpOpcionesSucursal = (todas = 'Sin sucursal') => `<option value="">${todas}</option>` + (CP.sucursales || []).map(x => `<option value="${x.id}">${cpEsc(x.nombre)}</option>`).join('');
+const cpOpcionesCentro = (vacio = 'Sin centro de costo') => `<option value="">${vacio}</option>` + cpCentrosActivos().map(c => `<option value="${c.id}">${cpEsc(cpNombreCentro(c.id))}</option>`).join('');
 const cpCategoria = (id) => CP.categorias.find(c => c.id === id);
 const cpProveedor = (id) => CP.proveedores.find(p => p.id === id);
 const cpCategoriasVisibles = () => CP.categorias.filter(c => c.activo !== false && !(c.id_empresa === null && CP.ocultas.has(c.id)));
@@ -95,7 +107,7 @@ window.cargarCompras = async function (tab) {
 };
 
 function cpTab(t) {
-    ['resumen', 'gastos', 'pagar', 'conciliacion', 'cuentas', 'categorias'].forEach(k => {
+    ['resumen', 'gastos', 'pagar', 'conciliacion', 'proyeccion', 'cuentas', 'organizacion', 'categorias'].forEach(k => {
         document.getElementById('cp-' + k).classList.toggle('hidden', k !== t);
         document.getElementById('cp-tab-' + k).className = 'px-4 py-2 text-sm font-bold border-b-2 whitespace-nowrap ' + (k === t ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-slate-500 hover:text-slate-800');
     });
@@ -105,6 +117,8 @@ function cpTab(t) {
     if (t === 'cuentas') cpCargarCuentas();
     if (t === 'conciliacion' && typeof window.ccIniciar === 'function') window.ccIniciar();
     if (t === 'categorias') cpPintarCategorias();
+    if (t === 'organizacion' && typeof window.orgPintar === 'function') window.orgPintar();
+    if (t === 'proyeccion' && typeof window.pyIniciar === 'function') window.pyIniciar();
 }
 function cpCerrar(id) { document.getElementById(id).classList.add('hidden'); }
 
@@ -152,6 +166,14 @@ async function cpCargarGastos() {
             return q;
         });
     } catch (e) { console.error(e); alert('No pude cargar los gastos: ' + e.message); return; }
+    try {
+        const rep = await cpTodo(() => clienteSupabase.from('compras_distribucion').select('id_compra, id_centro_costo, id_sucursal, porcentaje, monto').eq('id_empresa', window.miEmpresaId));
+        CP.repartos = {}; rep.forEach(r => (CP.repartos[r.id_compra] ||= []).push(r));
+    } catch (e) { CP.repartos = {}; }
+    const selSuc = document.getElementById('cp-g-sucursal'), selCc = document.getElementById('cp-g-centro');
+    const vSuc = selSuc.value, vCc = selCc.value;
+    selSuc.innerHTML = cpOpcionesSucursal('Todas las sucursales'); selSuc.value = vSuc; selSuc.classList.toggle('hidden', CP.sucursales.length <= 1);
+    selCc.innerHTML = cpOpcionesCentro('Todos los centros de costo') + '<option value="__sin">Sin centro de costo</option>'; selCc.value = vCc; selCc.classList.toggle('hidden', !CP.centros.length);
     const selCta = document.getElementById('cp-g-cuenta'), selCat = document.getElementById('cp-g-categoria');
     const vCta = selCta.value, vCat = selCat.value;
     selCta.innerHTML = '<option value="">Todas las cuentas</option><option value="__credito">A crédito</option>' + CP.cuentas.map(c => `<option value="${c.id}">${cpEsc(c.nombre)}</option>`).join('');
@@ -167,6 +189,9 @@ function cpFiltrarGastos() {
         if (cta === '__credito' ? g.id_cuenta_pago : (cta && g.id_cuenta_pago !== cta)) return false;
         if (cat === '__sin' ? g.id_categoria_gasto : (cat && g.id_categoria_gasto !== cat)) return false;
         if (est ? g.estado_pago !== est : g.estado_pago === 'anulado') return false;
+        const suc = document.getElementById('cp-g-sucursal').value, cc = document.getElementById('cp-g-centro').value;
+        if (suc && g.id_sucursal !== suc && !(CP.repartos?.[g.id] || []).some(r => r.id_sucursal === suc)) return false;
+        if (cc === '__sin' ? (g.id_centro_costo || CP.repartos?.[g.id]?.length) : (cc && !cpCentrosDe(g).includes(cc))) return false;
         return !q || cpNorm(`${g.descripcion || ''} ${g.numero_documento || ''} ${cpProveedor(g.id_proveedor)?.nombre || ''}`).includes(q);
     });
 }
@@ -178,6 +203,12 @@ const CP_MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio'
 const cpNombreMes = (ym) => `${CP_MESES[+ym.slice(5, 7) - 1]} ${ym.slice(0, 4)}`;
 function cpPlegarMes(ym) { CP_UI.meses[ym] = !cpMesAbierto(ym); cpGuardarUI(); cpPintarGastos(); }
 const cpMesAbierto = (ym) => CP_UI.meses[ym] ?? (ym >= (CP.gastos[0]?.fecha_compra || '').slice(0, 7));
+// Centros de costo de un gasto (incluye sus padres): por reparto o directo
+function cpCentrosDe(g) {
+    const ids = (CP.repartos?.[g.id] || []).map(r => r.id_centro_costo).filter(Boolean);
+    if (!ids.length && g.id_centro_costo) ids.push(g.id_centro_costo);
+    return ids.flatMap(id => [id, cpCentro(id)?.id_padre].filter(Boolean));
+}
 // Rendición / lote de reembolso al que pertenece un gasto
 const cpLote = (c) => c.referencia_lote || (String(c.observaciones_factura || '').match(/Rendición #[0-9]+-[0-9]+(?:-[0-9]+)?(?: Parte [0-9]+)?/) || [])[0] || '';
 
@@ -203,10 +234,14 @@ function cpPintarGastos() {
         const cta = cpCuenta(g.id_cuenta_pago);
         const sinDatos = g.origen === 'orden_compra' && !g.id_cuenta_pago && g.condicion_pago !== 'credito' && !Number(g.monto_pagado);
         const prov = cpProveedor(g.id_proveedor)?.nombre, lote = cpLote(g);
+        const rep = CP.repartos?.[g.id] || [];
+        const org = [CP.sucursales.length > 1 && cpSucursal(g.id_sucursal)?.nombre,
+            rep.length ? 'Repartido: ' + rep.map(r => `${cpNombreCentro(r.id_centro_costo) || cpSucursal(r.id_sucursal)?.nombre} ${Number(r.porcentaje)}%`).join(' · ') : cpNombreCentro(g.id_centro_costo)].filter(Boolean);
         return `<tr>
             <td class="px-3 py-2 whitespace-nowrap text-slate-500">${cpFecha(g.fecha_compra)}</td>
             <td class="px-3 py-2"><p class="font-bold text-slate-700">${cpEsc(g.descripcion || (g.origen === 'orden_compra' ? 'Orden de compra ' + (g.numero_documento || '') : '—'))}</p>
-                ${prov || lote ? `<p class="text-[11px] text-slate-400">${[prov, lote].filter(Boolean).map(cpEsc).join(' · ')}</p>` : ''}</td>
+                ${prov || lote ? `<p class="text-[11px] text-slate-400">${[prov, lote].filter(Boolean).map(cpEsc).join(' · ')}</p>` : ''}
+                ${org.length ? `<p class="text-[11px] text-teal-700">${org.map(cpEsc).join(' · ')}</p>` : ''}</td>
             <td class="px-3 py-2 text-slate-500 text-xs">${cpEsc(cpCategoria(g.id_categoria_gasto)?.nombre || '—')}</td>
             <td class="px-3 py-2 text-xs">${cta ? cpEsc(cta.nombre) : (g.condicion_pago === 'credito' ? '<span class="text-blue-600 font-bold">A crédito</span>' : '—')}</td>
             <td class="px-3 py-2 text-right font-bold whitespace-nowrap ${g.estado_pago === 'anulado' ? 'line-through text-slate-400' : ''}">${cpFmt(cpTotal(g), g.moneda)}
@@ -236,6 +271,7 @@ function cpMenuGasto(ev, id) {
     const g = CP.gastos.find(x => x.id === id); if (!g) return;
     const op = [['🔎 Ver detalle', `cpVerGasto('${id}')`]];
     if (g.estado_pago !== 'anulado' && g.origen === 'gasto') op.push(['✏️ Editar', `cpEditarGasto('${id}')`]);
+    if (g.estado_pago !== 'anulado') op.push(['Repartir %', `cpAbrirReparto('${id}')`]);
     if (cpEsAdmin() && g.origen === 'gasto' && g.estado_pago !== 'anulado') op.push(['⛔ Anular', `cpAnularGasto('${id}')`, true]);
     cpMenu(ev, op);
 }
@@ -258,9 +294,10 @@ function cpDetalle(titulo, html) {
     document.getElementById('cp-modal-detalle').classList.remove('hidden');
 }
 const CP_CAMPOS = { descripcion: 'Descripción', fecha_compra: 'Fecha', id_categoria_gasto: 'Categoría', id_proveedor: 'Proveedor', tipo_documento: 'Documento', numero_factura: 'N° documento',
-    observaciones_factura: 'Nota', referencia_lote: 'Rendición / lote', monto: 'Monto', id_cuenta_pago: 'Cuenta', motivo: 'Motivo' };
+    observaciones_factura: 'Nota', referencia_lote: 'Rendición / lote', monto: 'Monto', id_cuenta_pago: 'Cuenta', motivo: 'Motivo', id_sucursal: 'Sucursal', id_centro_costo: 'Centro de costo', reparto: 'Reparto' };
 const cpValorCampo = (k, v) => v == null || v === '' ? '—' : k === 'id_categoria_gasto' ? cpCategoria(v)?.nombre || v : k === 'id_cuenta_pago' ? cpCuenta(v)?.nombre || v
-    : k === 'id_proveedor' ? cpProveedor(v)?.nombre || v : k === 'monto' ? cpFmt(v) : k === 'fecha_compra' ? cpFecha(v) : v;
+    : k === 'id_proveedor' ? cpProveedor(v)?.nombre || v : k === 'id_sucursal' ? cpSucursal(v)?.nombre || v : k === 'id_centro_costo' ? cpNombreCentro(v) || v
+    : k === 'reparto' ? (Array.isArray(v) ? v.map(r => `${cpNombreCentro(r.id_centro_costo) || cpSucursal(r.id_sucursal)?.nombre || '—'} ${r.porcentaje}%`).join(' · ') : v) : k === 'monto' ? cpFmt(v) : k === 'fecha_compra' ? cpFecha(v) : v;
 
 async function cpVerGasto(id) {
     cpDetalle('Detalle del gasto', '<p class="text-sm text-slate-400">Cargando…</p>');
@@ -292,6 +329,8 @@ async function cpVerGasto(id) {
             ${dato('Fecha', cpFecha(g.fecha_compra))}${dato('Cuenta', cpEsc(cpCuenta(g.id_cuenta_pago)?.nombre || (g.condicion_pago === 'credito' ? 'A crédito' : '—')))}
             ${dato('Categoría', cpEsc(cpCategoria(g.id_categoria_gasto)?.nombre || '—'))}${dato('Proveedor', cpEsc(cpProveedor(g.id_proveedor)?.nombre || '—'))}
             ${dato('Documento', cpEsc([g.tipo_documento, g.numero_factura].filter(Boolean).join(' ') || '—'))}${dato('Rendición / lote', cpEsc(cpLote(g) || '—'))}
+            ${dato('Sucursal', cpEsc(cpSucursal(g.id_sucursal)?.nombre || '—'))}${dato('Razón social', cpEsc(cpRazon(cpSucursal(g.id_sucursal)?.id_razon_social || cpCuenta(g.id_cuenta_pago)?.id_razon_social)?.nombre || '—'))}
+            <div class="col-span-2">${dato('Centro de costo', (CP.repartos?.[g.id] || []).length ? CP.repartos[g.id].map(r => `${cpEsc(cpNombreCentro(r.id_centro_costo) || cpSucursal(r.id_sucursal)?.nombre || '—')} <b>${Number(r.porcentaje)}%</b> (${cpFmt(r.monto)})`).join(' · ') : cpEsc(cpNombreCentro(g.id_centro_costo) || '—'))}</div>
             ${g.moneda_original ? dato('Moneda original', `${cpFmt(g.monto_original, g.moneda_original)} × ${cpFmt(g.tasa_cambio)}`) : ''}
             ${cpSaldo(g) && g.estado_pago !== 'anulado' ? dato('Saldo por pagar', `<b class="text-amber-700">${cpFmt(cpSaldo(g), g.moneda)}</b>`) : ''}
             ${g.observaciones_factura ? `<div class="col-span-2">${dato('Nota', cpEsc(g.observaciones_factura))}</div>` : ''}</div>
@@ -299,6 +338,50 @@ async function cpVerGasto(id) {
             <ol class="space-y-3 border-l-2 border-slate-200 pl-4">${ev.map(e => `<li class="relative text-sm text-slate-700"><span class="absolute -left-[27px] top-0 bg-white">${e.ic}</span>
                 <p class="text-[11px] text-slate-400">${cpFechaHora(e.t)}</p><p>${e.txt}</p></li>`).join('')}</ol>
             ${!vinc.length && g.estado_pago !== 'anulado' ? '<p class="text-[11px] text-amber-700 font-bold mt-3">Aún no está conciliado con ninguna línea de cartola.</p>' : ''}</div>`);
+}
+
+// ---------- Repartir un gasto entre centros de costo / sucursales
+function cpAbrirReparto(id) {
+    const g = CP.gastos.find(x => x.id === id); if (!g) return;
+    if (!CP.centros.length && CP.sucursales.length <= 1) { alert('Primero crea tus centros de costo en la pestaña Organización.'); return cpTab('organizacion'); }
+    CP.repartiendo = g;
+    document.getElementById('cp-rp-gasto').innerHTML = `${cpEsc(g.descripcion)} · <b>${cpFmt(cpTotal(g), g.moneda)}</b>`;
+    const actual = CP.repartos?.[id] || [];
+    document.getElementById('cp-rp-filas').innerHTML = '';
+    (actual.length ? actual : [{ id_centro_costo: g.id_centro_costo, porcentaje: 100 }]).forEach(r => cpFilaReparto(r));
+    cpSumaReparto();
+    document.getElementById('cp-modal-reparto').classList.remove('hidden');
+}
+function cpFilaReparto(r = {}) {
+    const d = document.createElement('div'); d.className = 'flex gap-2 items-center';
+    d.innerHTML = `<select class="rp-cc flex-1 min-w-0 px-2 py-1.5 border rounded-lg text-sm bg-white ${CP.centros.length ? '' : 'hidden'}">${cpOpcionesCentro('Centro de costo…')}</select>
+        <select class="rp-suc flex-1 min-w-0 px-2 py-1.5 border rounded-lg text-sm bg-white ${CP.sucursales.length > 1 ? '' : 'hidden'}">${cpOpcionesSucursal('Sucursal (opcional)')}</select>
+        <input class="rp-pct w-20 px-2 py-1.5 border rounded-lg text-sm text-right" type="number" min="0" max="100" step="any" oninput="cpSumaReparto()"><span class="text-sm text-slate-500">%</span>
+        <span class="rp-monto w-24 text-right text-xs text-slate-500"></span>
+        <button onclick="this.parentElement.remove(); cpSumaReparto()" class="text-slate-300 hover:text-red-500 font-bold">✕</button>`;
+    d.querySelector('.rp-cc').value = r.id_centro_costo || ''; d.querySelector('.rp-suc').value = r.id_sucursal || ''; d.querySelector('.rp-pct').value = r.porcentaje ?? '';
+    document.getElementById('cp-rp-filas').appendChild(d);
+}
+function cpSumaReparto() {
+    const g = CP.repartiendo; if (!g) return;
+    let suma = 0;
+    document.querySelectorAll('#cp-rp-filas > div').forEach(d => { const p = Number(d.querySelector('.rp-pct').value || 0); suma += p; d.querySelector('.rp-monto').textContent = cpFmt(Math.round(cpTotal(g) * p / 100), g.moneda); });
+    const ok = Math.abs(suma - 100) < 0.001;
+    const el = document.getElementById('cp-rp-suma');
+    el.textContent = ok ? 'Suma 100%' : `Suma ${Math.round(suma * 1000) / 1000}% · ${suma < 100 ? 'faltan' : 'sobran'} ${Math.round(Math.abs(100 - suma) * 1000) / 1000}%`;
+    el.className = 'text-sm font-bold ' + (ok ? 'text-emerald-700' : 'text-amber-700');
+    document.getElementById('cp-rp-guardar').disabled = !ok;
+    document.getElementById('cp-rp-guardar').classList.toggle('opacity-40', !ok);
+}
+async function cpGuardarReparto(quitar) {
+    const g = CP.repartiendo; if (!g) return;
+    const items = quitar ? [] : [...document.querySelectorAll('#cp-rp-filas > div')].map(d => ({
+        id_centro_costo: d.querySelector('.rp-cc').value || null, id_sucursal: d.querySelector('.rp-suc').value || null, porcentaje: Number(d.querySelector('.rp-pct').value || 0) }))
+        .filter(x => x.porcentaje > 0);
+    if (items.some(x => !x.id_centro_costo && !x.id_sucursal)) return alert('Cada fila necesita un centro de costo o una sucursal.');
+    const { error } = await clienteSupabase.rpc('distribuir_gasto', { p_id: g.id, p_items: items });
+    if (error) return alert(error.message);
+    cpCerrar('cp-modal-reparto'); cpCargarGastos();
 }
 
 // ---------- Editar gasto
@@ -311,6 +394,9 @@ function cpEditarGasto(id) {
     v('cuenta', g.id_cuenta_pago);
     document.getElementById('cp-e-cat').innerHTML = '<option value="">Sin categoría</option>' + cpCategoriasVisibles().map(c => `<option value="${c.id}">${cpEsc(c.nombre)}</option>`).join('');
     v('cat', g.id_categoria_gasto);
+    document.getElementById('cp-e-suc').innerHTML = cpOpcionesSucursal(); v('suc', g.id_sucursal);
+    document.getElementById('cp-e-cc').innerHTML = cpOpcionesCentro(); v('cc', g.id_centro_costo);
+    document.getElementById('cp-e-cc').disabled = !!(CP.repartos?.[g.id]?.length);
     document.getElementById('cp-e-lotes').innerHTML = [...new Set(CP.gastos.map(cpLote).filter(Boolean))].sort().map(l => `<option value="${cpEsc(l)}"></option>`).join('');
     document.getElementById('cp-modal-editar').classList.remove('hidden');
 }
@@ -321,6 +407,7 @@ async function cpGuardarEdicion() {
     pon('descripcion', val('desc'), g.descripcion); pon('fecha_compra', val('fecha'), g.fecha_compra); pon('tipo_documento', val('doc'), g.tipo_documento);
     pon('numero_factura', val('num'), g.numero_factura); pon('referencia_lote', val('lote'), cpLote(g)); pon('observaciones_factura', val('nota'), g.observaciones_factura);
     pon('id_cuenta_pago', val('cuenta'), g.id_cuenta_pago); pon('id_categoria_gasto', val('cat'), g.id_categoria_gasto);
+    pon('id_sucursal', val('suc'), g.id_sucursal); if (!document.getElementById('cp-e-cc').disabled) pon('id_centro_costo', val('cc'), g.id_centro_costo);
     const monto = cpParseMonto(val('monto')); if (monto !== cpTotal(g)) cambios.monto = monto;
     if (!Object.keys(cambios).length) return cpCerrar('cp-modal-editar');
     const btn = document.getElementById('cp-e-guardar'); btn.disabled = true;
@@ -341,6 +428,11 @@ function cpAbrirGasto() {
     document.getElementById('cp-n-tipodoc').value = '';
     document.getElementById('cp-n-moneda').innerHTML = ['CLP', ...CP_MONEDAS_EXT].map(m => `<option>${m}</option>`).join('');
     document.getElementById('cp-n-tasa').value = '';
+    document.getElementById('cp-n-suc').innerHTML = cpOpcionesSucursal();
+    document.getElementById('cp-n-suc').value = CP.sucursales.length === 1 ? CP.sucursales[0].id : '';
+    document.getElementById('cp-n-suc-box').classList.toggle('hidden', CP.sucursales.length <= 1);
+    document.getElementById('cp-n-cc').innerHTML = cpOpcionesCentro();
+    document.getElementById('cp-n-cc-box').classList.toggle('hidden', !cpCentrosActivos().length);
     cpCambioMoneda();
     cpCambioCondicion();
     document.getElementById('cp-modal-gasto').classList.remove('hidden');
@@ -393,6 +485,7 @@ async function cpGuardarGasto() {
         id_categoria_gasto: v('cp-n-cat') || null, id_proveedor: prov?.id || null, condicion_pago: cond,
         id_cuenta_pago: cond === 'credito' ? null : v('cp-n-cuenta'), dias_credito: cond === 'credito' ? Number(v('cp-n-dias') || 0) : 0,
         tipo_documento: v('cp-n-tipodoc') || null, numero_documento: v('cp-n-numdoc') || null,
+        id_sucursal: v('cp-n-suc') || null, id_centro_costo: v('cp-n-cc') || null,
         nota: [provNombre && !prov ? 'Proveedor: ' + provNombre : '', v('cp-n-nota')].filter(Boolean).join(' · ') || null
     };
     const mon = v('cp-n-moneda');
@@ -791,7 +884,8 @@ async function cpCargarCuentas() {
     document.getElementById('cp-c-lista').innerHTML = CP.cuentas.length ? CP.cuentas.map(c => `
         <div class="bg-white rounded-xl border ${c.activo ? 'border-slate-200' : 'border-dashed border-slate-300 opacity-60'} shadow-sm p-4 space-y-2">
             <div class="flex justify-between items-start"><div><p class="font-black text-slate-800">${cpEsc(c.nombre)}</p>
-                <p class="text-xs text-slate-500">${TIPOS_CUENTA[c.tipo]}${c.ultimos_4 ? ' ···· ' + cpEsc(c.ultimos_4) : ''} · ${cpEsc(c.moneda)}</p></div>
+                <p class="text-xs text-slate-500">${TIPOS_CUENTA[c.tipo]}${c.ultimos_4 ? ' ···· ' + cpEsc(c.ultimos_4) : ''} · ${cpEsc(c.moneda)}</p>
+                ${CP.razones.length > 1 && cpRazon(c.id_razon_social) ? `<p class="text-[11px] text-teal-700 font-bold">${cpEsc(cpRazon(c.id_razon_social).nombre)}</p>` : ''}</div>
                 <button onclick="cpAbrirCuenta('${c.id}')" class="text-xs font-bold text-blue-600 hover:underline">Editar</button></div>
             ${c.tipo === 'reembolsable' ? `<p class="text-sm">La empresa le debe a <b>${cpEsc(c.titular || c.nombre)}</b>: <span class="font-black text-amber-700">${cpFmt(debe[c.id] || 0, c.moneda)}</span></p>` : ''}
             ${!c.activo ? '<p class="text-[11px] font-bold text-slate-400">Desactivada</p>' : ''}
@@ -809,6 +903,9 @@ function cpAbrirCuenta(id) {
     document.getElementById('cp-c-moneda').value = c?.moneda || CP.monedas[0];
     document.getElementById('cp-c-titular').value = c?.titular || '';
     document.getElementById('cp-c-ult4').value = c?.ultimos_4 || '';
+    document.getElementById('cp-c-razon').innerHTML = (CP.razones || []).filter(r => r.activo).map(r => `<option value="${r.id}">${cpEsc(r.nombre)}${r.rut ? ' · ' + cpEsc(r.rut) : ''}</option>`).join('');
+    document.getElementById('cp-c-razon').value = c?.id_razon_social || CP.razones.find(r => r.principal)?.id || '';
+    document.getElementById('cp-c-razon-box').classList.toggle('hidden', (CP.razones || []).length <= 1);
     cpCambioTipoCuenta();
     const m = document.getElementById('cp-modal-cuenta');
     m.querySelector('#cp-c-activo-box')?.remove();
@@ -826,7 +923,8 @@ async function cpGuardarCuenta() {
     const ult4 = document.getElementById('cp-c-ult4').value.trim();
     const datos = {
         nombre: document.getElementById('cp-c-nombre').value.trim(), moneda: document.getElementById('cp-c-moneda').value,
-        titular: tipo === 'reembolsable' ? document.getElementById('cp-c-titular').value.trim() : null, ultimos_4: ult4 || null
+        titular: tipo === 'reembolsable' ? document.getElementById('cp-c-titular').value.trim() : null, ultimos_4: ult4 || null,
+        id_razon_social: document.getElementById('cp-c-razon').value || CP.razones.find(r => r.principal)?.id || null
     };
     if (!datos.nombre) return alert('Ponle un nombre a la cuenta.');
     if (tipo === 'reembolsable' && !datos.titular) return alert('Indica quién es la persona.');
@@ -874,5 +972,5 @@ async function cpBorrarCategoria(id) {
     await cpCargarBase(); cpPintarCategorias();
 }
 
-Object.assign(window, { cpPlegarMes, cpMenu, cpCerrarMenu, cpMenuGasto, cpVerGasto, cpEditarGasto, cpGuardarEdicion, cpSelLote, cpMenuPago, cpVerPago, cpCambioMoneda, cpPreviewMoneda, cpAnularGasto, cpTab, cpCerrar, cpCargarResumen, cpCargarGastos, cpPintarGastos, cpAbrirGasto, cpCambioCondicion, cpGuardarGasto, cpDescargarPlantilla, cpDescargarGastos,
+Object.assign(window, { cpAbrirReparto, cpFilaReparto, cpSumaReparto, cpGuardarReparto, cpPlegarMes, cpMenu, cpCerrarMenu, cpMenuGasto, cpVerGasto, cpEditarGasto, cpGuardarEdicion, cpSelLote, cpMenuPago, cpVerPago, cpCambioMoneda, cpPreviewMoneda, cpAnularGasto, cpTab, cpCerrar, cpCargarResumen, cpCargarGastos, cpPintarGastos, cpAbrirGasto, cpCambioCondicion, cpGuardarGasto, cpDescargarPlantilla, cpDescargarGastos,
     cpLeerCSV, cpImportar, cpSel, cpSelGrupo, cpAbrirPago, cpConfirmarPago, cpAnularPago, cpAbrirCuenta, cpCambioTipoCuenta, cpGuardarCuenta, cpCrearCategoria, cpVisibleCategoria, cpBorrarCategoria });

@@ -12,7 +12,9 @@
         <button id="cp-tab-gastos" onclick="cpTab('gastos')" class="px-4 py-2 text-sm font-bold border-b-2 whitespace-nowrap">Facturas y gastos</button>
         <button id="cp-tab-pagar" onclick="cpTab('pagar')" class="px-4 py-2 text-sm font-bold border-b-2 whitespace-nowrap">Por pagar</button>
         <button id="cp-tab-conciliacion" onclick="cpTab('conciliacion')" class="px-4 py-2 text-sm font-bold border-b-2 whitespace-nowrap">Conciliación</button>
+        <button id="cp-tab-proyeccion" onclick="cpTab('proyeccion')" class="px-4 py-2 text-sm font-bold border-b-2 whitespace-nowrap">Proyección y presupuesto</button>
         <button id="cp-tab-cuentas" onclick="cpTab('cuentas')" class="px-4 py-2 text-sm font-bold border-b-2 whitespace-nowrap">Cuentas y tarjetas</button>
+        <button id="cp-tab-organizacion" onclick="cpTab('organizacion')" class="px-4 py-2 text-sm font-bold border-b-2 whitespace-nowrap">Organización</button>
         <button id="cp-tab-categorias" onclick="cpTab('categorias')" class="px-4 py-2 text-sm font-bold border-b-2 whitespace-nowrap">Categorías</button>
     </div>
 
@@ -52,6 +54,8 @@
             <input id="cp-g-mes" type="month" onchange="cpCargarGastos()" class="px-3 py-2 border rounded-lg text-sm" title="Mes (vacío = todo)">
             <select id="cp-g-cuenta" onchange="cpPintarGastos()" class="px-3 py-2 border rounded-lg bg-white text-sm"></select>
             <select id="cp-g-categoria" onchange="cpPintarGastos()" class="px-3 py-2 border rounded-lg bg-white text-sm"></select>
+            <select id="cp-g-sucursal" onchange="cpPintarGastos()" class="hidden px-3 py-2 border rounded-lg bg-white text-sm"></select>
+            <select id="cp-g-centro" onchange="cpPintarGastos()" class="hidden px-3 py-2 border rounded-lg bg-white text-sm"></select>
             <select id="cp-g-estado" onchange="cpPintarGastos()" class="px-3 py-2 border rounded-lg bg-white text-sm">
                 <option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="parcial">Parcial</option><option value="pagado">Pagado</option><option value="anulado">Anulados</option>
             </select>
@@ -130,6 +134,9 @@
     </div>
 
     <!-- ================= CUENTAS ================= -->
+    <!-- ================= PROYECCIÓN Y PRESUPUESTO ================= -->
+    <div id="cp-proyeccion" class="hidden space-y-5"></div>
+
     <div id="cp-cuentas" class="hidden space-y-4">
         <div class="flex justify-between items-center">
             <p class="text-xs text-slate-500">Una cuenta <b>reembolsable</b> es una persona que paga por la empresa (rendiciones o tarjeta personal): su saldo es lo que la empresa le debe.</p>
@@ -139,6 +146,9 @@
     </div>
 
     <!-- ================= CATEGORÍAS ================= -->
+    <!-- ================= ORGANIZACIÓN ================= -->
+    <div id="cp-organizacion" class="hidden space-y-5"></div>
+
     <div id="cp-categorias" class="hidden space-y-4">
         <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-3">
             <h3 class="font-black text-slate-800">Agregar una categoría propia</h3>
@@ -175,6 +185,8 @@
                 <p id="cp-n-tasa-info" class="text-[11px] text-slate-500 mt-1"></p></div>
             <div><label class="block text-xs font-bold text-slate-500 mb-1">Categoría</label><select id="cp-n-cat" class="w-full px-3 py-2 border rounded-lg bg-white text-sm"></select></div>
             <div><label class="block text-xs font-bold text-slate-500 mb-1">Proveedor</label><input id="cp-n-prov" list="cp-lista-proveedores" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Opcional"></div>
+            <div id="cp-n-suc-box" class="hidden"><label class="block text-xs font-bold text-slate-500 mb-1">Sucursal</label><select id="cp-n-suc" class="w-full px-3 py-2 border rounded-lg bg-white text-sm"></select></div>
+            <div id="cp-n-cc-box" class="hidden"><label class="block text-xs font-bold text-slate-500 mb-1">Centro de costo</label><select id="cp-n-cc" class="w-full px-3 py-2 border rounded-lg bg-white text-sm"></select></div>
             <div><label class="block text-xs font-bold text-slate-500 mb-1">¿Cómo se pagó? *</label>
                 <select id="cp-n-cond" onchange="cpCambioCondicion()" class="w-full px-3 py-2 border rounded-lg bg-white text-sm">
                     <option value="contado">Ya se pagó (o lo pagó alguien)</option><option value="credito">A crédito con el proveedor</option></select></div>
@@ -207,6 +219,7 @@
                     <option value="tarjeta_credito">Tarjeta de crédito de la empresa</option><option value="reembolsable">Reembolsable (persona que paga por la empresa)</option></select></div>
             <div><label class="block text-xs font-bold text-slate-500 mb-1">Moneda</label><select id="cp-c-moneda" class="w-full px-3 py-2 border rounded-lg bg-white text-sm"></select></div>
             <div id="cp-c-titular-box" class="hidden"><label class="block text-xs font-bold text-slate-500 mb-1">Persona *</label><input id="cp-c-titular" maxlength="80" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Ej: José Luis"></div>
+            <div id="cp-c-razon-box" class="md:col-span-2 hidden"><label class="block text-xs font-bold text-slate-500 mb-1">Razón social dueña de la cuenta</label><select id="cp-c-razon" class="w-full px-3 py-2 border rounded-lg bg-white text-sm"></select></div>
             <div id="cp-c-ult4-box"><label class="block text-xs font-bold text-slate-500 mb-1">Últimos 4 dígitos</label><input id="cp-c-ult4" maxlength="4" inputmode="numeric" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Opcional"></div>
         </div>
         <div class="flex justify-end gap-2">
@@ -217,6 +230,20 @@
 </div>
 
 <!-- ================= MODAL PAGO ================= -->
+<!-- Repartir gasto -->
+<div id="cp-modal-reparto" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 space-y-4">
+        <div class="flex justify-between items-center"><h3 class="text-lg font-black text-slate-800">Repartir gasto</h3><button onclick="cpCerrar('cp-modal-reparto')" class="text-slate-400 text-xl">✕</button></div>
+        <p id="cp-rp-gasto" class="text-sm text-slate-600"></p>
+        <p class="text-xs text-slate-500">Reparte el gasto entre centros de costo o sucursales. Los porcentajes deben sumar 100%; el último tramo ajusta el redondeo.</p>
+        <div id="cp-rp-filas" class="space-y-2"></div>
+        <button onclick="cpFilaReparto(); cpSumaReparto()" class="text-sm font-bold text-teal-700 hover:underline">+ Agregar tramo</button>
+        <div class="flex items-center justify-between gap-2 pt-2 border-t border-slate-100"><p id="cp-rp-suma"></p>
+            <div class="flex gap-2"><button onclick="cpGuardarReparto(true)" class="px-3 py-2 text-xs font-bold text-slate-500 hover:text-red-600">Quitar reparto</button>
+            <button id="cp-rp-guardar" onclick="cpGuardarReparto()" class="px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold text-sm">Guardar reparto</button></div></div>
+    </div>
+</div>
+
 <!-- Detalle (gasto o pago) -->
 <div id="cp-modal-detalle" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden p-6 space-y-4">
@@ -238,6 +265,8 @@
             <label class="block text-xs font-bold text-slate-500">Documento<select id="cp-e-doc" class="mt-1 w-full px-3 py-2 border rounded-lg text-sm bg-white">
                 <option value="">Sin indicar</option><option value="factura">Factura</option><option value="boleta">Boleta</option><option value="boleta_honorarios">Boleta de honorarios</option><option value="factura_exenta">Factura exenta</option><option value="extranjero">Extranjero / internacional</option><option value="sin_documento">Sin documento</option></select></label>
             <label class="block text-xs font-bold text-slate-500">N° documento<input id="cp-e-num" class="mt-1 w-full px-3 py-2 border rounded-lg text-sm"></label>
+            <label class="block text-xs font-bold text-slate-500">Sucursal<select id="cp-e-suc" class="mt-1 w-full px-3 py-2 border rounded-lg text-sm bg-white"></select></label>
+            <label class="block text-xs font-bold text-slate-500">Centro de costo<select id="cp-e-cc" class="mt-1 w-full px-3 py-2 border rounded-lg text-sm bg-white disabled:bg-slate-100" title="Si el gasto está repartido, se cambia desde Repartir %"></select></label>
         </div>
         <label class="block text-xs font-bold text-slate-500">Rendición / lote de reembolso<input id="cp-e-lote" list="cp-e-lotes" maxlength="80" placeholder="Ej: Rendición #260210-02" class="mt-1 w-full px-3 py-2 border rounded-lg text-sm"><datalist id="cp-e-lotes"></datalist></label>
         <label class="block text-xs font-bold text-slate-500">Nota<input id="cp-e-nota" maxlength="500" class="mt-1 w-full px-3 py-2 border rounded-lg text-sm"></label>
