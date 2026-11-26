@@ -363,7 +363,7 @@ function ccPintar() {
             <p class="text-sm mt-1"><b class="text-slate-800">${regs.length}</b> <span class="text-slate-500">registros en el período</span></p>
             <p class="text-sm mt-1 flex items-center gap-2 flex-wrap">${buddySin ? `${ccBurbuja(buddySin)} <span class="text-amber-700 font-bold">sin línea en la cartola</span> ${chips(mesesBuddy)}` : '<span class="text-emerald-700 font-bold">✓ Todo tiene su línea</span>'}</p>`)}
         ${ultimoSaldo ? `<div class="min-w-[160px] bg-white border border-slate-200 rounded-xl p-3"><p class="text-[11px] font-bold text-slate-500 uppercase flex items-center justify-between gap-2">Saldo al ${cpFecha(ultimoSaldo.fecha)}
-            <button onclick="ccVerSaldo()" title="${CC_UI.saldo ? 'Ocultar' : 'Mostrar'} saldo" class="text-slate-400 hover:text-slate-700 text-sm">${CC_UI.saldo ? '🙈' : '👁'}</button></p>
+            <button onclick="ccVerSaldo()" title="${CC_UI.saldo ? 'Ocultar' : 'Mostrar'} saldo" aria-label="${CC_UI.saldo ? 'Ocultar' : 'Mostrar'} saldo" class="opacity-60 hover:opacity-100 transition-opacity"><img src="/img/iconos/${CC_UI.saldo ? 'ojo-ocultar' : 'ojo-mostrar'}.svg" alt="" class="w-5 h-5 pointer-events-none"></button></p>
             <p class="text-lg font-black">${CC_UI.saldo ? cpFmt(ultimoSaldo.saldo, cta?.moneda) : '$ • • • • •'}</p></div>` : ''}</div>`;
     document.getElementById('cc-burbuja-banco').innerHTML = ccBurbuja(bancoSin);
     document.getElementById('cc-burbuja-buddy').innerHTML = ccBurbuja(buddySin);
