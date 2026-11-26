@@ -85,6 +85,24 @@ function ccRegla(m) {
     return CC.reglas.filter(r => p.startsWith(r.patron) || r.patron.startsWith(p)).sort((a, b) => b.patron.length - a.patron.length)[0];
 }
 
+// Busca de 2 a 6 registros sin vincular (pagos desde esta cuenta o gastos pagados con ella) que sumen exacto la línea
+function ccCombinacion(m, abs, usados) {
+    const enVentana = (f) => { const d = (new Date(m.fecha) - new Date(f)) / 864e5; return d >= -3 && d <= 20; };
+    const regs = [
+        ...CC.pagos.filter(p => !usados.has('pago:' + p.id) && enVentana(p.fecha)).map(p => ({ tipo: 'pago', id: p.id, monto: Number(p.monto), txt: p.referencia || 'Pago' })),
+        ...CC.compras.filter(c => !usados.has('compra:' + c.id) && c.id_cuenta_pago === m.id_cuenta && enVentana(c.fecha_compra)).map(c => ({ tipo: 'compra', id: c.id, monto: cpTotal(c), txt: c.descripcion }))
+    ].filter(r => r.monto > 0 && r.monto < abs).sort((a, b) => b.monto - a.monto).slice(0, 25);
+    let pasos = 0, mejor = null;
+    const buscar = (i, resto, elegidos) => {
+        if (mejor || ++pasos > 20000) return;
+        if (resto === 0 && elegidos.length >= 2) { mejor = elegidos.slice(); return; }
+        if (elegidos.length >= 6) return;
+        for (let k = i; k < regs.length; k++) if (regs[k].monto <= resto) { elegidos.push(regs[k]); buscar(k + 1, resto - regs[k].monto, elegidos); elegidos.pop(); if (mejor) return; }
+    };
+    buscar(0, abs, []);
+    return mejor;
+}
+
 function ccCalcularSugerencias() {
     CC.sug = {};
     const usados = new Set(CC.vinculados);
@@ -97,7 +115,7 @@ function ccCalcularSugerencias() {
             const pago = CC.pagos.filter(p => !usados.has('pago:' + p.id) && Number(p.monto) === abs && ccDias(p.fecha, m.fecha) <= 7)
                 .sort((a, b) => ccDias(a.fecha, m.fecha) - ccDias(b.fecha, m.fecha))[0];
             if (pago) { usados.add('pago:' + pago.id); return CC.sug[m.id] = { accion: 'vincular', datos: { tipo: 'pago', id: pago.id }, segura: true, texto: `Calza con el pago “${pago.referencia || 'sin referencia'}” del ${cpFecha(pago.fecha)}` }; }
-            const exactos = CC.compras.filter(c => !usados.has('compra:' + c.id) && cpTotal(c) === abs && ccDias(c.fecha_compra, m.fecha) <= 7)
+            const exactos = CC.compras.filter(c => !usados.has('compra:' + c.id) && cpTotal(c) === abs && ccDias(c.fecha_compra, m.fecha) <= 10)
                 .sort((a, b) => (a.id_cuenta_pago !== m.id_cuenta) - (b.id_cuenta_pago !== m.id_cuenta) || ccDias(a.fecha_compra, m.fecha) - ccDias(b.fecha_compra, m.fecha));
             const comp = exactos[0];
             if (comp) {
@@ -106,19 +124,18 @@ function ccCalcularSugerencias() {
                 return CC.sug[m.id] = { accion: 'vincular', datos: { tipo: 'compra', id: comp.id }, segura: misma,
                     texto: `Calza con el gasto “${comp.descripcion}” del ${cpFecha(comp.fecha_compra)}${misma ? '' : ` · ⚠️ registrado con ${cpCuenta(comp.id_cuenta_pago)?.nombre || 'otra cuenta'}`}` };
             }
+            // ¿Varios registros que juntos calzan exacto? (ej. dos reembolsos en una transferencia, o 5 gastos pagados de una vez)
+            const combo = ccCombinacion(m, abs, usados);
+            if (combo) {
+                combo.forEach(r => usados.add(r.tipo + ':' + r.id));
+                return CC.sug[m.id] = { accion: 'vincular', datos: { items: combo.map(r => ({ tipo: r.tipo, id: r.id })) }, segura: combo.length <= 3,
+                    texto: `Calza con ${combo.length} registros: ${combo.map(r => `“${r.txt}” ${cpFmt(r.monto)}`).join(' + ')}` };
+            }
             if (regla) {
                 // Antes de crear un gasto por regla, revisar que no exista uno parecido (±10%, ±7 días) en cualquier cuenta
                 const par = regla.accion === 'empresa' && CC.compras.find(c => !usados.has('compra:' + c.id) && Math.abs(cpTotal(c) - abs) <= abs * 0.1 && ccDias(c.fecha_compra, m.fecha) <= 7);
                 if (par) return CC.sug[m.id] = { aviso: true, texto: `⚠️ Comercio recordado, pero ya hay un gasto parecido: “${par.descripcion}” ${cpFmt(cpTotal(par))} del ${cpFecha(par.fecha_compra)} (${cpCuenta(par.id_cuenta_pago)?.nombre || 'a crédito'}). Revísalo antes de crear otro.` };
                 return CC.sug[m.id] = ccSugRegla(regla);
-            }
-            // ¿Dos pagos registrados que juntos calzan exacto? (ej. dos reembolsos pagados en una sola transferencia)
-            const libres = CC.pagos.filter(p => !usados.has('pago:' + p.id) && ccDias(p.fecha, m.fecha) <= 7 && Number(p.monto) < abs);
-            for (let a = 0; a < libres.length; a++) for (let b = a + 1; b < libres.length; b++) {
-                if (Number(libres[a].monto) + Number(libres[b].monto) !== abs) continue;
-                const par = [libres[a], libres[b]]; par.forEach(p => usados.add('pago:' + p.id));
-                return CC.sug[m.id] = { accion: 'vincular', datos: { items: par.map(p => ({ tipo: 'pago', id: p.id })) }, segura: true,
-                    texto: `Calza con 2 pagos: “${par[0].referencia || ''}” ${cpFmt(par[0].monto)} + “${par[1].referencia || ''}” ${cpFmt(par[1].monto)}` };
             }
             const cerca = CC.pagos.filter(p => !usados.has('pago:' + p.id) && ccDias(p.fecha, m.fecha) <= 3 && Math.abs(Number(p.monto) - abs) / abs < 0.5)[0];
             if (cerca) return CC.sug[m.id] = { aviso: true, texto: `⚠️ El ${cpFecha(cerca.fecha)} registraste un pago de ${cpFmt(cerca.monto)} (“${cerca.referencia || ''}”): diferencia de ${cpFmt(Math.abs(Number(cerca.monto) - abs))}` };
